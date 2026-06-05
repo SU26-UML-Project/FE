@@ -6099,3 +6099,7 @@
 /node_modules/vite/package.json
 /node_modules/vite/README.md
 /node_modules/.package-lock.json
+/node_modules/.vite/deps/lucide-react.js
+/node_modules/.vite/deps/lucide-react.js.map
+/node_modules/.vite/deps/react-CHGKtqJi.js
+/node_modules/.vite/deps/react-CHGKtqJi.js.map
