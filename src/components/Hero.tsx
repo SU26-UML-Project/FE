@@ -32,7 +32,7 @@ const Hero = () => {
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-6 pt-20 pb-12" data-purpose="hero-content">
+    <main className="max-w-7xl mx-auto px-6 pt-32 pb-12" data-purpose="hero-content">
       <div className="max-w-3xl">
         <h1 className="text-5xl md:text-6xl font-priego-extrabold text-black uppercase mb-6">
           DESIGN COMPLEX<br />SYSTEMS, SIMPLY.
