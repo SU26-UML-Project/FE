@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { LogIn } from 'lucide-react'
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false)
+  const location = useLocation()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -17,32 +19,59 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  const linkBase = 'text-[15px] font-semibold transition-colors duration-300'
+  const onHome = location.pathname === '/'
+
   return (
     <div className="fixed top-0 left-0 w-full z-[100] flex justify-center pointer-events-none transition-all duration-400 ease-in-out">
-      <header 
+      <header
         id="home"
         className={`
           w-full flex items-center justify-between transition-all duration-400 ease-in-out pointer-events-auto
-          ${isScrolled 
-            ? 'max-w-4xl px-8 py-3 bg-white/90 backdrop-blur-md rounded-[999px] shadow-lg border border-gray-200/50 mt-4' 
+          ${isScrolled
+            ? 'max-w-4xl px-8 py-3 bg-white/90 backdrop-blur-md rounded-[999px] shadow-lg border border-gray-200/50 mt-4'
             : 'max-w-full px-12 py-6 footer-bg mt-0 border-b border-gray-200/0 rounded-[0px]'
           }
-        `} 
+        `}
         data-purpose="navigation-bar"
       >
-        <div className="flex items-center cursor-pointer" data-purpose="logo-container" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+        <Link
+          to="/"
+          className="flex items-center cursor-pointer"
+          data-purpose="logo-container"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        >
           <span className={`font-extrabold tracking-tight text-black font-priego-extrabold transition-all duration-500 ${isScrolled ? 'text-xl' : 'text-2xl'}`}>
             UML Diagram
           </span>
-        </div>
-        
+        </Link>
+
         <nav className="hidden md:flex items-center space-x-8" data-purpose="main-nav">
-          <a className="text-[15px] font-semibold text-gray-900 hover:text-uml-blue transition-colors duration-300" href="#key-features">Features</a>
-          <a className="text-[15px] font-semibold text-gray-900 hover:text-uml-blue transition-colors duration-300" href="#popular-templates">Templates</a>
-          <a className="text-[15px] font-semibold text-gray-900 hover:text-uml-blue transition-colors duration-300" href="#">Pricing</a>
-          <a className="text-[15px] font-semibold text-gray-900 hover:text-uml-blue transition-colors duration-300" href="#">Documentation</a>
+          {onHome ? (
+            <a href="#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Features</a>
+          ) : (
+            <Link to="/#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Features</Link>
+          )}
+          {onHome ? (
+            <a href="#popular-templates" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Templates</a>
+          ) : (
+            <Link to="/#popular-templates" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Templates</Link>
+          )}
+          <NavLink
+            to="/pricing"
+            className={({ isActive }) =>
+              `${linkBase} ${isActive ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`
+            }
+          >
+            Pricing
+          </NavLink>
+          {onHome ? (
+            <a href="#docs" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Documentation</a>
+          ) : (
+            <Link to="/#docs" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Documentation</Link>
+          )}
         </nav>
-        
+
         <div className="flex items-center space-x-3" data-purpose="header-buttons">
           {isScrolled ? (
             <button className="login-btn-pill transition-all duration-500">
