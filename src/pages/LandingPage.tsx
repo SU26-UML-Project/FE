@@ -3,7 +3,7 @@ import Features from '../components/Features'
 import Templates from '../components/Templates'
 import CTA from '../components/CTA'
 
-const HomePage = () => {
+const LandingPage = () => {
   return (
     <>
       <Hero />
@@ -14,4 +14,4 @@ const HomePage = () => {
   )
 }
 
-export default HomePage
+export default LandingPage

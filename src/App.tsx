@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
-import HomePage from './pages/HomePage'
+import LandingPage from './pages/LandingPage'
 import Pricing from './components/Pricing'
 
 const ScrollToHash = () => {
@@ -31,7 +31,7 @@ function App() {
       <Navbar />
       <main>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/pricing" element={<Pricing />} />
         </Routes>
       </main>
