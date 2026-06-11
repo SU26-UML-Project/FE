@@ -103,6 +103,12 @@ const Pricing = () => {
   const [billing, setBilling] = useState<BillingCycle>('monthly')
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
 
+  useEffect(() => {
+    const collapse = () => setExpandedIndex(null)
+    document.addEventListener('click', collapse)
+    return () => document.removeEventListener('click', collapse)
+  }, [])
+
   return (
     <>
       <section className="relative pt-32 pb-16 px-4 md:px-8 min-h-[100dvh]">
@@ -265,7 +271,10 @@ const PlanCard = ({
       }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
-      onClick={onToggle}
+      onClick={(e) => {
+        e.stopPropagation()
+        onToggle()
+      }}
       transition={{
         duration: 0.5,
         ease: [0.16, 1, 0.3, 1],
