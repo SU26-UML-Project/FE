@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, animate, useMotionValue, useTransform } from 'framer-motion'
-import { Check, ArrowRight, ArrowDown, Activity, RefreshCw, HardDrive, Globe, X, ChevronDown } from 'lucide-react'
+import { Check, ArrowRight, ArrowDown, Activity, RefreshCw, HardDrive, Globe, X, ChevronDown, LogIn } from 'lucide-react'
+import AuthModal from './Auth/AuthModal'
 
 type BillingCycle = 'monthly' | 'yearly'
 
@@ -151,6 +152,8 @@ const faqData = [
 const Pricing = () => {
   const [billing, setBilling] = useState<BillingCycle>('monthly')
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
 
   useEffect(() => {
     const collapse = () => setExpandedIndex(null)
@@ -158,9 +161,19 @@ const Pricing = () => {
     return () => document.removeEventListener('click', collapse)
   }, [])
 
+  const openAuth = (mode: 'login' | 'register') => {
+    setAuthMode(mode)
+    setIsAuthModalOpen(true)
+  }
+
   return (
     <>
-      <section className="relative pt-32 pb-16 px-4 md:px-8 min-h-[100dvh]">
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+        initialMode={authMode}
+      />
+      <section className="relative pt-32 pb-16 px-4 md:px-8 min-h-[100dvh] bg-white/30">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ y: 20, opacity: 0 }}
@@ -186,7 +199,7 @@ const Pricing = () => {
           </motion.div>
 
           <div className="flex flex-col md:flex-row gap-4 md:gap-5 items-stretch">
-            {plans.map((plan, idx) => (
+              {plans.map((plan, idx) => (
               <PlanCard
                 key={plan.name}
                 plan={plan}
@@ -195,13 +208,14 @@ const Pricing = () => {
                 isExpanded={expandedIndex === idx}
                 isAnyExpanded={expandedIndex !== null}
                 onToggle={() => setExpandedIndex(prev => (prev === idx ? null : idx))}
+                openAuth={openAuth}
               />
             ))}
           </div>
         </div>
       </section>
 
-      <div className="flex justify-center -mt-12 mb-4">
+      <div className="flex justify-center -mt-8 mb-4">
         <motion.a
           href="#every-plan-includes"
           aria-label="Scroll to Every plan includes"
@@ -222,9 +236,36 @@ const Pricing = () => {
         </motion.a>
       </div>
 
-      <EveryPlanIncludes />
-      <FeatureComparison />
-      <FAQSection />
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="text-center mb-10"
+      >
+        <div className="inline-flex items-center gap-8 md:gap-14 px-8 py-4 bg-white rounded-2xl border border-gray-200/60 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)]">
+          <div className="text-center">
+            <div className="text-lg font-priego-extrabold text-black">2,000+</div>
+            <div className="text-xs text-gray-500">Teams Trust Us</div>
+          </div>
+          <div className="w-px h-8 bg-gray-200"></div>
+          <div className="text-center">
+            <div className="text-lg font-priego-extrabold text-black">4.8/5</div>
+            <div className="text-xs text-gray-500">User Rating</div>
+          </div>
+          <div className="w-px h-8 bg-gray-200"></div>
+          <div className="text-center">
+            <div className="text-lg font-priego-extrabold text-black">99.9%</div>
+            <div className="text-xs text-gray-500">Uptime SLA</div>
+          </div>
+        </div>
+      </motion.div>
+
+      <div className="bg-gradient-to-b from-transparent via-white/20 to-white/40">
+        <EveryPlanIncludes />
+        <FeatureComparison />
+        <FAQSection />
+      </div>
     </>
   )
 }
@@ -242,7 +283,7 @@ const BillingToggle = ({
     <div
       role="tablist"
       aria-label="Billing cycle"
-      className="relative inline-flex items-center bg-white border-[1.5px] border-[#666666] rounded-full p-1"
+      className="relative inline-flex items-center bg-white/60 backdrop-blur-sm border-2 border-gray-200/80 rounded-full p-0.5"
     >
       {(['monthly', 'yearly'] as BillingCycle[]).map(option => {
         const isActive = billing === option
@@ -252,20 +293,27 @@ const BillingToggle = ({
             role="tab"
             aria-selected={isActive}
             onClick={() => setBilling(option)}
-            className={`relative px-6 py-2 text-sm font-bold uppercase tracking-wider rounded-full transition-colors duration-300 capitalize ${
-              isActive ? 'bg-uml-blue text-white' : 'text-gray-600 hover:text-black'
+            className={`relative z-10 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-full capitalize transition-colors duration-300 ${
+              isActive ? 'text-white' : 'text-gray-500 hover:text-gray-800'
             }`}
           >
-            {option}
-            {option === 'yearly' && (
-              <span
-                className={`ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  isActive ? 'bg-white/25 text-white' : 'bg-green-100 text-green-700'
-              }`}
-              >
-                -25%
-              </span>
+            {isActive && (
+              <motion.div
+                layoutId="billing-pill"
+                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                className="absolute inset-0 rounded-full bg-uml-blue/85 backdrop-blur-md border border-white/20 shadow-[0_2px_8px_rgba(37,99,235,0.2)]"
+              />
             )}
+            <span className="relative z-10 flex items-center gap-1">
+              {option}
+              {option === 'yearly' && (
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                  isActive ? 'bg-white/20 text-white' : 'bg-green-100 text-green-700'
+                }`}>
+                  -25%
+                </span>
+              )}
+            </span>
           </button>
         )
       })}
@@ -295,6 +343,7 @@ const PlanCard = ({
   isExpanded,
   isAnyExpanded,
   onToggle,
+  openAuth,
 }: {
   plan: Plan
   index: number
@@ -302,9 +351,14 @@ const PlanCard = ({
   isExpanded: boolean
   isAnyExpanded: boolean
   onToggle: () => void
+  openAuth: (mode: 'login' | 'register') => void
 }) => {
   const [isHovered, setIsHovered] = useState(false)
   const price = billing === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice
+  const monthlyPrice = plan.monthlyPrice
+  const yearlyPrice = plan.yearlyPrice
+  const monthlySaving = monthlyPrice !== null && yearlyPrice !== null && billing === 'yearly' ? monthlyPrice - yearlyPrice : 0
+  const yearlySaving = monthlySaving * 12
   const isBlurred = isAnyExpanded && !isExpanded
   const canBounce = isHovered && !isExpanded && !isBlurred
 
@@ -319,7 +373,9 @@ const PlanCard = ({
         scale: canBounce ? 1.025 : 1,
         y: canBounce ? -6 : 0,
         zIndex: isExpanded ? 10 : 1,
+        borderColor: isHovered && !plan.highlight ? '#2563eb' : (plan.highlight ? '#2563eb' : '#e5e7eb'),
       }}
+      whileHover={!isExpanded && !isAnyExpanded ? { scale: 1.025, y: -6 } : undefined}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
       onClick={(e) => {
@@ -327,20 +383,23 @@ const PlanCard = ({
         onToggle()
       }}
       transition={{
-        duration: 0.5,
-        ease: [0.16, 1, 0.3, 1],
-        opacity: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
-        filter: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
-        y: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
-        scale: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
-        flexGrow: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
-        zIndex: { duration: 0.2 },
+        type: 'spring',
+        stiffness: 400,
+        damping: 30,
+        mass: 0.7,
+        opacity: { duration: 0.25, ease: 'easeOut' },
+        filter: { duration: 0.3, ease: 'easeOut' },
+        flexGrow: { type: 'spring', stiffness: 350, damping: 28, mass: 0.9 },
+        zIndex: { duration: 0.15 },
       }}
-      className={`group relative cursor-pointer min-w-0 flex-1 rounded-[2rem] border-[1.5px] transition-colors duration-300 flex flex-col overflow-hidden ${
-        plan.highlight
-          ? 'border-uml-blue bg-blue-50/30 hover:bg-blue-50/50'
-          : 'border-[#666666] bg-white hover:border-uml-blue'
-      }`}
+      className="group relative cursor-pointer min-w-0 flex-1 rounded-[2rem] border-[1.5px] flex flex-col overflow-hidden bg-white"
+      style={{
+        boxShadow: plan.highlight
+          ? '0 8px 30px -8px rgba(37,99,235,0.25), 0 1px 3px rgba(0,0,0,0.04)'
+          : '0 4px 16px -6px rgba(0,0,0,0.08), 0 2px 6px -3px rgba(0,0,0,0.04)',
+        background: plan.highlight ? 'linear-gradient(to bottom, #f0f7ff, #ffffff)' : '#ffffff',
+        willChange: 'transform, filter',
+      }}
       data-purpose={`plan-card-${plan.name.toLowerCase()}`}
       role="button"
       tabIndex={0}
@@ -386,9 +445,14 @@ const PlanCard = ({
                   $<PriceCounter value={price} />
                 </span>
                 <span className="text-sm text-gray-500">/user/mo</span>
+                {billing === 'yearly' && monthlySaving > 0 && (
+                  <span className="ml-2 text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                    Save ${yearlySaving}/yr
+                  </span>
+                )}
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                {billing === 'yearly' ? 'Billed annually' : 'Billed monthly'}
+                {billing === 'yearly' ? `Billed annually — $${yearlyPrice}/user/mo` : 'Billed monthly'}
               </p>
             </>
           )}
@@ -415,7 +479,10 @@ const PlanCard = ({
         <div className="pt-4 border-t border-gray-100">
           {isExpanded ? (
             <button
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                openAuth(plan.name === 'Education' ? 'register' : 'login')
+              }}
               className={`w-full py-3 rounded-xl font-bold uppercase text-sm tracking-wider transition-colors duration-200 ${
                 plan.highlight
                   ? 'bg-uml-blue text-white hover:bg-blue-700'
@@ -425,10 +492,22 @@ const PlanCard = ({
               {plan.cta}
             </button>
           ) : (
-            <div className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500 group-hover:text-uml-blue transition-colors duration-300">
-              <span>View details</span>
-              <ArrowRight size={14} strokeWidth={2.5} />
-            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggle()
+              }}
+              className={`w-full py-3 rounded-xl font-bold uppercase text-sm tracking-wider transition-colors duration-300 ${
+                plan.highlight
+                  ? 'border-2 border-uml-blue text-uml-blue hover:bg-blue-50'
+                  : 'border-2 border-gray-300 text-gray-600 hover:border-uml-blue hover:text-uml-blue'
+              }`}
+            >
+              <span className="flex items-center justify-center gap-2">
+                <span>View details</span>
+                <ArrowRight size={14} strokeWidth={2.5} />
+              </span>
+            </button>
           )}
         </div>
       </div>
@@ -438,14 +517,14 @@ const PlanCard = ({
 
 const EveryPlanIncludes = () => {
   return (
-    <section id="every-plan-includes" className="py-20 px-4 md:px-8 border-t border-gray-200/60 scroll-mt-24">
+    <section id="every-plan-includes" className="py-16 px-4 md:px-8 border-t border-gray-200/60 scroll-mt-24">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           whileInView={{ y: 0, opacity: 1 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="text-center mb-14"
+          className="text-center mb-12"
         >
           <h2 className="text-3xl md:text-4xl font-priego-extrabold uppercase tracking-tight text-black mb-3">
             EVERY PLAN INCLUDES
@@ -455,7 +534,7 @@ const EveryPlanIncludes = () => {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-14 gap-y-10 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8 max-w-5xl mx-auto">
           {includes.map((item, idx) => {
             const Icon = item.icon
             return (
@@ -469,10 +548,10 @@ const EveryPlanIncludes = () => {
                   delay: idx * 0.08,
                   ease: [0.16, 1, 0.3, 1],
                 }}
-                className="group flex items-start gap-4"
+                className="group flex items-start gap-4 p-4 -m-4 rounded-2xl transition-all duration-300 hover:bg-white/60 hover:shadow-[0_4px_16px_-6px_rgba(0,0,0,0.06)]"
               >
-                <span className="shrink-0 w-12 h-12 rounded-full border-[1.5px] border-[#666666] flex items-center justify-center bg-white transition-all duration-300 group-hover:border-uml-blue group-hover:shadow-[0_0_15px_rgba(37,99,235,0.3)]">
-                  <Icon size={20} strokeWidth={1.5} className="text-black transition-colors duration-300 group-hover:text-uml-blue" />
+                <span className="shrink-0 w-12 h-12 rounded-xl border border-gray-200 flex items-center justify-center bg-white shadow-[0_2px_6px_-3px_rgba(0,0,0,0.08)] transition-all duration-300 group-hover:border-uml-blue group-hover:shadow-[0_4px_12px_-4px_rgba(37,99,235,0.25)]">
+                  <Icon size={20} strokeWidth={1.5} className="text-gray-700 transition-colors duration-300 group-hover:text-uml-blue" />
                 </span>
                 <div className="min-w-0 relative">
                   <h3 className="text-lg font-bold text-black mb-1.5 tracking-tight transition-colors duration-300 group-hover:text-uml-blue">
@@ -517,14 +596,14 @@ const FeatureComparison = () => {
   }
 
   return (
-    <section className="py-20 px-4 md:px-8 border-t border-gray-200/60">
+    <section className="py-16 px-4 md:px-8 border-t border-gray-200/60">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           whileInView={{ y: 0, opacity: 1 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="text-center mb-14"
+          className="text-center mb-12"
         >
           <h2 className="text-3xl md:text-4xl font-priego-extrabold uppercase tracking-tight text-black mb-3">
             DETAILED FEATURE COMPARISON
@@ -534,11 +613,11 @@ const FeatureComparison = () => {
           </p>
         </motion.div>
 
-        <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-[0_1px_3px_0_rgba(0,0,0,0.04),0_1px_2px_-1px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_25px_-5px_rgba(0,0,0,0.08),0_4px_6px_-4px_rgba(0,0,0,0.05)] transition-shadow duration-300">
+        <div className="overflow-x-auto rounded-2xl border border-gray-200/80 bg-white shadow-[0_4px_16px_-6px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.1),0_4px_8px_-4px_rgba(0,0,0,0.05)] transition-shadow duration-300">
           <table className="w-full min-w-[640px] border-collapse">
             <thead>
               <tr className="bg-gray-50/80">
-                <th className="text-left px-6 py-4 text-xs font-bold uppercase tracking-widest text-gray-400 border-b border-gray-200 w-[28%]">
+                <th className="text-left px-6 py-4 text-xs font-bold uppercase tracking-widest text-gray-400 border-b border-gray-200 w-[28%] sticky left-0 bg-gray-50/80 z-10">
                   Feature
                 </th>
                 {planNames.map(name => (
@@ -565,7 +644,7 @@ const FeatureComparison = () => {
                     idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'
                   } hover:bg-blue-50/20`}
                 >
-                  <td className="px-6 py-3.5 text-sm font-semibold text-gray-800 border-b border-gray-100/80">
+                  <td className={`px-6 py-3.5 text-sm font-semibold text-gray-800 border-b border-gray-100/80 sticky left-0 z-10 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}>
                     {row.feature}
                   </td>
                   {tiers.map(tier => (
@@ -590,14 +669,14 @@ const FAQSection = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(null)
 
   return (
-    <section className="py-20 px-4 md:px-8 border-t border-gray-200/60">
+    <section className="py-16 px-4 md:px-8 border-t border-gray-200/60">
       <div className="max-w-3xl mx-auto">
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           whileInView={{ y: 0, opacity: 1 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="text-center mb-14"
+          className="text-center mb-12"
         >
           <h2 className="text-3xl md:text-4xl font-priego-extrabold uppercase tracking-tight text-black mb-3">
             FREQUENTLY ASKED QUESTIONS
@@ -613,7 +692,7 @@ const FAQSection = () => {
             return (
               <div
                 key={idx}
-                className="border border-gray-200 rounded-xl overflow-hidden bg-white"
+                className="border border-gray-200/80 rounded-xl overflow-hidden bg-white shadow-[0_2px_8px_-4px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_20px_-8px_rgba(0,0,0,0.08)] transition-shadow duration-300"
               >
                 <button
                   onClick={() => setOpenIndex(isOpen ? null : idx)}
