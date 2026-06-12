@@ -8,6 +8,7 @@ const Navbar = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
   const location = useLocation()
+  const isDashboardPage = location.pathname.startsWith('/dashboard')
 
   const openAuth = (mode: 'login' | 'register') => {
     setAuthMode(mode)
@@ -41,6 +42,7 @@ const Navbar = () => {
               ? 'max-w-4xl px-8 py-3 bg-white/90 backdrop-blur-md rounded-[999px] shadow-lg border border-gray-200/50 mt-4'
               : 'max-w-full px-12 py-6 footer-bg mt-0 border-b border-gray-200/0 rounded-[0px]'
             }
+            ${isDashboardPage && !isScrolled ? 'bg-white border-b border-admin-outline' : ''}
           `}
           data-purpose="navigation-bar"
         >
@@ -56,30 +58,38 @@ const Navbar = () => {
           </Link>
 
           <nav className="hidden md:flex items-center space-x-8" data-purpose="main-nav">
-            {onHome ? (
-              <a href="#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Features</a>
-            ) : (
-              <Link to="/#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Features</Link>
-            )}
-            {onHome ? (
-              <a href="#popular-templates" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Templates</a>
-            ) : (
-              <Link to="/#popular-templates" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Templates</Link>
-            )}
-            <NavLink
-              to="/pricing"
-              className={({ isActive }) =>
-                `${linkBase} ${isActive ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`
-              }
-            >
-              Pricing
-            </NavLink>
-            {onHome ? (
-              <a href="#docs" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Documentation</a>
-            ) : (
-              <Link to="/#docs" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Documentation</Link>
-            )}
-          </nav>
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) =>
+              `${linkBase} ${isActive ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`
+            }
+          >
+            Dashboard
+          </NavLink>
+          {onHome ? (
+            <a href="#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Features</a>
+          ) : (
+            <Link to="/#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Features</Link>
+          )}
+          {onHome ? (
+            <a href="#popular-templates" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Templates</a>
+          ) : (
+            <Link to="/#popular-templates" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Templates</Link>
+          )}
+          <NavLink
+            to="/pricing"
+            className={({ isActive }) =>
+              `${linkBase} ${isActive ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`
+            }
+          >
+            Pricing
+          </NavLink>
+          {onHome ? (
+            <a href="#docs" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Documentation</a>
+          ) : (
+            <Link to="/#docs" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Documentation</Link>
+          )}
+        </nav>
 
           <div className="flex items-center space-x-3" data-purpose="header-buttons">
             {isScrolled ? (

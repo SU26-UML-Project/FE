@@ -4,6 +4,8 @@ import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import LandingPage from './pages/LandingPage'
 import Pricing from './components/Pricing'
+import AdminDashboard from './pages/AdminDashboard'
+import UserDashboard from './pages/UserDashboard'
 
 const ScrollToHash = () => {
   const { hash, key } = useLocation()
@@ -26,16 +28,22 @@ const ScrollToHash = () => {
 }
 
 function App() {
+  const location = useLocation()
+  const isAdminPage = location.pathname.startsWith('/admin')
+  const isDashboardPage = location.pathname.startsWith('/dashboard')
+
   return (
-    <div className="min-h-screen grid-background">
-      <Navbar />
+    <div className={`min-h-screen ${!isAdminPage && !isDashboardPage ? 'grid-background' : ''}`}>
+      {!isAdminPage && <Navbar />}
       <main>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/pricing" element={<Pricing />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/dashboard" element={<UserDashboard />} />
         </Routes>
       </main>
-      <Footer />
+      {!isAdminPage && !isDashboardPage && <Footer />}
       <ScrollToHash />
     </div>
   )

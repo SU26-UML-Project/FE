@@ -5,6 +5,16 @@
   --color-uml-dark: #000000;
   
   --font-priego: "Priego", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Admin Dashboard Colors */
+  --color-admin-bg: #f7f9fb;
+  --color-admin-surface: #eceef0;
+  --color-admin-outline: #c3c6d7;
+  --color-admin-secondary: #565e74;
+  --color-admin-primary: #004ac6;
+  --color-admin-on-surface: #191c1e;
+  --color-admin-on-surface-variant: #434655;
+  --color-admin-error: #ba1a1a;
 }
 
 @font-face {
