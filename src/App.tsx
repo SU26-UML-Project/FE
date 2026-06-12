@@ -6,6 +6,7 @@ import LandingPage from './pages/LandingPage'
 import Pricing from './pages/Pricing'
 import AdminDashboard from './pages/AdminDashboard'
 import UserDashboard from './pages/UserDashboard'
+import CanvasEditor from './pages/CanvasEditor'
 
 const ScrollToHash = () => {
   const { hash, key } = useLocation()
@@ -31,19 +32,21 @@ function App() {
   const location = useLocation()
   const isAdminPage = location.pathname.startsWith('/admin')
   const isDashboardPage = location.pathname.startsWith('/dashboard')
+  const isCanvasPage = location.pathname.startsWith('/canvas')
 
   return (
-    <div className={`min-h-screen ${!isAdminPage && !isDashboardPage ? 'grid-background' : ''}`}>
-      {!isAdminPage && <Navbar />}
+    <div className={`min-h-screen ${!isAdminPage && !isDashboardPage && !isCanvasPage ? 'grid-background' : ''}`}>
+      {!isAdminPage && !isCanvasPage && <Navbar />}
       <main>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/canvas" element={<CanvasEditor />} />
         </Routes>
       </main>
-      {!isAdminPage && !isDashboardPage && <Footer />}
+      {!isAdminPage && !isDashboardPage && !isCanvasPage && <Footer />}
       <ScrollToHash />
     </div>
   )

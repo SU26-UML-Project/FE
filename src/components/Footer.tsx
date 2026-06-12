@@ -61,7 +61,7 @@ const Footer = () => {
           ))}
           <div className="col-span-2 md:col-span-1 flex md:justify-end items-start pt-1 md:pt-0" data-purpose="copyright-area">
             <p className="text-gray-400 text-[0.8rem] font-normal whitespace-nowrap opacity-80">
-              © 2026 UMLDiagram
+              © 2026 DiaUML Studio
             </p>
           </div>
         </div>
