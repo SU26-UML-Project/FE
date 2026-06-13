@@ -28,7 +28,7 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  const linkBase = 'text-[15px] font-semibold transition-colors duration-300'
+  const linkBase = 'font-semibold transition-colors duration-300 text-[13px] lg:text-[15px]'
   const onHome = location.pathname === '/'
 
   return (
@@ -39,7 +39,7 @@ const Navbar = () => {
           className={`
             w-full flex items-center justify-between transition-all duration-400 ease-in-out pointer-events-auto
             ${isScrolled
-              ? 'max-w-4xl px-8 py-3 bg-white/90 backdrop-blur-md rounded-[999px] shadow-lg border border-gray-200/50 mt-4'
+              ? 'max-w-[95%] lg:max-w-5xl px-6 lg:px-8 py-2 bg-white/60 backdrop-blur-sm rounded-[999px] shadow-lg border border-gray-200/50 mt-4'
               : 'max-w-full px-12 py-6 footer-bg mt-0 border-b border-gray-200/0 rounded-[0px]'
             }
             ${isDashboardPage && !isScrolled ? 'bg-white border-b border-admin-outline' : ''}
@@ -57,7 +57,7 @@ const Navbar = () => {
             </span>
           </Link>
 
-          <nav className="hidden md:flex items-center space-x-8" data-purpose="main-nav">
+          <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8" data-purpose="main-nav">
           <NavLink
             to="/dashboard"
             className={({ isActive }) =>
@@ -91,7 +91,7 @@ const Navbar = () => {
           )}
         </nav>
 
-          <div className="flex items-center space-x-3" data-purpose="header-buttons">
+          <div className="flex items-center gap-2 lg:gap-3" data-purpose="header-buttons">
             {isScrolled ? (
               <button 
                 onClick={() => openAuth('login')}
