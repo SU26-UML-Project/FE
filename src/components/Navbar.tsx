@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { LogIn } from 'lucide-react'
+import { LogIn, User, LogOut } from 'lucide-react'
 import AuthModal from './Auth/AuthModal'
+import { useAuthStore } from '../store/useAuthStore'
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
+  
+  const { user, isAuthenticated, logout } = useAuthStore()
+  
   const location = useLocation()
   const isDashboardPage = location.pathname.startsWith('/dashboard')
 
@@ -92,30 +96,52 @@ const Navbar = () => {
         </nav>
 
           <div className="flex items-center gap-2 lg:gap-3" data-purpose="header-buttons">
-            {isScrolled ? (
-              <button 
-                onClick={() => openAuth('login')}
-                className="login-btn-pill transition-all duration-500"
-              >
-                <div className="sign">
-                  <LogIn size={18} strokeWidth={2.5} />
-                </div>
-                <div className="btn-text">Login</div>
-              </button>
+            {!isAuthenticated ? (
+              <>
+                {isScrolled ? (
+                  <button 
+                    onClick={() => openAuth('login')}
+                    className="login-btn-pill transition-all duration-500"
+                  >
+                    <div className="sign">
+                      <LogIn size={18} strokeWidth={2.5} />
+                    </div>
+                    <div className="btn-text">Login</div>
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => openAuth('login')}
+                    className="px-6 py-2 text-[16px] font-semibold border border-black rounded-md hover:bg-gray-100 transition-all duration-500"
+                  >
+                    Login
+                  </button>
+                )}
+                <button 
+                  onClick={() => openAuth('register')}
+                  className={`font-semibold bg-uml-blue text-white rounded-md hover:bg-blue-700 transition-all duration-500 ${isScrolled ? 'px-4 py-1.5 text-[14px]' : 'px-6 py-2 text-[16px]'}`}
+                >
+                  Get started free
+                </button>
+              </>
             ) : (
-              <button 
-                onClick={() => openAuth('login')}
-                className="px-6 py-2 text-[16px] font-semibold border border-black rounded-md hover:bg-gray-100 transition-all duration-500"
-              >
-                Login
-              </button>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full border border-gray-200">
+                  <div className="w-8 h-8 rounded-full bg-uml-blue flex items-center justify-center text-white">
+                    <User size={18} />
+                  </div>
+                  <span className="text-[14px] font-bold text-black hidden sm:block">
+                    {user?.fullName}
+                  </span>
+                </div>
+                <button 
+                  onClick={() => logout()}
+                  className="p-2 text-gray-500 hover:text-red-600 transition-colors"
+                  title="Logout"
+                >
+                  <LogOut size={20} />
+                </button>
+              </div>
             )}
-            <button 
-              onClick={() => openAuth('register')}
-              className={`font-semibold bg-uml-blue text-white rounded-md hover:bg-blue-700 transition-all duration-500 ${isScrolled ? 'px-4 py-1.5 text-[14px]' : 'px-6 py-2 text-[16px]'}`}
-            >
-              Get started free
-            </button>
           </div>
         </header>
       </div>

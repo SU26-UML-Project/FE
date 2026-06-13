@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, useLocation, useSearchParams } from 'react-router-dom'
+import { Toaster, toast } from 'react-hot-toast'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import LandingPage from './pages/LandingPage'
@@ -8,6 +9,7 @@ import AdminDashboard from './pages/AdminDashboard'
 import UserDashboard from './pages/UserDashboard'
 import CanvasEditor from './pages/CanvasEditor'
 import TemplateDetail from './pages/TemplateDetail'
+import { useAuthStore } from './store/useAuthStore'
 
 const ScrollToHash = () => {
   const { hash, key } = useLocation()
@@ -29,6 +31,40 @@ const ScrollToHash = () => {
   return null
 }
 
+const OAuth2Handler = () => {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const setAuth = useAuthStore((state) => state.setAuth)
+
+  useEffect(() => {
+    const loginStatus = searchParams.get('login')
+    const errorMsg = searchParams.get('error')
+
+    if (loginStatus === 'success') {
+      toast.success('Đăng nhập Google thành công!')
+      // Temporary: Set a placeholder user since we don't have a /me endpoint yet
+      setAuth({
+        id: 'google-user',
+        username: 'Google User',
+        fullName: 'Google User',
+        email: '',
+        role: { roleName: 'USER', description: 'Standard User' }
+      })
+      
+      // Clean up URL params
+      searchParams.delete('login')
+      setSearchParams(searchParams, { replace: true })
+    }
+
+    if (errorMsg) {
+      toast.error(decodeURIComponent(errorMsg))
+      searchParams.delete('error')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [searchParams, setSearchParams, setAuth])
+
+  return null
+}
+
 function App() {
   const location = useLocation()
   const isAdminPage = location.pathname.startsWith('/admin')
@@ -37,6 +73,7 @@ function App() {
 
   return (
     <div className={`min-h-screen ${!isAdminPage && !isDashboardPage && !isCanvasPage ? 'grid-background' : ''}`}>
+      <OAuth2Handler />
       {!isAdminPage && !isCanvasPage && <Navbar />}
       <main>
         <Routes>
@@ -50,6 +87,7 @@ function App() {
       </main>
       {!isAdminPage && !isDashboardPage && !isCanvasPage && <Footer />}
       <ScrollToHash />
+      <Toaster position="top-right" />
     </div>
   )
 }

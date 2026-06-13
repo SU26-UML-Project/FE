@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, X } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { authService } from '../../services/authService';
+import { useAuthStore } from '../../store/useAuthStore';
+import { toast } from 'react-hot-toast';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -14,6 +17,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   // Sync mode when initialMode changes
   React.useEffect(() => {
@@ -22,9 +28,37 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log(`${mode} attempt with:`, { email, password, fullName });
+    setLoading(true);
+
+    try {
+      if (mode === 'login') {
+        const response = await authService.login({ email, password });
+        
+        setAuth({
+          id: 'temp-id',
+          username: email.split('@')[0],
+          fullName: email.split('@')[0],
+          email: email,
+          role: { roleName: 'USER', description: 'Standard User' }
+        });
+        
+        toast.success(response.message || 'Đăng nhập thành công!');
+        onClose();
+      } else if (mode === 'register') {
+        toast.error('Tính năng đăng ký đang được cập nhật');
+      }
+    } catch (error: any) {
+      console.error('Auth error:', error);
+      toast.error(error.message || 'Đã có lỗi xảy ra');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = () => {
+    window.location.href = 'http://localhost:8088/api/uml/oauth2/authorization/google';
   };
 
   return (
@@ -50,7 +84,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
             {/* Close Button */}
             <button 
               onClick={onClose}
-              className="absolute top-6 right-6 p-2 text-gray-400 hover:text-black transition-colors"
+              className="absolute top-6 right-6 p-2 text-gray-400 hover:text-black transition-colors disabled:opacity-50"
+              disabled={loading}
             >
               <X size={20} />
             </button>
@@ -79,10 +114,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                     <input
                       type="text"
                       required
+                      disabled={loading}
                       placeholder="e.g., John Doe"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="w-full h-[54px] pl-12 pr-4 bg-white border-[1.5px] border-black/80 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:text-gray-400"
+                      className="w-full h-[54px] pl-12 pr-4 bg-white border-[1.5px] border-black/80 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:text-gray-400 disabled:opacity-50"
                     />
                   </div>
                 </div>
@@ -100,10 +136,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                   <input
                     type="email"
                     required
+                    disabled={loading}
                     placeholder="e.g., yourname@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full h-[54px] pl-12 pr-4 bg-white border-[1.5px] border-black/80 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:text-gray-400"
+                    className="w-full h-[54px] pl-12 pr-4 bg-white border-[1.5px] border-black/80 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:text-gray-400 disabled:opacity-50"
                   />
                 </div>
               </div>
@@ -121,15 +158,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                     <input
                       type={showPassword ? 'text' : 'password'}
                       required
+                      disabled={loading}
                       placeholder="••••••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full h-[54px] pl-12 pr-12 bg-white border-[1.5px] border-black/80 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:text-gray-400"
+                      className="w-full h-[54px] pl-12 pr-12 bg-white border-[1.5px] border-black/80 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:text-gray-400 disabled:opacity-50"
                     />
                     <button
                       type="button"
+                      disabled={loading}
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-black transition-colors"
+                      className="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-black transition-colors disabled:opacity-50"
                     >
                       {showPassword ? <EyeOff size={20} strokeWidth={1.5} /> : <Eye size={20} strokeWidth={1.5} />}
                     </button>
@@ -142,8 +181,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                 <div className="flex justify-end mt-[-8px]">
                   <button 
                     type="button" 
+                    disabled={loading}
                     onClick={() => setMode('forgot')}
-                    className="text-[14px] font-bold text-uml-blue hover:underline"
+                    className="text-[14px] font-bold text-uml-blue hover:underline disabled:opacity-50"
                   >
                     Forgot Password?
                   </button>
@@ -153,16 +193,26 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full h-[54px] bg-uml-blue text-white font-bold text-[16px] rounded-[14px] hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-500/20"
+                disabled={loading}
+                className="w-full h-[54px] bg-uml-blue text-white font-bold text-[16px] rounded-[14px] hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {mode === 'login' ? 'Log in' : mode === 'register' ? 'Create Account' : 'Send Reset Link'}
+                {loading ? (
+                  <Loader2 className="animate-spin" size={24} />
+                ) : (
+                  mode === 'login' ? 'Log in' : mode === 'register' ? 'Create Account' : 'Send Reset Link'
+                )}
               </button>
             </form>
 
             {/* Google Sign In (Hidden for Forgot Password) */}
             {mode !== 'forgot' && (
               <div className="mt-4">
-                <button className="w-full h-[54px] bg-white border-[1.5px] border-black/80 rounded-[14px] flex items-center justify-center gap-3 hover:bg-gray-50 active:scale-[0.98] transition-all">
+                <button 
+                  type="button"
+                  disabled={loading}
+                  onClick={handleGoogleLogin}
+                  className="w-full h-[54px] bg-white border-[1.5px] border-black/80 rounded-[14px] flex items-center justify-center gap-3 hover:bg-gray-50 active:scale-[0.98] transition-all disabled:opacity-50"
+                >
                   <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
                   <span className="text-[15px] font-bold text-black">
                     Sign in with Google
@@ -188,8 +238,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
               <p className="text-[15px] text-black">
                 {mode === 'login' ? "Don't have an account?" : mode === 'register' ? "Already have an account?" : "Remember your password?"}{' '}
                 <button
+                  disabled={loading}
                   onClick={() => setMode(mode === 'login' || mode === 'forgot' ? 'register' : 'login')}
-                  className="font-bold text-uml-blue hover:underline"
+                  className="font-bold text-uml-blue hover:underline disabled:opacity-50"
                 >
                   {mode === 'login' ? 'Sign Up Free' : 'Log In'}
                 </button>
