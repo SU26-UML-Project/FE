@@ -1,0 +1,46 @@
+{
+  "id": "sequence-oauth",
+  "name": "Sequence Diagram — OAuth2 Login Flow",
+  "type": "Sequence Diagram",
+  "umlType": "sequence",
+  "category": "Behavioral",
+  "group": "behavioral",
+  "description": "Sequence Diagram describes the time-ordered interaction between User, Frontend, Auth Server, Resource Server and Database in the OAuth2 authentication flow. This diagram answers: who calls whom, in what order, and what response is received.",
+  "purpose": "Detailed technical design for the OAuth2 flow and backend documentation.",
+  "bestFor": [
+    "Designing authentication API flow",
+    "Describing OAuth2 login flow",
+    "Analyzing synchronous/asynchronous message flow",
+    "Debugging cross-system data call structure"
+  ],
+  "useCases": [
+    "Identify lifelines: User, Frontend, Auth Server, Resource Server, Database",
+    "Describe messages in order: POST /login, validate credentials, return JWT",
+    "Add combined fragment: alt valid/invalid password",
+    "Represent return messages with data"
+  ],
+  "requirements": [
+    "REQ-001: User enters email and password on the login form",
+    "REQ-002: Frontend sends POST /login to Auth Server",
+    "REQ-003: Auth Server checks credentials in Database",
+    "REQ-004: If valid, create and return JWT token",
+    "REQ-005: Frontend stores token and redirects to dashboard"
+  ],
+  "elements": [
+    { "name": "User", "type": "Actor", "description": "User who wants to log in" },
+    { "name": "Frontend", "type": "Lifeline", "description": "SPA React app" },
+    { "name": "Auth Server", "type": "Lifeline", "description": "OAuth2 authentication server" },
+    { "name": "Resource Server", "type": "Lifeline", "description": "Server providing resource API" },
+    { "name": "Database", "type": "Lifeline", "description": "Stores user information" },
+    { "name": "POST /login", "type": "Message", "description": "Send email + password" },
+    { "name": "validate credentials", "type": "Message", "description": "Check user in DB" },
+    { "name": "200 OK + JWT", "type": "Return Message", "description": "Return token if valid" },
+    { "name": "401 Unauthorized", "type": "Return Message", "description": "Return error if invalid credentials" },
+    { "name": "alt frame", "type": "Combined Fragment", "description": "alt [valid] / [invalid]" },
+    { "name": "GET /api/profile", "type": "Message", "description": "Call API with Bearer token" }
+  ],
+  "previewImage": null,
+  "nodeCount": 6,
+  "edgeCount": 14,
+  "createdFor": "SDLC — Design Phase"
+}

@@ -1,0 +1,52 @@
+{
+  "id": "lib-sequence-diagram",
+  "kind": "knowledge",
+  "name": "Sequence Diagram",
+  "type": "Sequence Diagram",
+  "umlType": "sequence",
+  "category": "Behavioral",
+  "group": "behavioral",
+  "description": "Sequence Diagram describes the time-ordered interaction between actors, objects, UI, components, services, or databases. This diagram answers the question: who calls whom, in what order, and with what response.",
+  "purpose": "Detailed technical design for API flows, transactions, or inter-service interactions.",
+  "bestFor": [
+    "Detailed technical design of API or transaction flows",
+    "Describe OAuth2, payment, and ordering flows",
+    "Provide backend documentation for service, repository, and database call order",
+    "Debug cross-system data call structure"
+  ],
+  "notSuitableFor": [
+    "Describe cross-departmental business workflow \u2192 use Activity Diagram",
+    "Describe object lifecycle states \u2192 use State Machine Diagram",
+    "Describe static class/entity relationships \u2192 use Class Diagram"
+  ],
+  "useCases": [
+    "Identify the actor/system that starts the flow",
+    "List participating lifelines (UI, service, database)",
+    "Number messages sequentially along the vertical axis",
+    "Identify message type: sync, async, return",
+    "Add combined fragments: alt, opt, loop, par",
+    "Add return messages with response data"
+  ],
+  "requirements": [
+    "Lifelines \u2014 participating actors/objects/services/databases",
+    "Messages \u2014 calls between lifelines",
+    "Message order \u2014 interaction order (vertical axis)",
+    "Message type \u2014 sync, async, return",
+    "Return values \u2014 responses from calls (optional)",
+    "Combined fragments \u2014 alt, opt, loop, par (optional)"
+  ],
+  "elements": [
+    {"name":"Lifeline","type":"Core","description":"Actor/object/service/database participating in interaction"},
+    {"name":"Message","type":"Core","description":"Call between lifelines: POST /login, SQL query"},
+    {"name":"Return Message","type":"Optional","description":"Response from a call: JWT token, error message"},
+    {"name":"Combined Fragment","type":"Optional","description":"alt (if-else), opt (optional), loop, par (parallel)"},
+    {"name":"Activation Bar","type":"Optional","description":"Time during which a lifeline is processing a message"}
+  ],
+  "confusableWith": [
+    {"diagram":"Activity Diagram","difference":"Sequence focuses on messages between lifelines; Activity focuses on workflow/action."},
+    {"diagram":"Communication Diagram","difference":"Sequence emphasizes time order; Communication emphasizes object links."},
+    {"diagram":"Interaction Overview Diagram","difference":"Interaction Overview coordinates multiple sub-sequences."}
+  ],
+  "keywords": ["sequence","lifeline","message","API flow","login flow","payment flow","alt","loop","opt","async","sync"],
+  "previewImage":null
+}

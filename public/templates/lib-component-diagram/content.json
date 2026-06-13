@@ -1,0 +1,50 @@
+{
+  "id": "lib-component-diagram",
+  "kind": "knowledge",
+  "name": "Component Diagram",
+  "type": "Component Diagram",
+  "umlType": "component",
+  "category": "Structural",
+  "group": "structural",
+  "description": "Component Diagram describes independent software components, their provided/required interfaces, and dependencies between components. This diagram is commonly used at the application architecture or module level.",
+  "purpose": "Design microservices architecture, monolith modules, or declare dependencies with third-party systems.",
+  "bestFor": [
+    "Design microservices architecture",
+    "Describe modules in a large monolith",
+    "Declare dependencies with third-party systems or shared libraries",
+    "Create architecture documentation defining component responsibilities and boundaries"
+  ],
+  "notSuitableFor": [
+    "Describe server/deployment node → use Deployment Diagram",
+    "Describe detailed classes inside component → use Class Diagram",
+    "Describe API call flow in order → use Sequence Diagram"
+  ],
+  "useCases": [
+    "Identify list of services/modules/subsystems",
+    "Identify provided interfaces (API the component provides)",
+    "Identify required interfaces (API the component needs to operate)",
+    "Draw dependencies between components",
+    "Add ports if needed (REST, AMQP, gRPC)"
+  ],
+  "requirements": [
+    "Components — service, module, subsystem",
+    "Provided Interfaces — API the service provides",
+    "Required Interfaces — API/library the component needs",
+    "Ports — communication points (optional)",
+    "Dependencies — dependency relationships"
+  ],
+  "elements": [
+    {"name":"Component","type":"Core","description":"Independent module/service/subsystem"},
+    {"name":"Provided Interface","type":"Core","description":"API/service the component provides externally"},
+    {"name":"Required Interface","type":"Core","description":"API/library the component needs to operate"},
+    {"name":"Port","type":"Optional","description":"Communication point on the component boundary"},
+    {"name":"Dependency","type":"Core","description":"Dependency relationship between components"}
+  ],
+  "confusableWith": [
+    {"diagram":"Deployment Diagram","difference":"Component describes software structure; Deployment describes what infrastructure the software is deployed on."},
+    {"diagram":"Package Diagram","difference":"Component at runtime/deployable module level; Package at source code organization level."},
+    {"diagram":"Class Diagram","difference":"Component Diagram does not go into details of class attributes/methods."}
+  ],
+  "keywords": ["component","microservice","module","subsystem","provided interface","required interface","architecture","service boundary"],
+  "previewImage":null
+}

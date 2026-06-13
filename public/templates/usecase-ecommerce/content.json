@@ -1,0 +1,46 @@
+{
+  "id": "usecase-ecommerce",
+  "name": "Use Case Diagram — E-Commerce System",
+  "type": "Use Case Diagram",
+  "umlType": "use_case",
+  "category": "Behavioral",
+  "group": "behavioral",
+  "description": "Use Case Diagram describes external actors and the functional goals they want to achieve when interacting with the system. This diagram helps define the scope of requirements and boundaries of the e-commerce system.",
+  "purpose": "Define the scope of requirements and system boundaries between customers and the development team.",
+  "bestFor": [
+    "Software requirements specification phase",
+    "Define scope between customer and development team",
+    "Basis for writing user stories or test cases",
+    "Describe system functions at a high level for stakeholders"
+  ],
+  "useCases": [
+    "Identify actors: Customer, Admin, Payment Gateway",
+    "Identify use cases: Login, Place Order, Payment, Product Management",
+    "Set up include/extend: «include» Authenticate, «extend» Apply Coupon",
+    "Draw system boundary around the use cases"
+  ],
+  "requirements": [
+    "REQ-001: System allows customers to log in with email/password",
+    "REQ-002: System allows customers to place orders and make payments",
+    "REQ-003: System allows admin to manage products (add, edit, delete)",
+    "REQ-004: System allows customers to look up order history",
+    "REQ-005: System must authenticate identity before allowing order placement"
+  ],
+  "elements": [
+    { "name": "Customer", "type": "Actor", "description": "End user who purchases products" },
+    { "name": "Admin", "type": "Actor", "description": "System administrator" },
+    { "name": "Payment Gateway", "type": "Actor", "description": "External payment gateway (Visa, MoMo)" },
+    { "name": "Login", "type": "Use Case", "description": "User authentication" },
+    { "name": "Place Order", "type": "Use Case", "description": "Create new order" },
+    { "name": "Payment", "type": "Use Case", "description": "Process payment through Payment Gateway" },
+    { "name": "Product Management", "type": "Use Case", "description": "CRUD products (Admin)" },
+    { "name": "Order Lookup", "type": "Use Case", "description": "View order history" },
+    { "name": "Authenticate", "type": "Use Case", "description": "«include» — required before placing order" },
+    { "name": "Apply Coupon", "type": "Use Case", "description": "«extend» — extends during payment" },
+    { "name": "E-Commerce System", "type": "System Boundary", "description": "Scope of the system being built" }
+  ],
+  "previewImage": null,
+  "nodeCount": 12,
+  "edgeCount": 8,
+  "createdFor": "SDLC — Requirements Phase"
+}

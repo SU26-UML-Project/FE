@@ -1,0 +1,45 @@
+{
+  "id": "class-ecommerce",
+  "name": "Class Diagram — Domain Model E-Commerce",
+  "type": "Class Diagram",
+  "umlType": "class",
+  "category": "Structural",
+  "group": "structural",
+  "description": "Class Diagram describes the static structure of the system through classes, attributes, methods, and relationships between them. This is the foundational diagram when designing the domain model for an e-commerce system.",
+  "purpose": "Design the data structure for RDBMS systems through ORM and describe the Domain Model in DDD.",
+  "bestFor": [
+    "Designing ORM entities for Spring Boot / Hibernate",
+    "Describing Domain Model in Domain-Driven Design",
+    "Analyzing relationships between entities",
+    "Technical documentation for database schema"
+  ],
+  "useCases": [
+    "Define entities: User, Product, Order, CartItem, Category",
+    "Identify attributes and data types for each entity",
+    "Draw relationships: User 1→* Order, Order 1→* CartItem",
+    "Multiplicity: 1, 0..1, 1..*, *"
+  ],
+  "requirements": [
+    "REQ-001: Each User can have multiple Orders",
+    "REQ-002: Each Order belongs to a User and contains multiple CartItems",
+    "REQ-003: Each Product belongs to a Category",
+    "REQ-004: CartItem references Product and Order",
+    "REQ-005: User can have multiple shipping addresses"
+  ],
+  "elements": [
+    { "name": "User", "type": "Class", "description": "System user, has id, email, password" },
+    { "name": "Order", "type": "Class", "description": "Order, contains transaction information" },
+    { "name": "Product", "type": "Class", "description": "Product, has price and stock" },
+    { "name": "CartItem", "type": "Class", "description": "Details of each product in the order" },
+    { "name": "Category", "type": "Class", "description": "Product category" },
+    { "name": "Address", "type": "Class", "description": "User's shipping address" },
+    { "name": "Payment", "type": "Interface", "description": "Payment interface" },
+    { "name": "User — Order", "type": "Association 1..*", "description": "One user has many orders" },
+    { "name": "Order — CartItem", "type": "Composition 1..*", "description": "Order contains many items" },
+    { "name": "Product — Category", "type": "Association *..1", "description": "Product belongs to a category" }
+  ],
+  "previewImage": null,
+  "nodeCount": 10,
+  "edgeCount": 12,
+  "createdFor": "SDLC — Design Phase"
+}

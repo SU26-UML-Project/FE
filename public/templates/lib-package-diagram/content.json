@@ -1,0 +1,47 @@
+{
+  "id": "lib-package-diagram",
+  "kind": "knowledge",
+  "name": "Package Diagram",
+  "type": "Package Diagram",
+  "umlType": "package",
+  "category": "Structural",
+  "group": "structural",
+  "description": "Package Diagram describes how packages/modules/source folders are organized and their dependencies. This diagram helps control source code structure, architectural layering, and circular dependencies.",
+  "purpose": "Plan directory/package structure, control circular dependencies, design layered architecture.",
+  "bestFor": [
+    "Plan directory structure when starting a project",
+    "Control circular dependencies between subsystems",
+    "Design layered architecture (Presentation, Business, Data Access)",
+    "Describe namespaces/packages in large systems"
+  ],
+  "notSuitableFor": [
+    "Describe services/components with runtime interfaces → use Component Diagram",
+    "Describe detailed classes → use Class Diagram",
+    "Describe deployment infrastructure → use Deployment Diagram"
+  ],
+  "useCases": [
+    "Identify list of packages/modules/layers",
+    "Define sub-packages",
+    "Draw dependencies between packages",
+    "Assign stereotype «import» / «access» if needed",
+    "Detect or avoid circular dependencies"
+  ],
+  "requirements": [
+    "Packages — groups of logically related classes/interfaces",
+    "Sub-packages — child packages (optional)",
+    "Dependencies — dependency relationships",
+    "Stereotypes — «import», «access» (optional)"
+  ],
+  "elements": [
+    {"name":"Package","type":"Core","description":"Group of logically related classes/interfaces/sub-packages"},
+    {"name":"Sub-package","type":"Optional","description":"Child package within a package"},
+    {"name":"Dependency","type":"Core","description":"Dependency relationship between packages"},
+    {"name":"Stereotype","type":"Optional","description":"Dependency type: «import», «access»"}
+  ],
+  "confusableWith": [
+    {"diagram":"Component Diagram","difference":"Package leans toward source code organization; Component leans toward deployable/runtime component."},
+    {"diagram":"Class Diagram","difference":"Package Diagram groups classes; Class Diagram describes classes and their relationships in detail."}
+  ],
+  "keywords": ["package","module","folder structure","layer","dependency","circular dependency","clean architecture","namespace"],
+  "previewImage":null
+}

@@ -1,0 +1,46 @@
+{
+  "id": "lib-object-diagram",
+  "kind": "knowledge",
+  "name": "Object Diagram",
+  "type": "Object Diagram",
+  "umlType": "object",
+  "category": "Structural",
+  "group": "structural",
+  "description": "Object Diagram describes specific instances of a class and their attribute values at a given runtime moment. It is like a data snapshot to verify or illustrate a Class Diagram.",
+  "purpose": "Illustrate complex data structures at a specific point in time, verify relationships, or describe mock data.",
+  "bestFor": [
+    "Illustrate complex data structures at a specific snapshot",
+    "Describe mock data for customers, testers, or developers",
+    "Verify recursive or complex relationships (tree, graph)",
+    "Explain data scenarios causing errors that need analysis"
+  ],
+  "notSuitableFor": [
+    "Design general class blueprint → use Class Diagram",
+    "Describe processing flow over time → use Sequence / Activity Diagram",
+    "Describe object lifecycle states → use State Machine Diagram"
+  ],
+  "useCases": [
+    "Select specific object and corresponding class",
+    "Assign actual attribute values at snapshot",
+    "Draw links between objects",
+    "Define snapshot context (business moment)"
+  ],
+  "requirements": [
+    "Objects/Instances — specific object + class",
+    "Attribute values — actual values",
+    "Links — connections between objects",
+    "Snapshot context — data context"
+  ],
+  "elements": [
+    {"name":"Object","type":"Core","description":"Specific instance of a class"},
+    {"name":"Attribute Value","type":"Core","description":"Actual value of an attribute"},
+    {"name":"Link","type":"Core","description":"Actual link between objects"},
+    {"name":"Snapshot Context","type":"Optional","description":"Context or point in time of data"}
+  ],
+  "confusableWith": [
+    {"diagram":"Class Diagram","difference":"Class Diagram describes types/classes; Object Diagram describes specific objects and actual values."},
+    {"diagram":"Communication Diagram","difference":"Object Diagram focuses on data structure; Communication Diagram focuses on messages between objects."}
+  ],
+  "keywords": ["object","instance","snapshot","mock data","runtime","attribute value","tree","graph"],
+  "previewImage":null
+}

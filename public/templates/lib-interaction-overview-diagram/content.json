@@ -1,0 +1,50 @@
+{
+  "id": "lib-interaction-overview-diagram",
+  "kind": "knowledge",
+  "name": "Interaction Overview Diagram",
+  "type": "Interaction Overview Diagram",
+  "umlType": "interaction_overview",
+  "category": "Behavioral",
+  "group": "behavioral",
+  "description": "Interaction Overview Diagram describes the high-level coordination flow between multiple interactions or sub-sequence diagrams. It combines Activity Diagram thinking with interaction occurrences.",
+  "purpose": "Coordinate multiple sub-sequence diagrams, acting as a high-level map for many detailed interactions.",
+  "bestFor": [
+    "Manage large flows consisting of multiple sub-features that each have their own Sequence diagram",
+    "Describe an overall journey: login \u2192 select items \u2192 payment \u2192 delivery",
+    "Coordinate multiple interactions with branches, fork/join, or decisions",
+    "Act as a high-level map for many detailed sequence diagrams"
+  ],
+  "notSuitableFor": [
+    "Only have a single simple interaction flow \u2192 use Sequence Diagram",
+    "Need to describe detailed workflow for each action \u2192 use Activity Diagram",
+    "Need to describe high-level functionality \u2192 use Use Case Diagram"
+  ],
+  "useCases": [
+    "Identify participating sub-interactions/sequences",
+    "Arrange interaction occurrence order",
+    "Add decision nodes between interactions",
+    "Add fork/join to coordinate parallel interactions",
+    "Connect control flow between occurrences"
+  ],
+  "requirements": [
+    "Interaction Occurrences \u2014 sub-sequence names",
+    "Initial/Final node \u2014 overview start/end",
+    "Decision nodes \u2014 branches (optional)",
+    "Fork/Join \u2014 parallelism (optional)",
+    "Control flows \u2014 flow connecting occurrences"
+  ],
+  "elements": [
+    {"name":"Interaction Occurrence","type":"Core","description":"Participating sub-sequence/interaction diagram"},
+    {"name":"Initial Node","type":"Core","description":"Overview start point"},
+    {"name":"Final Node","type":"Core","description":"Overview end point"},
+    {"name":"Decision Node","type":"Optional","description":"Branch to navigate between interactions"},
+    {"name":"Fork/Join","type":"Optional","description":"Coordinate multiple interactions in parallel"},
+    {"name":"Control Flow","type":"Core","description":"Flow connecting interaction occurrences"}
+  ],
+  "confusableWith": [
+    {"diagram":"Sequence Diagram","difference":"Sequence describes a single interaction in detail; Interaction Overview coordinates multiple sub-interactions."},
+    {"diagram":"Activity Diagram","difference":"Activity uses regular actions; Interaction Overview uses interaction occurrences as main nodes."}
+  ],
+  "keywords": ["interaction overview","sequence overview","interaction occurrence","high-level interaction","customer journey"],
+  "previewImage":null
+}

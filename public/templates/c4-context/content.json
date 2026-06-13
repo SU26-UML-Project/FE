@@ -1,0 +1,41 @@
+{
+  "id": "c4-context",
+  "name": "System Context — E-Commerce",
+  "type": "C4 Context",
+  "umlType": "c4_context",
+  "category": "C4 Model",
+  "group": "c4",
+  "description": "C4 Context Diagram (Level 1) provides an overview of the e-commerce system: users, the system being built, and external systems. This is the starting point for any C4 model.",
+  "purpose": "Define the system scope, main users, and interacting external systems.",
+  "bestFor": [
+    "Presenting high-level architecture to non-technical stakeholders",
+    "Defining system boundaries",
+    "Describing users and external systems",
+    "First step when applying C4 model"
+  ],
+  "useCases": [
+    "Identify Persons: Customer, Admin",
+    "Identify Software System: E-Commerce System (system being built)",
+    "Identify External Systems: Payment Gateway, Email Service, SMS Service",
+    "Draw relationships between Person and Software System"
+  ],
+  "requirements": [
+    "REQ-001: Customer can browse products, place orders and make payments",
+    "REQ-002: Admin can manage products and orders",
+    "REQ-003: System integrates with external Payment Gateway",
+    "REQ-004: System sends confirmation emails via Email Service",
+    "REQ-005: System sends SMS notifications via SMS Service"
+  ],
+  "elements": [
+    { "name": "Customer", "type": "Person", "description": "End user purchasing products on the website" },
+    { "name": "Admin", "type": "Person", "description": "Administrator managing the system" },
+    { "name": "E-Commerce System", "type": "Software System", "description": "Online sales system — being built" },
+    { "name": "Payment Gateway", "type": "External System", "description": "Processes card payments (Visa, Mastercard)" },
+    { "name": "Email Service", "type": "External System", "description": "Sends order confirmation emails" },
+    { "name": "SMS Service", "type": "External System", "description": "Sends status notification SMS" }
+  ],
+  "previewImage": null,
+  "nodeCount": 6,
+  "edgeCount": 5,
+  "createdFor": "C4 Model — Level 1"
+}

@@ -1,0 +1,42 @@
+{
+  "id": "c4-container",
+  "name": "Container Diagram — Backend Architecture",
+  "type": "C4 Container",
+  "umlType": "c4_container",
+  "category": "C4 Model",
+  "group": "c4",
+  "description": "C4 Container Diagram (Level 2) describes the technology containers in the system: Web Application, API Application, Database and Message Queue. Each container is a separately deployable unit.",
+  "purpose": "Describe the backend architecture at the container level: technology, responsibilities and communication between containers.",
+  "bestFor": [
+    "Designing microservices architecture",
+    "Describing technologies used (React, Spring Boot, PostgreSQL, Kafka)",
+    "Identifying how services communicate with each other",
+    "Architecture documentation for the development team"
+  ],
+  "useCases": [
+    "Identify containers: Single-Page App, API Application, Database, Message Queue",
+    "Assign technologies: React, Spring Boot, PostgreSQL, Kafka",
+    "Draw relationships: SPA calls API via REST/HTTPS",
+    "Add External: Payment Gateway, Email Service"
+  ],
+  "requirements": [
+    "REQ-001: SPA (React) runs on browser, calls API via HTTPS",
+    "REQ-002: API Application (Spring Boot) handles business logic",
+    "REQ-003: Database (PostgreSQL) stores main data",
+    "REQ-004: Message Queue (Kafka) handles async events",
+    "REQ-005: API Application calls Payment Gateway via REST"
+  ],
+  "elements": [
+    { "name": "Single-Page App", "type": "Container", "description": "React SPA running on browser" },
+    { "name": "API Application", "type": "Container", "description": "Spring Boot REST API" },
+    { "name": "Database", "type": "Container", "description": "PostgreSQL — stores user, order, product" },
+    { "name": "Message Queue", "type": "Container", "description": "Apache Kafka — event bus" },
+    { "name": "Cache", "type": "Container", "description": "Redis — session and cache" },
+    { "name": "Payment Gateway", "type": "External System", "description": "External payment gateway" },
+    { "name": "Email Service", "type": "External System", "description": "Sends confirmation emails" }
+  ],
+  "previewImage": null,
+  "nodeCount": 7,
+  "edgeCount": 8,
+  "createdFor": "C4 Model — Level 2"
+}

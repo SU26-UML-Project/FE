@@ -1,0 +1,40 @@
+{
+  "id": "c4-code",
+  "name": "Code Diagram — Class Entities",
+  "type": "C4 Code",
+  "umlType": "c4_code",
+  "category": "C4 Model",
+  "group": "c4",
+  "description": "C4 Code Diagram (Level 4) describes the details of entity classes in the domain model. Equivalent to UML Class Diagram but in the context of the C4 model.",
+  "purpose": "Describe entity classes in detail with attributes, methods and relationships at the code level.",
+  "bestFor": [
+    "Detailing entities in the domain model",
+    "Documentation for developers implementing code",
+    "Connecting C4 architecture design and actual code"
+  ],
+  "useCases": [
+    "Define entities: Order, OrderItem, Payment",
+    "Identify attributes and methods for each entity",
+    "Draw JPA relationships: @OneToMany, @ManyToOne",
+    "Assign stereotypes: @Entity, @Service, @Repository"
+  ],
+  "requirements": [
+    "REQ-001: Order has OrderDate, Status, TotalAmount",
+    "REQ-002: OrderItem has Product, Quantity, UnitPrice",
+    "REQ-003: Payment has Amount, PaymentMethod, Status",
+    "REQ-004: Order 1→* OrderItem (cascade ALL)",
+    "REQ-005: Each Order can have multiple Payments (partial payments)"
+  ],
+  "elements": [
+    { "name": "Order", "type": "Class «Entity»", "description": "id, orderDate, status, totalAmount" },
+    { "name": "OrderItem", "type": "Class «Entity»", "description": "id, productName, quantity, unitPrice" },
+    { "name": "Payment", "type": "Class «Entity»", "description": "id, amount, paymentMethod, status" },
+    { "name": "OrderService", "type": "Class «Service»", "description": "createOrder(), cancelOrder(), getOrder()" },
+    { "name": "OrderRepository", "type": "Interface «Repository»", "description": "findById(), save(), delete()" },
+    { "name": "Order — OrderItem", "type": "Composition 1→*", "description": "Cascade ALL, orphanRemoval" }
+  ],
+  "previewImage": null,
+  "nodeCount": 6,
+  "edgeCount": 6,
+  "createdFor": "C4 Model — Level 4"
+}

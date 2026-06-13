@@ -1,0 +1,52 @@
+{
+  "id": "lib-use-case-diagram",
+  "kind": "knowledge",
+  "name": "Use Case Diagram",
+  "type": "Use Case Diagram",
+  "umlType": "use_case",
+  "category": "Behavioral",
+  "group": "behavioral",
+  "description": "Use Case Diagram describes external actors and the functional goals they want to achieve when interacting with the system. This diagram helps define the scope of requirements and system boundaries.",
+  "purpose": "Define scope of requirements and system boundaries at a high-level for stakeholders.",
+  "bestFor": [
+    "Software requirements specification phase",
+    "Define scope between customer and development team",
+    "Basis for writing user stories or test cases",
+    "Describe system functionality for non-technical stakeholders"
+  ],
+  "notSuitableFor": [
+    "Describe detailed step-by-step processing flow → use Activity / Sequence Diagram",
+    "Describe class/entity structure → use Class Diagram",
+    "Describe object lifecycle states → use State Machine Diagram"
+  ],
+  "useCases": [
+    "Identify actors: users, departments, external systems",
+    "Identify use cases: goals actors want to achieve",
+    "Draw system boundary surrounding use cases",
+    "Add \u00abinclude\u00bb \u2014 use case must call another use case",
+    "Add \u00abextend\u00bb \u2014 use case extends conditionally",
+    "Identify actor generalization (inheritance)"
+  ],
+  "requirements": [
+    "Actors \u2014 users/external systems",
+    "Use Cases \u2014 goals/functions",
+    "System Boundary \u2014 system scope",
+    "Include relationships \u2014 mandatory call",
+    "Extend relationships \u2014 conditional extension",
+    "Actor Generalization \u2014 actor inheritance (optional)"
+  ],
+  "elements": [
+    {"name":"Actor","type":"Core","description":"Users, departments or external systems that interact with the system"},
+    {"name":"Use Case","type":"Core","description":"Goal/function the actor wants to achieve"},
+    {"name":"System Boundary","type":"Core","description":"Scope of the system under consideration"},
+    {"name":"Include","type":"Optional","description":"Use case that must call another use case"},
+    {"name":"Extend","type":"Optional","description":"Use case that extends conditionally"},
+    {"name":"Generalization","type":"Optional","description":"Actor inheritance (Admin extends User)"}
+  ],
+  "confusableWith": [
+    {"diagram":"Activity Diagram","difference":"Use Case describes what functions the system has; Activity describes how that function runs step by step."},
+    {"diagram":"Sequence Diagram","difference":"Use Case is at requirements level; Sequence is at technical interaction level over time."}
+  ],
+  "keywords": ["use case","actor","requirement","scope","system boundary","user story","include","extend"],
+  "previewImage":null
+}

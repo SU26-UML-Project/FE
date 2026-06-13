@@ -1,0 +1,49 @@
+{
+  "id": "lib-profile-diagram",
+  "kind": "knowledge",
+  "name": "Profile Diagram",
+  "type": "Profile Diagram",
+  "umlType": "profile",
+  "category": "Structural",
+  "group": "structural",
+  "description": "Profile Diagram is used to extend UML with stereotypes, tagged values, and constraints for a specific domain, framework, or industry.",
+  "purpose": "Define a custom UML profile for a framework (Spring, JPA) or customize UML for a specialized industry.",
+  "bestFor": [
+    "Define a custom UML profile for a framework (EJB, Spring, JPA)",
+    "Customize UML for specialized industries (aviation, healthcare, finance)",
+    "Attach domain-specific metadata, rules, or constraints to base UML elements",
+    "Standardize internal notation for an organization"
+  ],
+  "notSuitableFor": [
+    "Only need to draw regular class/component/use case diagrams \u2192 use the corresponding diagram",
+    "No need to extend the UML metamodel",
+    "Only need simple notes without formal stereotypes"
+  ],
+  "useCases": [
+    "Identify the domain/framework to extend",
+    "Define stereotypes for base UML elements",
+    "Add tagged values (custom attributes)",
+    "Add constraints using OCL if needed",
+    "Package definitions into a profile package"
+  ],
+  "requirements": [
+    "Stereotypes \u2014 keywords extending base UML elements",
+    "Base UML elements \u2014 types of elements being extended",
+    "Tagged Values \u2014 custom attributes",
+    "Constraints \u2014 logical constraints (OCL)",
+    "Profile package \u2014 package containing definitions"
+  ],
+  "elements": [
+    {"name":"Stereotype","type":"Core","description":"Keyword extending a base UML element: \u00abEntity\u00bb, \u00abController\u00bb"},
+    {"name":"Base UML Element","type":"Core","description":"Type of UML element being extended: Class, Component, Association"},
+    {"name":"Tagged Value","type":"Optional","description":"Custom attribute: tableName, securityLevel"},
+    {"name":"Constraint","type":"Optional","description":"Logical constraint using OCL: {mustHavePrimaryKey}"},
+    {"name":"Profile Package","type":"Core","description":"Package containing profile definitions"}
+  ],
+  "confusableWith": [
+    {"diagram":"Class Diagram","difference":"Profile does not describe domain classes; it defines how to extend UML notation."},
+    {"diagram":"Package Diagram","difference":"Profile may reside in a package but its purpose is to define stereotypes/tags/constraints."}
+  ],
+  "keywords": ["profile","stereotype","tagged value","constraint","OCL","metamodel","custom UML","framework profile"],
+  "previewImage":null
+}

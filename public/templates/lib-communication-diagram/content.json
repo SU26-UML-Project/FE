@@ -1,0 +1,46 @@
+{
+  "id": "lib-communication-diagram",
+  "kind": "knowledge",
+  "name": "Communication Diagram",
+  "type": "Communication Diagram",
+  "umlType": "communication",
+  "category": "Behavioral",
+  "group": "behavioral",
+  "description": "Communication Diagram describes participating objects, links between them, and numbered messages. This diagram emphasizes the network of object links rather than a visual time axis.",
+  "purpose": "Analyze which objects know/call which other objects within an interaction network.",
+  "bestFor": [
+    "Analyze code change impact: which objects connect to which",
+    "Design communication networks between objects in distributed systems",
+    "Describe interactions when timing does not need to be explicit",
+    "Clarify which objects know/call which other objects"
+  ],
+  "notSuitableFor": [
+    "Need explicit time-order visualization \u2192 use Sequence Diagram",
+    "Describe business workflow with swimlanes \u2192 use Activity Diagram",
+    "Describe static class structure \u2192 use Class Diagram"
+  ],
+  "useCases": [
+    "Identify objects/components participating in interaction",
+    "Draw links between objects that communicate directly",
+    "Number messages hierarchically (1, 1.1, 2)",
+    "Attach message direction (A \u2192 B)"
+  ],
+  "requirements": [
+    "Objects \u2014 objects/components participating in interaction",
+    "Links \u2014 direct communication links",
+    "Numbered Messages \u2014 hierarchically numbered messages",
+    "Message direction \u2014 call direction (optional)"
+  ],
+  "elements": [
+    {"name":"Object","type":"Core","description":"Object/component participating in interaction: cart: Cart, orderSvc: OrderService"},
+    {"name":"Link","type":"Core","description":"Direct communication link between objects"},
+    {"name":"Numbered Message","type":"Core","description":"Hierarchically numbered message: 1: checkout(), 1.1: validate()"},
+    {"name":"Direction","type":"Optional","description":"Message call direction (A \u2192 B)"}
+  ],
+  "confusableWith": [
+    {"diagram":"Sequence Diagram","difference":"Communication uses object network layout and numbered messages; Sequence uses lifelines and a time axis."},
+    {"diagram":"Object Diagram","difference":"Object diagram only describes static objects and data links; Communication has interactive messages."}
+  ],
+  "keywords": ["communication","collaboration","object link","numbered message","impact analysis","runtime object network"],
+  "previewImage":null
+}

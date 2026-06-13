@@ -1,0 +1,46 @@
+{
+  "id": "lib-c4-container",
+  "kind": "knowledge",
+  "name": "C4 Container Diagram (Level 2)",
+  "type": "C4 Container",
+  "umlType": "c4_container",
+  "category": "C4 Model",
+  "group": "c4",
+  "description": "C4 Container Diagram (Level 2) describes the technology containers in the system: Web Application, API Application, Database, Message Queue. Each container is a separate deployable unit (process, service, storage).",
+  "purpose": "Describe backend architecture at the container level: technology used, responsibilities, and communication.",
+  "bestFor": [
+    "Design microservices architecture",
+    "Describe technologies used (React, Spring Boot, PostgreSQL, Kafka)",
+    "Determine how services communicate",
+    "Create architecture documentation for the development team"
+  ],
+  "notSuitableFor": [
+    "Describe system overview → go back to Level 1 (Context)",
+    "Describe component details inside container → go to Level 3 (Component)",
+    "Describe entity/class in detail → go to Level 4 (Code)"
+  ],
+  "useCases": [
+    "Define list of containers in the system",
+    "Assign technology to each container",
+    "Draw communication between containers (REST, gRPC, message queue)",
+    "Add external system from Level 1 if needed"
+  ],
+  "requirements": [
+    "Containers — deployable unit: app, service, database, queue",
+    "Technology — technology used",
+    "Relationships — communication between containers",
+    "External Systems — external systems (optional)"
+  ],
+  "elements": [
+    {"name":"Container","type":"Core","description":"Deployable unit: Web App, API, Database, Queue, Cache"},
+    {"name":"Technology","type":"Core","description":"Container technology: React, Spring Boot, PostgreSQL, Kafka, Redis"},
+    {"name":"Relationship","type":"Core","description":"Communication between containers: HTTPS, gRPC, AMQP, JDBC"},
+    {"name":"External System","type":"Optional","description":"External system from Level 1"}
+  ],
+  "confusableWith": [
+    {"diagram":"Component Diagram","difference":"Container at deployable unit level; Component at internal level inside container."},
+    {"diagram":"Deployment Diagram","difference":"C4 Container focuses on logic/technology; Deployment focuses on node/physical infrastructure."}
+  ],
+  "keywords": ["C4","container","level 2","deployable unit","web app","API","database","message queue","technology stack"],
+  "previewImage":null
+}

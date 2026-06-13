@@ -1,0 +1,47 @@
+{
+  "id": "lib-c4-code",
+  "kind": "knowledge",
+  "name": "C4 Code Diagram (Level 4)",
+  "type": "C4 Code",
+  "umlType": "c4_code",
+  "category": "C4 Model",
+  "group": "c4",
+  "description": "C4 Code Diagram (Level 4) describes in detail the entity classes inside a component. Equivalent to UML Class Diagram but in the context of the C4 model — goes deep into attributes, methods, and relationships between classes.",
+  "purpose": "Detail entities in the domain model, connecting C4 architecture design to actual code.",
+  "bestFor": [
+    "Detail entities in the domain model",
+    "Create documentation for developers implementing code",
+    "Describe JPA/Hibernate relationships between entities"
+  ],
+  "notSuitableFor": [
+    "Describe component overview → go back to Level 3 (Component)",
+    "Describe container → go back to Level 2 (Container)",
+    "Describe system overview → go back to Level 1 (Context)"
+  ],
+  "useCases": [
+    "Identify entity classes in the component",
+    "Define attributes + data types",
+    "Define methods + parameters + return type",
+    "Draw relationships between entities (@OneToMany, @ManyToOne)",
+    "Assign stereotypes: @Entity, @Service, @Repository"
+  ],
+  "requirements": [
+    "Classes — entity/model classes",
+    "Attributes — attributes + data types",
+    "Methods — methods (optional)",
+    "Relationships — relationships between classes",
+    "Stereotypes — «Entity», «Service», «Repository» (optional)"
+  ],
+  "elements": [
+    {"name":"Class","type":"Core","description":"Entity/model class: Order, User, Product"},
+    {"name":"Attribute","type":"Core","description":"Attribute + data type: - email: String"},
+    {"name":"Method","type":"Optional","description":"Method: + login(password): Token"},
+    {"name":"Relationship","type":"Core","description":"Relationship between classes (1→*, *, 0..1, composition, aggregation)"},
+    {"name":"Stereotype","type":"Optional","description":"«Entity», «Service», «Repository», «ValueObject»"}
+  ],
+  "confusableWith": [
+    {"diagram":"Class Diagram","difference":"C4 Code is a Class Diagram in the context of the C4 model — same notation, different context."}
+  ],
+  "keywords": ["C4","code","level 4","class","entity","attribute","method","relationship","stereotype","implementation"],
+  "previewImage":null
+}

@@ -1,0 +1,45 @@
+{
+  "id": "deployment-k8s",
+  "name": "Deployment Diagram — Kubernetes System",
+  "type": "Deployment Diagram",
+  "umlType": "deployment",
+  "category": "Structural",
+  "group": "structural",
+  "description": "Deployment Diagram describes how software artifacts are deployed onto Kubernetes nodes, along with the communication paths and protocols between them.",
+  "purpose": "Design cloud-native infrastructure architecture on Kubernetes.",
+  "bestFor": [
+    "Designing Kubernetes infrastructure architecture",
+    "Planning service deployment onto containers/pods",
+    "Describing load balancer, database, message broker",
+    "DevOps and production architecture documentation"
+  ],
+  "useCases": [
+    "Identify nodes: Kubernetes Cluster, Worker Node, Pod",
+    "Describe artifacts: Docker image, ConfigMap, Secret",
+    "Add communication paths: HTTPS, gRPC, JDBC",
+    "Represent infrastructure: Nginx Ingress, Redis, PostgreSQL"
+  ],
+  "requirements": [
+    "REQ-001: Application is packaged as Docker image",
+    "REQ-002: Frontend and Backend deployed separately on 2 Pods",
+    "REQ-003: Nginx Ingress acts as load balancer and TLS termination",
+    "REQ-004: Backend connects to PostgreSQL via JDBC",
+    "REQ-005: Redis used for session cache"
+  ],
+  "elements": [
+    { "name": "Kubernetes Cluster", "type": "Node", "description": "Main cluster" },
+    { "name": "Worker Node 1", "type": "Node", "description": "Node running frontend" },
+    { "name": "Worker Node 2", "type": "Node", "description": "Node running backend" },
+    { "name": "Frontend Pod", "type": "Execution Environment", "description": "React SPA container" },
+    { "name": "Backend Pod", "type": "Execution Environment", "description": "Spring Boot container" },
+    { "name": "Nginx Ingress", "type": "Infrastructure", "description": "Load balancer + TLS" },
+    { "name": "PostgreSQL", "type": "Infrastructure", "description": "Main database" },
+    { "name": "Redis", "type": "Infrastructure", "description": "Session cache" },
+    { "name": "HTTPS", "type": "Communication Path", "description": "Frontend ↔ Backend" },
+    { "name": "JDBC", "type": "Communication Path", "description": "Backend ↔ PostgreSQL" }
+  ],
+  "previewImage": null,
+  "nodeCount": 10,
+  "edgeCount": 8,
+  "createdFor": "SDLC — Deployment Phase"
+}

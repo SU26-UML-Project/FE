@@ -1,0 +1,46 @@
+{
+  "id": "lib-c4-component",
+  "kind": "knowledge",
+  "name": "C4 Component Diagram (Level 3)",
+  "type": "C4 Component",
+  "umlType": "c4_component",
+  "category": "C4 Model",
+  "group": "c4",
+  "description": "C4 Component Diagram (Level 3) breaks down the internal structure of a container into components: controller, service, repository, client. Each component is a code module inside the container.",
+  "purpose": "Describe in detail the components inside a container and their relationships.",
+  "bestFor": [
+    "Detailed design inside a service/microservice",
+    "Describe dependencies between controller, service, repository",
+    "Define interfaces and responsibilities of each component",
+    "Serve as a basis for implementing code"
+  ],
+  "notSuitableFor": [
+    "Describe container overview → go back to Level 2 (Container)",
+    "Describe class entity in detail → go to Level 4 (Code)",
+    "Describe deployment infrastructure → use Deployment Diagram"
+  ],
+  "useCases": [
+    "Select container to decompose",
+    "Identify internal components: Controller, Service, Repository",
+    "Identify provided and required component interfaces",
+    "Draw dependencies between components and external"
+  ],
+  "requirements": [
+    "Components — code modules inside the container",
+    "Interfaces — API the component provides/requires",
+    "Dependencies — relationships between components",
+    "External — other container/system (optional)"
+  ],
+  "elements": [
+    {"name":"Component","type":"Core","description":"Code module: Controller, Service, Repository, Client"},
+    {"name":"Interface","type":"Core","description":"API the component provides or requires to operate"},
+    {"name":"Relationship","type":"Core","description":"Dependency or communication between components"},
+    {"name":"Container Boundary","type":"Core","description":"Container containing the components"}
+  ],
+  "confusableWith": [
+    {"diagram":"Class Diagram","difference":"C4 Component at module/service level; Class Diagram at class entity level."},
+    {"diagram":"Composite Structure Diagram","difference":"C4 Component focuses on component code; Composite Structure focuses on runtime parts and connectors."}
+  ],
+  "keywords": ["C4","component","level 3","controller","service","repository","interface","module","architecture"],
+  "previewImage":null
+}

@@ -1,0 +1,53 @@
+{
+  "id": "lib-state-machine-diagram",
+  "kind": "knowledge",
+  "name": "State Machine Diagram",
+  "type": "State Machine Diagram",
+  "umlType": "state_machine",
+  "category": "Behavioral",
+  "group": "behavioral",
+  "description": "State Machine Diagram describes the lifecycle states of an object or system, including states, events/triggers, guard conditions, and entry/do/exit actions.",
+  "purpose": "Manage complex lifecycle states and control which events are allowed to transition from which state to which state.",
+  "bestFor": [
+    "Manage order, flight ticket, and payment transaction states",
+    "Design logic for vending machines, elevators, IoT sensors",
+    "Describe objects with complex lifecycle and constrained transitions",
+    "Control events allowed to transition from one state to another"
+  ],
+  "notSuitableFor": [
+    "Describe multi-actor/departmental workflow \u2192 use Activity Diagram",
+    "Describe messages between services over time \u2192 use Sequence Diagram",
+    "Describe high-level system functionality \u2192 use Use Case Diagram"
+  ],
+  "useCases": [
+    "Identify the object/system whose lifecycle needs to be described",
+    "List valid states",
+    "Identify initial state and final state",
+    "Identify events that trigger transitions",
+    "Add guard conditions to allow state transitions",
+    "Add entry/do/exit actions to states (optional)"
+  ],
+  "requirements": [
+    "States \u2014 list of states",
+    "Initial/Final state \u2014 start/end state",
+    "Events/Triggers \u2014 triggering events",
+    "Transitions \u2014 state transitions",
+    "Guard Conditions \u2014 conditions permitting transitions",
+    "State Actions \u2014 entry/do/exit (optional)"
+  ],
+  "elements": [
+    {"name":"State","type":"Core","description":"Static state of an object: PENDING, APPROVED, REJECTED"},
+    {"name":"Initial State","type":"Core","description":"Starting state"},
+    {"name":"Final State","type":"Optional","description":"Ending state"},
+    {"name":"Event/Trigger","type":"Core","description":"Event that triggers a transition: pay(), approve()"},
+    {"name":"Transition","type":"Core","description":"Transition between states: Pending \u2192 Paid"},
+    {"name":"Guard Condition","type":"Optional","description":"Condition permitting transition: [balance >= amount]"},
+    {"name":"State Action","type":"Optional","description":"Action on entry/within/exit of a state: entry/sendEmail()"}
+  ],
+  "confusableWith": [
+    {"diagram":"Activity Diagram","difference":"State Machine focuses on the lifecycle of one object; Activity focuses on workflow flow."},
+    {"diagram":"Sequence Diagram","difference":"State Machine does not focus on who calls whom over time but on state transitions."}
+  ],
+  "keywords": ["state","state machine","transition","event","trigger","guard","lifecycle","order status","payment status"],
+  "previewImage":null
+}

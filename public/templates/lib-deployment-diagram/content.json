@@ -1,0 +1,49 @@
+{
+  "id": "lib-deployment-diagram",
+  "kind": "knowledge",
+  "name": "Deployment Diagram",
+  "type": "Deployment Diagram",
+  "umlType": "deployment",
+  "category": "Structural",
+  "group": "structural",
+  "description": "Deployment Diagram describes how software artifacts are deployed onto physical nodes or execution environments, along with communication paths between them.",
+  "purpose": "Design cloud, on-premise, or hybrid infrastructure architecture; plan service deployment.",
+  "bestFor": [
+    "Design cloud, on-premise, or hybrid infrastructure architecture",
+    "Plan service deployment on containers, VMs, Kubernetes",
+    "Describe load balancer, database replication, CDN, message broker",
+    "Create DevOps or production architecture documentation"
+  ],
+  "notSuitableFor": [
+    "Describe logic module/service → use Component Diagram",
+    "Describe class/entity → use Class Diagram",
+    "Describe request processing flow → use Sequence Diagram"
+  ],
+  "useCases": [
+    "Identify physical nodes or execution environments",
+    "Identify deployed artifacts (file, package, image)",
+    "Add execution environment (JVM, Node.js, Pod)",
+    "Draw communication path with protocol (HTTPS, gRPC, JDBC)",
+    "Add infrastructure service (LB, CDN, DB replica)"
+  ],
+  "requirements": [
+    "Nodes — devices or execution environments",
+    "Artifacts — deployed files/packages/images",
+    "Execution Environments — runtime containing artifacts",
+    "Communication Paths — network connections + protocols",
+    "Infrastructure services — LB, CDN, cache (optional)"
+  ],
+  "elements": [
+    {"name":"Node","type":"Core","description":"Device/execution environment: server, container, device"},
+    {"name":"Artifact","type":"Core","description":"Deployed file/package/image: .jar, .war, Docker image"},
+    {"name":"Execution Environment","type":"Core","description":"Runtime containing artifacts: JVM, Pod, Node.js"},
+    {"name":"Communication Path","type":"Core","description":"Network connection + protocol: HTTPS, gRPC, JDBC"},
+    {"name":"Infrastructure Service","type":"Optional","description":"LB, CDN, DB replica, cache, message broker"}
+  ],
+  "confusableWith": [
+    {"diagram":"Component Diagram","difference":"Deployment answers 'where it runs'; Component answers 'what components the software consists of'."},
+    {"diagram":"Package Diagram","difference":"Package describes source code organization; Deployment describes runtime/infrastructure deployment."}
+  ],
+  "keywords": ["deployment","server","container","docker","kubernetes","cloud","AWS","Azure","node","artifact","protocol","load balancer"],
+  "previewImage":null
+}

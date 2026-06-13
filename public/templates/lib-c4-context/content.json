@@ -1,0 +1,46 @@
+{
+  "id": "lib-c4-context",
+  "kind": "knowledge",
+  "name": "C4 Context Diagram (Level 1)",
+  "type": "C4 Context",
+  "umlType": "c4_context",
+  "category": "C4 Model",
+  "group": "c4",
+  "description": "C4 Context Diagram (Level 1) describes the system overview: main users (Person), the system being built (Software System), and external systems (External System). This is the starting point for every C4 model.",
+  "purpose": "Define system scope, main users, and interacting external systems.",
+  "bestFor": [
+    "Present high-level architecture to non-technical stakeholders",
+    "Define system boundary",
+    "Describe users and external systems",
+    "First step when applying the C4 model"
+  ],
+  "notSuitableFor": [
+    "Describe technology in detail → go to Level 2 (Container)",
+    "Describe internal components → go to Level 3 (Component)",
+    "Describe entity in detail → go to Level 4 (Code)"
+  ],
+  "useCases": [
+    "Define Person (main user)",
+    "Define Software System (system being built)",
+    "Define External System (external system)",
+    "Draw interaction relationships between Person ↔ System"
+  ],
+  "requirements": [
+    "Persons — main users",
+    "Software System — system being built",
+    "External Systems — external systems",
+    "Relationships — interactions between Person and System"
+  ],
+  "elements": [
+    {"name":"Person","type":"Core","description":"Main user of the system (customer, admin, operator)"},
+    {"name":"Software System","type":"Core","description":"System being built"},
+    {"name":"External System","type":"Core","description":"External system that interacts (payment gateway, email service)"},
+    {"name":"Relationship","type":"Core","description":"Interaction between person and system"}
+  ],
+  "confusableWith": [
+    {"diagram":"Use Case Diagram","difference":"C4 Context focuses on system and external; Use Case focuses on actors and detailed functionality."},
+    {"diagram":"Deployment Diagram","difference":"C4 Context at overview level; Deployment at deployment infrastructure level."}
+  ],
+  "keywords": ["C4","context","level 1","system boundary","person","software system","external system","stakeholder"],
+  "previewImage":null
+}

@@ -1,0 +1,42 @@
+{
+  "id": "c4-component",
+  "name": "Component Diagram — Order Service",
+  "type": "C4 Component",
+  "umlType": "c4_component",
+  "category": "C4 Model",
+  "group": "c4",
+  "description": "C4 Component Diagram (Level 3) breaks down the internal structure of the API Application container, focusing on Order Service with components: OrderController, OrderService, OrderRepository and related entities.",
+  "purpose": "Describe the details of components inside a container and the relationships between them.",
+  "bestFor": [
+    "Detailed design inside a service/microservice",
+    "Describing dependencies between controller, service, repository",
+    "Identifying interfaces and responsibilities of each component",
+    "Basis for code implementation"
+  ],
+  "useCases": [
+    "Break down API Application into components",
+    "Identify: OrderController, OrderService, OrderRepository, Order Entity",
+    "Add supporting components: PaymentClient, NotificationClient",
+    "Draw dependencies between components"
+  ],
+  "requirements": [
+    "REQ-001: OrderController receives HTTP requests and calls OrderService",
+    "REQ-002: OrderService contains business logic for processing orders",
+    "REQ-003: OrderRepository accesses database via JPA/Hibernate",
+    "REQ-004: OrderService calls PaymentClient to process payments",
+    "REQ-005: OrderService calls NotificationClient to send email/SMS"
+  ],
+  "elements": [
+    { "name": "OrderController", "type": "Component", "description": "REST controller receiving order requests" },
+    { "name": "OrderService", "type": "Component", "description": "Business logic for processing orders" },
+    { "name": "OrderRepository", "type": "Component", "description": "Database access (JPA)" },
+    { "name": "Order Entity", "type": "Component", "description": "JPA Entity mapping orders table" },
+    { "name": "PaymentClient", "type": "Component", "description": "HTTP client calling Payment Gateway" },
+    { "name": "NotificationClient", "type": "Component", "description": "Sends email/SMS" },
+    { "name": "OrderDTO", "type": "Component", "description": "Data transfer object" }
+  ],
+  "previewImage": null,
+  "nodeCount": 8,
+  "edgeCount": 7,
+  "createdFor": "C4 Model — Level 3"
+}

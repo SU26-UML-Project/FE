@@ -1,0 +1,48 @@
+{
+  "id": "lib-composite-structure-diagram",
+  "kind": "knowledge",
+  "name": "Composite Structure Diagram",
+  "type": "Composite Structure Diagram",
+  "umlType": "composite_structure",
+  "category": "Structural",
+  "group": "structural",
+  "description": "Composite Structure Diagram describes the runtime internal structure of a complex classifier or component, including internal parts, ports, and connectors between them.",
+  "purpose": "Decompose the runtime internal structure of complex design patterns (MVC, Broker) or embedded systems.",
+  "bestFor": [
+    "Describe runtime internal structure of design patterns (MVC, Mediator, Broker)",
+    "Design embedded or hardware systems with internal connection ports",
+    "Describe how parts inside a component collaborate with each other"
+  ],
+  "notSuitableFor": [
+    "Describe components from an external view \u2192 use Component Diagram",
+    "Describe general classes/entities \u2192 use Class Diagram",
+    "Describe messages over time \u2192 use Sequence Diagram"
+  ],
+  "useCases": [
+    "Select the classifier/component to decompose",
+    "Identify internal parts",
+    "Add ports as communication points",
+    "Draw connectors between parts",
+    "Assign roles to each part (optional)"
+  ],
+  "requirements": [
+    "Classifier \u2014 outer enclosing component",
+    "Parts \u2014 runtime internal components",
+    "Ports \u2014 communication points (optional)",
+    "Connectors \u2014 logical/physical connections between parts",
+    "Roles \u2014 part roles in collaboration (optional)"
+  ],
+  "elements": [
+    {"name":"Classifier","type":"Core","description":"Outer enclosing component to decompose"},
+    {"name":"Part","type":"Core","description":"Internal component participating at runtime"},
+    {"name":"Port","type":"Optional","description":"Communication point of classifier/part"},
+    {"name":"Connector","type":"Core","description":"Logical/physical connection between parts"},
+    {"name":"Role","type":"Optional","description":"Role of a part in collaboration"}
+  ],
+  "confusableWith": [
+    {"diagram":"Component Diagram","difference":"Component views from the outside; Composite Structure decomposes the internal structure of a classifier/component."},
+    {"diagram":"Class Diagram","difference":"Class describes classes and static relationships; Composite Structure describes runtime composition inside a classifier."}
+  ],
+  "keywords": ["composite structure","internal structure","parts","ports","connectors","runtime collaboration","MVC","embedded"],
+  "previewImage":null
+}

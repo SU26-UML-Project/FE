@@ -1,0 +1,50 @@
+{
+  "id": "activity-order",
+  "name": "Activity Diagram — Order Approval Process",
+  "type": "Activity Diagram",
+  "umlType": "activity",
+  "category": "Behavioral",
+  "group": "behavioral",
+  "description": "Activity Diagram describes the workflow for processing and approving orders from the time a customer places an order until the order is delivered. The diagram has swimlanes dividing responsibilities among Customer, Warehouse, Accounting and Manager.",
+  "purpose": "Detailed specification of the order approval business workflow with multiple decisions and fork/join.",
+  "bestFor": [
+    "Drawing cross-department business workflows",
+    "Describing processes with multiple decisions and branches",
+    "Dividing responsibilities by swimlane",
+    "Describing parallel flows (fork/join)"
+  ],
+  "useCases": [
+    "Draw initial node → action → decision → merge → final node",
+    "Add swimlanes: Customer, Warehouse, Accounting, Manager",
+    "Fork: check inventory and check credit in parallel",
+    "Decision: [stock available] / [stock insufficient], [order < 10M] / [order > 10M]"
+  ],
+  "requirements": [
+    "REQ-001: Customer places order → system records the order",
+    "REQ-002: Warehouse checks inventory and Accounting checks credit in parallel",
+    "REQ-003: If stock is available and credit is OK → approve order",
+    "REQ-004: If stock is insufficient → notify customer",
+    "REQ-005: Orders over 10 million require additional Manager approval"
+  ],
+  "elements": [
+    { "name": "Start", "type": "Initial Node", "description": "Start of the process" },
+    { "name": "Place Order", "type": "Action", "description": "Customer creates an order" },
+    { "name": "Check Inventory", "type": "Action", "description": "Warehouse checks stock" },
+    { "name": "Check Credit", "type": "Action", "description": "Accounting checks" },
+    { "name": "Fork", "type": "Fork Node", "description": "Run 2 flows in parallel" },
+    { "name": "Join", "type": "Join Node", "description": "Merge 2 flows" },
+    { "name": "Decision: stock available?", "type": "Decision Node", "description": "Branch" },
+    { "name": "Notify Out of Stock", "type": "Action", "description": "Send email" },
+    { "name": "Manager Approval", "type": "Action", "description": "Manager approves order > 10M" },
+    { "name": "Confirm Order", "type": "Action", "description": "Send confirmation" },
+    { "name": "Customer", "type": "Swimlane", "description": "Customer subsystem" },
+    { "name": "Warehouse", "type": "Swimlane", "description": "Warehouse subsystem" },
+    { "name": "Accounting", "type": "Swimlane", "description": "Accounting subsystem" },
+    { "name": "Manager", "type": "Swimlane", "description": "Management subsystem" },
+    { "name": "End", "type": "Final Node", "description": "End of the process" }
+  ],
+  "previewImage": null,
+  "nodeCount": 15,
+  "edgeCount": 14,
+  "createdFor": "SDLC — Design Phase"
+}

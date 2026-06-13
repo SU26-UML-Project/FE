@@ -1,0 +1,56 @@
+{
+  "id": "lib-class-diagram",
+  "kind": "knowledge",
+  "name": "Class Diagram",
+  "type": "Class Diagram",
+  "umlType": "class",
+  "category": "Structural",
+  "group": "structural",
+  "description": "Class Diagram describes the static structure of the system through classes, interfaces, attributes, methods, and their relationships. This is a fundamental diagram when designing domain models, ORM entities, or object-oriented architecture.",
+  "purpose": "Describe the static structure of the system, design the domain model, and define relationships between classes/entities.",
+  "bestFor": [
+    "Design data structure for RDBMS via ORM (Spring Boot / Hibernate, Entity Framework)",
+    "Describe Domain Model in Domain-Driven Design",
+    "Analyze, refactor, or reverse-engineer object-oriented source code",
+    "Create technical documentation for relationships between entities, services, and interfaces"
+  ],
+  "notSuitableFor": [
+    "Describe specific objects at runtime → use Object Diagram",
+    "Describe function/API call order over time → use Sequence Diagram",
+    "Describe business workflow → use Activity Diagram"
+  ],
+  "useCases": [
+    "Identify list of classes/entities/interfaces in the system",
+    "Define attributes with data types and visibility",
+    "Define methods with parameters and return types",
+    "Draw relationships: Association, Generalization, Realization, Composition, Aggregation, Dependency",
+    "Assign multiplicity between classes"
+  ],
+  "requirements": [
+    "Classes — list of classes/entities",
+    "Interfaces — interfaces (optional)",
+    "Attributes — attributes and data types",
+    "Methods — methods (optional)",
+    "Relationships — relationship types",
+    "Multiplicity — multiplicity"
+  ],
+  "elements": [
+    {"name":"Class","type":"Core","description":"Class/entity in the system"},
+    {"name":"Interface","type":"Core","description":"Interface declaring methods"},
+    {"name":"Attribute","type":"Core","description":"Attribute + type + visibility"},
+    {"name":"Method","type":"Core","description":"Method + parameters + return type"},
+    {"name":"Association","type":"Relationship","description":"Reference relationship between 2 classes"},
+    {"name":"Generalization","type":"Relationship","description":"Inheritance (child class → parent class)"},
+    {"name":"Realization","type":"Relationship","description":"Implement interface"},
+    {"name":"Composition","type":"Relationship","description":"Whole-part relationship, same lifecycle"},
+    {"name":"Aggregation","type":"Relationship","description":"Whole-part relationship, different lifecycle"},
+    {"name":"Dependency","type":"Relationship","description":"Temporary dependency"}
+  ],
+  "confusableWith": [
+    {"diagram":"Object Diagram","difference":"Class Diagram describes blueprint/type; Object Diagram describes specific instances at runtime."},
+    {"diagram":"Package Diagram","difference":"Class Diagram describes classes; Package Diagram describes package/module groups and dependencies."},
+    {"diagram":"Component Diagram","difference":"Class Diagram at code/object model level; Component Diagram at module/service/subsystem level."}
+  ],
+  "keywords": ["class","entity","domain model","ORM","attribute","method","inheritance","interface","relationship","DDD","multiplicity"],
+  "previewImage":null
+}

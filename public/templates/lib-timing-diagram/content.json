@@ -1,0 +1,49 @@
+{
+  "id": "lib-timing-diagram",
+  "kind": "knowledge",
+  "name": "Timing Diagram",
+  "type": "Timing Diagram",
+  "umlType": "timing",
+  "category": "Behavioral",
+  "group": "behavioral",
+  "description": "Timing Diagram describes the change of state or value of a lifeline along a linear time axis. This diagram is especially useful for real-time, embedded, or strict timing constraint systems.",
+  "purpose": "Analyze latency, duration constraints, deadlines, or timeouts in real-time systems.",
+  "bestFor": [
+    "Design real-time hardware or embedded systems",
+    "Describe latency, duration constraints, deadlines, or timeouts",
+    "Analyze object state/value changes per ms/s",
+    "Design automatic lock/unlock mechanisms over time"
+  ],
+  "notSuitableFor": [
+    "Describe general transition logic \u2192 use State Machine Diagram",
+    "Describe messages between services \u2192 use Sequence Diagram",
+    "Describe business workflow \u2192 use Activity Diagram"
+  ],
+  "useCases": [
+    "Identify lifelines to monitor over time",
+    "Draw state/value levels along the vertical axis",
+    "Define timeline unit (ms, s, minutes)",
+    "Mark state changes at specific time points",
+    "Add duration/time constraints (optional)"
+  ],
+  "requirements": [
+    "Lifelines \u2014 objects to monitor",
+    "States/Values \u2014 states along the vertical axis",
+    "Timeline \u2014 horizontal time axis",
+    "Duration constraints \u2014 maximum/minimum time intervals",
+    "Time events \u2014 time points causing state changes (optional)"
+  ],
+  "elements": [
+    {"name":"Lifeline","type":"Core","description":"Object to monitor over time"},
+    {"name":"State/Value","type":"Core","description":"States or values along the vertical axis: Open, Closed, Locked"},
+    {"name":"Timeline","type":"Core","description":"Horizontal axis representing time: 0s, 5s, 10s"},
+    {"name":"Duration Constraint","type":"Optional","description":"Maximum/minimum time interval: lock after 5s"},
+    {"name":"Time Event","type":"Optional","description":"Time point or event causing state change"}
+  ],
+  "confusableWith": [
+    {"diagram":"State Machine Diagram","difference":"Timing emphasizes states over specific time; State Machine emphasizes transition/event logic."},
+    {"diagram":"Sequence Diagram","difference":"Sequence emphasizes message order; Timing emphasizes duration and state/value over timeline."}
+  ],
+  "keywords": ["timing","timeline","duration","time constraint","real-time","embedded","latency","deadline","timeout"],
+  "previewImage":null
+}

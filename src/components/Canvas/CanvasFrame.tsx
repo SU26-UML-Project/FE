@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import LoadingOverlay from '../ui/LoadingOverlay'
 
 const DRAWIO_ORIGIN = 'https://embed.diagrams.net'
-const DRAWIO_URL = `${DRAWIO_ORIGIN}/?embed=1&proto=json&spin=1&ui=min&libs=general;uml`
+const DRAWIO_URL = `${DRAWIO_ORIGIN}/?embed=1&proto=json&spin=1&ui=min&noMenus=1&noToolbar=1&libs=general;uml`
 
 interface CanvasFrameProps {
   onXmlChange: (xml: string) => void
