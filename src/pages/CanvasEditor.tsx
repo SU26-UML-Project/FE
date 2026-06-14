@@ -1,14 +1,35 @@
-import { useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import CanvasToolbar from '../components/Canvas/CanvasToolbar'
 import CanvasFrame from '../components/Canvas/CanvasFrame'
 import CodePanel from '../components/Canvas/CodePanel'
 
+const CANVAS_PAGE_DIAGRAM_LOADED = 'canvas_template_diagram_loaded'
+
 const CanvasEditor = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [isCodePanelOpen, setIsCodePanelOpen] = useState(false)
   const [diagramName, setDiagramName] = useState('Untitled Diagram')
   const [diagramXml, setDiagramXml] = useState<string | null>(null)
+  const [initialXml, setInitialXml] = useState<string | undefined>(undefined)
+
+  // Load template diagram from ?template= param
+  useEffect(() => {
+    const templateId = searchParams.get('template')
+    if (!templateId) return
+
+    fetch(`/templates/${templateId}/diagram.xml`)
+      .then(r => r.text())
+      .then(xml => {
+        setInitialXml(xml)
+        setDiagramName(`${templateId.replace(/^lib-/, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} Diagram`)
+      })
+      .catch(() => {})
+
+    // Mark that we loaded from template so CanvasFrame knows not to start blank
+    sessionStorage.setItem(CANVAS_PAGE_DIAGRAM_LOADED, 'true')
+  }, [searchParams])
 
   const handleXmlChange = useCallback((xml: string) => {
     setDiagramXml(xml)
@@ -41,6 +62,7 @@ const CanvasEditor = () => {
             <CanvasFrame
               onXmlChange={handleXmlChange}
               onSave={handleSave}
+              xml={initialXml}
             />
           </div>
           <div className="h-6 border-t border-gray-200 bg-gray-50/50 flex items-center justify-center shrink-0">

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Layers, ListTree, FileText, CheckCircle, Table, Eye, Cpu, AlertTriangle, Hash } from 'lucide-react'
 import { getTemplateContent } from '../utils/templates'
+import CanvasFrame from '../components/Canvas/CanvasFrame'
 import type { TemplateContent } from '../utils/templates'
 
 const badgeColors: Record<string, string> = {
@@ -29,6 +30,7 @@ export default function TemplateDetail() {
   const [template, setTemplate] = useState<TemplateContent | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [diagramXml, setDiagramXml] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -38,6 +40,14 @@ export default function TemplateDetail() {
       .then(setTemplate)
       .catch(() => setError(true))
       .finally(() => setLoading(false))
+  }, [id])
+
+  useEffect(() => {
+    if (!id) return
+    fetch(`/templates/${id}/diagram.xml`)
+      .then(r => r.text())
+      .then(setDiagramXml)
+      .catch(() => setDiagramXml(null))
   }, [id])
 
   if (loading) {
@@ -303,31 +313,25 @@ export default function TemplateDetail() {
             <Eye size={20} className="text-uml-blue" />
             Preview
           </h2>
-          <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-sm h-64 flex items-center justify-center">
-            <div className="text-center">
-              <Eye size={40} className="text-gray-300 mx-auto mb-3" />
-              <p className="text-sm text-gray-400 font-medium">Canvas preview will be available in Phase 2</p>
-              <p className="text-xs text-gray-300 mt-1">React Flow canvas integration coming soon</p>
-            </div>
+          <div className="relative h-96 rounded-sm overflow-hidden border border-gray-200 bg-gray-50">
+            <CanvasFrame onXmlChange={() => {}} onSave={() => {}} xml={diagramXml || undefined} />
           </div>
         </motion.div>
 
-        {template.kind !== 'knowledge' && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-40px' }}
-            transition={{ duration: 0.3, delay: 0.4 }}
-            className="flex justify-center pb-12"
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-40px' }}
+          transition={{ duration: 0.3, delay: 0.4 }}
+          className="flex justify-center pb-12"
+        >
+          <button
+            onClick={() => navigate(`/canvas?template=${id}`)}
+            className="px-10 py-4 bg-uml-blue text-white font-bold rounded-md text-sm uppercase tracking-wider hover:bg-blue-700 transition shadow-md active:scale-95"
           >
-            <button
-              disabled
-              className="px-10 py-4 bg-gray-200 text-gray-400 font-bold rounded-md text-sm uppercase tracking-wider cursor-not-allowed"
-            >
-              Use Template — Coming in Phase 2
-            </button>
-          </motion.div>
-        )}
+            Open in Canvas
+          </button>
+        </motion.div>
       </div>
     </div>
   )

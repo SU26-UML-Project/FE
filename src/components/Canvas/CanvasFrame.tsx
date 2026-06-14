@@ -7,12 +7,15 @@ const DRAWIO_URL = `${DRAWIO_ORIGIN}/?embed=1&proto=json&spin=1&ui=min&noMenus=1
 interface CanvasFrameProps {
   onXmlChange: (xml: string) => void
   onSave: (xml: string) => void
+  xml?: string
 }
 
-export default function CanvasFrame({ onXmlChange, onSave }: CanvasFrameProps) {
+export default function CanvasFrame({ onXmlChange, onSave, xml }: CanvasFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const readyRef = useRef(false)
+  const xmlRef = useRef(xml)
+  xmlRef.current = xml
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -25,7 +28,7 @@ export default function CanvasFrame({ onXmlChange, onSave }: CanvasFrameProps) {
           const iframeWindow = iframeRef.current?.contentWindow
           if (iframeWindow) {
             iframeWindow.postMessage(
-              JSON.stringify({ action: 'load', xml: '' }),
+              JSON.stringify({ action: 'load', xml: xmlRef.current || '' }),
               '*'
             )
           }
