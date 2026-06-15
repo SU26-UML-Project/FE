@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Routes, Route, useLocation, useSearchParams } from 'react-router-dom'
+import { Routes, Route, useLocation, useSearchParams, useNavigate } from 'react-router-dom'
 import { Toaster, toast } from 'react-hot-toast'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
@@ -33,6 +33,7 @@ const ScrollToHash = () => {
 
 const OAuth2Handler = () => {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const setAuth = useAuthStore((state) => state.setAuth)
 
   useEffect(() => {
@@ -50,16 +51,15 @@ const OAuth2Handler = () => {
         role: { roleName: 'USER', description: 'Standard User' }
       })
       
-      // Navigate to dashboard after successful login
-      window.location.href = '/dashboard';
+      // Navigate to dashboard after successful login using SPA navigation
+      navigate('/dashboard', { replace: true })
     }
 
     if (errorMsg) {
       toast.error(decodeURIComponent(errorMsg))
-      searchParams.delete('error')
-      setSearchParams(searchParams, { replace: true })
+      navigate('/', { replace: true })
     }
-  }, [searchParams, setSearchParams, setAuth])
+  }, [searchParams, navigate, setAuth])
 
   return null
 }
