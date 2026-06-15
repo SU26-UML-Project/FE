@@ -58,7 +58,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = 'http://localhost:8088/api/uml/oauth2/authorization/google';
+    // window.location.href = 'http://localhost:8088/api/uml/oauth2/authorization/google';
+    window.location.href = 'https://diauml-be.onrender.com/api/uml/oauth2/authorization/google';
   };
 
   return (

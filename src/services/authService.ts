@@ -35,8 +35,8 @@ export const authService = {
     return apiClient.post('/users/register', data);
   },
 
-  logout: async (token: string): Promise<ApiResponse<void>> => {
-    return apiClient.post('/auth/logout', { token });
+  logout: async (token?: string): Promise<ApiResponse<void>> => {
+    return apiClient.post('/auth/logout', token ? { token } : {});
   },
 
   // Note: We might need a separate API call to get user info after login
