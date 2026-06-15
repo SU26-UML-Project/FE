@@ -41,6 +41,15 @@ const OAuth2Handler = () => {
     const errorMsg = searchParams.get('error')
 
     if (loginStatus === 'success') {
+        const accessToken = searchParams.get('access_token')
+      const refreshToken = searchParams.get('refresh_token')
+
+      if (accessToken && refreshToken) {
+        // Manually save cookies for Google OAuth2 flow
+        const cookieOptions = "; Path=/; Max-Age=604800; SameSite=None; Secure";
+        document.cookie = `access_token=${accessToken}${cookieOptions}`;
+        document.cookie = `refresh_token=${refreshToken}${cookieOptions}`;
+      }
       toast.success('Đăng nhập Google thành công!')
       // Temporary: Set a placeholder user since we don't have a /me endpoint yet
       setAuth({
