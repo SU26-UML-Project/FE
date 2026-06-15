@@ -50,9 +50,8 @@ const OAuth2Handler = () => {
         role: { roleName: 'USER', description: 'Standard User' }
       })
       
-      // Clean up URL params
-      searchParams.delete('login')
-      setSearchParams(searchParams, { replace: true })
+      // Navigate to dashboard after successful login
+      window.location.href = '/dashboard';
     }
 
     if (errorMsg) {
@@ -83,6 +82,8 @@ function App() {
           <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/canvas" element={<CanvasEditor />} />
           <Route path="/templates/:id" element={<TemplateDetail />} />
+          {/* Support for Google OAuth2 Callback Path */}
+          <Route path="/auth/google/callback" element={<LandingPage />} />
         </Routes>
       </main>
       {!isAdminPage && !isDashboardPage && !isCanvasPage && <Footer />}
