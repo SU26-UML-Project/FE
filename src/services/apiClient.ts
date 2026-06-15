@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8088/api/uml',
+  // baseURL: 'http://localhost:8088/api/uml',
+  baseURL: 'https://diauml-be.onrender.com/api/uml',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
