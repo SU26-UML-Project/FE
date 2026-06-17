@@ -11,46 +11,29 @@ import {
   CheckCircle2, 
   Grid2X2, 
   List,
-  MoreVertical,
   ChevronLeft,
   ChevronRight,
-  Layers
+  Layers,
+  Copy,
+  Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getTemplateList } from '../utils/templates';
 import type { TemplateMeta } from '../utils/templates';
+import { listWorkspaces, upsertWorkspace, generateId } from '../utils/workspaceStore';
+import type { Workspace, PrebuiltMeta } from '../types/workspace';
 
-interface Project {
-  id: string;
-  name: string;
-  lastEdited: string;
-  status: 'Draft' | 'Live';
-  thumbnail: string;
+const formatRelativeTime = (iso: string): string => {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins} min ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours} hr ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days} day ago`
+  return new Date(iso).toLocaleDateString()
 }
-
-const mockProjects: Project[] = [
-  {
-    id: '1',
-    name: 'System Architecture',
-    lastEdited: '2 hrs ago',
-    status: 'Draft',
-    thumbnail: 'https://images.unsplash.com/photo-1581291417004-63f881857ee1?q=80&w=2070&auto=format&fit=crop'
-  },
-  {
-    id: '2',
-    name: 'Database Schema v2',
-    lastEdited: 'Yesterday',
-    status: 'Live',
-    thumbnail: 'https://images.unsplash.com/photo-1551288049-bbbda536339a?q=80&w=2070&auto=format&fit=crop'
-  },
-  {
-    id: '3',
-    name: 'Auth Flow Sequence',
-    lastEdited: '3 days ago',
-    status: 'Draft',
-    thumbnail: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?q=80&w=2055&auto=format&fit=crop'
-  }
-];
 
 const UserDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -65,6 +48,11 @@ const UserDashboard: React.FC = () => {
   const [filterGroup, setFilterGroup] = useState<string | null>(null);
   const [filteredTemplates, setFilteredTemplates] = useState<TemplateMeta[]>([]);
   const [filterLoading, setFilterLoading] = useState(false);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [prebuilts, setPrebuilts] = useState<PrebuiltMeta[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newWsName, setNewWsName] = useState('');
+  const [newWsCategory, setNewWsCategory] = useState('general');
 
   useEffect(() => { sessionStorage.setItem('dashboard_tab', activeTab); }, [activeTab]);
   useEffect(() => { sessionStorage.setItem('dashboard_templateKind', templateKind); }, [templateKind]);
@@ -89,6 +77,42 @@ const UserDashboard: React.FC = () => {
     }, 400)
     return () => clearTimeout(timer)
   }, [filterGroup, templates]);
+
+  useEffect(() => {
+    setWorkspaces(listWorkspaces())
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetch('/prebuilts/index.json')
+      .then(r => r.json())
+      .then(setPrebuilts)
+      .catch(() => setPrebuilts([]))
+  }, []);
+
+  const handleCreateWorkspace = () => {
+    if (!newWsName.trim()) return
+    const ws: Workspace = {
+      id: generateId(),
+      name: newWsName.trim(),
+      category: newWsCategory,
+      type: 'user',
+      documents: [],
+      sheets: [{
+        id: generateId(),
+        name: 'Diagram 1',
+        diagramType: 'blank',
+        diagramXml: '',
+      }],
+      aiContext: { intent: '', clarifications: [], history: [] },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    upsertWorkspace(ws)
+    setWorkspaces(listWorkspaces())
+    setShowCreateModal(false)
+    setNewWsName('')
+    setNewWsCategory('general')
+  }
 
   return (
     <div className="bg-admin-bg text-admin-on-surface font-priego h-screen flex overflow-hidden pt-[88px]">
@@ -196,42 +220,53 @@ const UserDashboard: React.FC = () => {
         <main className="flex-1 overflow-y-auto p-8 lg:px-12 relative">
           <div className="max-w-7xl mx-auto">
             {/* Page Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 border-b border-admin-outline pb-6">
-              <div>
-                {activeTab === 'templates' ? (
-                  <>
-                    <h1 className="text-4xl font-black tracking-tight text-black mb-2">Templates</h1>
-                    <p className="text-lg text-admin-on-surface-variant">
-                      {templateKind === 'knowledge'
-                        ? 'Learn about each UML diagram type — purpose, elements, when to use, and comparisons.'
-                        : 'Pre-built diagram templates tied to real-world projects. Use as a starting point.'}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <h1 className="text-4xl font-black tracking-tight text-black mb-2">Recent Diagrams</h1>
-                    <p className="text-lg text-admin-on-surface-variant">Pick up where you left off or start a new architectural design.</p>
-                  </>
-                )}
-              </div>
-              
-              {/* Grid/List Toggle */}
-              <div className="flex bg-gray-100 p-1 rounded-lg">
-                <button 
-                  onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-uml-blue' : 'text-gray-500 hover:text-black'}`}
-                >
-                  <Grid2X2 size={20} />
-                </button>
-                <button 
-                  onClick={() => setViewMode('list')}
-                  className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-uml-blue' : 'text-gray-500 hover:text-black'}`}
-                >
-                  <List size={20} />
-                </button>
-              </div>
-            </div>
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 border-b border-admin-outline pb-6">
+                <div>
+                  {activeTab === 'templates' ? (
+                    <>
+                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Templates</h1>
+                      <p className="text-lg text-admin-on-surface-variant">
+                        {templateKind === 'knowledge'
+                          ? 'Learn about each UML diagram type — purpose, elements, when to use, and comparisons.'
+                          : 'Pre-built diagram templates tied to real-world projects. Use as a starting point.'}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">My Workspaces</h1>
+                      <p className="text-lg text-admin-on-surface-variant">Create and manage your architectural design workspaces.</p>
+                    </>
+                  )}
+                </div>
 
+
+                {/* Grid/List Toggle */}
+                <div className="flex items-center gap-3">
+                  {activeTab !== 'templates' && (
+                    <button
+                      onClick={() => setShowCreateModal(true)}
+                      className="px-4 py-2 bg-uml-blue text-white font-bold rounded-md text-sm hover:bg-blue-700 transition flex items-center gap-2"
+                    >
+                      <Plus size={16} />
+                      New Workspace
+                    </button>
+                  )}
+                  <div className="flex bg-gray-100 p-1 rounded-lg">
+                    <button 
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-uml-blue' : 'text-gray-500 hover:text-black'}`}
+                    >
+                      <Grid2X2 size={20} />
+                    </button>
+                    <button 
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-uml-blue' : 'text-gray-500 hover:text-black'}`}
+                    >
+                      <List size={20} />
+                    </button>
+                  </div>
+                </div>
+              </div>
             {/* Filter Pills */}
             {activeTab === 'templates' && !templatesLoading && templates.length > 0 && (
               <div className="flex items-center gap-2 mb-6 flex-wrap">
@@ -324,34 +359,91 @@ const UserDashboard: React.FC = () => {
                   </motion.div>
                 </AnimatePresence>
               )
-            ) : viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {mockProjects.map(project => (
-                  <ProjectGridCard key={project.id} project={project} />
-                ))}
-              </div>
             ) : (
-              <div className="bg-white border border-admin-outline rounded-sm overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
-                      <th className="py-4 px-6">Diagram Name</th>
-                      <th className="py-4 px-6">Last Edited</th>
-                      <th className="py-4 px-6">Status</th>
-                      <th className="py-4 px-6 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mockProjects.map(project => (
-                      <ProjectListRow key={project.id} project={project} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                {/* My Workspaces */}
+                <section className="mb-12">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold text-black">
+                      My Workspaces
+                      <span className="ml-2 text-sm font-normal text-gray-400">({workspaces.length})</span>
+                    </h2>
+                  </div>
+                  {workspaces.length === 0 ? (
+                    <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
+                      <Folder size={48} className="text-gray-200 mx-auto mb-3" />
+                      <h3 className="text-lg font-bold text-gray-400 mb-1">No workspaces yet</h3>
+                      <p className="text-sm text-gray-300 mb-4">Create your first workspace to get started.</p>
+                      <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="px-4 py-2 bg-uml-blue text-white font-bold rounded-md text-sm hover:bg-blue-700 transition"
+                      >
+                        Create Workspace
+                      </button>
+                    </div>
+                  ) : viewMode === 'grid' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {workspaces.map((ws) => (
+                        <UserWorkspaceCard key={ws.id} workspace={ws} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-white border border-admin-outline rounded-sm overflow-hidden">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
+                            <th className="py-4 px-6">Workspace Name</th>
+                            <th className="py-4 px-6">Category</th>
+                            <th className="py-4 px-6">Last Edited</th>
+                            <th className="py-4 px-6 text-right">Diagrams</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {workspaces.map((ws) => (
+                            <WorkspaceListRow key={ws.id} workspace={ws} />
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+
+                {/* Prebuilt Projects */}
+                <section>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold text-black">
+                      Prebuilt Projects
+                      <span className="ml-2 text-sm font-normal text-gray-400">({prebuilts.length})</span>
+                    </h2>
+                  </div>
+                  {prebuilts.length === 0 ? (
+                    <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
+                      <Copy size={48} className="text-gray-200 mx-auto mb-3" />
+                      <h3 className="text-lg font-bold text-gray-400 mb-1">No prebuilt projects</h3>
+                      <p className="text-sm text-gray-300">Check back later for ready-made project templates.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {prebuilts.map((p) => (
+                        <PrebuiltCard key={p.id} meta={p} />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </>
             )}
           </div>
         </main>
       </div>
+      <CreateWorkspaceModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        name={newWsName}
+        onNameChange={setNewWsName}
+        category={newWsCategory}
+        onCategoryChange={setNewWsCategory}
+        onCreate={handleCreateWorkspace}
+      />
     </div>
   );
 };
@@ -389,60 +481,6 @@ const SubSidebarItem = ({ label, active, onClick }: { label: string; active: boo
     {label}
   </button>
 )
-
-const ProjectGridCard = ({ project }: { project: Project }) => (
-  <div className="bg-white border border-admin-outline rounded flex flex-col group hover:border-uml-blue transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[300px]">
-    <div className="h-44 bg-gray-50 border-b border-admin-outline relative overflow-hidden">
-      <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
-      <img 
-        src={project.thumbnail} 
-        alt={project.name} 
-        className="w-full h-full object-cover mix-blend-multiply opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" 
-      />
-      <div className="absolute top-3 right-3">
-        <span className={`px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm ${project.status === 'Live' ? 'bg-emerald-100 text-emerald-600 border border-emerald-200' : 'bg-blue-100 text-uml-blue border border-blue-200'}`}>
-          {project.status}
-        </span>
-      </div>
-    </div>
-    <div className="p-5 flex-1 flex flex-col justify-between">
-      <div>
-        <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{project.name}</h3>
-        <p className="text-[11px] text-admin-secondary font-bold uppercase tracking-widest">Last edited {project.lastEdited}</p>
-      </div>
-      <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-        <button className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-black transition-colors">
-          <MoreVertical size={18} />
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
-const ProjectListRow = ({ project }: { project: Project }) => (
-  <tr className="border-b border-admin-outline hover:bg-gray-50/50 transition-colors group cursor-pointer">
-    <td className="py-4 px-6">
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-10 bg-gray-100 rounded border border-admin-outline overflow-hidden relative shrink-0">
-          <div className="absolute inset-0 blueprint-grid opacity-20" />
-          <img src={project.thumbnail} alt="" className="w-full h-full object-cover mix-blend-multiply" />
-        </div>
-        <span className="font-bold text-black group-hover:text-uml-blue transition-colors">{project.name}</span>
-      </div>
-    </td>
-    <td className="py-4 px-6 text-admin-on-surface-variant font-bold text-[12px] uppercase">{project.lastEdited}</td>
-    <td className="py-4 px-6">
-      <span className={`inline-flex items-center px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest ${project.status === 'Live' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-uml-blue'}`}>
-        {project.status}
-      </span>
-    </td>
-    <td className="py-4 px-6 text-right">
-      <button className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-black transition-colors">
-        <MoreVertical size={18} />
-      </button>
-    </td>
-  </tr>
-);
 
 const groupColors: Record<string, string> = {
   structural: 'bg-amber-100 text-amber-700 border-amber-200',
@@ -526,6 +564,179 @@ const TemplateListRow = ({ template, index = 0 }: { template: TemplateMeta; inde
         {template.kind === 'sample' ? `${template.nodeCount}` : '—'}
       </td>
     </motion.tr>
+  )
+}
+
+const UserWorkspaceCard = ({ workspace }: { workspace: Workspace }) => {
+  const navigate = useNavigate()
+  return (
+    <motion.div
+      whileHover={{ y: -4 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      onClick={() => navigate(`/workspace/${workspace.id}`)}
+      className="bg-white border border-admin-outline rounded flex flex-col group hover:border-uml-blue transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px]"
+    >
+      <div className="h-36 bg-gradient-to-br from-gray-50 to-blue-50 border-b border-admin-outline relative overflow-hidden">
+        <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
+        <div className="absolute top-3 right-3 flex gap-1.5">
+          <span className="px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border bg-uml-blue/10 text-uml-blue border-uml-blue/20">
+            {workspace.category}
+          </span>
+        </div>
+      </div>
+      <div className="p-5 flex-1 flex flex-col justify-between">
+        <div>
+          <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{workspace.name}</h3>
+          <p className="text-[11px] text-admin-secondary font-bold uppercase tracking-widest">{workspace.sheets.length} diagrams</p>
+        </div>
+        <div className="flex items-center gap-2 text-[10px] text-gray-400">
+          <Clock size={12} />
+          {formatRelativeTime(workspace.updatedAt)}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+const WorkspaceListRow = ({ workspace }: { workspace: Workspace }) => {
+  const navigate = useNavigate()
+  return (
+    <tr
+      onClick={() => navigate(`/workspace/${workspace.id}`)}
+      className="border-b border-admin-outline hover:bg-gray-50/50 transition-colors group cursor-pointer"
+    >
+      <td className="py-4 px-6">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded flex items-center justify-center shrink-0 bg-uml-blue/10 text-uml-blue">
+            <Layers size={18} />
+          </div>
+          <span className="font-bold text-black group-hover:text-uml-blue transition-colors">{workspace.name}</span>
+        </div>
+      </td>
+      <td className="py-4 px-6 text-[12px] text-admin-secondary font-bold uppercase">{workspace.category}</td>
+      <td className="py-4 px-6 text-admin-on-surface-variant font-bold text-[12px] uppercase">{formatRelativeTime(workspace.updatedAt)}</td>
+      <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">{workspace.sheets.length}</td>
+    </tr>
+  )
+}
+
+const PrebuiltCard = ({ meta }: { meta: PrebuiltMeta }) => {
+  const navigate = useNavigate()
+  return (
+    <motion.div
+      whileHover={{ y: -4 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      onClick={() => navigate(`/prebuilts/${meta.id}`)}
+      className="bg-white border border-admin-outline rounded flex flex-col group hover:border-uml-blue transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px]"
+    >
+      <div className={`h-36 bg-gradient-to-br ${
+        meta.difficulty === 'beginner' ? 'from-emerald-50 to-green-50' :
+        meta.difficulty === 'intermediate' ? 'from-amber-50 to-orange-50' :
+        'from-red-50 to-rose-50'
+      } border-b border-admin-outline relative overflow-hidden`}>
+        <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
+        <div className="absolute top-3 right-3 flex gap-1.5">
+          <span className={`px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border ${
+            meta.difficulty === 'beginner' ? 'bg-emerald-100 text-emerald-600 border-emerald-200' :
+            meta.difficulty === 'intermediate' ? 'bg-amber-100 text-amber-600 border-amber-200' :
+            'bg-red-100 text-red-600 border-red-200'
+          }`}>
+            {meta.difficulty}
+          </span>
+        </div>
+        <div className="absolute top-3 left-3 p-2 rounded-full bg-white/80 backdrop-blur-sm text-gray-400">
+          <Copy size={16} />
+        </div>
+      </div>
+      <div className="p-5 flex-1 flex flex-col justify-between">
+        <div>
+          <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{meta.name}</h3>
+          <p className="text-xs text-admin-secondary leading-relaxed line-clamp-2">{meta.summary}</p>
+        </div>
+        <div className="flex items-center gap-2 text-[10px] text-gray-400">
+          <span className="font-bold uppercase tracking-widest">{meta.domain}</span>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+{/* Create Workspace Modal */}
+const CreateWorkspaceModal = ({
+  isOpen,
+  onClose,
+  name,
+  onNameChange,
+  category,
+  onCategoryChange,
+  onCreate,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  name: string
+  onNameChange: (v: string) => void
+  category: string
+  onCategoryChange: (v: string) => void
+  onCreate: () => void
+}) => {
+  if (!isOpen) return null
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
+        onClick={e => e.stopPropagation()}
+        className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4"
+      >
+        <h2 className="text-xl font-black text-black mb-2">Create New Workspace</h2>
+        <p className="text-sm text-gray-500 mb-6">A workspace contains diagrams, documents, and AI context for your project.</p>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Workspace Name</label>
+            <input
+              value={name}
+              onChange={e => onNameChange(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') onCreate() }}
+              placeholder="e.g., E-Commerce Platform"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-uml-blue focus:ring-1 focus:ring-uml-blue/20"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Category</label>
+            <select
+              value={category}
+              onChange={e => onCategoryChange(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-uml-blue focus:ring-1 focus:ring-uml-blue/20 bg-white"
+            >
+              <option value="general">General</option>
+              <option value="e-commerce">E-Commerce</option>
+              <option value="healthcare">Healthcare</option>
+              <option value="fintech">Fintech</option>
+              <option value="education">Education</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 mt-6">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-black transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onCreate}
+            disabled={!name.trim()}
+            className="px-5 py-2 bg-uml-blue text-white font-bold rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50"
+          >
+            Create Workspace
+          </button>
+        </div>
+      </motion.div>
+    </div>
   )
 }
 

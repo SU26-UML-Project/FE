@@ -146,4 +146,48 @@
   .login-btn-pill:active {
     transform: translate(1px, 1px);
   }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .animate-shimmer {
+    animation: shimmer 2.5s ease-in-out infinite;
+  }
+
+  @keyframes gradient-swirl {
+    0%   { background-position: 0% 50%; }
+    25%  { background-position: 100% 0%; }
+    50%  { background-position: 100% 100%; }
+    75%  { background-position: 0% 100%; }
+    100% { background-position: 0% 50%; }
+  }
+  .animate-gradient-swirl {
+    background-size: 300% 300%;
+    animation: gradient-swirl 2.5s ease-in-out infinite;
+  }
+
+  .file-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
+  .file-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .file-scroll::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 999px;
+  }
+  .file-scroll:hover::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+  }
+  .file-scroll::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+  .file-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .file-scroll:hover {
+    scrollbar-color: #d1d5db transparent;
+  }
 }

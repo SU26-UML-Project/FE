@@ -1,0 +1,112 @@
+import { useState, useRef, useEffect } from 'react'
+import { ArrowLeft, Save, Download, Bot, BotOff } from 'lucide-react'
+
+interface WorkspaceToolbarProps {
+  workspaceName: string
+  onNameChange: (name: string) => void
+  onBack: () => void
+  onSave: () => void
+  onExport: () => void
+  aiEnabled: boolean
+  onAiToggle: (enabled: boolean) => void
+}
+
+export default function WorkspaceToolbar({
+  workspaceName,
+  onNameChange,
+  onBack,
+  onSave,
+  onExport,
+  aiEnabled,
+  onAiToggle,
+}: WorkspaceToolbarProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState(workspaceName)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [isEditing])
+
+  const handleSubmitName = () => {
+    const trimmed = editName.trim()
+    if (trimmed) onNameChange(trimmed)
+    else setEditName(workspaceName)
+    setIsEditing(false)
+  }
+
+  return (
+    <div className="h-12 bg-gradient-to-r from-uml-blue to-blue-700 shadow-sm border-b border-blue-400/10 flex items-center justify-between px-4 shrink-0 z-10">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onBack}
+          className="p-1.5 rounded-md hover:bg-blue-600 text-blue-200 hover:text-white transition"
+          aria-label="Back to Dashboard"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <span className="w-px h-5 bg-blue-400/40" />
+        <span className="text-xs font-bold text-blue-200 tracking-wider select-none">DiaUML Studio</span>
+        <span className="w-px h-5 bg-blue-400/40" />
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            value={editName}
+            onChange={e => setEditName(e.target.value)}
+            onBlur={handleSubmitName}
+            onKeyDown={e => {
+              if (e.key === 'Enter') handleSubmitName()
+              if (e.key === 'Escape') {
+                setEditName(workspaceName)
+                setIsEditing(false)
+              }
+            }}
+            className="text-sm font-bold text-white bg-blue-600 border border-blue-400 rounded px-2 py-1 focus:outline-none focus:border-white"
+          />
+        ) : (
+          <button
+            onClick={() => { setEditName(workspaceName); setIsEditing(true) }}
+            className="group flex items-center gap-1.5"
+          >
+            <span className="text-sm font-bold text-white">{workspaceName}</span>
+            <svg className="w-3.5 h-3.5 text-blue-300 group-hover:text-white transition" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => onAiToggle(!aiEnabled)}
+          className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 ${
+            aiEnabled
+              ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 shadow-sm'
+              : 'text-blue-200 hover:text-white hover:bg-blue-600'
+          }`}
+          title={aiEnabled ? 'Disable AI Assistant' : 'Enable AI Assistant'}
+        >
+          {aiEnabled ? <Bot size={14} /> : <BotOff size={14} />}
+          AI
+        </button>
+        <span className="w-px h-5 bg-blue-400/40" />
+        <button
+          onClick={onSave}
+          className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider text-blue-100 hover:text-white hover:bg-blue-600 transition flex items-center gap-1.5"
+        >
+          <Save size={14} />
+          Save Workspace
+        </button>
+        <button
+          onClick={onExport}
+          className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider text-blue-100 hover:text-white hover:bg-blue-600 transition flex items-center gap-1.5"
+        >
+          <Download size={14} />
+          Export
+        </button>
+      </div>
+    </div>
+  )
+}

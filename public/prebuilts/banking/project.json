@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "id": "banking",
+    "name": "Digital Banking Platform",
+    "domain": "fintech",
+    "summary": "Core banking system with account management, transaction processing, fraud detection, and regulatory compliance diagrams.",
+    "difficulty": "advanced",
+    "tags": ["use-case", "class", "sequence", "state", "c4-context", "c4-container", "banking"]
+  },
+  "workspace": {
+    "id": "prebuilt-banking",
+    "name": "Digital Banking Platform",
+    "category": "fintech",
+    "type": "prebuilt",
+    "documents": [
+      {
+        "id": "doc-overview",
+        "name": "01-Platform-Overview.md",
+        "type": "md",
+        "content": "# Digital Banking Platform\n\n## Overview\nA next-generation digital banking platform supporting retail and corporate accounts, real-time transactions, fraud detection, and regulatory compliance (PSD2, GDPR).\n\n## Stakeholders\n- Retail Customers\n- Corporate Clients\n- Bank Admins\n- Compliance Officers\n- Regulators\n- Third-party Integrators (PISP, AISP)\n\n## Key Features\n- Multi-currency account management\n- Real-time payment processing (SEPA, SWIFT)\n- Fraud detection with ML\n- KYC/AML compliance\n- Open Banking APIs (PSD2)\n- Mobile and web banking\n- Push notifications and alerts\n- Transaction reporting"
+      },
+      {
+        "id": "doc-tech-stack",
+        "name": "02-Tech-Stack.md",
+        "type": "md",
+        "content": "# Tech Stack\n\n- Frontend: React Native (Mobile), React (Web)\n- Backend: Spring Boot (Microservices)\n- Database: PostgreSQL (transactions), MongoDB (customer profiles)\n- Cache: Redis\n- Event Bus: Apache Kafka\n- Security: OAuth2, OpenID Connect, mTLS\n- Fraud Detection: Python ML service (TensorFlow)\n- Monitoring: ELK Stack, Grafana"
+      }
+    ],
+    "sheets": [
+      {
+        "id": "sheet-use-case",
+        "name": "Use Case",
+        "diagramType": "uml-use-case",
+        "diagramXml": ""
+      },
+      {
+        "id": "sheet-class",
+        "name": "Class Diagram",
+        "diagramType": "uml-class",
+        "diagramXml": ""
+      },
+      {
+        "id": "sheet-sequence-transfer",
+        "name": "Transfer Flow",
+        "diagramType": "uml-sequence",
+        "diagramXml": ""
+      },
+      {
+        "id": "sheet-state",
+        "name": "Transaction State",
+        "diagramType": "uml-state",
+        "diagramXml": ""
+      },
+      {
+        "id": "sheet-c4-context",
+        "name": "C4 Context",
+        "diagramType": "c4-context",
+        "diagramXml": ""
+      },
+      {
+        "id": "sheet-c4-container",
+        "name": "C4 Container",
+        "diagramType": "c4-container",
+        "diagramXml": ""
+      }
+    ],
+    "aiContext": {
+      "intent": "Design a complete UML architecture for a digital banking platform with real-time payments, fraud detection, and open banking compliance.",
+      "clarifications": [
+        {
+          "question": "What type of banking does the platform focus on?",
+          "options": ["Retail banking only", "Corporate banking only", "Both retail and corporate", "Neobank (digital only)"],
+          "answer": "Both retail and corporate",
+          "answeredAt": "2025-01-01T00:00:00.000Z"
+        },
+        {
+          "question": "Which regulatory frameworks must be supported?",
+          "options": ["PSD2 only", "PSD2 + GDPR", "PSD2 + GDPR + SOX", "Local regulations only"],
+          "answer": "PSD2 + GDPR",
+          "answeredAt": "2025-01-01T00:00:00.000Z"
+        },
+        {
+          "question": "Is the platform using microservices or monolith architecture?",
+          "options": ["Microservices", "Modular monolith", "Hybrid (microservices for core, monolith for admin)"],
+          "answer": "Microservices",
+          "answeredAt": "2025-01-01T00:00:00.000Z"
+        }
+      ],
+      "history": [
+        {
+          "role": "ai",
+          "content": "Welcome to the Digital Banking Platform project! This is a comprehensive set of UML diagrams for a modern banking system. The architecture covers microservices-based transaction processing, fraud detection pipelines, and PSD2-compliant open banking APIs.",
+          "timestamp": "2025-01-01T00:00:00.000Z"
+        }
+      ]
+    },
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  }
+}

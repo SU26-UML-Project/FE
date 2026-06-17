@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "id": "healthcare",
+    "name": "Healthcare Management System",
+    "domain": "healthcare",
+    "summary": "Hospital management system covering patient records, appointment scheduling, billing, pharmacy, and lab integration.",
+    "difficulty": "intermediate",
+    "tags": ["use-case", "class", "sequence", "activity", "c4-context", "healthcare"]
+  },
+  "workspace": {
+    "id": "prebuilt-healthcare",
+    "name": "Healthcare Management System",
+    "category": "healthcare",
+    "type": "prebuilt",
+    "documents": [
+      {
+        "id": "doc-overview",
+        "name": "01-System-Overview.md",
+        "type": "md",
+        "content": "# Healthcare Management System\n\n## Overview\nA comprehensive hospital management system that digitizes patient records, streamlines appointment scheduling, and integrates billing with insurance claims.\n\n## Stakeholders\n- Patients\n- Doctors\n- Nurses\n- Administrators\n- Insurance Providers\n- Pharmacists\n- Lab Technicians\n\n## Key Features\n- Patient registration and EHR\n- Appointment scheduling\n- Doctor consultation workflow\n- Pharmacy inventory\n- Lab test management\n- Billing and insurance claims\n- Reporting and analytics"
+      },
+      {
+        "id": "doc-tech-stack",
+        "name": "02-Tech-Stack.md",
+        "type": "md",
+        "content": "# Tech Stack\n\n- Frontend: React, Material UI\n- Backend: Spring Boot, Java 17\n- Database: PostgreSQL, MongoDB (EHR documents)\n- Message Queue: RabbitMQ\n- Storage: AWS S3 (medical images)\n- HIPAA Compliance: Encryption at rest, audit logging"
+      }
+    ],
+    "sheets": [
+      {
+        "id": "sheet-use-case",
+        "name": "Use Case",
+        "diagramType": "uml-use-case",
+        "diagramXml": ""
+      },
+      {
+        "id": "sheet-class",
+        "name": "Class Diagram",
+        "diagramType": "uml-class",
+        "diagramXml": ""
+      },
+      {
+        "id": "sheet-sequence-appointment",
+        "name": "Appointment Flow",
+        "diagramType": "uml-sequence",
+        "diagramXml": ""
+      },
+      {
+        "id": "sheet-activity",
+        "name": "Billing Activity",
+        "diagramType": "uml-activity",
+        "diagramXml": ""
+      },
+      {
+        "id": "sheet-c4-context",
+        "name": "C4 Context",
+        "diagramType": "c4-context",
+        "diagramXml": ""
+      }
+    ],
+    "aiContext": {
+      "intent": "Design UML architecture for a healthcare management system with EHR, appointment scheduling, billing, and pharmacy integration.",
+      "clarifications": [
+        {
+          "question": "What is the primary deployment model?",
+          "options": ["On-premise hospital server", "Cloud-based (SaaS)", "Hybrid (cloud with on-prem fallback)"],
+          "answer": "Cloud-based (SaaS)",
+          "answeredAt": "2025-01-01T00:00:00.000Z"
+        },
+        {
+          "question": "Does the system need to integrate with external insurance providers?",
+          "options": ["Yes, real-time claim verification", "Yes, batch claim submission", "No, manual billing only"],
+          "answer": "Yes, real-time claim verification",
+          "answeredAt": "2025-01-01T00:00:00.000Z"
+        }
+      ],
+      "history": [
+        {
+          "role": "ai",
+          "content": "Welcome to the Healthcare Management System project! I've prepared UML diagrams to help you model the architecture. Start with the Use Case diagram to understand system boundaries, then explore the class structure and flows.",
+          "timestamp": "2025-01-01T00:00:00.000Z"
+        }
+      ]
+    },
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  }
+}

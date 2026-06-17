@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "id": "e-commerce",
+    "name": "E-Commerce Platform",
+    "domain": "e-commerce",
+    "summary": "Complete UML design for a modern e-commerce platform: customer management, order processing, payment gateway, inventory, and recommendation engine.",
+    "difficulty": "advanced",
+    "tags": ["use-case", "class", "sequence", "c4-context", "c4-container", "e-commerce", "monolith"]
+  },
+  "workspace": {
+    "id": "prebuilt-e-commerce",
+    "name": "E-Commerce Platform",
+    "category": "e-commerce",
+    "type": "prebuilt",
+    "documents": [
+      {
+        "id": "doc-overview",
+        "name": "01-Project-Overview.md",
+        "type": "md",
+        "content": "# E-Commerce Platform\n\n## Overview\nA modern e-commerce platform supporting multi-vendor marketplace, real-time inventory management, and AI-powered recommendations.\n\n## Stakeholders\n- Customers (B2C)\n- Vendors (Sellers)\n- Admin (Platform Ops)\n- Payment Gateway Providers\n- Logistics Partners\n\n## Key Features\n- User registration and authentication\n- Product catalog with search and filtering\n- Shopping cart and checkout\n- Payment processing (credit card, e-wallet, COD)\n- Order tracking\n- Vendor dashboard\n- Admin analytics\n- Recommendation engine\n- Review and rating system"
+      },
+      {
+        "id": "doc-tech-stack",
+        "name": "02-Tech-Stack.md",
+        "type": "md",
+        "content": "# Tech Stack\n\n- Frontend: React, TypeScript, Tailwind CSS\n- Backend: Spring Boot, Java 17\n- Database: PostgreSQL, Redis (caching)\n- Message Queue: RabbitMQ\n- Search: Elasticsearch\n- Storage: AWS S3\n- CI/CD: GitHub Actions, Docker, Kubernetes\n- Monitoring: Prometheus, Grafana"
+      }
+    ],
+    "sheets": [
+      {
+        "id": "sheet-use-case",
+        "name": "Use Case",
+        "diagramType": "uml-use-case",
+        "diagramXml": ""
+      },
+      {
+        "id": "sheet-class",
+        "name": "Class Diagram",
+        "diagramType": "uml-class",
+        "diagramXml": ""
+      },
+      {
+        "id": "sheet-sequence-order",
+        "name": "Order Flow",
+        "diagramType": "uml-sequence",
+        "diagramXml": ""
+      },
+      {
+        "id": "sheet-c4-context",
+        "name": "C4 Context",
+        "diagramType": "c4-context",
+        "diagramXml": ""
+      },
+      {
+        "id": "sheet-c4-container",
+        "name": "C4 Container",
+        "diagramType": "c4-container",
+        "diagramXml": ""
+      }
+    ],
+    "aiContext": {
+      "intent": "Design a complete UML architecture for an e-commerce platform with multi-vendor support, real-time inventory, and AI recommendations.",
+      "clarifications": [
+        {
+          "question": "What is the primary business model?",
+          "options": ["B2C only", "Multi-vendor marketplace", "B2B wholesale", "Hybrid"],
+          "answer": "Multi-vendor marketplace",
+          "answeredAt": "2025-01-01T00:00:00.000Z"
+        },
+        {
+          "question": "What payment methods need to be supported?",
+          "options": ["Credit/Debit cards only", "Cards + e-Wallet", "Cards + COD", "All including BNPL"],
+          "answer": "Cards + e-Wallet + COD",
+          "answeredAt": "2025-01-01T00:00:00.000Z"
+        },
+        {
+          "question": "Is the inventory system real-time or batch?",
+          "options": ["Real-time (live stock updates)", "Batch (daily sync)", "Hybrid (real-time for hot items)"],
+          "answer": "Real-time (live stock updates)",
+          "answeredAt": "2025-01-01T00:00:00.000Z"
+        }
+      ],
+      "history": [
+        {
+          "role": "ai",
+          "content": "Welcome! I see you're starting an e-commerce platform project. I've prepared a set of diagrams covering use cases, class structure, order flow, and C4 architecture. Feel free to explore each sheet and customize as needed.",
+          "timestamp": "2025-01-01T00:00:00.000Z"
+        }
+      ]
+    },
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  }
+}
