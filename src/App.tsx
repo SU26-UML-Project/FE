@@ -9,6 +9,8 @@ import AdminDashboard from './pages/AdminDashboard'
 import UserDashboard from './pages/UserDashboard'
 import CanvasEditor from './pages/CanvasEditor'
 import TemplateDetail from './pages/TemplateDetail'
+import WorkspacePage from './pages/WorkspacePage'
+import PrebuiltDetail from './pages/PrebuiltDetail'
 import { useAuthStore } from './store/useAuthStore'
 import { authService } from './services/authService'
 import { setAuthCookie, COOKIE_KEYS, getAuthCookie } from './utils/auth'
@@ -109,7 +111,8 @@ function App() {
   const isAdminPage = location.pathname.startsWith('/admin')
   const isDashboardPage = location.pathname.startsWith('/dashboard')
   const isCanvasPage = location.pathname.startsWith('/canvas')
-  
+  const isWorkspacePage = location.pathname.startsWith('/workspace')
+
   const checkAuth = useAuthStore((state) => state.checkAuth)
 
   useEffect(() => {
@@ -117,18 +120,20 @@ function App() {
   }, [checkAuth])
 
   return (
-    <div className={`min-h-screen ${!isAdminPage && !isDashboardPage && !isCanvasPage ? 'grid-background' : ''}`}>
+    <div className={`min-h-screen ${!isAdminPage && !isDashboardPage && !isCanvasPage && !isWorkspacePage ? 'grid-background' : ''}`}>
       <OAuth2Handler />
-      {!isAdminPage && !isCanvasPage && <Navbar />}
+      {!isAdminPage && !isCanvasPage && !isWorkspacePage && <Navbar />}
       <main>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/pricing" element={<Pricing />} />
-          
+
           {/* User Routes */}
           <Route element={<ProtectedRoute allowedRoles={['USER', 'ADMIN']} />}>
             <Route path="/dashboard" element={<UserDashboard />} />
             <Route path="/canvas" element={<CanvasEditor />} />
+            <Route path="/workspace/:id" element={<WorkspacePage />} />
+            <Route path="/prebuilts/:id" element={<PrebuiltDetail />} />
             <Route path="/templates/:id" element={<TemplateDetail />} />
           </Route>
 
@@ -136,12 +141,11 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
             <Route path="/admin" element={<AdminDashboard />} />
           </Route>
-
           {/* Support for Google OAuth2 Callback Path */}
           <Route path="/auth/google/callback" element={<LandingPage />} />
         </Routes>
       </main>
-      {!isAdminPage && !isDashboardPage && !isCanvasPage && <Footer />}
+      {!isAdminPage && !isDashboardPage && !isCanvasPage && !isWorkspacePage && <Footer />}
       <ScrollToHash />
       <Toaster position="top-right" />
     </div>
