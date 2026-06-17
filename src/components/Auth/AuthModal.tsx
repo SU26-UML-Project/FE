@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { authService } from '../../services/authService';
 import { useAuthStore } from '../../store/useAuthStore';
 import { toast } from 'react-hot-toast';
+import { setAuthCookie, COOKIE_KEYS } from '../../utils/auth';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -21,9 +22,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
 
   const setAuth = useAuthStore((state) => state.setAuth);
 
-  // Sync mode when initialMode changes
+  // Sync mode and reset fields when modal opens/changes mode
   React.useEffect(() => {
-    setMode(initialMode);
+    if (isOpen) {
+      setMode(initialMode);
+      setEmail('');
+      setPassword('');
+      setFullName('');
+      setShowPassword(false);
+    }
   }, [initialMode, isOpen]);
 
   if (!isOpen) return null;
@@ -34,20 +41,30 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
 
     try {
       if (mode === 'login') {
-        const response = await authService.login({ email, password });
+        const loginResponse = await authService.login({ email, password });
         
-        setAuth({
-          id: 'temp-id',
-          username: email.split('@')[0],
-          fullName: email.split('@')[0],
-          email: email,
-          role: { roleName: 'USER', description: 'Standard User' }
-        });
+        // If backend doesn't set cookie automatically for normal login, 
+        // we handle it here using the token from response body
+        if (loginResponse.result?.token) {
+          setAuthCookie(COOKIE_KEYS.ACCESS_TOKEN, loginResponse.result.token);
+        }
         
-        toast.success(response.message || 'Đăng nhập thành công!');
+        // Fetch real user info after successful login
+        const userResponse = await authService.getCurrentUser();
+        setAuth(userResponse.result);
+        
+        toast.success(userResponse.message || 'Đăng nhập thành công!');
         onClose();
       } else if (mode === 'register') {
-        toast.error('Tính năng đăng ký đang được cập nhật');
+        const response = await authService.register({
+          email,
+          password,
+          fullName,
+        });
+        
+        toast.success(response.message || 'Đăng ký thành công! Vui lòng đăng nhập.');
+        setMode('login');
+        setPassword(''); // Clear password for security
       }
     } catch (error: any) {
       console.error('Auth error:', error);
@@ -58,8 +75,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
   };
 
   const handleGoogleLogin = () => {
-    // window.location.href = 'http://localhost:8088/api/uml/oauth2/authorization/google';
-    window.location.href = 'https://diauml-be.onrender.com/api/uml/oauth2/authorization/google';
+    const baseUrl = import.meta.env.VITE_API_BASE_URL;
+    window.location.href = `${baseUrl}/oauth2/authorization/google`;
   };
 
   return (
@@ -98,7 +115,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
               </h2>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
               {/* Full Name Field (Only for Register) */}
               {mode === 'register' && (
                 <div className="space-y-2">
@@ -115,6 +132,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                     <input
                       type="text"
                       required
+                      autoComplete="new-password"
                       disabled={loading}
                       placeholder="e.g., John Doe"
                       value={fullName}
@@ -137,6 +155,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                   <input
                     type="email"
                     required
+                    autoComplete="new-password"
                     disabled={loading}
                     placeholder="e.g., yourname@email.com"
                     value={email}
@@ -159,6 +178,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                     <input
                       type={showPassword ? 'text' : 'password'}
                       required
+                      autoComplete="new-password"
                       disabled={loading}
                       placeholder="••••••••••••"
                       value={password}

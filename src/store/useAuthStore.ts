@@ -1,46 +1,58 @@
 import { create } from 'zustand';
-import { authService } from '../services/authService';
-
-interface User {
-  id: string;
-  username: string;
-  fullName: string;
-  email: string;
-  role: {
-    roleName: string;
-    description: string;
-  };
-}
+import { authService, User } from '../services/authService';
+import { clearAuthCookies } from '../utils/auth';
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  loading: boolean;
   setAuth: (user: User | null) => void;
+  setLoading: (loading: boolean) => void;
   logout: () => void;
+  checkAuth: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
+  loading: true,
   setAuth: (user) => set({ 
     user, 
-    isAuthenticated: !!user 
+    isAuthenticated: !!user,
+    loading: false
   }),
+  setLoading: (loading) => set({ loading }),
   logout: async () => {
     try {
       await authService.logout();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Manually clear cookies if backend Set-Cookie fails due to browser restrictions
-      document.cookie = "access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=None; Secure";
-      document.cookie = "refresh_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=None; Secure";
-      document.cookie = "JSESSIONID=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=None; Secure";
+      // Use central utility to clear all auth related cookies
+      clearAuthCookies();
       
       set({ 
         user: null, 
-        isAuthenticated: false 
+        isAuthenticated: false,
+        loading: false
       });
+    }
+  },
+  checkAuth: async () => {
+    set({ loading: true });
+    try {
+      const response = await authService.getCurrentUser();
+      if (response.code === 200 || response.code === 0) {
+        set({ 
+          user: response.result, 
+          isAuthenticated: true,
+          loading: false 
+        });
+      } else {
+        set({ user: null, isAuthenticated: false, loading: false });
+      }
+    } catch (error) {
+      set({ user: null, isAuthenticated: false, loading: false });
     }
   },
 }));

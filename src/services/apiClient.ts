@@ -1,13 +1,27 @@
 import axios from 'axios';
+import { setAuthCookie, clearAuthCookies, COOKIE_KEYS } from '../utils/auth';
 
 const apiClient = axios.create({
-  // baseURL: 'http://localhost:8088/api/uml',
-  baseURL: 'https://diauml-be.onrender.com/api/uml',
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
 
 // Response interceptor to handle the standard envelope: { code, message, result }
 apiClient.interceptors.response.use(
@@ -23,10 +37,52 @@ apiClient.interceptors.response.use(
       });
     }
     
-    return response.data; // Return the whole envelope so we can access result/code/message in services
+    return response.data;
   },
-  (error) => {
-    // Handle HTTP errors (4xx, 5xx)
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Handle 401 Unauthenticated and avoid infinite loops
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => {
+            return apiClient(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // Import authService dynamically to avoid circular dependency
+        const { authService } = await import('./authService');
+        const response = await authService.refresh();
+        
+        const { token } = response.result;
+        if (token) {
+          setAuthCookie(COOKIE_KEYS.ACCESS_TOKEN, token);
+        }
+
+        processQueue(null, token);
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        clearAuthCookies();
+        // Redirect to login or clear store if needed
+        window.location.href = '/'; 
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    // Handle other HTTP errors
     const apiError = {
       code: error.response?.data?.code || 500,
       message: error.response?.data?.message || error.message || 'Lỗi kết nối server',

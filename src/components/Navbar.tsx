@@ -34,6 +34,8 @@ const Navbar = () => {
 
   const linkBase = 'font-semibold transition-colors duration-300 text-[13px] lg:text-[15px]'
   const onHome = location.pathname === '/'
+  
+  const userRole = user ? (typeof user.role === 'string' ? user.role : user.role.roleName) : null;
 
   return (
     <>
@@ -62,14 +64,28 @@ const Navbar = () => {
           </Link>
 
           <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8" data-purpose="main-nav">
-          <NavLink
-            to="/dashboard"
-            className={({ isActive }) =>
-              `${linkBase} ${isActive ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`
-            }
+          <button
+            onClick={() => {
+              if (isAuthenticated) {
+                window.location.href = '/dashboard';
+              } else {
+                openAuth('login');
+              }
+            }}
+            className={`${linkBase} ${location.pathname === '/dashboard' ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`}
           >
             Dashboard
-          </NavLink>
+          </button>
+          {userRole === 'ADMIN' && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) =>
+                `${linkBase} ${isActive ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`
+              }
+            >
+              Admin
+            </NavLink>
+          )}
           {onHome ? (
             <a href="#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Features</a>
           ) : (
@@ -129,9 +145,14 @@ const Navbar = () => {
                   <div className="w-8 h-8 rounded-full bg-uml-blue flex items-center justify-center text-white">
                     <User size={18} />
                   </div>
-                  <span className="text-[14px] font-bold text-black hidden sm:block">
-                    {user?.fullName}
-                  </span>
+                  <div className="flex flex-col items-start leading-tight hidden sm:flex">
+                    <span className="text-[13px] font-bold text-black">
+                      {user?.fullName || user?.email.split('@')[0]}
+                    </span>
+                    <span className="text-[10px] text-gray-500 font-medium">
+                      {user?.email}
+                    </span>
+                  </div>
                 </div>
                 <button 
                   onClick={() => logout()}

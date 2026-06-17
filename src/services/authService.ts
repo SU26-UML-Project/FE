@@ -18,12 +18,24 @@ export interface LoginResponse {
 }
 
 export interface RegisterRequest {
-  username: string;
   password: string;
   fullName: string;
   email: string;
-  phone: string;
-  roleId: string;
+  phone?: string;
+}
+
+export interface User {
+  id: string;
+  username?: string;
+  fullName?: string;
+  email: string;
+  phone?: string;
+  status?: string;
+  role: string | {
+    id: string;
+    roleName: string;
+    description: string;
+  };
 }
 
 export const authService = {
@@ -31,7 +43,7 @@ export const authService = {
     return apiClient.post('/auth/login', data);
   },
 
-  register: async (data: RegisterRequest): Promise<ApiResponse<any>> => {
+  register: async (data: RegisterRequest): Promise<ApiResponse<User>> => {
     return apiClient.post('/users/register', data);
   },
 
@@ -39,6 +51,11 @@ export const authService = {
     return apiClient.post('/auth/logout', token ? { token } : {});
   },
 
-  // Note: We might need a separate API call to get user info after login
-  // if /auth/login only returns the token.
+  getCurrentUser: async (): Promise<ApiResponse<User>> => {
+    return apiClient.get('/users/me');
+  },
+
+  refresh: async (): Promise<ApiResponse<LoginResponse>> => {
+    return apiClient.post('/auth/refresh');
+  },
 };
