@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, X, Loader2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, X, Loader2, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authService } from '../../services/authService';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -12,28 +12,97 @@ interface AuthModalProps {
   initialMode?: 'login' | 'register';
 }
 
+// OTP lifetime in seconds (must match backend: 1 phút 30 giây)
+const OTP_TTL_SECONDS = 90;
+
+type Mode = 'login' | 'register' | 'forgot';
+type ForgotStep = 'email' | 'otp' | 'reset';
+
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'login' }) => {
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Forgot-password flow state
+  const [forgotStep, setForgotStep] = useState<ForgotStep>('email');
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
   const setAuth = useAuthStore((state) => state.setAuth);
+
+  const resetFields = React.useCallback(() => {
+    setEmail('');
+    setPassword('');
+    setFullName('');
+    setOtpCode('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setForgotStep('email');
+    setSecondsLeft(0);
+  }, []);
 
   // Sync mode and reset fields when modal opens/changes mode
   React.useEffect(() => {
     if (isOpen) {
       setMode(initialMode);
-      setEmail('');
-      setPassword('');
-      setFullName('');
-      setShowPassword(false);
+      resetFields();
     }
-  }, [initialMode, isOpen]);
+  }, [initialMode, isOpen, resetFields]);
+
+  // OTP countdown timer
+  React.useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const timer = setInterval(() => {
+      setSecondsLeft((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [secondsLeft]);
 
   if (!isOpen) return null;
+
+  const formatTime = (total: number) => {
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    resetFields();
+  };
+
+  // --- Forgot-password step handlers ---
+  const handleSendOtp = async () => {
+    await authService.forgotPassword({ email });
+    setForgotStep('otp');
+    setOtpCode('');
+    setSecondsLeft(OTP_TTL_SECONDS);
+    toast.success('Mã OTP đã được gửi đến email của bạn');
+  };
+
+  const handleVerifyOtp = async () => {
+    await authService.verifyOtp({ email, otpCode });
+    setForgotStep('reset');
+    toast.success('Mã OTP hợp lệ, hãy đặt mật khẩu mới');
+  };
+
+  const handleResetPassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error('Mật khẩu xác nhận không khớp');
+      return;
+    }
+    await authService.resetPassword({ email, otpCode, newPassword, confirmPassword });
+    toast.success('Đặt lại mật khẩu thành công! Vui lòng đăng nhập.');
+    switchMode('login');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,17 +111,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
     try {
       if (mode === 'login') {
         const loginResponse = await authService.login({ email, password });
-        
-        // If backend doesn't set cookie automatically for normal login, 
+
+        // If backend doesn't set cookie automatically for normal login,
         // we handle it here using the token from response body
         if (loginResponse.result?.token) {
           setAuthCookie(COOKIE_KEYS.ACCESS_TOKEN, loginResponse.result.token);
         }
-        
+
         // Fetch real user info after successful login
         const userResponse = await authService.getCurrentUser();
         setAuth(userResponse.result);
-        
+
         toast.success(userResponse.message || 'Đăng nhập thành công!');
         onClose();
       } else if (mode === 'register') {
@@ -61,10 +130,18 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
           password,
           fullName,
         });
-        
+
         toast.success(response.message || 'Đăng ký thành công! Vui lòng đăng nhập.');
         setMode('login');
         setPassword(''); // Clear password for security
+      } else if (mode === 'forgot') {
+        if (forgotStep === 'email') {
+          await handleSendOtp();
+        } else if (forgotStep === 'otp') {
+          await handleVerifyOtp();
+        } else {
+          await handleResetPassword();
+        }
       }
     } catch (error: any) {
       console.error('Auth error:', error);
@@ -74,10 +151,45 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
     }
   };
 
+  const handleResendOtp = async () => {
+    if (secondsLeft > 0 || loading) return;
+    setLoading(true);
+    try {
+      await handleSendOtp();
+    } catch (error: any) {
+      toast.error(error.message || 'Không thể gửi lại mã OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGoogleLogin = () => {
     const baseUrl = import.meta.env.VITE_API_BASE_URL;
     window.location.href = `${baseUrl}/oauth2/authorization/google`;
   };
+
+  const headerTitle =
+    mode === 'login' ? 'LOG IN' : mode === 'register' ? 'SIGN UP' : 'RESET';
+
+  const headerSubtitle =
+    mode !== 'forgot'
+      ? null
+      : forgotStep === 'email'
+      ? 'Nhập email để nhận mã xác nhận'
+      : forgotStep === 'otp'
+      ? `Nhập mã OTP đã gửi tới ${email}`
+      : 'Tạo mật khẩu mới cho tài khoản của bạn';
+
+  const submitLabel =
+    mode === 'login'
+      ? 'Log in'
+      : mode === 'register'
+      ? 'Create Account'
+      : forgotStep === 'email'
+      ? 'Gửi mã OTP'
+      : forgotStep === 'otp'
+      ? 'Xác nhận OTP'
+      : 'Đặt lại mật khẩu';
 
   return (
     <AnimatePresence>
@@ -100,7 +212,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
             className="relative w-full max-w-[440px] bg-white rounded-[32px] shadow-2xl overflow-hidden px-8 py-10 font-priego"
           >
             {/* Close Button */}
-            <button 
+            <button
               onClick={onClose}
               className="absolute top-6 right-6 p-2 text-gray-400 hover:text-black transition-colors disabled:opacity-50"
               disabled={loading}
@@ -108,11 +220,26 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
               <X size={20} />
             </button>
 
+            {/* Back button inside forgot flow (otp / reset steps) */}
+            {mode === 'forgot' && forgotStep !== 'email' && (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => setForgotStep(forgotStep === 'reset' ? 'otp' : 'email')}
+                className="absolute top-6 left-6 p-2 text-gray-400 hover:text-black transition-colors disabled:opacity-50"
+              >
+                <ArrowLeft size={20} />
+              </button>
+            )}
+
             {/* Header */}
             <div className="text-center mb-10">
               <h2 className="text-[32px] font-black uppercase tracking-tight text-black leading-none">
-                {mode === 'login' ? 'LOG IN' : mode === 'register' ? 'SIGN UP' : 'FORGOT'}
+                {headerTitle}
               </h2>
+              {headerSubtitle && (
+                <p className="mt-3 text-[14px] text-gray-500 font-medium px-2">{headerSubtitle}</p>
+              )}
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
@@ -143,29 +270,31 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                 </div>
               )}
 
-              {/* Email Field */}
-              <div className="space-y-2">
-                <label className="text-[15px] font-bold text-black block ml-1">
-                  Email Address
-                </label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-black transition-colors">
-                    <Mail size={20} strokeWidth={1.5} />
+              {/* Email Field (login, register, forgot:email step) */}
+              {(mode !== 'forgot' || forgotStep === 'email') && (
+                <div className="space-y-2">
+                  <label className="text-[15px] font-bold text-black block ml-1">
+                    Email Address
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-black transition-colors">
+                      <Mail size={20} strokeWidth={1.5} />
+                    </div>
+                    <input
+                      type="email"
+                      required
+                      autoComplete="new-password"
+                      disabled={loading}
+                      placeholder="e.g., yourname@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full h-[54px] pl-12 pr-4 bg-white border-[1.5px] border-black/80 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:text-gray-400 disabled:opacity-50"
+                    />
                   </div>
-                  <input
-                    type="email"
-                    required
-                    autoComplete="new-password"
-                    disabled={loading}
-                    placeholder="e.g., yourname@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full h-[54px] pl-12 pr-4 bg-white border-[1.5px] border-black/80 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:text-gray-400 disabled:opacity-50"
-                  />
                 </div>
-              </div>
+              )}
 
-              {/* Password Field (Not for Forgot Password) */}
+              {/* Password Field (login & register only) */}
               {mode !== 'forgot' && (
                 <div className="space-y-2">
                   <label className="text-[15px] font-bold text-black block ml-1">
@@ -197,13 +326,124 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                 </div>
               )}
 
+              {/* OTP Field (forgot:otp step) */}
+              {mode === 'forgot' && forgotStep === 'otp' && (
+                <div className="space-y-2">
+                  <label className="text-[15px] font-bold text-black block ml-1">
+                    Mã OTP
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-black transition-colors">
+                      <ShieldCheck size={20} strokeWidth={1.5} />
+                    </div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      maxLength={6}
+                      autoComplete="one-time-code"
+                      disabled={loading}
+                      placeholder="------"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      className="w-full h-[54px] pl-12 pr-4 bg-white border-[1.5px] border-black/80 rounded-[14px] text-center text-[22px] font-bold tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:tracking-[0.5em] placeholder:text-gray-300 disabled:opacity-50"
+                    />
+                  </div>
+                  <div className="flex justify-between items-center mt-1 ml-1">
+                    {secondsLeft > 0 ? (
+                      <span className="text-[13px] text-gray-500">
+                        Mã hết hạn sau <b className="text-uml-blue">{formatTime(secondsLeft)}</b>
+                      </span>
+                    ) : (
+                      <span className="text-[13px] text-red-500 font-medium">Mã đã hết hạn</span>
+                    )}
+                    <button
+                      type="button"
+                      disabled={secondsLeft > 0 || loading}
+                      onClick={handleResendOtp}
+                      className="text-[13px] font-bold text-uml-blue hover:underline disabled:text-gray-300 disabled:no-underline disabled:cursor-not-allowed"
+                    >
+                      Gửi lại mã
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* New Password + Confirm (forgot:reset step) */}
+              {mode === 'forgot' && forgotStep === 'reset' && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-[15px] font-bold text-black block ml-1">
+                      Mật khẩu mới
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-black transition-colors">
+                        <Lock size={20} strokeWidth={1.5} />
+                      </div>
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        autoComplete="new-password"
+                        disabled={loading}
+                        placeholder="••••••••••••"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full h-[54px] pl-12 pr-12 bg-white border-[1.5px] border-black/80 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:text-gray-400 disabled:opacity-50"
+                      />
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-black transition-colors disabled:opacity-50"
+                      >
+                        {showPassword ? <EyeOff size={20} strokeWidth={1.5} /> : <Eye size={20} strokeWidth={1.5} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[15px] font-bold text-black block ml-1">
+                      Xác nhận mật khẩu
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-black transition-colors">
+                        <Lock size={20} strokeWidth={1.5} />
+                      </div>
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        autoComplete="new-password"
+                        disabled={loading}
+                        placeholder="••••••••••••"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full h-[54px] pl-12 pr-12 bg-white border-[1.5px] border-black/80 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:text-gray-400 disabled:opacity-50"
+                      />
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-black transition-colors disabled:opacity-50"
+                      >
+                        {showConfirmPassword ? <EyeOff size={20} strokeWidth={1.5} /> : <Eye size={20} strokeWidth={1.5} />}
+                      </button>
+                    </div>
+                    {confirmPassword.length > 0 && newPassword !== confirmPassword && (
+                      <p className="text-[13px] text-red-500 font-medium ml-1">Mật khẩu xác nhận không khớp</p>
+                    )}
+                  </div>
+                </>
+              )}
+
               {/* Forgot Password Link */}
               {mode === 'login' && (
                 <div className="flex justify-end mt-[-8px]">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     disabled={loading}
-                    onClick={() => setMode('forgot')}
+                    onClick={() => switchMode('forgot')}
                     className="text-[14px] font-bold text-uml-blue hover:underline disabled:opacity-50"
                   >
                     Forgot Password?
@@ -217,18 +457,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                 disabled={loading}
                 className="w-full h-[54px] bg-uml-blue text-white font-bold text-[16px] rounded-[14px] hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {loading ? (
-                  <Loader2 className="animate-spin" size={24} />
-                ) : (
-                  mode === 'login' ? 'Log in' : mode === 'register' ? 'Create Account' : 'Send Reset Link'
-                )}
+                {loading ? <Loader2 className="animate-spin" size={24} /> : submitLabel}
               </button>
             </form>
 
             {/* Google Sign In (Hidden for Forgot Password) */}
             {mode !== 'forgot' && (
               <div className="mt-4">
-                <button 
+                <button
                   type="button"
                   disabled={loading}
                   onClick={handleGoogleLogin}
@@ -260,7 +496,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                 {mode === 'login' ? "Don't have an account?" : mode === 'register' ? "Already have an account?" : "Remember your password?"}{' '}
                 <button
                   disabled={loading}
-                  onClick={() => setMode(mode === 'login' || mode === 'forgot' ? 'register' : 'login')}
+                  onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}
                   className="font-bold text-uml-blue hover:underline disabled:opacity-50"
                 >
                   {mode === 'login' ? 'Sign Up Free' : 'Log In'}

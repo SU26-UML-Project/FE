@@ -24,6 +24,22 @@ export interface RegisterRequest {
   phone?: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface VerifyOtpRequest {
+  email: string;
+  otpCode: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  otpCode: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 export interface User {
   id: string;
   username?: string;
@@ -57,5 +73,18 @@ export const authService = {
 
   refresh: async (): Promise<ApiResponse<LoginResponse>> => {
     return apiClient.post('/auth/refresh');
+  },
+
+  // Forgot-password flow: request OTP -> verify OTP -> reset password
+  forgotPassword: async (data: ForgotPasswordRequest): Promise<ApiResponse<string>> => {
+    return apiClient.post('/users/forgot-password', data);
+  },
+
+  verifyOtp: async (data: VerifyOtpRequest): Promise<ApiResponse<string>> => {
+    return apiClient.post('/users/verify-otp', data);
+  },
+
+  resetPassword: async (data: ResetPasswordRequest): Promise<ApiResponse<string>> => {
+    return apiClient.post('/users/reset-password', data);
   },
 };
