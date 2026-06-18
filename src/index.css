@@ -56,6 +56,24 @@
   body {
     @apply bg-white text-uml-dark font-priego antialiased;
   }
+
+  /* Tailwind v4's Preflight resets buttons to `cursor: default`.
+     Restore the hand cursor for all clickable elements project-wide. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  label[for],
+  summary,
+  a[href],
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+
+  /* Keep the correct cursor on disabled controls. */
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  select:disabled {
+    cursor: not-allowed;
+  }
 }
 
 @layer utilities {

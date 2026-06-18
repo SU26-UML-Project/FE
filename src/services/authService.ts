@@ -46,12 +46,38 @@ export interface User {
   fullName?: string;
   email: string;
   phone?: string;
-  status?: string;
+  dob?: string;          // ISO date (yyyy-MM-dd)
+  avatarUrl?: string;
+  status?: string;       // ACTIVE | LOCKED | PENDING_DELETE
+  createdAt?: string;
+  profileCompleted?: boolean; // false for Google users who haven't finished onboarding
   role: string | {
     id: string;
     roleName: string;
     description: string;
   };
+}
+
+export interface CompleteProfileRequest {
+  fullName: string;
+  phone: string;
+  dob: string;           // yyyy-MM-dd
+  password: string;
+  confirmPassword: string;
+}
+
+export interface UpdateProfileRequest {
+  fullName?: string;
+  phone?: string;
+  dob?: string;          // yyyy-MM-dd
+  avatarUrl?: string;    // public URL trả về từ POST /files/avatar
+}
+
+export interface DeleteAccountResponse {
+  status: string;
+  deletionDate?: string;
+  daysRemaining?: number;
+  message: string;
 }
 
 export const authService = {
@@ -69,6 +95,28 @@ export const authService = {
 
   getCurrentUser: async (): Promise<ApiResponse<User>> => {
     return apiClient.get('/users/me');
+  },
+
+  // Full profile for the profile page (fullName, phone, dob, avatar, status, createdAt, ...)
+  getProfile: async (): Promise<ApiResponse<User>> => {
+    return apiClient.get('/users/me/profile');
+  },
+
+  updateProfile: async (data: UpdateProfileRequest): Promise<ApiResponse<User>> => {
+    return apiClient.patch('/users/me', data);
+  },
+
+  // First-time onboarding for Google users (personal info + self-chosen password)
+  completeProfile: async (data: CompleteProfileRequest): Promise<ApiResponse<User>> => {
+    return apiClient.patch('/users/complete-profile', data);
+  },
+
+  requestDeleteAccount: async (): Promise<ApiResponse<DeleteAccountResponse>> => {
+    return apiClient.post('/users/me/deactivate-request');
+  },
+
+  restoreAccount: async (): Promise<ApiResponse<DeleteAccountResponse>> => {
+    return apiClient.post('/users/me/restore');
   },
 
   refresh: async (): Promise<ApiResponse<LoginResponse>> => {

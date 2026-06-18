@@ -7,6 +7,8 @@ import LandingPage from './pages/LandingPage'
 import Pricing from './pages/Pricing'
 import AdminDashboard from './pages/AdminDashboard'
 import UserDashboard from './pages/UserDashboard'
+import ProfilePage from './pages/ProfilePage'
+import OnboardingPage from './pages/OnboardingPage'
 import CanvasEditor from './pages/CanvasEditor'
 import TemplateDetail from './pages/TemplateDetail'
 import WorkspacePage from './pages/WorkspacePage'
@@ -25,6 +27,16 @@ const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: string[] }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/" state={{ from: location }} replace />
+  }
+
+  // Onboarding gate: Google users with an unfinished profile must complete the wizard first.
+  const needsOnboarding = user?.profileCompleted === false
+  const onOnboarding = location.pathname === '/onboarding'
+  if (needsOnboarding && !onOnboarding) {
+    return <Navigate to="/onboarding" replace />
+  }
+  if (!needsOnboarding && onOnboarding) {
+    return <Navigate to="/dashboard" replace />
   }
 
   if (allowedRoles && user) {
@@ -75,9 +87,14 @@ const OAuth2Handler = () => {
         // Fetch real user info
         const userResponse = await authService.getCurrentUser();
         setAuth(userResponse.result);
-        
+
         toast.success('Đăng nhập Google thành công!')
-        navigate('/dashboard', { replace: true })
+        // First-time Google users must finish onboarding before entering the app.
+        if (userResponse.result?.profileCompleted === false) {
+          navigate('/onboarding', { replace: true })
+        } else {
+          navigate('/dashboard', { replace: true })
+        }
       } catch (error) {
         console.error('OAuth2 User Info Error:', error);
         toast.error('Không thể lấy thông tin người dùng sau khi đăng nhập Google');
@@ -131,6 +148,8 @@ function App() {
           {/* User Routes */}
           <Route element={<ProtectedRoute allowedRoles={['USER', 'ADMIN']} />}>
             <Route path="/dashboard" element={<UserDashboard />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/canvas" element={<CanvasEditor />} />
             <Route path="/workspace/:id" element={<WorkspacePage />} />
             <Route path="/prebuilts/:id" element={<PrebuiltDetail />} />

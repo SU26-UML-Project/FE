@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { LogIn, User, LogOut } from 'lucide-react'
+import { LogIn } from 'lucide-react'
 import AuthModal from './Auth/AuthModal'
+import UserMenu from './UserMenu'
 import { useAuthStore } from '../store/useAuthStore'
 
 const Navbar = () => {
@@ -9,7 +10,7 @@ const Navbar = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
   
-  const { user, isAuthenticated, logout } = useAuthStore()
+  const { user, isAuthenticated } = useAuthStore()
   
   const location = useLocation()
   const isDashboardPage = location.pathname.startsWith('/dashboard')
@@ -140,28 +141,7 @@ const Navbar = () => {
                 </button>
               </>
             ) : (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full border border-gray-200">
-                  <div className="w-8 h-8 rounded-full bg-uml-blue flex items-center justify-center text-white">
-                    <User size={18} />
-                  </div>
-                  <div className="flex flex-col items-start leading-tight hidden sm:flex">
-                    <span className="text-[13px] font-bold text-black">
-                      {user?.fullName || user?.email.split('@')[0]}
-                    </span>
-                    <span className="text-[10px] text-gray-500 font-medium">
-                      {user?.email}
-                    </span>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => logout()}
-                  className="p-2 text-gray-500 hover:text-red-600 transition-colors"
-                  title="Logout"
-                >
-                  <LogOut size={20} />
-                </button>
-              </div>
+              <UserMenu />
             )}
           </div>
         </header>

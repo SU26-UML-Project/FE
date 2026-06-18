@@ -169,7 +169,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
   };
 
   const headerTitle =
-    mode === 'login' ? 'LOG IN' : mode === 'register' ? 'SIGN UP' : 'RESET';
+    mode === 'login' ? 'ĐĂNG NHẬP' : mode === 'register' ? 'ĐĂNG KÝ' : 'ĐẶT LẠI';
 
   const headerSubtitle =
     mode !== 'forgot'
@@ -182,9 +182,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
 
   const submitLabel =
     mode === 'login'
-      ? 'Log in'
+      ? 'Đăng nhập'
       : mode === 'register'
-      ? 'Create Account'
+      ? 'Tạo tài khoản'
       : forgotStep === 'email'
       ? 'Gửi mã OTP'
       : forgotStep === 'otp'
@@ -247,7 +247,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
               {mode === 'register' && (
                 <div className="space-y-2">
                   <label className="text-[15px] font-bold text-black block ml-1">
-                    Full Name
+                    Họ và tên
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-black transition-colors">
@@ -261,7 +261,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                       required
                       autoComplete="new-password"
                       disabled={loading}
-                      placeholder="e.g., John Doe"
+                      placeholder="Ví dụ: Nguyễn Văn A"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       className="w-full h-[54px] pl-12 pr-4 bg-white border-[1.5px] border-black/80 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:text-gray-400 disabled:opacity-50"
@@ -274,7 +274,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
               {(mode !== 'forgot' || forgotStep === 'email') && (
                 <div className="space-y-2">
                   <label className="text-[15px] font-bold text-black block ml-1">
-                    Email Address
+                    Địa chỉ email
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-black transition-colors">
@@ -285,7 +285,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                       required
                       autoComplete="new-password"
                       disabled={loading}
-                      placeholder="e.g., yourname@email.com"
+                      placeholder="Ví dụ: ten@email.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full h-[54px] pl-12 pr-4 bg-white border-[1.5px] border-black/80 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:text-gray-400 disabled:opacity-50"
@@ -298,7 +298,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
               {mode !== 'forgot' && (
                 <div className="space-y-2">
                   <label className="text-[15px] font-bold text-black block ml-1">
-                    Password
+                    Mật khẩu
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-black transition-colors">
@@ -446,7 +446,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                     onClick={() => switchMode('forgot')}
                     className="text-[14px] font-bold text-uml-blue hover:underline disabled:opacity-50"
                   >
-                    Forgot Password?
+                    Quên mật khẩu?
                   </button>
                 </div>
               )}
@@ -472,7 +472,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                 >
                   <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
                   <span className="text-[15px] font-bold text-black">
-                    Sign in with Google
+                    Đăng nhập với Google
                   </span>
                 </button>
               </div>
@@ -485,7 +485,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                   <div className="w-full border-t border-gray-300"></div>
                 </div>
                 <div className="relative flex justify-center text-sm uppercase">
-                  <span className="bg-white px-4 text-gray-500 font-bold tracking-widest text-[13px]">OR</span>
+                  <span className="bg-white px-4 text-gray-500 font-bold tracking-widest text-[13px]">HOẶC</span>
                 </div>
               </div>
             )}
@@ -493,13 +493,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
             {/* Switch Mode */}
             <div className="text-center mt-6">
               <p className="text-[15px] text-black">
-                {mode === 'login' ? "Don't have an account?" : mode === 'register' ? "Already have an account?" : "Remember your password?"}{' '}
+                {mode === 'login' ? 'Chưa có tài khoản?' : mode === 'register' ? 'Đã có tài khoản?' : 'Nhớ mật khẩu?'}{' '}
                 <button
                   disabled={loading}
                   onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}
                   className="font-bold text-uml-blue hover:underline disabled:opacity-50"
                 >
-                  {mode === 'login' ? 'Sign Up Free' : 'Log In'}
+                  {mode === 'login' ? 'Đăng ký miễn phí' : 'Đăng nhập'}
                 </button>
               </p>
             </div>
