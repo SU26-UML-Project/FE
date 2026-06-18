@@ -1,4 +1,11 @@
 import { motion } from 'framer-motion'
+import { FaFacebook, FaInstagram, FaXTwitter } from 'react-icons/fa6'
+
+const socialLinks = [
+  { icon: FaFacebook, label: 'Facebook', url: '#' },
+  { icon: FaInstagram, label: 'Instagram', url: '#' },
+  { icon: FaXTwitter, label: 'X (Twitter)', url: '#' }
+]
 
 const footerLinks = [
   {
@@ -59,7 +66,24 @@ const Footer = () => {
               </ul>
             </div>
           ))}
-          <div className="col-span-2 md:col-span-1 flex md:justify-end items-start pt-1 md:pt-0" data-purpose="copyright-area">
+          <div className="col-span-2 md:col-span-1 flex md:justify-end md:items-end md:flex-col items-center" data-purpose="copyright-area">
+            <div className="flex gap-4 mb-3 md:mb-2">
+              {socialLinks.map((social, index) => {
+                const Icon = social.icon
+                return (
+                  <motion.a
+                    key={index}
+                    href={social.url}
+                    whileHover={{ scale: 1.2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="text-gray-600 hover:text-uml-blue transition-colors"
+                    aria-label={social.label}
+                  >
+                    <Icon size={20} style={{ fontSize: '20px' }} />
+                  </motion.a>
+                )
+              })}
+            </div>
             <p className="text-gray-400 text-[0.8rem] font-normal whitespace-nowrap opacity-80">
               © 2026 DiaUML Studio
             </p>
