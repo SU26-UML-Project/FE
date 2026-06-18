@@ -1,4 +1,9 @@
 import { motion } from 'framer-motion'
+import classdiagram from '../assets/images_populartemplate/class.jpg'
+import sequencediagram from '../assets/images_populartemplate/sequence-diagram-trong-uml-63733509538.5641.jpg'
+import usecase from '../assets/images_populartemplate/usecase.png'
+import activitydiagram from '../assets/images_populartemplate/activitydiagram.jpg'
+
 
 const Templates = () => {
   return (
@@ -16,8 +21,37 @@ const Templates = () => {
             <motion.div 
               key={i}
               whileHover={{ scale: 1.05 }}
-              className="border-[1.5px] border-[#666666] rounded-[2rem] bg-transparent aspect-square w-full max-w-[350px]"
-            ></motion.div>
+              className="border-[1.5px] border-[#666666] rounded-[2rem] bg-transparent aspect-square w-full max-w-[350px] overflow-hidden"
+            >
+              {i === 1 && (
+                <img 
+                  src={classdiagram} 
+                  alt="School Management System Class Diagram" 
+                  className="w-full h-full object-cover object-right rounded-[2rem]"
+                />
+              )}
+              {i === 2 && (
+                <img 
+                  src={sequencediagram} 
+                  alt="Sequence Diagram" 
+                  className="w-full h-full object-cover object-right rounded-[2rem]"
+                />
+              )}
+              {i === 3 && (
+                <img 
+                  src={usecase} 
+                  alt="Use Case Diagram" 
+                  className="w-full h-full object-cover object-right rounded-[2rem]"
+                />
+              )}
+              {i === 4 && (
+                <img 
+                  src={activitydiagram} 
+                  alt="Activity Diagram" 
+                  className="w-full h-full object-cover object-right rounded-[2rem]"
+                />
+              )}
+            </motion.div>
           ))}
         </div>
 
