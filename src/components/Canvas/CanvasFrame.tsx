@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import LoadingOverlay from '../ui/LoadingOverlay'
 
 const DRAWIO_ORIGIN = 'https://embed.diagrams.net'
@@ -11,11 +12,21 @@ interface CanvasFrameProps {
 }
 
 export default function CanvasFrame({ onXmlChange, onSave, xml }: CanvasFrameProps) {
+  const navigate = useNavigate()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const readyRef = useRef(false)
   const xmlRef = useRef(xml)
   xmlRef.current = xml
+
+  useEffect(() => {
+    if (state === 'ready' && iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ action: 'load', xml: xml || '' }),
+        '*'
+      )
+    }
+  }, [xml, state])
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -36,7 +47,11 @@ export default function CanvasFrame({ onXmlChange, onSave, xml }: CanvasFramePro
           setState('ready')
         }
 
-        if (data.event === 'save') {
+        if (data.event === 'exit') {
+          navigate('/dashboard')
+        }
+
+        if (data.event === 'save' || data.event === 'autosave') {
           onSave(data.xml)
           onXmlChange(data.xml)
         }

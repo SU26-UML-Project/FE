@@ -93,13 +93,6 @@ export default function WorkspaceToolbar({
         </button>
         <span className="w-px h-5 bg-blue-400/40" />
         <button
-          onClick={onSave}
-          className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider text-blue-100 hover:text-white hover:bg-blue-600 transition flex items-center gap-1.5"
-        >
-          <Save size={14} />
-          Save Workspace
-        </button>
-        <button
           onClick={onExport}
           className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider text-blue-100 hover:text-white hover:bg-blue-600 transition flex items-center gap-1.5"
         >

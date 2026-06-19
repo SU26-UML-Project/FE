@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useWorkspaceStore } from '../stores/workspaceStore'
-import { getWorkspace, upsertWorkspace, generateId } from '../utils/workspaceStore'
+import { projectService } from '../services/projectService'
 import WorkspaceToolbar from '../components/Workspace/WorkspaceToolbar'
 import WorkspaceLayout from '../components/Workspace/WorkspaceLayout'
 import type { WorkspaceSheet, WorkspaceDocument, ChatMessage, Clarification } from '../types/workspace'
+import toast from 'react-hot-toast'
 
 export default function WorkspacePage() {
   const navigate = useNavigate()
@@ -17,61 +18,100 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     if (!id) return
-    const ws = getWorkspace(id)
-    if (ws) {
-      store.setCurrentWorkspace(ws)
-    }
+    const fetchWorkspace = async () => {
+      try {
+        const response = await projectService.getProjectById(id);
+        const p = response.result;
+        const workspaceData = {
+          id: p.id,
+          name: p.projectName,
+          category: p.description || 'general',
+          type: 'user' as const,
+          documents: [],
+          sheets: [
+            {
+              id: 'default-sheet', // Static ID since we only have one now
+              name: 'Diagram',
+              diagramType: 'blank',
+              diagramXml: p.projectData || '',
+            }
+          ],
+          aiContext: { intent: '', clarifications: [], history: [] },
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+        };
+        store.setCurrentWorkspace(workspaceData);
+        store.setActiveSheetId('default-sheet');
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to load workspace');
+        navigate('/dashboard');
+      }
+    };
+    fetchWorkspace();
   }, [id])
 
   const workspace = store.currentWorkspace
   const wsName = workspace?.name ?? 'Untitled Workspace'
 
-  const persist = useCallback(() => {
-    if (workspace) {
-      upsertWorkspace({
-        ...workspace,
-        updatedAt: new Date().toISOString(),
-      })
+  const handleNameChange = async (name: string) => {
+    if (!workspace || !id) return
+    try {
+      const response = await projectService.updateProject(id, {
+        projectName: name,
+        description: workspace.category,
+      });
+      if (response.code === 200) {
+        store.updateWorkspace({ name });
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update project name');
     }
-  }, [workspace])
-
-  const handleNameChange = (name: string) => {
-    if (!workspace) return
-    const updated = { ...workspace, name }
-    store.setCurrentWorkspace(updated)
-    upsertWorkspace({ ...updated, updatedAt: new Date().toISOString() })
   }
 
   const handleSheetSelect = (sheetId: string) => {
     store.setActiveSheetId(sheetId)
   }
 
-  const handleSheetAdd = () => {
-    if (!workspace) return
-    const newSheet: WorkspaceSheet = {
-      id: generateId(),
-      name: `Sheet ${workspace.sheets.length + 1}`,
-      diagramType: 'blank',
-      diagramXml: '',
-    }
-    store.addSheet(newSheet)
-    persist()
+  const handleSheetAdd = async () => {
+    toast.error('Multiple sheets are handled internally by the diagram editor.');
   }
 
-  const handleSheetDelete = (sheetId: string) => {
-    if (!workspace || workspace.sheets.length <= 1) return
-    store.deleteSheet(sheetId)
-    persist()
+  const handleSheetDelete = async (sheetId: string) => {
+    toast.error('Sheet management is handled internally by the diagram editor.');
   }
 
-  const handleSheetRename = (sheetId: string, name: string) => {
-    store.updateSheet(sheetId, { name })
-    persist()
+  const handleSheetRename = async (sheetId: string, name: string) => {
+    // Internally rename if needed
   }
 
-  const handleXmlChange = (sheetId: string, xml: string) => {
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved')
+
+  // Stable Auto-save logic
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const autoSave = useCallback((sheetId: string, xml: string) => {
+    if (!id) return
+    setSaveStatus('saving')
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        await projectService.updateProject(id, {
+          projectName: wsName,
+          projectData: xml
+        })
+        setSaveStatus('saved')
+        console.log('Auto-saved project data to backend')
+      } catch (error) {
+        setSaveStatus('error')
+        console.error('Auto-save failed:', error)
+      }
+    }, 1000)
+  }, [id, wsName])
+
+  const handleXmlChange = useCallback((sheetId: string, xml: string) => {
     store.updateSheet(sheetId, { diagramXml: xml })
-  }
+    autoSave(sheetId, xml)
+  }, [autoSave, store])
 
   // TODO: API — POST /api/ai/chat
   const handleSendMessage = (message: string) => {
@@ -140,7 +180,6 @@ export default function WorkspacePage() {
     store.updateWorkspace({
       documents: [...workspace.documents, ...docs],
     })
-    persist()
   }
 
   const handleRemoveDocument = (docId: string) => {
@@ -148,11 +187,23 @@ export default function WorkspacePage() {
     store.updateWorkspace({
       documents: workspace.documents.filter((d) => d.id !== docId),
     })
-    persist()
   }
 
-  const handleSave = () => {
-    persist()
+  const handleSave = async () => {
+    if (!workspace || !id) return
+
+    try {
+      const response = await projectService.updateProject(id, {
+        projectName: wsName,
+        description: workspace.category,
+        projectData: workspace.sheets[0]?.diagramXml || ''
+      });
+      if (response.code === 200) {
+        toast.success('Workspace saved');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save');
+    }
   }
 
   const handleStopGeneration = () => {
@@ -185,6 +236,16 @@ export default function WorkspacePage() {
         aiEnabled={aiEnabled}
         onAiToggle={setAiEnabled}
       />
+      {saveStatus !== 'saved' && (
+        <div className="bg-white px-4 py-1 border-b border-gray-200 flex items-center justify-end gap-2 fixed top-[88px] right-0 z-50 rounded-bl-lg shadow-sm">
+          {saveStatus === 'saving' && (
+            <span className="text-[10px] text-uml-blue font-bold uppercase animate-pulse">● Saving...</span>
+          )}
+          {saveStatus === 'error' && (
+            <span className="text-[10px] text-red-500 font-bold uppercase">! Connection error</span>
+          )}
+        </div>
+      )}
       <WorkspaceLayout
         sheets={workspace.sheets}
         activeSheetId={store.activeSheetId}

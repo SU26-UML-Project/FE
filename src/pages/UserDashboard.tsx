@@ -20,8 +20,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { getTemplateList } from '../utils/templates';
 import type { TemplateMeta } from '../utils/templates';
-import { listWorkspaces, upsertWorkspace, generateId } from '../utils/workspaceStore';
+import { projectService } from '../services/projectService';
 import type { Workspace, PrebuiltMeta } from '../types/workspace';
+import toast from 'react-hot-toast';
 
 const formatRelativeTime = (iso: string): string => {
   const diff = Date.now() - new Date(iso).getTime()
@@ -49,6 +50,7 @@ const UserDashboard: React.FC = () => {
   const [filteredTemplates, setFilteredTemplates] = useState<TemplateMeta[]>([]);
   const [filterLoading, setFilterLoading] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [workspacesLoading, setWorkspacesLoading] = useState(false);
   const [prebuilts, setPrebuilts] = useState<PrebuiltMeta[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newWsName, setNewWsName] = useState('');
@@ -79,8 +81,48 @@ const UserDashboard: React.FC = () => {
   }, [filterGroup, templates]);
 
   useEffect(() => {
-    setWorkspaces(listWorkspaces())
+    if (activeTab === 'all' || activeTab === 'archived' || activeTab === 'trash') {
+      fetchWorkspaces();
+    }
   }, [activeTab]);
+
+  const fetchWorkspaces = async () => {
+    setWorkspacesLoading(true);
+    try {
+      const response = await projectService.getAllProjects();
+      // Map API ProjectResponse to Frontend Workspace type
+      const mapped = (response.result || []).map((p: any) => {
+        // Count sheets from XML projectData
+        let sheetCount = 0;
+        if (p.projectData) {
+          // A simple way to count <diagram> tags in the draw.io XML
+          const matches = p.projectData.match(/<diagram/g);
+          sheetCount = matches ? matches.length : 1;
+        } else {
+          sheetCount = 0;
+        }
+
+        return {
+          id: p.id,
+          name: p.projectName,
+          category: p.description || 'general',
+          type: 'user' as const,
+          documents: [],
+          // Create a mock sheet array with the correct length to satisfy the UI
+          sheets: Array(sheetCount).fill({ id: 'mock', name: 'Page', diagramType: 'blank', diagramXml: '' }),
+          aiContext: { intent: '', clarifications: [], history: [] },
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+        };
+      });
+      setWorkspaces(mapped);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load projects');
+      setWorkspaces([]);
+    } finally {
+      setWorkspacesLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetch('/prebuilts/index.json')
@@ -89,29 +131,27 @@ const UserDashboard: React.FC = () => {
       .catch(() => setPrebuilts([]))
   }, []);
 
-  const handleCreateWorkspace = () => {
+  const handleCreateWorkspace = async () => {
     if (!newWsName.trim()) return
-    const ws: Workspace = {
-      id: generateId(),
-      name: newWsName.trim(),
-      category: newWsCategory,
-      type: 'user',
-      documents: [],
-      sheets: [{
-        id: generateId(),
-        name: 'Diagram 1',
-        diagramType: 'blank',
-        diagramXml: '',
-      }],
-      aiContext: { intent: '', clarifications: [], history: [] },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+    
+    try {
+      const emptyXml = '<mxfile><diagram id="L1" name="Page-1"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel></diagram></mxfile>';
+      const response = await projectService.createProject({
+        projectName: newWsName.trim(),
+        description: newWsCategory,
+        projectData: emptyXml
+      });
+      
+      if (response.code === 200) {
+        toast.success('Project created successfully');
+        fetchWorkspaces();
+        setShowCreateModal(false);
+        setNewWsName('');
+        setNewWsCategory('general');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create project');
     }
-    upsertWorkspace(ws)
-    setWorkspaces(listWorkspaces())
-    setShowCreateModal(false)
-    setNewWsName('')
-    setNewWsCategory('general')
   }
 
   return (
@@ -369,7 +409,11 @@ const UserDashboard: React.FC = () => {
                       <span className="ml-2 text-sm font-normal text-gray-400">({workspaces.length})</span>
                     </h2>
                   </div>
-                  {workspaces.length === 0 ? (
+                  {workspacesLoading ? (
+                    <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
+                      <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : workspaces.length === 0 ? (
                     <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
                       <Folder size={48} className="text-gray-200 mx-auto mb-3" />
                       <h3 className="text-lg font-bold text-gray-400 mb-1">No workspaces yet</h3>
