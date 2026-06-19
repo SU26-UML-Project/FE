@@ -72,7 +72,7 @@ const OnboardingPage = () => {
 
   // --- Validation ---
   const phoneValid = PHONE_REGEX.test(phone)
-  const dobValid = !!dob && dob <= today
+  const dobValid = !!dob && dob < today
   const step1Valid = fullName.trim().length > 0 && phoneValid && dobValid
 
   const { score, criteria } = useMemo(() => evaluatePassword(password), [password])
