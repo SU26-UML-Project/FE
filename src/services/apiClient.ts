@@ -4,6 +4,7 @@ import { setAuthCookie, clearAuthCookies, COOKIE_KEYS } from '../utils/auth';
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   withCredentials: true,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },

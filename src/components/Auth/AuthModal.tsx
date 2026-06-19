@@ -110,15 +110,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
 
     try {
       if (mode === 'login') {
+        // Step 1: authenticate, get token from backend
         const loginResponse = await authService.login({ email, password });
 
-        // If backend doesn't set cookie automatically for normal login,
-        // we handle it here using the token from response body
+        // Step 1b: save token as cookie (if backend didn't set it automatically)
         if (loginResponse.result?.token) {
           setAuthCookie(COOKIE_KEYS.ACCESS_TOKEN, loginResponse.result.token);
         }
 
-        // Fetch real user info after successful login
+        // Step 2: fetch user profile (needs cookie from step 1)
         const userResponse = await authService.getCurrentUser();
         setAuth(userResponse.result);
 
