@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Copy, ArrowLeft, Clock, Layers, FileText, Bot } from 'lucide-react'
-import { generateId, upsertWorkspace } from '../utils/workspaceStore'
-import type { Workspace, PrebuiltMeta } from '../types/workspace'
+import { projectService } from '../services/projectService'
+import type { Workspace, PrebuiltMeta, WorkspaceSheet } from '../types/workspace'
+import toast from 'react-hot-toast'
 
 interface PrebuiltProject {
   meta: PrebuiltMeta
@@ -25,23 +26,35 @@ export default function PrebuiltDetail() {
       .finally(() => setLoading(false))
   }, [id])
 
-  const handleClone = () => {
+  const handleClone = async () => {
     if (!project) return
     setCloning(true)
-    const cloned: Workspace = {
-      ...project.workspace,
-      id: generateId(),
-      name: `${project.workspace.name} (Clone)`,
-      type: 'user',
-      clonedFrom: project.workspace.id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+    try {
+      const createRes = await projectService.createProject({
+        projectName: `${project.workspace.name} (Clone)`,
+        description: project.workspace.category,
+      });
+
+      if (createRes.code === 200 && createRes.result) {
+        const newProjectId = createRes.result.id;
+        
+        // Combine all sheets from prebuilt into one XML for the new projectData structure
+        // If there are multiple sheets, draw.io will handle them internally in the XML
+        const combinedXml = project.workspace.sheets.map(s => s.diagramXml).join('\n'); 
+        
+        await projectService.updateProject(newProjectId, {
+          projectName: `${project.workspace.name} (Clone)`,
+          projectData: combinedXml
+        });
+        
+        toast.success('Project cloned successfully');
+        navigate(`/workspace/${newProjectId}`);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to clone project');
+    } finally {
+      setCloning(false);
     }
-    upsertWorkspace(cloned)
-    setTimeout(() => {
-      setCloning(false)
-      navigate(`/workspace/${cloned.id}`)
-    }, 500)
   }
 
   if (loading) {
