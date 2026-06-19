@@ -33,7 +33,7 @@ export const projectService = {
     return apiClient.patch(`/projects/${projectId}`, data);
   },
 
-  deleteProject: async (projectId: string): Promise<ApiResponse<void>> => {
-    return apiClient.delete(`/projects/${projectId}`);
+  deleteProjects: async (ids: string[]): Promise<ApiResponse<void>> => {
+    return apiClient.delete('/projects', { data: { ids } });
   },
 };

@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Layers,
   Copy,
-  Clock
+  Clock,
+  Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getTemplateList } from '../utils/templates';
@@ -55,6 +56,8 @@ const UserDashboard: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newWsName, setNewWsName] = useState('');
   const [newWsCategory, setNewWsCategory] = useState('general');
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => { sessionStorage.setItem('dashboard_tab', activeTab); }, [activeTab]);
   useEffect(() => { sessionStorage.setItem('dashboard_templateKind', templateKind); }, [templateKind]);
@@ -151,6 +154,39 @@ const UserDashboard: React.FC = () => {
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to create project');
+    }
+  }
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const isAllSelected = workspaces.length > 0 && selectedIds.size === workspaces.length;
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(workspaces.map(w => w.id)));
+    }
+  }
+
+  const handleDeleteBatch = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.size} project(s)?`)) return;
+    try {
+      await projectService.deleteProjects([...selectedIds]);
+      toast.success(`${selectedIds.size} project(s) deleted`);
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      fetchWorkspaces();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete projects');
     }
   }
 
@@ -408,7 +444,44 @@ const UserDashboard: React.FC = () => {
                       My Workspaces
                       <span className="ml-2 text-sm font-normal text-gray-400">({workspaces.length})</span>
                     </h2>
+                    <div className="flex items-center gap-2">
+                      {selectionMode && (
+                        <button
+                          onClick={handleDeleteBatch}
+                          disabled={selectedIds.size === 0}
+                          className="px-3 py-1.5 bg-red-600 text-white font-bold rounded-md text-xs hover:bg-red-700 transition flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          <Trash2 size={14} />
+                          Delete ({selectedIds.size})
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { setSelectionMode(!selectionMode); if (selectionMode) setSelectedIds(new Set()); }}
+                        className={`px-3 py-1.5 font-bold rounded-md text-xs transition flex items-center gap-1.5 border ${
+                          selectionMode
+                            ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
+                        {selectionMode ? 'Cancel' : 'Select Multiple'}
+                      </button>
+                    </div>
                   </div>
+                  {selectionMode && workspaces.length > 0 && (
+                    <div className="flex items-center gap-2 mb-3 px-1">
+                      <button
+                        onClick={handleSelectAll}
+                        className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-black transition"
+                      >
+                        {isAllSelected ? (
+                          <CheckCircle2 size={16} className="text-uml-blue" />
+                        ) : (
+                          <div className="w-4 h-4 rounded border border-gray-300" />
+                        )}
+                        {isAllSelected ? 'Deselect All' : 'Select All'}
+                      </button>
+                    </div>
+                  )}
                   {workspacesLoading ? (
                     <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
                       <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
@@ -428,7 +501,13 @@ const UserDashboard: React.FC = () => {
                   ) : viewMode === 'grid' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {workspaces.map((ws) => (
-                        <UserWorkspaceCard key={ws.id} workspace={ws} />
+                        <UserWorkspaceCard
+                          key={ws.id}
+                          workspace={ws}
+                          selectionMode={selectionMode}
+                          selected={selectedIds.has(ws.id)}
+                          onToggleSelect={handleToggleSelect}
+                        />
                       ))}
                     </div>
                   ) : (
@@ -436,6 +515,7 @@ const UserDashboard: React.FC = () => {
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
+                            {selectionMode && <th className="py-4 px-4 w-10" />}
                             <th className="py-4 px-6">Workspace Name</th>
                             <th className="py-4 px-6">Category</th>
                             <th className="py-4 px-6">Last Edited</th>
@@ -444,7 +524,13 @@ const UserDashboard: React.FC = () => {
                         </thead>
                         <tbody>
                           {workspaces.map((ws) => (
-                            <WorkspaceListRow key={ws.id} workspace={ws} />
+                            <WorkspaceListRow
+                              key={ws.id}
+                              workspace={ws}
+                              selectionMode={selectionMode}
+                              selected={selectedIds.has(ws.id)}
+                              onToggleSelect={handleToggleSelect}
+                            />
                           ))}
                         </tbody>
                       </table>
@@ -611,17 +697,35 @@ const TemplateListRow = ({ template, index = 0 }: { template: TemplateMeta; inde
   )
 }
 
-const UserWorkspaceCard = ({ workspace }: { workspace: Workspace }) => {
+interface CardActions {
+  selectionMode: boolean
+  selected: boolean
+  onToggleSelect: (id: string) => void
+}
+
+const UserWorkspaceCard = ({ workspace, selectionMode, selected, onToggleSelect }: { workspace: Workspace } & CardActions) => {
   const navigate = useNavigate()
   return (
     <motion.div
       whileHover={{ y: -4 }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      onClick={() => navigate(`/workspace/${workspace.id}`)}
-      className="bg-white border border-admin-outline rounded flex flex-col group hover:border-uml-blue transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px]"
+      onClick={() => { if (!selectionMode) navigate(`/workspace/${workspace.id}`) }}
+      className={`bg-white border rounded flex flex-col group transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px] ${
+        selected ? 'border-uml-blue ring-2 ring-uml-blue/20' : 'border-admin-outline hover:border-uml-blue'
+      }`}
     >
       <div className="h-36 bg-gradient-to-br from-gray-50 to-blue-50 border-b border-admin-outline relative overflow-hidden">
         <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
+        {selectionMode && (
+          <div className="absolute top-3 left-3 z-10">
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleSelect(workspace.id) }}
+              className="w-5 h-5 rounded flex items-center justify-center bg-white border border-gray-300 hover:border-uml-blue transition"
+            >
+              {selected && <CheckCircle2 size={14} className="text-uml-blue" />}
+            </button>
+          </div>
+        )}
         <div className="absolute top-3 right-3 flex gap-1.5">
           <span className="px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border bg-uml-blue/10 text-uml-blue border-uml-blue/20">
             {workspace.category}
@@ -642,13 +746,31 @@ const UserWorkspaceCard = ({ workspace }: { workspace: Workspace }) => {
   )
 }
 
-const WorkspaceListRow = ({ workspace }: { workspace: Workspace }) => {
+interface RowActions {
+  selectionMode: boolean
+  selected: boolean
+  onToggleSelect: (id: string) => void
+}
+
+const WorkspaceListRow = ({ workspace, selectionMode, selected, onToggleSelect }: { workspace: Workspace } & RowActions) => {
   const navigate = useNavigate()
   return (
     <tr
-      onClick={() => navigate(`/workspace/${workspace.id}`)}
-      className="border-b border-admin-outline hover:bg-gray-50/50 transition-colors group cursor-pointer"
+      onClick={() => { if (!selectionMode) navigate(`/workspace/${workspace.id}`) }}
+      className={`border-b transition-colors group cursor-pointer ${
+        selected ? 'bg-blue-50/50 border-uml-blue/20' : 'border-admin-outline hover:bg-gray-50/50'
+      }`}
     >
+      {selectionMode && (
+        <td className="py-4 px-4 w-10">
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleSelect(workspace.id) }}
+            className="w-5 h-5 rounded flex items-center justify-center bg-white border border-gray-300 hover:border-uml-blue transition"
+          >
+            {selected && <CheckCircle2 size={14} className="text-uml-blue" />}
+          </button>
+        </td>
+      )}
       <td className="py-4 px-6">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded flex items-center justify-center shrink-0 bg-uml-blue/10 text-uml-blue">
