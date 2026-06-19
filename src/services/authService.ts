@@ -90,7 +90,36 @@ export interface ChangePasswordConfirmRequest {
   confirmPassword: string;
 }
 
+export interface AdminUserListItem {
+  id: string;
+  username?: string;
+  fullName?: string;
+  email: string;
+  phone?: string;
+  dob?: string;
+  avatarUrl?: string;
+  status?: string;       // ACTIVE | LOCKED | PENDING_DELETE
+  createdAt?: string;
+  profileCompleted?: boolean;
+  role: string | {
+    id: string;
+    roleName: string;
+    description: string;
+  };
+}
+
 export const authService = {
+  // ── ADMIN: Danh sách tất cả users ──────────────────────────────────────────
+  getAllUsers: async (): Promise<ApiResponse<AdminUserListItem[]>> => {
+    return apiClient.get('/users');
+  },
+
+  // ── ADMIN: Lấy chi tiết 1 user theo UUID ───────────────────────────────────
+  getUserById: async (userId: string): Promise<ApiResponse<AdminUserListItem>> => {
+    return apiClient.get(`/users/${userId}`);
+  },
+
+
   login: async (data: LoginRequest): Promise<ApiResponse<LoginResponse>> => {
     return apiClient.post('/auth/login', data);
   },
