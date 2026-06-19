@@ -18,11 +18,14 @@ import {
   Eye,
   Upload,
   X,
+  KeyRound,
+  Trash2,
 } from 'lucide-react'
 import { authService } from '../services/authService'
 import type { User } from '../services/authService'
 import { fileService } from '../services/fileService'
 import { useAuthStore } from '../store/useAuthStore'
+import ChangePasswordModal from '../components/Profile/ChangePasswordModal'
 
 const INPUT_CLASS =
   'w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-black focus:outline-none focus:border-uml-blue focus:ring-1 focus:ring-uml-blue/20 transition'
@@ -69,6 +72,10 @@ const ProfilePage = () => {
 
   // Unsaved-changes guard: holds the navigation action waiting for confirmation
   const [pendingLeave, setPendingLeave] = useState<{ action: () => void } | null>(null)
+
+  // Security / danger-zone modals
+  const [changePwOpen, setChangePwOpen] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   const role = profile ? (typeof profile.role === 'string' ? profile.role : profile.role.roleName) : null
   const status = profile?.status || 'ACTIVE'
@@ -238,16 +245,11 @@ const ProfilePage = () => {
   }
 
   const handleDeactivate = async () => {
-    if (
-      !window.confirm(
-        'Request account deletion? The account will be deleted after 30 days; you can restore it during this period.'
-      )
-    )
-      return
     setActing(true)
     try {
       await authService.requestDeleteAccount()
       setProfile((p) => (p ? { ...p, status: 'PENDING_DELETE' } : p))
+      setDeleteConfirmOpen(false)
       toast.success('Account deletion requested (30 days)')
     } catch (e: any) {
       toast.error(e?.message || 'Unable to submit account deletion request')
@@ -477,20 +479,15 @@ const ProfilePage = () => {
 
             <div className="bg-white border border-admin-outline rounded-xl p-6">
               <h3 className="text-xs font-black uppercase tracking-widest text-admin-secondary mb-4">Security</h3>
-              <p className="text-xs text-gray-500 mb-3">Change your password via an OTP sent to your email.</p>
+              <p className="text-xs text-gray-500 mb-3">
+                Change your password. We'll verify it with an OTP sent to your email.
+              </p>
               <button
-                onClick={async () => {
-                  if (!profile?.email) return
-                  try {
-                    await authService.forgotPassword({ email: profile.email })
-                    toast.success('A password reset OTP has been sent to your email')
-                  } catch (e: any) {
-                    toast.error(e?.message || 'Unable to send OTP')
-                  }
-                }}
-                className="w-full px-4 py-2 text-sm font-bold text-uml-blue border border-uml-blue/30 rounded-lg hover:bg-uml-blue/5 transition"
+                onClick={() => setChangePwOpen(true)}
+                disabled={!profile?.email}
+                className="w-full px-4 py-2 text-sm font-bold text-uml-blue border border-uml-blue/30 rounded-lg hover:bg-uml-blue/5 transition flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                Change Password
+                <KeyRound size={15} /> Change Password
               </button>
             </div>
 
@@ -521,7 +518,7 @@ const ProfilePage = () => {
                   Request account deletion. You have 30 days to change your mind before it's permanently deleted.
                 </p>
                 <button
-                  onClick={handleDeactivate}
+                  onClick={() => setDeleteConfirmOpen(true)}
                   disabled={acting}
                   className="w-full px-4 py-2 text-sm font-bold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition flex items-center justify-center gap-2 disabled:opacity-50"
                 >
@@ -607,6 +604,64 @@ const ProfilePage = () => {
                 >
                   {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Change-password modal (3-step: verify → OTP → new password) */}
+      <AnimatePresence>
+        {changePwOpen && profile?.email && (
+          <ChangePasswordModal email={profile.email} onClose={() => setChangePwOpen(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* Account-deletion confirmation */}
+      <AnimatePresence>
+        {deleteConfirmOpen && (
+          <div className="fixed inset-0 z-[310] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !acting && setDeleteConfirmOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              className="relative w-full max-w-[420px] bg-white rounded-2xl shadow-2xl p-6 font-priego"
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                  <Trash2 size={20} className="text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-black">Request account deletion?</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Your account will be scheduled for permanent deletion in <b>30 days</b>. You can restore it any
+                    time before then from this page.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-3 mt-5">
+                <button
+                  onClick={() => setDeleteConfirmOpen(false)}
+                  disabled={acting}
+                  className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-black transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeactivate}
+                  disabled={acting}
+                  className="px-5 py-2.5 bg-red-600 text-white font-bold rounded-lg text-sm hover:bg-red-700 transition flex items-center gap-2 disabled:opacity-50"
+                >
+                  {acting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  Request Deletion
                 </button>
               </div>
             </motion.div>

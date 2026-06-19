@@ -80,6 +80,16 @@ export interface DeleteAccountResponse {
   message: string;
 }
 
+export interface ChangePasswordInitRequest {
+  currentPassword: string;
+}
+
+export interface ChangePasswordConfirmRequest {
+  otpCode: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 export const authService = {
   login: async (data: LoginRequest): Promise<ApiResponse<LoginResponse>> => {
     return apiClient.post('/auth/login', data);
@@ -134,5 +144,14 @@ export const authService = {
 
   resetPassword: async (data: ResetPasswordRequest): Promise<ApiResponse<string>> => {
     return apiClient.post('/users/reset-password', data);
+  },
+
+  // In-app change-password flow (authenticated): verify current password -> OTP -> set new password
+  initChangePassword: async (data: ChangePasswordInitRequest): Promise<ApiResponse<string>> => {
+    return apiClient.post('/users/me/change-password/init', data);
+  },
+
+  confirmChangePassword: async (data: ChangePasswordConfirmRequest): Promise<ApiResponse<string>> => {
+    return apiClient.post('/users/me/change-password/confirm', data);
   },
 };
