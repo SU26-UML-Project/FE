@@ -6,16 +6,18 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
+  isChecking: boolean;
   setAuth: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
   logout: () => void;
   checkAuth: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   loading: !!getAuthCookie(COOKIE_KEYS.ACCESS_TOKEN),
+  isChecking: false,
   setAuth: (user) => set({ 
     user, 
     isAuthenticated: !!user,
@@ -39,13 +41,20 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
   checkAuth: async () => {
+    const { isChecking, isAuthenticated, user } = get();
+    
+    // Prevent redundant or concurrent calls
+    if (isChecking || (isAuthenticated && user)) {
+      return;
+    }
+
     const hasToken = !!getAuthCookie(COOKIE_KEYS.ACCESS_TOKEN);
     if (!hasToken) {
       set({ user: null, isAuthenticated: false, loading: false });
       return;
     }
 
-    set({ loading: true });
+    set({ isChecking: true, loading: true });
     try {
       const response = await authService.getCurrentUser();
       if (response.code === 200 || response.code === 0) {
@@ -59,6 +68,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     } catch (error) {
       set({ user: null, isAuthenticated: false, loading: false });
+    } finally {
+      set({ isChecking: false });
     }
   },
 }));

@@ -41,8 +41,10 @@ const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: string[] }) => {
   }
 
   if (allowedRoles && user) {
-    const userRole = typeof user.role === 'string' ? user.role : user.role.roleName;
-    if (!allowedRoles.includes(userRole)) {
+    const userRole = (typeof user.role === 'string' ? user.role : user.role?.roleName || '').toUpperCase();
+    const normalizedAllowedRoles = allowedRoles.map(r => r.toUpperCase());
+    
+    if (!normalizedAllowedRoles.includes(userRole)) {
       return <Navigate to="/" replace />
     }
   }

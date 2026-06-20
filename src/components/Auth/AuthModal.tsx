@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, X, Loader2, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { toast } from 'react-hot-toast';
@@ -19,6 +20,7 @@ type Mode = 'login' | 'register' | 'forgot';
 type ForgotStep = 'email' | 'otp' | 'reset';
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'login' }) => {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -120,10 +122,19 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
 
         // Step 2: fetch user profile (needs cookie from step 1)
         const userResponse = await authService.getCurrentUser();
-        setAuth(userResponse.result);
+        const user = userResponse.result;
+        setAuth(user);
 
         toast.success(userResponse.message || 'Đăng nhập thành công!');
         onClose();
+
+        // Redirect based on role
+        const userRole = (typeof user.role === 'string' ? user.role : user.role?.roleName || '').toUpperCase();
+        if (userRole === 'ADMIN') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       } else if (mode === 'register') {
         const response = await authService.register({
           email,
