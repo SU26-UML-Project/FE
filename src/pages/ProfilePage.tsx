@@ -24,7 +24,7 @@ import {
 import { authService } from '../services/authService'
 import type { User } from '../services/authService'
 import { fileService } from '../services/fileService'
-import { useAuthStore } from '../store/useAuthStore'
+import { useAuthStore } from '../stores/useAuthStore'
 import ChangePasswordModal from '../components/Profile/ChangePasswordModal'
 
 const INPUT_CLASS =

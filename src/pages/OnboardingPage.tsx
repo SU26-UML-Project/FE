@@ -16,7 +16,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { authService } from '../services/authService'
-import { useAuthStore } from '../store/useAuthStore'
+import { useAuthStore } from '../stores/useAuthStore'
 
 // Shared input styling, matching AuthModal's design system.
 const INPUT_CLASS =

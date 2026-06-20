@@ -23,9 +23,14 @@ import {
   Phone,
   Calendar,
   AlertCircle,
+  Lock,
+  Unlock,
+  Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authService, AdminUserListItem } from '../services/authService';
+import { projectService } from '../services/projectService';
+import Navbar from '../components/Navbar';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -76,8 +81,10 @@ const AdminDashboard: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
 
   return (
-    <div className="bg-admin-bg text-admin-on-surface font-priego h-screen flex overflow-hidden">
+    <div className="bg-admin-bg text-admin-on-surface font-priego h-screen flex overflow-hidden pt-[88px]">
       <div className="absolute inset-0 grid-background opacity-30 pointer-events-none" />
+      
+      <Navbar />
 
       {/* ── Sidebar ── */}
       <nav
@@ -140,24 +147,6 @@ const AdminDashboard: React.FC = () => {
 
       {/* ── Main ── */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative z-0">
-        <header className="bg-white border-b border-admin-outline flex justify-between items-center w-full px-6 h-16 shrink-0 z-10">
-          <div className="flex items-center gap-4">
-            <span className="text-xl font-extrabold tracking-tight text-black">UML Diagram</span>
-            <div className="hidden md:flex items-center bg-gray-50 rounded border border-admin-outline px-3 py-1.5 ml-8 w-[300px] focus-within:border-uml-blue focus-within:ring-2 focus-within:ring-uml-blue/10 transition-all">
-              <Search size={18} className="text-gray-400 mr-2" />
-              <input
-                className="bg-transparent border-none outline-none w-full text-sm placeholder:text-gray-400 p-0"
-                placeholder="Search projects, users..."
-                type="text"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <IconButton icon={<Bell size={20} />} />
-            <IconButton icon={<HelpCircle size={20} />} />
-          </div>
-        </header>
-
         <main className="flex-1 overflow-y-auto p-8 lg:p-12 relative">
           <div className="max-w-[1200px] mx-auto">
             {activeTab === 'analytics' ? <AnalyticsTab /> : <UserManagementTab />}
@@ -169,79 +158,146 @@ const AdminDashboard: React.FC = () => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Analytics Tab (static placeholders — không thay đổi)
+// Analytics Tab — kết nối API thật
 // ─────────────────────────────────────────────────────────────────────────────
-const AnalyticsTab: React.FC = () => (
-  <>
-    <div className="mb-10">
-      <h1 className="text-4xl font-black tracking-tight text-black">Analytics Overview</h1>
-      <p className="text-lg text-admin-on-surface-variant mt-2">
-        Monitor system health and project metrics.
-      </p>
-    </div>
+const AnalyticsTab: React.FC = () => {
+  const [stats, setStats] = React.useState({
+    totalProjects: 0,
+    totalUsers: 0,
+    activeSubscribers: 0,
+    storageUsed: 0,
+  });
+  const [recentProjects, setRecentProjects] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-      <StatCard title="Total Diagrams" value="14,208" trend="+12%" />
-      <StatCard title="Active Users" value="3,842" trend="+5%" />
-      <StatCard title="Storage Used (GB)" value="845.2" trend="+18%" negative />
-      <StatCard title="Active Subscriptions" value="1,204" trend="0%" neutral />
-    </div>
+  React.useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [usersRes, projectsRes] = await Promise.all([
+          authService.getAllUsers(),
+          projectService.getAllProjectsForAdmin(),
+        ]);
 
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 bg-white border border-admin-outline rounded-sm flex flex-col overflow-hidden">
-        <div className="p-6 border-b border-admin-outline flex justify-between items-center bg-gray-50/50">
-          <h2 className="text-xl font-bold text-black">Recent Projects</h2>
-          <button className="text-[12px] font-bold text-uml-blue hover:underline uppercase tracking-wider">
-            View All
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
-                <th className="py-4 px-6">Project Name</th>
-                <th className="py-4 px-6">Creator</th>
-                <th className="py-4 px-6">Last Modified</th>
-                <th className="py-4 px-6">Status</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              <ProjectRow name="Core Authentication Flow" creator="Sarah Jenkins" time="2 hours ago" status="Published" />
-              <ProjectRow name="Database Schema v4" creator="Mike Chen" time="Yesterday" status="Draft" />
-              <ProjectRow name="Payment Gateway Integration" creator="Alex Rivera" time="Oct 12, 2023" status="Published" />
-              <ProjectRow name="Legacy System Migration" creator="Sarah Jenkins" time="Sep 28, 2023" status="Archived" />
-            </tbody>
-          </table>
-        </div>
+        const allUsers = usersRes.result || [];
+        const allProjects = projectsRes.result || [];
+
+        setStats({
+          totalProjects: allProjects.length,
+          totalUsers: allUsers.length,
+          activeSubscribers: allUsers.filter((u: any) => u.status === 'ACTIVE').length,
+          storageUsed: Math.round(allProjects.length * 0.15 * 10) / 10, // Giả lập storage
+        });
+
+        // Lấy 4 project mới nhất
+        setRecentProjects(allProjects.slice(0, 4));
+      } catch (error) {
+        console.error('Failed to fetch analytics data', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  return (
+    <>
+      <div className="mb-10">
+        <h1 className="text-4xl font-black tracking-tight text-black">Analytics Overview</h1>
+        <p className="text-lg text-admin-on-surface-variant mt-2">
+          Monitor system health and project metrics.
+        </p>
       </div>
 
-      <div className="bg-white border border-admin-outline rounded-sm flex flex-col overflow-hidden relative">
-        <div className="p-6 border-b border-admin-outline flex justify-between items-center bg-white z-10">
-          <h2 className="text-xl font-bold text-black">System Health</h2>
-          <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
-        </div>
-        <div className="p-6 flex-1 flex flex-col z-10 bg-white/90 backdrop-blur-sm">
-          <HealthBar label="Server Load" value={42} />
-          <HealthBar label="API Latency" value={20} valueLabel="124ms" color="emerald" />
-          <div className="mt-auto pt-4 border-t border-admin-outline">
-            <p className="text-[11px] text-admin-secondary font-bold uppercase flex items-center gap-1.5">
-              <CheckCircle2 size={14} className="text-emerald-500" />
-              All systems operational. Last checked 2 min ago.
-            </p>
-          </div>
-        </div>
-        <div
-          className="absolute bottom-0 right-0 w-full h-1/2 bg-admin-surface opacity-10 pointer-events-none transform translate-x-4 translate-y-4"
-          style={{
-            backgroundImage:
-              'linear-gradient(45deg, #c3c6d7 25%, transparent 25%, transparent 50%, #c3c6d7 50%, #c3c6d7 75%, transparent 75%, transparent)',
-            backgroundSize: '8px 8px',
-          }}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <StatCard
+          title="Total Diagrams"
+          value={loading ? '...' : stats.totalProjects.toLocaleString()}
+          trend="+100%"
+        />
+        <StatCard
+          title="Active Users"
+          value={loading ? '...' : stats.totalUsers.toLocaleString()}
+          trend="+100%"
+        />
+        <StatCard
+          title="Storage Used (MB)"
+          value={loading ? '...' : stats.storageUsed.toString()}
+          trend="+0%"
+          neutral
+        />
+        <StatCard
+          title="Active Subscriptions"
+          value={loading ? '...' : stats.activeSubscribers.toLocaleString()}
+          trend="+100%"
         />
       </div>
-    </div>
-  </>
-);
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white border border-admin-outline rounded-sm flex flex-col overflow-hidden">
+          <div className="p-6 border-b border-admin-outline flex justify-between items-center bg-gray-50/50">
+            <h2 className="text-xl font-bold text-black">Recent Projects</h2>
+            <button className="text-[12px] font-bold text-uml-blue hover:underline uppercase tracking-wider">
+              View All
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 size={24} className="animate-spin text-uml-blue" />
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
+                    <th className="py-4 px-6">Project Name</th>
+                    <th className="py-4 px-6">Last Modified</th>
+                    <th className="py-4 px-6">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm">
+                  {recentProjects.length > 0 ? (
+                    recentProjects.map((p) => (
+                      <ProjectRow
+                        key={p.id}
+                        name={p.projectName}
+                        time={new Date(p.updatedAt).toLocaleDateString()}
+                        status="Published"
+                      />
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={3} className="py-10 text-center text-gray-400 font-bold">
+                        No projects found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white border border-admin-outline rounded-sm flex flex-col overflow-hidden relative">
+          <div className="p-6 border-b border-admin-outline flex justify-between items-center bg-white z-10">
+            <h2 className="text-xl font-bold text-black">System Health</h2>
+            <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
+          </div>
+          <div className="p-6 flex-1 flex flex-col z-10 bg-white/90 backdrop-blur-sm">
+            <HealthBar label="Server Load" value={12} />
+            <HealthBar label="API Latency" value={15} valueLabel="45ms" color="emerald" />
+            <div className="mt-auto pt-4 border-t border-admin-outline">
+              <p className="text-[11px] text-admin-secondary font-bold uppercase flex items-center gap-1.5">
+                <CheckCircle2 size={14} className="text-emerald-500" />
+                All systems operational. Last checked 1 min ago.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // User Management Tab — kết nối GET /users & GET /users/{id}
@@ -255,6 +311,16 @@ const UserManagementTab: React.FC = () => {
   // Modal chi tiết
   const [selectedUser, setSelectedUser] = React.useState<AdminUserListItem | null>(null);
   const [detailLoading, setDetailLoading] = React.useState(false);
+
+  // Modal thêm Admin
+  const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
+  const [addAdminData, setAddAdminData] = React.useState({
+    fullName: '',
+    email: '',
+    password: '',
+    phone: '',
+  });
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   // Fetch danh sách users khi tab được mount
   React.useEffect(() => {
@@ -291,6 +357,44 @@ const UserManagementTab: React.FC = () => {
     }
   };
 
+  // Toggle Lock/Unlock status
+  const handleToggleStatus = async (userId: string) => {
+    try {
+      await authService.toggleUserStatus(userId);
+      // Cập nhật state cục bộ để UI thay đổi ngay lập tức
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === userId) {
+            // API đảo trạng thái nên mình cũng đảo trạng thái local
+            const newStatus = u.status === 'LOCKED' ? 'ACTIVE' : 'LOCKED';
+            return { ...u, status: newStatus };
+          }
+          return u;
+        })
+      );
+    } catch (e: any) {
+      alert(e?.message || 'Đã có lỗi xảy ra khi thay đổi trạng thái user');
+    }
+  };
+
+  const handleRegisterAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const res = await authService.registerAdmin(addAdminData);
+      // API của bạn trả về 200 cho thành công (đã check ở apiClient)
+      setUsers((prev) => [res.result as unknown as AdminUserListItem, ...prev]);
+      setIsAddModalOpen(false);
+      setAddAdminData({ fullName: '', email: '', password: '', phone: '' });
+      alert('Tạo tài khoản Admin thành công!');
+    } catch (e: any) {
+      alert(e?.message || 'Đã có lỗi xảy ra khi tạo Admin');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Client-side search/filter
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
@@ -313,7 +417,10 @@ const UserManagementTab: React.FC = () => {
             Manage user accounts, roles, and permissions.
           </p>
         </div>
-        <button className="bg-uml-blue text-white font-bold text-[14px] uppercase px-6 py-3 rounded flex items-center gap-2 hover:bg-blue-700 transition-all shadow-md active:scale-95">
+        <button
+          onClick={() => setIsAddModalOpen(true)}
+          className="bg-uml-blue text-white font-bold text-[14px] uppercase px-6 py-3 rounded flex items-center gap-2 hover:bg-blue-700 transition-all shadow-md active:scale-95"
+        >
           <UserPlus size={18} />
           Add New User
         </button>
@@ -391,12 +498,15 @@ const UserManagementTab: React.FC = () => {
                 {filtered.map((user) => (
                   <UserRow
                     key={user.id}
+                    id={user.id}
                     name={user.fullName || user.email.split('@')[0]}
                     email={user.email}
                     role={getRoleName(user.role)}
                     status={STATUS_LABEL[user.status || ''] || user.status || 'Active'}
                     lastLogin="—"
                     avatarUrl={user.avatarUrl}
+                    onViewDetail={handleViewDetail}
+                    onToggleStatus={handleToggleStatus}
                   />
                 ))}
               </tbody>
@@ -404,6 +514,118 @@ const UserManagementTab: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* ── Add Admin Modal (POST /admin/register) ── */}
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAddModalOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              className="relative w-full max-w-[450px] bg-white rounded-2xl shadow-2xl p-7 font-priego"
+            >
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-black transition"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="mb-6">
+                <h3 className="text-2xl font-black text-black">Create Admin</h3>
+                <p className="text-sm text-gray-500">Add a new administrator to the system.</p>
+              </div>
+
+              <form onSubmit={handleRegisterAdmin} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Full Name
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    value={addAdminData.fullName}
+                    onChange={(e) => setAddAdminData({ ...addAdminData, fullName: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-admin-outline rounded-lg focus:ring-2 focus:ring-uml-blue/10 focus:border-uml-blue outline-none transition-all text-sm"
+                    placeholder="Enter full name"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Email Address
+                  </label>
+                  <input
+                    required
+                    type="email"
+                    value={addAdminData.email}
+                    onChange={(e) => setAddAdminData({ ...addAdminData, email: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-admin-outline rounded-lg focus:ring-2 focus:ring-uml-blue/10 focus:border-uml-blue outline-none transition-all text-sm"
+                    placeholder="admin@example.com"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Password
+                  </label>
+                  <input
+                    required
+                    type="password"
+                    value={addAdminData.password}
+                    onChange={(e) => setAddAdminData({ ...addAdminData, password: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-admin-outline rounded-lg focus:ring-2 focus:ring-uml-blue/10 focus:border-uml-blue outline-none transition-all text-sm"
+                    placeholder="Min 6 characters"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Phone (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={addAdminData.phone}
+                    onChange={(e) => setAddAdminData({ ...addAdminData, phone: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-admin-outline rounded-lg focus:ring-2 focus:ring-uml-blue/10 focus:border-uml-blue outline-none transition-all text-sm"
+                    placeholder="090..."
+                  />
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="flex-1 px-4 py-2.5 border border-admin-outline text-admin-secondary font-bold text-sm rounded-lg hover:bg-gray-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 px-4 py-2.5 bg-uml-blue text-white font-bold text-sm rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <UserPlus size={16} />
+                    )}
+                    Create Admin
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* ── User Detail Modal (GET /users/{userId}) ── */}
       <AnimatePresence>
@@ -604,12 +826,10 @@ const StatCard = ({
 
 const ProjectRow = ({
   name,
-  creator,
   time,
   status,
 }: {
   name: string;
-  creator: string;
   time: string;
   status: string;
 }) => {
@@ -621,7 +841,6 @@ const ProjectRow = ({
   return (
     <tr className="border-b border-admin-outline hover:bg-gray-50/50 transition-colors group">
       <td className="py-4 px-6 font-bold text-black">{name}</td>
-      <td className="py-4 px-6 text-admin-on-surface-variant">{creator}</td>
       <td className="py-4 px-6 text-admin-on-surface-variant">{time}</td>
       <td className="py-4 px-6">
         <span
@@ -666,26 +885,46 @@ const HealthBar = ({
 );
 
 const UserRow = ({
+  id,
   name,
   email,
   role,
   status,
   lastLogin,
   avatarUrl,
+  onViewDetail,
+  onToggleStatus,
 }: {
+  id: string;
   name: string;
   email: string;
   role: string;
   status: string;
   lastLogin: string;
   avatarUrl?: string;
+  onViewDetail: (id: string) => void;
+  onToggleStatus: (id: string) => void;
 }) => {
+  const [isToggling, setIsToggling] = React.useState(false);
   const statusColors: Record<string, string> = {
     Active: 'bg-emerald-100 text-emerald-600',
     Inactive: 'bg-gray-100 text-gray-500',
     Pending: 'bg-amber-100 text-amber-600',
     Locked: 'bg-red-100 text-red-600',
     'Pending Delete': 'bg-amber-100 text-amber-600',
+  };
+
+  const isLocked = status === 'Locked';
+
+  const handleToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isToggling) return;
+    setIsToggling(true);
+    try {
+      await onToggleStatus(id);
+    } finally {
+      setIsToggling(false);
+    }
   };
 
   const initials = name
@@ -696,7 +935,10 @@ const UserRow = ({
     .slice(0, 2);
 
   return (
-    <tr className="border-b border-admin-outline hover:bg-gray-50/50 transition-colors group">
+    <tr
+      onClick={() => onViewDetail(id)}
+      className="border-b border-admin-outline hover:bg-gray-50/50 transition-colors group cursor-pointer"
+    >
       <td className="py-4 px-6">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-blue-50 text-uml-blue flex items-center justify-center font-bold text-xs overflow-hidden">
@@ -732,11 +974,21 @@ const UserRow = ({
       <td className="py-4 px-6 text-admin-on-surface-variant">{lastLogin}</td>
       <td className="py-4 px-6 text-right">
         <div className="flex items-center justify-end gap-2">
-          <button className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-uml-blue transition-colors">
-            <Mail size={16} />
-          </button>
-          <button className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-admin-error transition-colors">
-            <Trash2 size={16} />
+          <button
+            title={isLocked ? 'Unlock User' : 'Lock User'}
+            onClick={handleToggle}
+            disabled={isToggling}
+            className={`p-1.5 rounded hover:bg-gray-100 transition-colors ${
+              isLocked ? 'text-emerald-500' : 'text-admin-error'
+            } ${isToggling ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {isToggling ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : isLocked ? (
+              <Unlock size={16} />
+            ) : (
+              <Lock size={16} />
+            )}
           </button>
           <button className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-black transition-colors">
             <MoreVertical size={16} />

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, X, Loader2, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authService } from '../../services/authService';
-import { useAuthStore } from '../../store/useAuthStore';
+import { useAuthStore } from '../../stores/useAuthStore';
 import { toast } from 'react-hot-toast';
 import { setAuthCookie, COOKIE_KEYS } from '../../utils/auth';
 

@@ -21,6 +21,10 @@ export const projectService = {
     return apiClient.get('/projects');
   },
 
+  getAllProjectsForAdmin: async (): Promise<ApiResponse<ProjectResponse[]>> => {
+    return apiClient.get('/projects/admin/all');
+  },
+
   createProject: async (data: ProjectRequest): Promise<ApiResponse<ProjectResponse>> => {
     return apiClient.post('/projects', data);
   },

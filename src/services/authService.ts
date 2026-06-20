@@ -119,6 +119,16 @@ export const authService = {
     return apiClient.get(`/users/${userId}`);
   },
 
+  //ADMIN: Tạo tài khoản Admin mới
+  registerAdmin: async (data: RegisterRequest): Promise<ApiResponse<User>> => {
+    return apiClient.post('/admin/register', data);
+  },
+
+  //ADMIN: Khóa hoặc mở khóa tài khoản user
+  toggleUserStatus: async (userId: string): Promise<ApiResponse<void>> => {
+    return apiClient.delete(`/admin/${userId}`);
+  },
+
 
   login: async (data: LoginRequest): Promise<ApiResponse<LoginResponse>> => {
     return apiClient.post('/auth/login', data);

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { UserCircle, LayoutDashboard, Shield, LogOut, ChevronDown } from 'lucide-react'
-import { useAuthStore } from '../store/useAuthStore'
+import { useAuthStore } from '../stores/useAuthStore'
 
 /**
  * Authenticated user chip in the navbar. Hover (desktop) or click opens a

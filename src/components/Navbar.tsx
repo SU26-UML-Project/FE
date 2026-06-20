@@ -3,7 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import { LogIn } from 'lucide-react'
 import AuthModal from './Auth/AuthModal'
 import UserMenu from './UserMenu'
-import { useAuthStore } from '../store/useAuthStore'
+import { useAuthStore } from '../stores/useAuthStore'
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false)

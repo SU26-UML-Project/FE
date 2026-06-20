@@ -13,7 +13,7 @@ import CanvasEditor from './pages/CanvasEditor'
 import TemplateDetail from './pages/TemplateDetail'
 import WorkspacePage from './pages/WorkspacePage'
 import PrebuiltDetail from './pages/PrebuiltDetail'
-import { useAuthStore } from './store/useAuthStore'
+import { useAuthStore } from './stores/useAuthStore'
 import AIChatWidget from './components/AIChatWidget'
 import { authService } from './services/authService'
 import { setAuthCookie, COOKIE_KEYS, getAuthCookie } from './utils/auth'
@@ -24,10 +24,10 @@ const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: string[] }) => {
   const { isAuthenticated, user, loading } = useAuthStore()
   const location = useLocation()
 
-  if (loading) return null // Or a loading spinner
+  if (loading) return null
 
   if (!isAuthenticated) {
-    return <Navigate to="/" state={{ from: location }} replace />
+    return <Navigate to="/" replace />
   }
 
   // Onboarding gate: Google users with an unfinished profile must complete the wizard first.
@@ -43,7 +43,7 @@ const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: string[] }) => {
   if (allowedRoles && user) {
     const userRole = typeof user.role === 'string' ? user.role : user.role.roleName;
     if (!allowedRoles.includes(userRole)) {
-      return <Navigate to="/dashboard" replace />
+      return <Navigate to="/" replace />
     }
   }
 
@@ -163,6 +163,9 @@ function App() {
           </Route>
           {/* Support for Google OAuth2 Callback Path */}
           <Route path="/auth/google/callback" element={<LandingPage />} />
+
+          {/* Fallback for undefined routes */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
       {!isAdminPage && !isDashboardPage && !isCanvasPage && !isWorkspacePage && <Footer />}

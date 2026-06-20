@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { authService, User } from '../services/authService';
-import { clearAuthCookies } from '../utils/auth';
+import { clearAuthCookies, getAuthCookie, COOKIE_KEYS } from '../utils/auth';
 
 interface AuthState {
   user: User | null;
@@ -15,7 +15,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
-  loading: true,
+  loading: !!getAuthCookie(COOKIE_KEYS.ACCESS_TOKEN),
   setAuth: (user) => set({ 
     user, 
     isAuthenticated: !!user,
@@ -39,6 +39,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
   checkAuth: async () => {
+    const hasToken = !!getAuthCookie(COOKIE_KEYS.ACCESS_TOKEN);
+    if (!hasToken) {
+      set({ user: null, isAuthenticated: false, loading: false });
+      return;
+    }
+
     set({ loading: true });
     try {
       const response = await authService.getCurrentUser();
