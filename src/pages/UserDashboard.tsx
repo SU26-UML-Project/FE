@@ -58,6 +58,7 @@ const UserDashboard: React.FC = () => {
   const [newWsCategory, setNewWsCategory] = useState('general');
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => { sessionStorage.setItem('dashboard_tab', activeTab); }, [activeTab]);
   useEffect(() => { sessionStorage.setItem('dashboard_templateKind', templateKind); }, [templateKind]);
@@ -168,17 +169,20 @@ const UserDashboard: React.FC = () => {
 
   const isAllSelected = workspaces.length > 0 && selectedIds.size === workspaces.length;
 
-  const handleSelectAll = () => {
-    if (isAllSelected) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(workspaces.map(w => w.id)));
-    }
+  const handleDeleteClick = () => {
+    if (selectedIds.size === 0) return;
+    setShowConfirm(true);
   }
 
-  const handleDeleteBatch = async () => {
-    if (selectedIds.size === 0) return;
-    if (!window.confirm(`Are you sure you want to delete ${selectedIds.size} project(s)?`)) return;
+  const handleAllClick = () => {
+    if (!isAllSelected) {
+      setSelectedIds(new Set(workspaces.map(w => w.id)));
+    }
+    setShowConfirm(true);
+  }
+
+  const handleConfirmDelete = async () => {
+    setShowConfirm(false);
     try {
       await projectService.deleteProjects([...selectedIds]);
       toast.success(`${selectedIds.size} project(s) deleted`);
@@ -444,44 +448,56 @@ const UserDashboard: React.FC = () => {
                       My Workspaces
                       <span className="ml-2 text-sm font-normal text-gray-400">({workspaces.length})</span>
                     </h2>
-                    <div className="flex items-center gap-2">
-                      {selectionMode && (
-                        <button
-                          onClick={handleDeleteBatch}
-                          disabled={selectedIds.size === 0}
-                          className="px-3 py-1.5 bg-red-600 text-white font-bold rounded-md text-xs hover:bg-red-700 transition flex items-center gap-1.5 disabled:opacity-50"
-                        >
-                          <Trash2 size={14} />
-                          Delete ({selectedIds.size})
-                        </button>
-                      )}
+                    <motion.div
+                      layout
+                      transition={{ type: 'spring', stiffness: 250, damping: 25 }}
+                      className={`flex items-center border-2 rounded-full bg-white ${
+                        selectionMode ? 'border-gray-300 px-1.5 py-1' : 'border-gray-300'
+                      }`}
+                    >
+                      <AnimatePresence mode="popLayout">
+                        {selectionMode && (
+                          <motion.div
+                            key="red-pill"
+                            initial={{ width: 0, opacity: 0 }}
+                            animate={{ width: 120, opacity: 1 }}
+                            exit={{ width: 0, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                            className="flex items-center overflow-hidden bg-red-600 rounded-full h-8"
+                          >
+                            <div className="flex items-center h-full shrink-0" style={{ width: 120 }}>
+                              <button
+                                onClick={handleDeleteClick}
+                                disabled={selectedIds.size === 0}
+                                className={`h-full font-bold text-xs whitespace-nowrap flex-[7] flex items-center justify-center ${selectedIds.size === 0 ? 'text-gray-400' : 'text-white'}`}
+                              >
+                                Delete
+                              </button>
+                              <div className="w-[1px] h-5 bg-white/80 shrink-0" />
+                              <button
+                                onClick={handleAllClick}
+                                className="h-full font-bold text-xs whitespace-nowrap flex-[3] flex items-center justify-center text-white"
+                              >
+                                All
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
                       <button
                         onClick={() => { setSelectionMode(!selectionMode); if (selectionMode) setSelectedIds(new Set()); }}
-                        className={`px-3 py-1.5 font-bold rounded-md text-xs transition flex items-center gap-1.5 border ${
+                        className={`flex items-center justify-center font-bold text-xs transition-colors cursor-pointer ${
                           selectionMode
-                            ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                            ? 'px-3 py-1 text-gray-500 hover:text-gray-700'
+                            : 'w-9 h-9 text-gray-400 hover:text-red-500 hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]'
                         }`}
+                        title="Delete projects"
                       >
-                        {selectionMode ? 'Cancel' : 'Select Multiple'}
+                        {selectionMode ? 'Cancel' : <Trash2 size={16} />}
                       </button>
-                    </div>
+                    </motion.div>
                   </div>
-                  {selectionMode && workspaces.length > 0 && (
-                    <div className="flex items-center gap-2 mb-3 px-1">
-                      <button
-                        onClick={handleSelectAll}
-                        className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-black transition"
-                      >
-                        {isAllSelected ? (
-                          <CheckCircle2 size={16} className="text-uml-blue" />
-                        ) : (
-                          <div className="w-4 h-4 rounded border border-gray-300" />
-                        )}
-                        {isAllSelected ? 'Deselect All' : 'Select All'}
-                      </button>
-                    </div>
-                  )}
                   {workspacesLoading ? (
                     <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
                       <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
@@ -515,7 +531,6 @@ const UserDashboard: React.FC = () => {
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
-                            {selectionMode && <th className="py-4 px-4 w-10" />}
                             <th className="py-4 px-6">Workspace Name</th>
                             <th className="py-4 px-6">Category</th>
                             <th className="py-4 px-6">Last Edited</th>
@@ -574,6 +589,44 @@ const UserDashboard: React.FC = () => {
         onCategoryChange={setNewWsCategory}
         onCreate={handleCreateWorkspace}
       />
+
+      <AnimatePresence>
+        {showConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 250, damping: 25 }}
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4"
+            >
+              <h3 className="text-lg font-bold text-black mb-2">Delete projects?</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Are you sure you want to delete {selectedIds.size} project(s)? This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => { setShowConfirm(false); setSelectedIds(new Set()); setSelectionMode(false); }}
+                  className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 rounded-md transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -709,23 +762,19 @@ const UserWorkspaceCard = ({ workspace, selectionMode, selected, onToggleSelect 
     <motion.div
       whileHover={{ y: -4 }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      onClick={() => { if (!selectionMode) navigate(`/workspace/${workspace.id}`) }}
+      onClick={() => {
+        if (selectionMode) {
+          onToggleSelect(workspace.id)
+        } else {
+          navigate(`/workspace/${workspace.id}`)
+        }
+      }}
       className={`bg-white border rounded flex flex-col group transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px] ${
-        selected ? 'border-uml-blue ring-2 ring-uml-blue/20' : 'border-admin-outline hover:border-uml-blue'
+        selected ? 'border-red-400 ring-2 ring-red-400/25' : 'border-admin-outline hover:border-uml-blue'
       }`}
     >
       <div className="h-36 bg-gradient-to-br from-gray-50 to-blue-50 border-b border-admin-outline relative overflow-hidden">
         <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
-        {selectionMode && (
-          <div className="absolute top-3 left-3 z-10">
-            <button
-              onClick={(e) => { e.stopPropagation(); onToggleSelect(workspace.id) }}
-              className="w-5 h-5 rounded flex items-center justify-center bg-white border border-gray-300 hover:border-uml-blue transition"
-            >
-              {selected && <CheckCircle2 size={14} className="text-uml-blue" />}
-            </button>
-          </div>
-        )}
         <div className="absolute top-3 right-3 flex gap-1.5">
           <span className="px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border bg-uml-blue/10 text-uml-blue border-uml-blue/20">
             {workspace.category}
@@ -742,6 +791,20 @@ const UserWorkspaceCard = ({ workspace, selectionMode, selected, onToggleSelect 
           {formatRelativeTime(workspace.updatedAt)}
         </div>
       </div>
+      {selected && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="absolute inset-0 bg-red-50/80 z-20 flex items-center justify-center"
+        >
+          <motion.div
+            animate={{ opacity: [0.4, 1, 0.4] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Trash2 size={28} className="text-red-500/80" />
+          </motion.div>
+        </motion.div>
+      )}
     </motion.div>
   )
 }
@@ -756,19 +819,25 @@ const WorkspaceListRow = ({ workspace, selectionMode, selected, onToggleSelect }
   const navigate = useNavigate()
   return (
     <tr
-      onClick={() => { if (!selectionMode) navigate(`/workspace/${workspace.id}`) }}
-      className={`border-b transition-colors group cursor-pointer ${
-        selected ? 'bg-blue-50/50 border-uml-blue/20' : 'border-admin-outline hover:bg-gray-50/50'
+      onClick={() => {
+        if (selectionMode) {
+          onToggleSelect(workspace.id)
+        } else {
+          navigate(`/workspace/${workspace.id}`)
+        }
+      }}
+      className={`relative overflow-hidden border-b transition-colors group cursor-pointer ${
+        selected ? 'border-red-400 bg-red-50/50' : 'border-admin-outline hover:bg-gray-50/50'
       }`}
     >
-      {selectionMode && (
-        <td className="py-4 px-4 w-10">
-          <button
-            onClick={(e) => { e.stopPropagation(); onToggleSelect(workspace.id) }}
-            className="w-5 h-5 rounded flex items-center justify-center bg-white border border-gray-300 hover:border-uml-blue transition"
+      {selected && selectionMode && (
+        <td className="absolute inset-0 z-20 flex items-center justify-center bg-red-50/80" colSpan={4}>
+          <motion.div
+            animate={{ opacity: [0.4, 1, 0.4] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
           >
-            {selected && <CheckCircle2 size={14} className="text-uml-blue" />}
-          </button>
+            <Trash2 size={20} className="text-red-500/80" />
+          </motion.div>
         </td>
       )}
       <td className="py-4 px-6">
