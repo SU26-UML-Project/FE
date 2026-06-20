@@ -14,6 +14,7 @@ import TemplateDetail from './pages/TemplateDetail'
 import WorkspacePage from './pages/WorkspacePage'
 import PrebuiltDetail from './pages/PrebuiltDetail'
 import { useAuthStore } from './store/useAuthStore'
+import AIChatWidget from './components/AIChatWidget'
 import { authService } from './services/authService'
 import { setAuthCookie, COOKIE_KEYS, getAuthCookie } from './utils/auth'
 import { Navigate, Outlet } from 'react-router-dom'
@@ -167,6 +168,7 @@ function App() {
       {!isAdminPage && !isDashboardPage && !isCanvasPage && !isWorkspacePage && <Footer />}
       <ScrollToHash />
       <Toaster position="top-right" />
+      <AIChatWidget />
     </div>
   )
 }

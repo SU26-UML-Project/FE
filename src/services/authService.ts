@@ -109,12 +109,12 @@ export interface AdminUserListItem {
 }
 
 export const authService = {
-  // ── ADMIN: Danh sách tất cả users ──────────────────────────────────────────
+  //ADMIN: Danh sách tất cả users
   getAllUsers: async (): Promise<ApiResponse<AdminUserListItem[]>> => {
     return apiClient.get('/users');
   },
 
-  // ── ADMIN: Lấy chi tiết 1 user theo UUID ───────────────────────────────────
+  //ADMIN: Lấy chi tiết 1 user theo UUID
   getUserById: async (userId: string): Promise<ApiResponse<AdminUserListItem>> => {
     return apiClient.get(`/users/${userId}`);
   },
@@ -136,7 +136,7 @@ export const authService = {
     return apiClient.get('/users/me');
   },
 
-  // Full profile for the profile page (fullName, phone, dob, avatar, status, createdAt, ...)
+  // Full profile page (fullName, phone, dob, avatar, status, createdAt, ...)
   getProfile: async (): Promise<ApiResponse<User>> => {
     return apiClient.get('/users/me/profile');
   },
