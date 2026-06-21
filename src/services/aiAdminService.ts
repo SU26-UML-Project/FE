@@ -33,6 +33,9 @@ export interface AiWorkspace {
   temperature: number | null;
   topN: number | null;
   similarityThreshold: number | null;
+  openAiHistory: number | null;
+  openAiPrompt: string | null;
+  queryRefusalResponse: string | null;
   documentCount: number;
   documents: AiDocument[];
 }
@@ -49,6 +52,9 @@ export interface AiWorkspaceUpdateRequest {
   temperature?: number;
   topN?: number;
   similarityThreshold?: number;
+  openAiHistory?: number;
+  openAiPrompt?: string;
+  queryRefusalResponse?: string;
 }
 
 export interface AiDocument {
@@ -82,16 +88,24 @@ export const aiAdminService = {
     return apiClient.post('/admin/ai/test') as any;
   },
 
-  getWorkspace: async (): Promise<ApiResponse<AiWorkspace>> => {
-    return apiClient.get('/admin/ai/workspace') as any;
+  getWorkspace: async (slug?: string): Promise<ApiResponse<AiWorkspace>> => {
+    const params = slug ? { slug } : {};
+    return apiClient.get('/admin/ai/workspace', { params }) as any;
   },
 
-  updateWorkspace: async (data: AiWorkspaceUpdateRequest): Promise<ApiResponse<AiWorkspace>> => {
-    return apiClient.put('/admin/ai/workspace', data) as any;
+  updateWorkspace: async (data: AiWorkspaceUpdateRequest, slug?: string): Promise<ApiResponse<AiWorkspace>> => {
+    const params = slug ? { slug } : {};
+    return apiClient.put('/admin/ai/workspace', data, { params }) as any;
   },
 
   getWorkspaces: async (): Promise<ApiResponse<AiWorkspaceInfo[]>> => {
     return apiClient.get('/admin/ai/workspaces') as any;
+  },
+
+  getProviderModels: async (provider: string, basePath?: string): Promise<ApiResponse<string[]>> => {
+    const params: any = {};
+    if (basePath) params.basePath = basePath;
+    return apiClient.get(`/admin/ai/providers/${provider}/models`, { params }) as any;
   },
 
   getDocuments: async (workspaceSlug?: string): Promise<ApiResponse<AiDocument[]>> => {

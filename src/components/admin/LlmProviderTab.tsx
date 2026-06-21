@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cpu, Save, Zap, Loader2, CheckCircle2, XCircle, Database } from 'lucide-react';
+import { Cpu, Save, Zap, Loader2, CheckCircle2, XCircle, Database, RotateCw } from 'lucide-react';
 import { aiAdminService, AiSystemConfig, AiSystemConfigRequest, AiTestConnection } from '../../services/aiAdminService';
 
 const VECTOR_DBS = ['lancedb', 'qdrant', 'chroma', 'pinecone', 'weaviate', 'milvus'];
@@ -11,6 +11,8 @@ const LlmProviderTab: React.FC = () => {
   const [providers, setProviders] = React.useState<string[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  const [detecting, setDetecting] = React.useState(false);
+  const [models, setModels] = React.useState<string[]>([]);
   const [testing, setTesting] = React.useState(false);
   const [testResult, setTestResult] = React.useState<AiTestConnection | null>(null);
   const [message, setMessage] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -42,6 +44,22 @@ const LlmProviderTab: React.FC = () => {
       setMessage({ type: 'error', text: 'Failed to load system config.' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAutoDetect = async () => {
+    setDetecting(true);
+    try {
+      const res = await aiAdminService.getProviderModels(form.llmProvider || '', form.baseUrl);
+      const detected = res.result as string[];
+      setModels(detected);
+      if (detected.length > 0 && !form.model) {
+        setForm({ ...form, model: detected[0] });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Auto-detect models failed.' });
+    } finally {
+      setDetecting(false);
     }
   };
 
@@ -113,7 +131,7 @@ const LlmProviderTab: React.FC = () => {
               <label className="text-xs font-bold text-admin-secondary uppercase tracking-wider">Provider</label>
               <select
                 value={form.llmProvider || ''}
-                onChange={(e) => setForm({ ...form, llmProvider: e.target.value })}
+                onChange={(e) => { setForm({ ...form, llmProvider: e.target.value }); setModels([]); }}
                 className="w-full px-4 py-2.5 bg-gray-50 border border-admin-outline rounded-lg focus:ring-2 focus:ring-uml-blue/10 focus:border-uml-blue outline-none transition-all text-sm"
               >
                 <option value="">Select provider...</option>
@@ -147,13 +165,46 @@ const LlmProviderTab: React.FC = () => {
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-admin-secondary uppercase tracking-wider">Default Model</label>
-              <input
-                type="text"
-                value={form.model || ''}
-                onChange={(e) => setForm({ ...form, model: e.target.value })}
-                placeholder={form.llmProvider === 'ollama' ? 'gemma4:latest' : 'gpt-4o'}
-                className="w-full px-4 py-2.5 bg-gray-50 border border-admin-outline rounded-lg focus:ring-2 focus:ring-uml-blue/10 focus:border-uml-blue outline-none transition-all text-sm"
-              />
+              <div className="flex gap-2">
+                {models.length > 0 ? (
+                  <select
+                    value={form.model || ''}
+                    onChange={(e) => setForm({ ...form, model: e.target.value })}
+                    className="flex-1 px-4 py-2.5 bg-gray-50 border border-admin-outline rounded-lg focus:ring-2 focus:ring-uml-blue/10 focus:border-uml-blue outline-none transition-all text-sm"
+                  >
+                    <option value="">Select model...</option>
+                    {models.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={form.model || ''}
+                    onChange={(e) => setForm({ ...form, model: e.target.value })}
+                    placeholder={form.llmProvider === 'ollama' ? 'gemma4:latest' : 'gpt-4o'}
+                    className="flex-1 px-4 py-2.5 bg-gray-50 border border-admin-outline rounded-lg focus:ring-2 focus:ring-uml-blue/10 focus:border-uml-blue outline-none transition-all text-sm"
+                  />
+                )}
+                {form.llmProvider === 'ollama' && (
+                  <button
+                    onClick={handleAutoDetect}
+                    disabled={detecting}
+                    className="bg-gray-100 text-black font-bold text-[13px] uppercase px-5 py-2.5 rounded flex items-center gap-2 hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50 shrink-0"
+                  >
+                    {detecting ? <Loader2 size={16} className="animate-spin" /> : <RotateCw size={16} />}
+                    Detect
+                  </button>
+                )}
+              </div>
+              {models.length > 0 && (
+                <button
+                  onClick={() => { setModels([]); setForm({ ...form, model: '' }); }}
+                  className="text-xs text-admin-secondary underline mt-1 hover:text-black transition-colors"
+                >
+                  Switch to manual input
+                </button>
+              )}
             </div>
           </div>
         </div>
