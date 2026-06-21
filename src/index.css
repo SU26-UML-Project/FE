@@ -57,6 +57,32 @@
     @apply bg-white text-uml-dark font-priego antialiased;
   }
 
+  /* Global Transparent Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+    transition: background 0.3s;
+  }
+  *:hover::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.25) !important;
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.05) transparent;
+  }
+
   /* Tailwind v4's Preflight resets buttons to `cursor: default`.
      Restore the hand cursor for all clickable elements project-wide. */
   button:not(:disabled),
@@ -207,5 +233,21 @@
   }
   .file-scroll:hover {
     scrollbar-color: #d1d5db transparent;
+  }
+
+  /* Transparent & Minimal Scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+    transition: background 0.3s;
+  }
+  .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
   }
 }

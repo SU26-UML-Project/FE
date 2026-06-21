@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { authService, User } from '../services/authService';
 import { clearAuthCookies, getAuthCookie, COOKIE_KEYS } from '../utils/auth';
 
@@ -13,15 +14,16 @@ interface AuthState {
   checkAuth: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>()((set, get) => ({
   user: null,
   isAuthenticated: false,
-  loading: !!getAuthCookie(COOKIE_KEYS.ACCESS_TOKEN),
+  loading: true, // Bắt đầu bằng true để chờ checkAuth
   isChecking: false,
   setAuth: (user) => set({ 
     user, 
     isAuthenticated: !!user,
-    loading: false
+    loading: false,
+    isChecking: false
   }),
   setLoading: (loading) => set({ loading }),
   logout: async () => {
@@ -30,46 +32,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Use central utility to clear all auth related cookies
       clearAuthCookies();
-      
       set({ 
         user: null, 
         isAuthenticated: false,
-        loading: false
+        loading: false,
+        isChecking: false
       });
     }
   },
   checkAuth: async () => {
-    const { isChecking, isAuthenticated, user } = get();
+    const { isChecking } = get();
     
-    // Prevent redundant or concurrent calls
-    if (isChecking || (isAuthenticated && user)) {
-      return;
-    }
-
-    const hasToken = !!getAuthCookie(COOKIE_KEYS.ACCESS_TOKEN);
-    if (!hasToken) {
-      set({ user: null, isAuthenticated: false, loading: false });
-      return;
-    }
+    // Nếu đang check thì không check lại
+    if (isChecking) return;
 
     set({ isChecking: true, loading: true });
+
     try {
+      // Gọi API /me để kiểm tra session từ cookie
       const response = await authService.getCurrentUser();
       if (response.code === 200 || response.code === 0) {
         set({ 
           user: response.result, 
           isAuthenticated: true,
-          loading: false 
+          loading: false,
+          isChecking: false
         });
       } else {
-        set({ user: null, isAuthenticated: false, loading: false });
+        set({ user: null, isAuthenticated: false, loading: false, isChecking: false });
       }
     } catch (error) {
-      set({ user: null, isAuthenticated: false, loading: false });
-    } finally {
-      set({ isChecking: false });
+      console.error('CheckAuth Error:', error);
+      set({ user: null, isAuthenticated: false, loading: false, isChecking: false });
     }
   },
 }));

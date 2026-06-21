@@ -12,24 +12,64 @@
  */
 import axios from 'axios';
 import apiClient from './apiClient';
-
+import { ApiResponse } from './authService';
 
 export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
+  role: 'ai' | 'user';
   content: string;
-  timestamp: Date;
-  error?: boolean;
+  timestamp: string;
 }
 
-// API
+export interface ChatSession {
+  id: string;
+  title?: string;
+  updatedAt: string;
+}
+
+export interface DiagramChatRequest {
+  message: string;
+  sessionId?: string;
+}
+
+export interface DiagramChatResponse {
+  answer: string;
+  sessionId: string;
+}
 
 /**
- * Gửi tin nhắn đến BE, BE proxy sang AnythingLLM.
- * apiClient interceptor đã unwrap { code, message, result } → trả { reply }.
+ * Gửi tin nhắn đến Diagram AI.
+ * Hỗ trợ sessionId để duy trì ngữ cảnh.
+ */
+export async function sendDiagramChat(data: DiagramChatRequest): Promise<ApiResponse<DiagramChatResponse>> {
+  return apiClient.post('/diagram-ai/chat', data);
+}
+
+/**
+ * Lấy danh sách tất cả các phiên chat của người dùng.
+ */
+export async function getChatSessions(): Promise<ApiResponse<ChatSession[]>> {
+  return apiClient.get('/diagram-ai/chat/sessions');
+}
+
+/**
+ * Tạo một phiên chat mới.
+ */
+export async function createChatSession(): Promise<ApiResponse<ChatSession>> {
+  return apiClient.post('/diagram-ai/chat/sessions');
+}
+
+/**
+ * Lấy lịch sử tin nhắn của một phiên chat.
+ */
+export async function getChatHistory(sessionId: string): Promise<ApiResponse<ChatMessage[]>> {
+  return apiClient.get(`/diagram-ai/chat/sessions/${sessionId}/messages`);
+}
+
+/**
+ * [DEPRECATED] Gửi tin nhắn đến BE, BE proxy sang AnythingLLM.
+ * Dùng sendDiagramChat thay thế để hỗ trợ session.
  */
 export async function sendChatMessage(message: string): Promise<string> {
-  // apiClient interceptor trả về response.data = { code, message, result: { reply } }
   const data = await apiClient.post('/api/v1/chat', { message }, { timeout: 120000 }) as unknown as {
     code: number;
     message: string;
@@ -37,21 +77,15 @@ export async function sendChatMessage(message: string): Promise<string> {
   };
 
   let reply = data.result?.reply ?? 'Không có phản hồi từ AI.';
-  
-
   reply = reply.replace(/<think>[\s\S]*?<\/think>\n*/g, '').trim();
-
   return reply;
 }
 
 /**
  * Ping BE actuator để kiểm tra server online.
- * /actuator/health nằm trong PUBLIC_ENDPOINTS → không cần auth.
  */
 export async function checkHealth(): Promise<boolean> {
   try {
-    // Dùng axios thuần thay vì apiClient để tránh interceptor parse sai
-    // cấu trúc JSON của /actuator/health (không có trường "code" theo envelope)
     const baseUrl = import.meta.env.VITE_API_BASE_URL ?? '';
     await axios.get(`${baseUrl}/actuator/health`);
     return true;

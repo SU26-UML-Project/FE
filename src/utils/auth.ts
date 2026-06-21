@@ -16,7 +16,10 @@ export const setAuthCookie = (key: string, value: string, maxAge: number = 60480
 export const getAuthCookie = (name: string): string | null => {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  if (parts.length === 2) {
+    const cookieVal = parts.pop()?.split(';').shift();
+    return cookieVal ? decodeURIComponent(cookieVal) : null;
+  }
   return null;
 };
 
