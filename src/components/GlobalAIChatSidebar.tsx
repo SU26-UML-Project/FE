@@ -22,17 +22,25 @@ import {
 } from '../services/anythingllmService';
 import { useAuthStore } from '../stores/useAuthStore';
 import toast from 'react-hot-toast';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import QuestionBox from './Chat/QuestionBox';
+import { Clarification } from '../types/workspace';
 
 interface GlobalAIChatSidebarProps {
   isOpen: boolean;
   onToggle: (open: boolean) => void;
 }
 
+export interface ChatMessageWithExtra extends ChatMessage {
+  isAnswered?: boolean;
+}
+
 const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({ isOpen, onToggle }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessageWithExtra[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -121,11 +129,20 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({ isOpen, onTog
     }
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-    const userMessage = input.trim();
-    setInput('');
-    const newUserMsg: ChatMessage = {
+  const handleSend = async (overrideMessage?: string, messageIndex?: number) => {
+    const userMessage = overrideMessage || input.trim();
+    if (!userMessage || isLoading) return;
+    
+    if (!overrideMessage) setInput('');
+
+    // If answering an inline question, mark it as answered
+    if (messageIndex !== undefined) {
+      setMessages(prev => prev.map((msg, i) => 
+        i === messageIndex ? { ...msg, isAnswered: true } : msg
+      ));
+    }
+
+    const newUserMsg: ChatMessageWithExtra = {
       role: 'user',
       content: userMessage,
       timestamp: new Date().toISOString(),
@@ -138,15 +155,20 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({ isOpen, onTog
         sessionId: currentSessionId || undefined
       });
       if (response.code === 200) {
-        const { answer, sessionId } = response.result;
+        // Log để kiểm tra cấu trúc result
+        console.log('Chat response result:', response.result);
+        
+        const { answer, sessionId, questions } = response.result;
         if (!currentSessionId) {
           setCurrentSessionId(sessionId);
           fetchSessions();
         }
-        const aiMsg: ChatMessage = {
+        
+        const aiMsg: ChatMessageWithExtra = {
           role: 'ai',
           content: answer,
           timestamp: new Date().toISOString(),
+          questions: questions || []
         };
         setMessages(prev => [...prev, aiMsg]);
       }
@@ -310,8 +332,40 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({ isOpen, onTog
                             ? 'bg-gray-50 border border-gray-100 text-gray-800 rounded-tl-sm'
                             : 'bg-uml-blue text-white rounded-tr-sm shadow-sm'
                         }`}>
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                          {msg.role === 'ai' ? (
+                            <ReactMarkdown 
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                                ul: ({ children }) => <ul className="list-disc ml-4 mb-2 space-y-1">{children}</ul>,
+                                ol: ({ children }) => <ol className="list-decimal ml-4 mb-2 space-y-1">{children}</ol>,
+                                li: ({ children }) => <li className="mb-0.5">{children}</li>,
+                                table: ({ children }) => (
+                                  <div className="overflow-x-auto my-2 border border-gray-200 rounded-lg">
+                                    <table className="w-full text-[11px] border-collapse">{children}</table>
+                                  </div>
+                                ),
+                                thead: ({ children }) => <thead className="bg-gray-100/50">{children}</thead>,
+                                th: ({ children }) => <th className="border border-gray-200 px-2 py-1.5 font-bold text-left">{children}</th>,
+                                td: ({ children }) => <td className="border border-gray-200 px-2 py-1.5">{children}</td>,
+                                strong: ({ children }) => <strong className="font-bold text-gray-900">{children}</strong>,
+                                code: ({ children }) => <code className="bg-gray-200/50 px-1 py-0.5 rounded text-[10px] font-mono">{children}</code>,
+                              }}
+                            >
+                              {msg.content}
+                            </ReactMarkdown>
+                          ) : (
+                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                          )}
                         </div>
+                        
+                        {msg.role === 'ai' && msg.questions && msg.questions.length > 0 && !msg.isAnswered && (
+                          <QuestionBox 
+                            questions={msg.questions}
+                            onSubmit={(answer) => handleSend(answer, index)}
+                            isSubmitting={isLoading}
+                          />
+                        )}
                       </div>
                     </div>
                   ))

@@ -14,10 +14,17 @@ import axios from 'axios';
 import apiClient from './apiClient';
 import { ApiResponse } from './authService';
 
+export interface ChatQuestion {
+  title: string;
+  type: 'single_select' | 'multi_select' | null;
+  options: string[];
+}
+
 export interface ChatMessage {
   role: 'ai' | 'user';
   content: string;
   timestamp: string;
+  questions?: ChatQuestion[];
 }
 
 export interface ChatSession {
@@ -34,6 +41,7 @@ export interface DiagramChatRequest {
 export interface DiagramChatResponse {
   answer: string;
   sessionId: string;
+  questions: ChatQuestion[];
 }
 
 /**
