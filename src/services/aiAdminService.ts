@@ -66,6 +66,13 @@ export interface AiDocument {
   uploadedAt: string | null;
 }
 
+export interface AiVersionInfo {
+  version: string;
+  llmProvider: string | null;
+  model: string | null;
+  environment: string;
+}
+
 export interface AiTestConnection {
   connected: boolean;
   latencyMs: number;
@@ -131,5 +138,9 @@ export const aiAdminService = {
   reEmbedDocuments: async (workspaceSlug?: string): Promise<ApiResponse<void>> => {
     const params = workspaceSlug ? { workspace: workspaceSlug } : {};
     return apiClient.post('/admin/ai/documents/re-embed', null, { params }) as any;
+  },
+
+  getAiVersion: async (): Promise<ApiResponse<AiVersionInfo>> => {
+    return apiClient.get('/admin/ai/version') as any;
   },
 };

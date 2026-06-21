@@ -16,7 +16,7 @@ import PrebuiltDetail from './pages/PrebuiltDetail'
 import { useAuthStore } from './stores/useAuthStore'
 import AIChatWidget from './components/AIChatWidget'
 import { authService } from './services/authService'
-import { setAuthCookie, COOKIE_KEYS, getAuthCookie } from './utils/auth'
+import { setAuthCookie, COOKIE_KEYS } from './utils/auth'
 import { Navigate, Outlet } from 'react-router-dom'
 
 // Protected Route Component

@@ -4,12 +4,13 @@ import {
   FileText, Users, ShieldCheck, Activity, UserPlus, ChevronLeft,
   ChevronRight, Loader2, X, Search, Bell, HelpCircle, TrendingUp,
   TrendingDown, Minus, CheckCircle2, MoreVertical, Mail, Phone,
-  Calendar, AlertCircle, Lock, Unlock, Trash2,
+  Calendar, AlertCircle, Lock, Unlock, Trash2, Home,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authService, AdminUserListItem } from '../services/authService';
 import { projectService } from '../services/projectService';
-import Navbar from '../components/Navbar';
+import AdminHeader from '../components/admin/AdminHeader';
 import LlmProviderTab from '../components/admin/LlmProviderTab';
 import WorkspaceConfigTab from '../components/admin/WorkspaceConfigTab';
 import DocumentsTab from '../components/admin/DocumentsTab';
@@ -107,11 +108,12 @@ const AdminDashboard: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
 
   return (
-    <div className="bg-admin-bg text-admin-on-surface font-priego h-screen flex overflow-hidden pt-[88px]">
+    <div className="bg-admin-bg text-admin-on-surface font-priego h-screen flex flex-col overflow-hidden">
       <div className="absolute inset-0 grid-background opacity-30 pointer-events-none" />
 
-      <Navbar />
+      <AdminHeader />
 
+      <div className="flex flex-1 overflow-hidden">
       {/* ── Sidebar ── */}
       <nav
         className={`bg-[#f0f4f7] border-r border-admin-outline flex flex-col h-full py-5 shrink-0 z-10 hidden md:flex transition-all duration-300 relative ${
@@ -120,7 +122,7 @@ const AdminDashboard: React.FC = () => {
       >
         <button
           onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          className="absolute -right-3 top-20 w-6 h-6 bg-white border border-admin-outline rounded-full flex items-center justify-center text-admin-secondary hover:text-uml-blue shadow-sm z-20 transition-transform active:scale-90"
+          className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-admin-outline rounded-full flex items-center justify-center text-admin-secondary hover:text-uml-blue shadow-sm z-20 transition-transform active:scale-90"
         >
           {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
@@ -167,12 +169,45 @@ const AdminDashboard: React.FC = () => {
             </div>
           ))}
         </div>
+
+        <div className={`px-4 mt-2 ${isSidebarCollapsed ? 'px-2' : ''}`}>
+          <Link
+            to="/"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-admin-secondary hover:bg-gray-100 hover:text-black font-bold text-[12px] ${
+              isSidebarCollapsed ? 'justify-center px-0' : ''
+            }`}
+          >
+            <Home size={18} className="text-gray-400 shrink-0" />
+            {!isSidebarCollapsed && <span>Back to Home LandingPage</span>}
+          </Link>
+        </div>
       </nav>
 
       {/* ── Main ── */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative z-0">
         <main className="flex-1 overflow-y-auto p-8 lg:p-12 relative">
           <div className="max-w-[1200px] mx-auto">
+            {(() => {
+              const bc = (() => {
+                for (const s of NAV_SECTIONS) {
+                  const item = s.items.find(i => i.id === activeTab);
+                  if (item) return s.label + ' › ' + item.label;
+                }
+                return null;
+              })();
+              return bc ? (
+                <div className="flex items-center gap-1.5 text-[11px] text-admin-secondary font-bold uppercase tracking-wider mb-8">
+                  <span className="text-uml-blue">Admin</span>
+                  <span className="text-gray-300 mx-0.5">›</span>
+                  {bc.split(' › ').map((part, i, arr) => (
+                    <React.Fragment key={i}>
+                      <span className={i === arr.length - 1 ? 'text-black' : ''}>{part}</span>
+                      {i < arr.length - 1 && <span className="text-gray-300 mx-0.5">›</span>}
+                    </React.Fragment>
+                  ))}
+                </div>
+              ) : null;
+            })()}
             {activeTab === 'dashboard' && <AnalyticsTab />}
             {activeTab === 'user-management' && <UserManagementTab />}
             {activeTab === 'ai-model-config' && <LlmProviderTab />}
@@ -183,6 +218,7 @@ const AdminDashboard: React.FC = () => {
             )}
           </div>
         </main>
+      </div>
       </div>
     </div>
   );
