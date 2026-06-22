@@ -1,6 +1,7 @@
 import React from 'react';
 import { Cpu, Save, Zap, Loader2, CheckCircle2, XCircle, Database, RotateCw } from 'lucide-react';
-import { aiAdminService, AiSystemConfig, AiSystemConfigRequest, AiTestConnection } from '../../services/aiAdminService';
+import { aiAdminService } from '../../services/aiAdminService';
+import type { AiSystemConfig, AiSystemConfigRequest, AiTestConnection } from '../../types/ai';
 
 const VECTOR_DBS = ['lancedb', 'qdrant', 'chroma', 'pinecone', 'weaviate', 'milvus'];
 const DEFAULT_PROVIDERS = ['ollama', 'openai', 'anthropic', 'google', 'mistral', 'groq', 'together', 'deepseek'];
@@ -28,9 +29,9 @@ const LlmProviderTab: React.FC = () => {
         aiAdminService.getSystemConfig(),
         aiAdminService.getProviders(),
       ]);
-      const cfg = configRes.result as AiSystemConfig;
+      const cfg = configRes.result;
       setConfig(cfg);
-      setProviders(providersRes.result as string[]);
+      setProviders(providersRes.result);
       setForm({
         llmProvider: cfg.llmProvider || undefined,
         model: cfg.model || undefined,
@@ -51,7 +52,7 @@ const LlmProviderTab: React.FC = () => {
     setDetecting(true);
     try {
       const res = await aiAdminService.getProviderModels(form.llmProvider || '', form.baseUrl);
-      const detected = res.result as string[];
+      const detected = res.result;
       setModels(detected);
       if (detected.length > 0 && !form.model) {
         setForm({ ...form, model: detected[0] });
@@ -68,7 +69,7 @@ const LlmProviderTab: React.FC = () => {
     setTestResult(null);
     try {
       const res = await aiAdminService.testConnection();
-      setTestResult(res.result as AiTestConnection);
+      setTestResult(res.result);
     } catch {
       setTestResult({ connected: false, latencyMs: 0 });
     } finally {
@@ -81,7 +82,7 @@ const LlmProviderTab: React.FC = () => {
     setMessage(null);
     try {
       const res = await aiAdminService.updateSystemConfig(form);
-      setConfig(res.result as AiSystemConfig);
+      setConfig(res.result);
       setMessage({ type: 'success', text: 'System configuration updated successfully.' });
     } catch (e: any) {
       setMessage({ type: 'error', text: e?.message || 'Failed to update config.' });

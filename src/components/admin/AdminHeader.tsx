@@ -1,7 +1,8 @@
 import React from 'react';
 import { Search, Bell, ExternalLink, ChevronDown, Loader2 } from 'lucide-react';
-import { aiAdminService, AiVersionInfo } from '../../services/aiAdminService';
-import UserMenu from '../UserMenu';
+import { aiAdminService } from '../../services/aiAdminService';
+import type { AiVersionInfo } from '../../types/ai';
+import UserMenu from '../ui/UserMenu';
 
 const ENV_OPTIONS = ['Development', 'Production'] as const;
 
