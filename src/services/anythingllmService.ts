@@ -78,7 +78,7 @@ export async function getChatHistory(sessionId: string): Promise<ApiResponse<Cha
  * Dùng sendDiagramChat thay thế để hỗ trợ session.
  */
 export async function sendChatMessage(message: string): Promise<string> {
-  const data = await apiClient.post('/api/v1/chat', { message }, { timeout: 120000 }) as unknown as {
+  const data = await apiClient.post('/api/v1/chat', { message }, { timeout: 420000 }) as unknown as {
     code: number;
     message: string;
     result: { reply: string };
