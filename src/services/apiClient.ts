@@ -24,6 +24,9 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+// Paths that should not trigger automatic token refresh on 401
+const SKIP_REFRESH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout'];
+
 // Response interceptor to handle the standard envelope: { code, message, result }
 apiClient.interceptors.response.use(
   (response) => {
@@ -42,9 +45,10 @@ apiClient.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+    const isSkipPath = SKIP_REFRESH_PATHS.some(path => originalRequest.url?.includes(path));
 
     // Handle 401 Unauthenticated and avoid infinite loops
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry && !isSkipPath) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -75,15 +79,15 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         clearAuthCookies();
-        // Redirect to login or clear store if needed
-        window.location.href = '/'; 
+        // Don't use window.location.href here as it causes infinite F5 loops
+        // The application state (Zustand) and ProtectedRoutes will handle redirection
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }
     }
 
-    // Handle other HTTP errors
+    // Handle other HTTP errors or skipped paths
     const apiError = {
       code: error.response?.data?.code || 500,
       message: error.response?.data?.message || error.message || 'Lỗi kết nối server',
