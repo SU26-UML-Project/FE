@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { UserCircle, LayoutDashboard, Shield, LogOut, ChevronDown } from 'lucide-react'
 import { useAuthStore } from '../../stores/useAuthStore'
+import { useClickOutside } from '../../hooks/useClickOutside'
 
 /**
  * Authenticated user chip in the navbar. Hover (desktop) or click opens a
@@ -19,16 +20,7 @@ const UserMenu = () => {
   const displayName = user?.fullName || user?.email.split('@')[0] || 'User'
   const initial = (user?.fullName || user?.email || '?').charAt(0).toUpperCase()
 
-  // Close when clicking outside (mobile/tap fallback)
-  useEffect(() => {
-    const onClickOutside = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
-  }, [])
+  useClickOutside(wrapperRef, () => setOpen(false))
 
   const openMenu = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current)

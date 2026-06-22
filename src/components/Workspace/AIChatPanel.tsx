@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { Bot, Send, Square, User, ChevronDown, ChevronRight, Target, MessageSquare, Paperclip } from 'lucide-react'
 import QuestionBox from './QuestionBox'
 import FilePanel from './FilePanel'
 import type { ChatMessage, Clarification, WorkspaceDocument } from '../../types/workspace'
+import { useScrollToBottom } from '../../hooks/useScrollToBottom'
 
 interface AIChatPanelProps {
   history: ChatMessage[]
@@ -38,11 +39,7 @@ export default function AIChatPanel({
   const [input, setInput] = useState('')
   const [contextOpen, setContextOpen] = useState(true)
   const [filesOpen, setFilesOpen] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [history, clarification])
+  const messagesEndRef = useScrollToBottom(history, clarification)
 
   const handleSubmit = () => {
     if (input.trim() && !isProcessing) {

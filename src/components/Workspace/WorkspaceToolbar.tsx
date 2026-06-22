@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
 import { ArrowLeft, Save, Download, Bot, BotOff } from 'lucide-react'
+import { useEditableName } from '../../hooks/useEditableName'
 
 interface WorkspaceToolbarProps {
   workspaceName: string
@@ -20,23 +20,15 @@ export default function WorkspaceToolbar({
   aiEnabled,
   onAiToggle,
 }: WorkspaceToolbarProps) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editName, setEditName] = useState(workspaceName)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
-    }
-  }, [isEditing])
-
-  const handleSubmitName = () => {
-    const trimmed = editName.trim()
-    if (trimmed) onNameChange(trimmed)
-    else setEditName(workspaceName)
-    setIsEditing(false)
-  }
+  const {
+    isEditing,
+    editName,
+    inputRef,
+    setEditName,
+    startEditing,
+    handleSubmitName,
+    handleKeyDown,
+  } = useEditableName(workspaceName, onNameChange)
 
   return (
     <div className="h-12 bg-gradient-to-r from-uml-blue to-blue-700 shadow-sm border-b border-blue-400/10 flex items-center justify-between px-4 shrink-0 z-10">
@@ -57,18 +49,12 @@ export default function WorkspaceToolbar({
             value={editName}
             onChange={e => setEditName(e.target.value)}
             onBlur={handleSubmitName}
-            onKeyDown={e => {
-              if (e.key === 'Enter') handleSubmitName()
-              if (e.key === 'Escape') {
-                setEditName(workspaceName)
-                setIsEditing(false)
-              }
-            }}
+            onKeyDown={handleKeyDown}
             className="text-sm font-bold text-white bg-blue-600 border border-blue-400 rounded px-2 py-1 focus:outline-none focus:border-white"
           />
         ) : (
           <button
-            onClick={() => { setEditName(workspaceName); setIsEditing(true) }}
+            onClick={startEditing}
             className="group flex items-center gap-1.5"
           >
             <span className="text-sm font-bold text-white">{workspaceName}</span>

@@ -6,6 +6,7 @@ import { authService } from '../../services/authService';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { toast } from 'react-hot-toast';
 import { setAuthCookie, COOKIE_KEYS } from '../../utils/auth';
+import { useOtpCountdown } from '../../hooks/useOtpCountdown';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -34,7 +35,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [secondsLeft, setSecondsLeft] = useState(0);
+  const { secondsLeft, start: startOtpCountdown, reset: resetOtpCountdown } = useOtpCountdown();
 
   const setAuth = useAuthStore((state) => state.setAuth);
 
@@ -48,8 +49,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
     setShowPassword(false);
     setShowConfirmPassword(false);
     setForgotStep('email');
-    setSecondsLeft(0);
-  }, []);
+    resetOtpCountdown();
+  }, [resetOtpCountdown]);
 
   // Sync mode and reset fields when modal opens/changes mode
   React.useEffect(() => {
@@ -58,15 +59,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
       resetFields();
     }
   }, [initialMode, isOpen, resetFields]);
-
-  // OTP countdown timer
-  React.useEffect(() => {
-    if (secondsLeft <= 0) return;
-    const timer = setInterval(() => {
-      setSecondsLeft((prev) => (prev <= 1 ? 0 : prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [secondsLeft]);
 
   if (!isOpen) return null;
 
@@ -86,7 +78,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
     await authService.forgotPassword({ email });
     setForgotStep('otp');
     setOtpCode('');
-    setSecondsLeft(OTP_TTL_SECONDS);
+    startOtpCountdown(OTP_TTL_SECONDS);
     toast.success('Mã OTP đã được gửi đến email của bạn');
   };
 

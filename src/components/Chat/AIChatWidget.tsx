@@ -21,6 +21,7 @@ import {
 import { anythingllmService } from '../../services/anythingllmService';
 import type { ChatMessage } from '../../types/ai';
 import { generateId } from '../../utils/workspaceStorage';
+import { useScrollToBottom } from '../../hooks/useScrollToBottom';
 
 
 
@@ -122,7 +123,7 @@ const AIChatWidget: React.FC = () => {
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useScrollToBottom(messages, isLoading, isOpen, isMinimized);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const widgetId = useId();
 
@@ -130,13 +131,6 @@ const AIChatWidget: React.FC = () => {
   useEffect(() => {
     anythingllmService.checkHealth().then(setIsOnline);
   }, []);
-
-  // Auto-scroll
-  useEffect(() => {
-    if (isOpen && !isMinimized) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, isLoading, isOpen, isMinimized]);
 
   // Focus input when opened
   useEffect(() => {

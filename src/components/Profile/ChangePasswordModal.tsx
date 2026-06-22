@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'react-hot-toast'
 import {
@@ -14,6 +14,8 @@ import {
   ArrowLeft,
 } from 'lucide-react'
 import { authService } from '../../services/authService'
+import { useOtpCountdown } from '../../hooks/useOtpCountdown'
+import { usePasswordStrength } from '../../hooks/usePasswordStrength'
 
 // OTP lifetime in seconds — must match the backend Redis TTL (otp.ttl-seconds = 90).
 const OTP_TTL_SECONDS = 90
@@ -23,26 +25,6 @@ const INPUT_CLASS =
   'w-full h-[54px] pl-12 pr-4 bg-white border-[1.5px] border-black/80 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:text-gray-400 disabled:opacity-50'
 
 type Step = 'current' | 'otp' | 'new'
-
-type PasswordCriterion = { label: string; met: boolean }
-
-const evaluatePassword = (pw: string): { score: number; criteria: PasswordCriterion[] } => {
-  const criteria: PasswordCriterion[] = [
-    { label: 'At least 8 characters', met: pw.length >= 8 },
-    { label: 'An uppercase letter (A–Z)', met: /[A-Z]/.test(pw) },
-    { label: 'A lowercase letter (a–z)', met: /[a-z]/.test(pw) },
-    { label: 'A number (0–9)', met: /\d/.test(pw) },
-    { label: 'A special character', met: /[^A-Za-z0-9]/.test(pw) },
-  ]
-  return { score: criteria.filter((c) => c.met).length, criteria }
-}
-
-// 0–2 → Weak, 3–4 → Medium, 5 → Strong (matches the server rule: ≥ Medium && length ≥ 8)
-const strengthMeta = (score: number) => {
-  if (score >= 5) return { label: 'Strong', color: '#16a34a', bars: 3 }
-  if (score >= 3) return { label: 'Medium', color: '#d97706', bars: 2 }
-  return { label: 'Weak', color: '#dc2626', bars: 1 }
-}
 
 const STEPS: { id: Step; title: string }[] = [
   { id: 'current', title: 'Verify' },
@@ -69,25 +51,8 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
   const [showNew, setShowNew] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
-  const [secondsLeft, setSecondsLeft] = useState(0)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // OTP countdown
-  useEffect(() => {
-    if (step !== 'otp' || secondsLeft <= 0) return
-    timerRef.current = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1 && timerRef.current) clearInterval(timerRef.current)
-        return s - 1
-      })
-    }, 1000)
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-    }
-  }, [step, secondsLeft])
-
-  const { score, criteria } = useMemo(() => evaluatePassword(newPassword), [newPassword])
-  const meta = strengthMeta(score)
+  const { secondsLeft, start: startOtpCountdown } = useOtpCountdown()
+  const { score, criteria, meta } = usePasswordStrength(newPassword)
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword
   const newPasswordValid = passwordsMatch && score >= 3 && newPassword.length >= 8
 
@@ -101,7 +66,7 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
       await authService.initChangePassword({ currentPassword })
       setStep('otp')
       setOtpCode('')
-      setSecondsLeft(OTP_TTL_SECONDS)
+      startOtpCountdown(OTP_TTL_SECONDS)
       toast.success('A verification OTP has been sent to your email')
     } catch (e) {
       apiError(e, 'Unable to verify your current password')
@@ -131,7 +96,7 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
     try {
       await authService.initChangePassword({ currentPassword })
       setOtpCode('')
-      setSecondsLeft(OTP_TTL_SECONDS)
+      startOtpCountdown(OTP_TTL_SECONDS)
       toast.success('A new OTP has been sent to your email')
     } catch (e) {
       apiError(e, 'Unable to resend OTP')

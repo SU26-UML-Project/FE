@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'react-hot-toast'
@@ -18,6 +18,7 @@ import {
 import { authService } from '../services/authService'
 import type { User, CompleteProfileRequest } from '../types/auth'
 import { useAuthStore } from '../stores/useAuthStore'
+import { usePasswordStrength } from '../hooks/usePasswordStrength'
 
 // Shared input styling, matching AuthModal's design system.
 const INPUT_CLASS =
@@ -27,26 +28,6 @@ const today = new Date().toISOString().split('T')[0]
 
 // VN phone: starts with 0, 10–11 digits total.
 const PHONE_REGEX = /^0\d{9,10}$/
-
-type PasswordCriterion = { label: string; met: boolean }
-
-const evaluatePassword = (pw: string): { score: number; criteria: PasswordCriterion[] } => {
-  const criteria: PasswordCriterion[] = [
-    { label: 'At least 8 characters', met: pw.length >= 8 },
-    { label: 'An uppercase letter (A–Z)', met: /[A-Z]/.test(pw) },
-    { label: 'A lowercase letter (a–z)', met: /[a-z]/.test(pw) },
-    { label: 'A number (0–9)', met: /\d/.test(pw) },
-    { label: 'A special character', met: /[^A-Za-z0-9]/.test(pw) },
-  ]
-  return { score: criteria.filter((c) => c.met).length, criteria }
-}
-
-// 0–2 → Weak, 3–4 → Medium, 5 → Strong
-const strengthMeta = (score: number) => {
-  if (score >= 5) return { label: 'Strong', color: '#16a34a', bars: 3 }
-  if (score >= 3) return { label: 'Medium', color: '#d97706', bars: 2 }
-  return { label: 'Weak', color: '#dc2626', bars: 1 }
-}
 
 const STEPS = [
   { id: 1, title: 'Personal Info' },
@@ -76,8 +57,7 @@ const OnboardingPage = () => {
   const dobValid = !!dob && dob < today
   const step1Valid = fullName.trim().length > 0 && phoneValid && dobValid
 
-  const { score, criteria } = useMemo(() => evaluatePassword(password), [password])
-  const meta = strengthMeta(score)
+  const { score, criteria, meta } = usePasswordStrength(password)
   const passwordsMatch = password.length > 0 && password === confirmPassword
   // Enable "Save" only at ≥ Medium strength AND length ≥ 8 (matches the server rule).
   const step2Valid = passwordsMatch && score >= 3 && password.length >= 8

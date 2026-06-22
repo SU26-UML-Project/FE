@@ -20,6 +20,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import QuestionBox from './QuestionBox';
 import { Clarification } from '../../types/workspace';
+import { useScrollToBottom } from '../../hooks/useScrollToBottom';
 
 interface GlobalAIChatSidebarProps {
   isOpen: boolean;
@@ -40,7 +41,7 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({ isOpen, onTog
   const [loadingHistory, setLoadingHistory] = useState(false);
   
   const { isAuthenticated } = useAuthStore();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useScrollToBottom(messages, isLoading);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Load sessions khi component mount và có auth
@@ -49,10 +50,6 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({ isOpen, onTog
       fetchSessions();
     }
   }, [isAuthenticated]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
 
   useEffect(() => {
     if (isOpen && isAuthenticated && sessions.length === 0) {

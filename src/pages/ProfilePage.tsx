@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useClickOutside } from '../hooks/useClickOutside'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'react-hot-toast'
@@ -123,16 +124,7 @@ const ProfilePage = () => {
     }
   }, [avatarPreview])
 
-  // Close avatar dropdown when clicking outside
-  useEffect(() => {
-    const onClickOutside = (e: MouseEvent) => {
-      if (avatarWrapperRef.current && !avatarWrapperRef.current.contains(e.target as Node)) {
-        setAvatarMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
-  }, [])
+  useClickOutside(avatarWrapperRef, () => setAvatarMenuOpen(false))
 
   const dirty =
     (!!profile &&

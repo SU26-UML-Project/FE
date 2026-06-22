@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useEditableName } from '../../hooks/useEditableName'
 
 interface CanvasToolbarProps {
   diagramName: string
@@ -17,26 +17,15 @@ const CanvasToolbar = ({
   onToggleCode,
   isCodePanelOpen,
 }: CanvasToolbarProps) => {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editName, setEditName] = useState(diagramName)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
-    }
-  }, [isEditing])
-
-  const handleSubmitName = () => {
-    const trimmed = editName.trim()
-    if (trimmed) {
-      onNameChange(trimmed)
-    } else {
-      setEditName(diagramName)
-    }
-    setIsEditing(false)
-  }
+  const {
+    isEditing,
+    editName,
+    inputRef,
+    setEditName,
+    startEditing,
+    handleSubmitName,
+    handleKeyDown,
+  } = useEditableName(diagramName, onNameChange)
 
   return (
     <div className="h-12 border-b border-gray-200 bg-white flex items-center justify-between px-4 shrink-0">
@@ -63,21 +52,12 @@ const CanvasToolbar = ({
             value={editName}
             onChange={e => setEditName(e.target.value)}
             onBlur={handleSubmitName}
-            onKeyDown={e => {
-              if (e.key === 'Enter') handleSubmitName()
-              if (e.key === 'Escape') {
-                setEditName(diagramName)
-                setIsEditing(false)
-              }
-            }}
+            onKeyDown={handleKeyDown}
             className="text-sm font-bold text-black bg-gray-50 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-uml-blue focus:ring-1 focus:ring-uml-blue/20"
           />
         ) : (
           <button
-            onClick={() => {
-              setEditName(diagramName)
-              setIsEditing(true)
-            }}
+            onClick={startEditing}
             className="group flex items-center gap-1.5"
           >
             <span className="text-sm font-bold text-black">{diagramName}</span>

@@ -3,6 +3,7 @@ import { Search, Bell, ExternalLink, ChevronDown, Loader2 } from 'lucide-react';
 import { aiAdminService } from '../../services/aiAdminService';
 import type { AiVersionInfo } from '../../types/ai';
 import UserMenu from '../ui/UserMenu';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 const ENV_OPTIONS = ['Development', 'Production'] as const;
 
@@ -28,15 +29,7 @@ const AdminHeader: React.FC = () => {
     return () => { mounted = false; };
   }, []);
 
-  React.useEffect(() => {
-    const onClickOutside = (e: MouseEvent) => {
-      if (envRef.current && !envRef.current.contains(e.target as Node)) {
-        setEnvOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, []);
+  useClickOutside(envRef, () => setEnvOpen(false));
 
   return (
     <div className="bg-white border-b border-admin-outline">
