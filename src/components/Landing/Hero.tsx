@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
-import laptopMockup from '../assets/images/IMG_4805.png'
-import mobileMockup from '../assets/images/IMG_4810.PNG'
-import tabletMockup from '../assets/images/IMG_4811.PNG'
+import laptopMockup from '../../assets/images/IMG_4805.png'
+import mobileMockup from '../../assets/images/IMG_4810.PNG'
+import tabletMockup from '../../assets/images/IMG_4811.PNG'
 
 const Hero = () => {
   const laptopStyle = {

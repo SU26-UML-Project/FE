@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { authService, User } from '../services/authService';
+import { authService } from '../services/authService';
+import type { User } from '../types/auth';
 import { clearAuthCookies, getAuthCookie, COOKIE_KEYS } from '../utils/auth';
 
 interface AuthState {

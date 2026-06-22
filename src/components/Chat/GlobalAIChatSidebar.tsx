@@ -12,20 +12,14 @@ import {
   PanelRightClose,
   PanelRightOpen,
 } from 'lucide-react';
-import { 
-  sendDiagramChat, 
-  getChatSessions, 
-  getChatHistory, 
-  createChatSession,
-  ChatMessage,
-  ChatSession 
-} from '../services/anythingllmService';
-import { useAuthStore } from '../stores/useAuthStore';
+import { anythingllmService } from '../../services/anythingllmService';
+import type { ChatMessage, ChatSession } from '../../types/ai';
+import { useAuthStore } from '../../stores/useAuthStore';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import QuestionBox from './Chat/QuestionBox';
-import { Clarification } from '../types/workspace';
+import QuestionBox from './QuestionBox';
+import { Clarification } from '../../types/workspace';
 
 interface GlobalAIChatSidebarProps {
   isOpen: boolean;
@@ -68,7 +62,7 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({ isOpen, onTog
 
   const fetchSessions = async () => {
     try {
-      const response = await getChatSessions();
+      const response = await anythingllmService.getChatSessions();
       if (response.code === 200) {
         const fetchedSessions = response.result || [];
         setSessions(fetchedSessions);
@@ -89,14 +83,13 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({ isOpen, onTog
     setShowHistory(false);
     setLoadingHistory(true);
     try {
-      const response = await getChatHistory(sessionId);
+      const response = await anythingllmService.getChatHistory(sessionId);
       if (response.code === 200) {
-        // Phòng thủ tối đa: Kiểm tra nếu result là mảng hoặc nằm trong result.messages
         const data = response.result;
         if (Array.isArray(data)) {
           setMessages(data);
-        } else if (data && typeof data === 'object' && Array.isArray((data as any).messages)) {
-          setMessages((data as any).messages);
+        } else if (data && typeof data === 'object' && 'messages' in data && Array.isArray(data.messages)) {
+          setMessages(data.messages as ChatMessage[]);
         } else {
           setMessages([]);
         }
@@ -111,7 +104,7 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({ isOpen, onTog
   const handleNewChat = async (isAutoCreate = false) => {
     if (!isAutoCreate) setIsLoading(true);
     try {
-      const response = await createChatSession();
+      const response = await anythingllmService.createChatSession();
       if (response.code === 200) {
         const newSession = response.result;
         setSessions(prev => [newSession, ...prev]);
@@ -150,7 +143,7 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({ isOpen, onTog
     setMessages(prev => [...prev, newUserMsg]);
     setIsLoading(true);
     try {
-      const response = await sendDiagramChat({
+      const response = await anythingllmService.sendDiagramChat({
         message: userMessage,
         sessionId: currentSessionId || undefined
       });

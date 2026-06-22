@@ -1,7 +1,7 @@
-import Hero from '../components/Hero'
-import Features from '../components/Features'
-import Templates from '../components/Templates'
-import CTA from '../components/CTA'
+import Hero from '../components/Landing/Hero'
+import Features from '../components/Landing/Features'
+import Templates from '../components/Landing/Templates'
+import CTA from '../components/Landing/CTA'
 
 const LandingPage = () => {
   return (

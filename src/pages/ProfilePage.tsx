@@ -22,7 +22,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { authService } from '../services/authService'
-import type { User } from '../services/authService'
+import type { User } from '../types/auth'
 import { fileService } from '../services/fileService'
 import { useAuthStore } from '../stores/useAuthStore'
 import ChangePasswordModal from '../components/Profile/ChangePasswordModal'

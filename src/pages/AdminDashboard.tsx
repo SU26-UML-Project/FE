@@ -8,28 +8,15 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { authService, AdminUserListItem } from '../services/authService';
+import { authService } from '../services/authService';
+import type { AdminUserListItem } from '../types/auth';
 import { projectService } from '../services/projectService';
+import type { ProjectResponse } from '../types/project';
 import AdminHeader from '../components/admin/AdminHeader';
 import LlmProviderTab from '../components/admin/LlmProviderTab';
 import WorkspaceConfigTab from '../components/admin/WorkspaceConfigTab';
 import DocumentsTab from '../components/admin/DocumentsTab';
-
-type AdminTab =
-  | 'dashboard' | 'system-settings' | 'audit-logs' | 'support-tickets'
-  | 'ai-model-config' | 'workspace-config' | 'document-manager'
-  | 'user-management' | 'role-permissions' | 'user-activity';
-
-interface NavItemConfig {
-  id: AdminTab;
-  label: string;
-  icon: React.ReactNode;
-}
-
-interface NavSection {
-  label: string;
-  items: NavItemConfig[];
-}
+import type { AdminTab, NavItemConfig, NavSection } from '../types/admin';
 
 const NAV_SECTIONS: NavSection[] = [
   {
@@ -249,7 +236,7 @@ const AnalyticsTab: React.FC = () => {
     activeSubscribers: 0,
     storageUsed: 0,
   });
-  const [recentProjects, setRecentProjects] = React.useState<any[]>([]);
+  const [recentProjects, setRecentProjects] = React.useState<ProjectResponse[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -267,7 +254,7 @@ const AnalyticsTab: React.FC = () => {
         setStats({
           totalProjects: allProjects.length,
           totalUsers: allUsers.length,
-          activeSubscribers: allUsers.filter((u: any) => u.status === 'ACTIVE').length,
+          activeSubscribers: allUsers.filter((u: AdminUserListItem) => u.status === 'ACTIVE').length,
           storageUsed: Math.round(allProjects.length * 0.15 * 10) / 10,
         });
 

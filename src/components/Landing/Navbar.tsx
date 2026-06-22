@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { LogIn } from 'lucide-react'
-import AuthModal from './Auth/AuthModal'
-import UserMenu from './UserMenu'
-import { useAuthStore } from '../stores/useAuthStore'
+import AuthModal from '../Auth/AuthModal'
+import UserMenu from '../ui/UserMenu'
+import { useAuthStore } from '../../stores/useAuthStore'
 
 const Navbar = () => {
   const navigate = useNavigate()

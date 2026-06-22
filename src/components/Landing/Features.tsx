@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
-import diagramlearning from '../assets/images_features/diagram_learning.png'
-import AI_support from '../assets/images_features/AI_support.png'
-import diagrameditor from '../assets/images_features/diagram_editor.png'
+import diagramlearning from '../../assets/images_features/diagram_learning.png'
+import AI_support from '../../assets/images_features/AI_support.png'
+import diagrameditor from '../../assets/images_features/diagram_editor.png'
 
 const Features = () => {
     return (

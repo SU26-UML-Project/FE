@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getTemplateList } from '../utils/templates';
 import type { TemplateMeta } from '../utils/templates';
 import { projectService } from '../services/projectService';
+import type { ProjectResponse } from '../types/project';
 import type { Workspace, PrebuiltMeta } from '../types/workspace';
 import toast from 'react-hot-toast';
 
@@ -95,7 +96,7 @@ const UserDashboard: React.FC = () => {
     try {
       const response = await projectService.getAllProjects();
       // Map API ProjectResponse to Frontend Workspace type
-      const mapped = (response.result || []).map((p: any) => {
+      const mapped = (response.result || []).map((p: ProjectResponse) => {
         // Count sheets from XML projectData
         let sheetCount = 0;
         if (p.projectData) {

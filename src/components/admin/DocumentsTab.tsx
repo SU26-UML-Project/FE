@@ -2,7 +2,8 @@ import React from 'react';
 import {
   FileText, Trash2, RefreshCw, Loader2, CheckCircle2, XCircle, FilePlus, Layers,
 } from 'lucide-react';
-import { aiAdminService, AiDocument, AiWorkspaceInfo } from '../../services/aiAdminService';
+import { aiAdminService } from '../../services/aiAdminService';
+import type { AiDocument, AiWorkspaceInfo } from '../../types/ai';
 
 const DocumentsTab: React.FC = () => {
   const [documents, setDocuments] = React.useState<AiDocument[]>([]);
@@ -29,7 +30,7 @@ const DocumentsTab: React.FC = () => {
     setLoadingWs(true);
     try {
       const res = await aiAdminService.getWorkspaces();
-      const list = res.result as AiWorkspaceInfo[];
+      const list = res.result;
       setWorkspaces(list);
       if (list.length > 0) {
         setSelectedWorkspace(list[0].slug);
@@ -45,7 +46,7 @@ const DocumentsTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await aiAdminService.getDocuments(slug);
-      setDocuments(res.result as AiDocument[]);
+      setDocuments(res.result);
     } catch {
       setMessage({ type: 'error', text: 'Failed to load documents.' });
     } finally {

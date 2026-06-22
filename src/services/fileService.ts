@@ -1,11 +1,6 @@
 import apiClient from './apiClient';
-import type { ApiResponse } from './authService';
-
-export interface FileUploadResult {
-  bucket: string;
-  path: string;
-  url?: string; // public URL — chỉ có với bucket public (avatars)
-}
+import type { ApiResponse } from '../types/api';
+import type { FileUploadResult } from '../types/file';
 
 export const fileService = {
   /**
@@ -15,7 +10,7 @@ export const fileService = {
   uploadAvatar: async (file: File): Promise<ApiResponse<FileUploadResult>> => {
     const formData = new FormData();
     formData.append('file', file);
-    return apiClient.post('/files/avatar', formData, {
+    return apiClient.post<any, ApiResponse<FileUploadResult>>('/files/avatar', formData, {
       headers: { 'Content-Type': undefined as unknown as string },
     });
   },

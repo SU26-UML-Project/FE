@@ -2,13 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Copy, ArrowLeft, Clock, Layers, FileText, Bot } from 'lucide-react'
 import { projectService } from '../services/projectService'
-import type { Workspace, PrebuiltMeta, WorkspaceSheet } from '../types/workspace'
+import type { ProjectResponse } from '../types/project'
+import type { Workspace, PrebuiltMeta, WorkspaceSheet, PrebuiltProject } from '../types/workspace'
 import toast from 'react-hot-toast'
-
-interface PrebuiltProject {
-  meta: PrebuiltMeta
-  workspace: Workspace
-}
 
 export default function PrebuiltDetail() {
   const navigate = useNavigate()

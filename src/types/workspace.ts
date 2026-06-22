@@ -53,3 +53,8 @@ export interface PrebuiltMeta {
   difficulty: 'beginner' | 'intermediate' | 'advanced'
   tags: string[]
 }
+
+export interface PrebuiltProject {
+  meta: PrebuiltMeta
+  workspace: Workspace
+}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Circle, Send, HelpCircle, CheckSquare, Square, ChevronRight, ChevronLeft } from 'lucide-react';
-import { ChatQuestion } from '../../services/anythingllmService';
+import { ChatQuestion } from '../../types/ai';
 
 interface QuestionBoxProps {
   questions: ChatQuestion[];

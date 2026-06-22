@@ -18,14 +18,9 @@ import {
   Sparkles,
   RotateCcw,
 } from 'lucide-react';
-import { sendChatMessage, checkHealth } from '../services/anythingllmService';
-import type { ChatMessage } from '../services/anythingllmService';
-
-
-
-function generateId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
+import { anythingllmService } from '../../services/anythingllmService';
+import type { ChatMessage } from '../../types/ai';
+import { generateId } from '../../utils/workspaceStorage';
 
 
 
@@ -133,7 +128,7 @@ const AIChatWidget: React.FC = () => {
 
   // Check AnythingLLM health on mount
   useEffect(() => {
-    checkHealth().then(setIsOnline);
+    anythingllmService.checkHealth().then(setIsOnline);
   }, []);
 
   // Auto-scroll
@@ -187,7 +182,7 @@ const AIChatWidget: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const replyText = await sendChatMessage(trimmed);
+      const replyText = await anythingllmService.sendChatMessage(trimmed);
       const aiMsg: ChatMessage = {
         id: generateId(),
         role: 'assistant',

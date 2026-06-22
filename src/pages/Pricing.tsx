@@ -2,18 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, animate, useMotionValue, useTransform } from 'framer-motion'
 import { Check, ArrowRight, ArrowDown, Activity, RefreshCw, HardDrive, Globe, X, ChevronDown, LogIn } from 'lucide-react'
 import AuthModal from '../components/Auth/AuthModal'
-
-type BillingCycle = 'monthly' | 'yearly'
-
-interface Plan {
-  name: string
-  monthlyPrice: number | null
-  yearlyPrice: number | null
-  description: string
-  features: string[]
-  cta: string
-  highlight?: boolean
-}
+import type { BillingCycle, Plan, ComparisonRow } from '../types/pricing'
 
 const plans: Plan[] = [
   {
@@ -102,14 +91,6 @@ const includes = [
     description: 'Native apps for macOS, Windows, and Linux. Browser version runs in Chrome, Firefox, Safari, Edge.',
   },
 ]
-
-interface ComparisonRow {
-  feature: string
-  free: string | boolean
-  education: string | boolean
-  pro: string | boolean
-  enterprise: string | boolean
-}
 
 const comparisonData: ComparisonRow[] = [
   { feature: 'Active diagrams', free: 'Up to 3', education: 'Unlimited', pro: 'Unlimited', enterprise: 'Unlimited' },

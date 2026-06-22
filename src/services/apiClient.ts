@@ -1,5 +1,10 @@
-import axios from 'axios';
+import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { setAuthCookie, clearAuthCookies, COOKIE_KEYS } from '../utils/auth';
+
+interface PendingRequest {
+  resolve: (token: string | null) => void;
+  reject: (error: any) => void;
+}
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -11,7 +16,7 @@ const apiClient = axios.create({
 });
 
 let isRefreshing = false;
-let failedQueue: any[] = [];
+let failedQueue: PendingRequest[] = [];
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
@@ -29,7 +34,7 @@ const SKIP_REFRESH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/
 
 // Response interceptor to handle the standard envelope: { code, message, result }
 apiClient.interceptors.response.use(
-  (response) => {
+  (response: AxiosResponse) => {
     const { code, message, result } = response.data;
     
     // Backend returns 200 even for business errors, but code field tells the truth
@@ -43,14 +48,14 @@ apiClient.interceptors.response.use(
     
     return response.data;
   },
-  async (error) => {
-    const originalRequest = error.config;
+  async (error: AxiosError<any>) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
     const isSkipPath = SKIP_REFRESH_PATHS.some(path => originalRequest.url?.includes(path));
 
     // Handle 401 Unauthenticated and avoid infinite loops
     if (error.response?.status === 401 && !originalRequest._retry && !isSkipPath) {
       if (isRefreshing) {
-        return new Promise((resolve, reject) => {
+        return new Promise<string | null>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
           .then(() => {

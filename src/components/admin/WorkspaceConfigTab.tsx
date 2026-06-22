@@ -1,6 +1,7 @@
 import React from 'react';
 import { Settings2, Save, Loader2, CheckCircle2, XCircle, MessageSquare, Bot, Search, RotateCw, History, FileText, Ban } from 'lucide-react';
-import { aiAdminService, AiWorkspace, AiWorkspaceUpdateRequest, AiWorkspaceInfo } from '../../services/aiAdminService';
+import { aiAdminService } from '../../services/aiAdminService';
+import type { AiWorkspace, AiWorkspaceUpdateRequest, AiWorkspaceInfo } from '../../types/ai';
 
 const CHAT_MODES = [
   { value: 'query', label: 'Query', icon: <Search size={16} />, desc: 'Direct question answering over documents' },
@@ -32,7 +33,7 @@ const WorkspaceConfigTab: React.FC = () => {
   const fetchWorkspaces = async () => {
     try {
       const res = await aiAdminService.getWorkspaces();
-      const list = res.result as AiWorkspaceInfo[];
+      const list = res.result;
       setWorkspaces(list);
       if (list.length > 0) setSelectedSlug(list[0].slug);
     } catch {
@@ -45,7 +46,7 @@ const WorkspaceConfigTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await aiAdminService.getWorkspace(slug);
-      const ws = res.result as AiWorkspace;
+      const ws = res.result;
       setWorkspace(ws);
       setForm({
         model: ws.chatModel || undefined,
@@ -70,7 +71,7 @@ const WorkspaceConfigTab: React.FC = () => {
     setMessage(null);
     try {
       const res = await aiAdminService.updateWorkspace(form, selectedSlug);
-      setWorkspace(res.result as AiWorkspace);
+      setWorkspace(res.result);
       setMessage({ type: 'success', text: 'Workspace settings saved successfully.' });
     } catch (e: any) {
       setMessage({ type: 'error', text: e?.message || 'Failed to save workspace settings.' });
@@ -84,7 +85,7 @@ const WorkspaceConfigTab: React.FC = () => {
     setDetecting(true);
     try {
       const res = await aiAdminService.getProviderModels(form.chatProvider);
-      const detected = res.result as string[];
+      const detected = res.result;
       setModels(detected);
       if (detected.length > 0 && !form.model) {
         setForm({ ...form, model: detected[0] });

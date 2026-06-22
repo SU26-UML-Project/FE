@@ -12,92 +12,70 @@
  */
 import axios from 'axios';
 import apiClient from './apiClient';
-import { ApiResponse } from './authService';
+import type { ApiResponse } from '../types/api';
+import type {
+  ChatMessage,
+  ChatSession,
+  DiagramChatRequest,
+  DiagramChatResponse
+} from '../types/ai';
 
-export interface ChatQuestion {
-  title: string;
-  type: 'single_select' | 'multi_select' | null;
-  options: string[];
-}
+export const anythingllmService = {
+  /**
+   * Gửi tin nhắn đến Diagram AI.
+   * Hỗ trợ sessionId để duy trì ngữ cảnh.
+   */
+  sendDiagramChat: async (data: DiagramChatRequest): Promise<ApiResponse<DiagramChatResponse>> => {
+    return apiClient.post<any, ApiResponse<DiagramChatResponse>>('/diagram-ai/chat', data);
+  },
 
-export interface ChatMessage {
-  role: 'ai' | 'user';
-  content: string;
-  timestamp: string;
-  questions?: ChatQuestion[];
-}
+  /**
+   * Lấy danh sách tất cả các phiên chat của người dùng.
+   */
+  getChatSessions: async (): Promise<ApiResponse<ChatSession[]>> => {
+    return apiClient.get<any, ApiResponse<ChatSession[]>>('/diagram-ai/chat/sessions');
+  },
 
-export interface ChatSession {
-  id: string;
-  title?: string;
-  updatedAt: string;
-}
+  /**
+   * Tạo một phiên chat mới.
+   */
+  createChatSession: async (): Promise<ApiResponse<ChatSession>> => {
+    return apiClient.post<any, ApiResponse<ChatSession>>('/diagram-ai/chat/sessions');
+  },
 
-export interface DiagramChatRequest {
-  message: string;
-  sessionId?: string;
-}
+  /**
+   * Lấy lịch sử tin nhắn của một phiên chat.
+   */
+  getChatHistory: async (sessionId: string): Promise<ApiResponse<ChatMessage[]>> => {
+    return apiClient.get<any, ApiResponse<ChatMessage[]>>(`/diagram-ai/chat/sessions/${sessionId}/messages`);
+  },
 
-export interface DiagramChatResponse {
-  answer: string;
-  sessionId: string;
-  questions: ChatQuestion[];
-}
+  /**
+   * Ping BE actuator để kiểm tra server online.
+   */
+  checkHealth: async (): Promise<boolean> => {
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL ?? '';
+      await axios.get(`${baseUrl}/actuator/health`);
+      return true;
+    } catch (err: any) {
+        return false;
+      }
+    },
 
-/**
- * Gửi tin nhắn đến Diagram AI.
- * Hỗ trợ sessionId để duy trì ngữ cảnh.
- */
-export async function sendDiagramChat(data: DiagramChatRequest): Promise<ApiResponse<DiagramChatResponse>> {
-  return apiClient.post('/diagram-ai/chat', data);
-}
+    /**
+     * [DEPRECATED] Gửi tin nhắn đến BE, BE proxy sang AnythingLLM.
+     * Dùng sendDiagramChat thay thế để hỗ trợ session.
+     */
+    sendChatMessage: async (message: string): Promise<string> => {
+      const response = await apiClient.post<any, ApiResponse<{ reply: string }>>(
+        '/api/v1/chat',
+        { message },
+        { timeout: 420000 }
+      );
 
-/**
- * Lấy danh sách tất cả các phiên chat của người dùng.
- */
-export async function getChatSessions(): Promise<ApiResponse<ChatSession[]>> {
-  return apiClient.get('/diagram-ai/chat/sessions');
-}
-
-/**
- * Tạo một phiên chat mới.
- */
-export async function createChatSession(): Promise<ApiResponse<ChatSession>> {
-  return apiClient.post('/diagram-ai/chat/sessions');
-}
-
-/**
- * Lấy lịch sử tin nhắn của một phiên chat.
- */
-export async function getChatHistory(sessionId: string): Promise<ApiResponse<ChatMessage[]>> {
-  return apiClient.get(`/diagram-ai/chat/sessions/${sessionId}/messages`);
-}
-
-/**
- * [DEPRECATED] Gửi tin nhắn đến BE, BE proxy sang AnythingLLM.
- * Dùng sendDiagramChat thay thế để hỗ trợ session.
- */
-export async function sendChatMessage(message: string): Promise<string> {
-  const data = await apiClient.post('/api/v1/chat', { message }, { timeout: 420000 }) as unknown as {
-    code: number;
-    message: string;
-    result: { reply: string };
+      let reply = response.result?.reply ?? 'Không có phản hồi từ AI.';
+      reply = reply.replace(/<think>[\s\S]*?<\/think>\n*/g, '').trim();
+      return reply;
+    },
   };
-
-  let reply = data.result?.reply ?? 'Không có phản hồi từ AI.';
-  reply = reply.replace(/<think>[\s\S]*?<\/think>\n*/g, '').trim();
-  return reply;
-}
-
-/**
- * Ping BE actuator để kiểm tra server online.
- */
-export async function checkHealth(): Promise<boolean> {
-  try {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL ?? '';
-    await axios.get(`${baseUrl}/actuator/health`);
-    return true;
-  } catch (err: any) {
-    return false;
-  }
-}

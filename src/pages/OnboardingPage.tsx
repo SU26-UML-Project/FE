@@ -16,6 +16,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { authService } from '../services/authService'
+import type { User, CompleteProfileRequest } from '../types/auth'
 import { useAuthStore } from '../stores/useAuthStore'
 
 // Shared input styling, matching AuthModal's design system.
@@ -97,7 +98,7 @@ const OnboardingPage = () => {
         confirmPassword,
       })
       // Mark onboarding done in the store so the route guard lets the user through.
-      setAuth({ ...(user as any), ...res.result, profileCompleted: true })
+      setAuth({ ...(user as User), ...res.result, profileCompleted: true })
       toast.success('Your information has been saved. A confirmation email has been sent.')
       navigate('/dashboard', { replace: true })
     } catch (e: any) {

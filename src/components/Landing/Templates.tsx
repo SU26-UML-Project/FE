@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion'
-import classdiagram from '../assets/images_populartemplate/class.jpg'
-import sequencediagram from '../assets/images_populartemplate/sequence-diagram-trong-uml-63733509538.5641.jpg'
-import usecase from '../assets/images_populartemplate/usecase.png'
-import activitydiagram from '../assets/images_populartemplate/activitydiagram.jpg'
+import classdiagram from '../../assets/images_populartemplate/class.jpg'
+import sequencediagram from '../../assets/images_populartemplate/sequence-diagram-trong-uml-63733509538.5641.jpg'
+import usecase from '../../assets/images_populartemplate/usecase.png'
+import activitydiagram from '../../assets/images_populartemplate/activitydiagram.jpg'
 
 
 const Templates = () => {
