@@ -13,51 +13,51 @@ import type {
 
 export const aiAdminService = {
   getSystemConfig: async (): Promise<ApiResponse<AiSystemConfig>> => {
-    return apiClient.get<any, ApiResponse<AiSystemConfig>>('/admin/ai/config');
+    return apiClient.get<any, ApiResponse<AiSystemConfig>>('/ai/config');
   },
 
   updateSystemConfig: async (data: AiSystemConfigRequest): Promise<ApiResponse<AiSystemConfig>> => {
-    return apiClient.put<any, ApiResponse<AiSystemConfig>>('/admin/ai/config', data);
+    return apiClient.put<any, ApiResponse<AiSystemConfig>>('/ai/config', data);
   },
 
   getProviders: async (): Promise<ApiResponse<string[]>> => {
-    return apiClient.get<any, ApiResponse<string[]>>('/admin/ai/providers');
+    return apiClient.get<any, ApiResponse<string[]>>('/ai/providers');
   },
 
   testConnection: async (): Promise<ApiResponse<AiTestConnection>> => {
-    return apiClient.post<any, ApiResponse<AiTestConnection>>('/admin/ai/test');
+    return apiClient.post<any, ApiResponse<AiTestConnection>>('/ai/test');
   },
 
   getWorkspace: async (slug?: string): Promise<ApiResponse<AiWorkspace>> => {
     const params = slug ? { slug } : {};
-    return apiClient.get<any, ApiResponse<AiWorkspace>>('/admin/ai/workspace', { params });
+    return apiClient.get<any, ApiResponse<AiWorkspace>>('/ai/workspace', { params });
   },
 
   updateWorkspace: async (data: AiWorkspaceUpdateRequest, slug?: string): Promise<ApiResponse<AiWorkspace>> => {
     const params = slug ? { slug } : {};
-    return apiClient.put<any, ApiResponse<AiWorkspace>>('/admin/ai/workspace', data, { params });
+    return apiClient.put<any, ApiResponse<AiWorkspace>>('/ai/workspace', data, { params });
   },
 
   getWorkspaces: async (): Promise<ApiResponse<AiWorkspaceInfo[]>> => {
-    return apiClient.get<any, ApiResponse<AiWorkspaceInfo[]>>('/admin/ai/workspaces');
+    return apiClient.get<any, ApiResponse<AiWorkspaceInfo[]>>('/ai/workspaces');
   },
 
   getProviderModels: async (provider: string, basePath?: string): Promise<ApiResponse<string[]>> => {
     const params: any = {};
     if (basePath) params.basePath = basePath;
-    return apiClient.get<any, ApiResponse<string[]>>(`/admin/ai/providers/${provider}/models`, { params });
+    return apiClient.get<any, ApiResponse<string[]>>(`/ai/providers/${provider}/models`, { params });
   },
 
   getDocuments: async (workspaceSlug?: string): Promise<ApiResponse<AiDocument[]>> => {
     const params = workspaceSlug ? { workspace: workspaceSlug } : {};
-    return apiClient.get<any, ApiResponse<AiDocument[]>>('/admin/ai/documents', { params });
+    return apiClient.get<any, ApiResponse<AiDocument[]>>('/ai/documents', { params });
   },
 
   uploadDocument: async (file: File, workspaceSlug?: string): Promise<ApiResponse<void>> => {
     const formData = new FormData();
     formData.append('file', file);
     const params = workspaceSlug ? { workspace: workspaceSlug } : {};
-    return apiClient.post<any, ApiResponse<void>>('/admin/ai/documents', formData, {
+    return apiClient.post<any, ApiResponse<void>>('/ai/documents', formData, {
       params,
       headers: { 'Content-Type': undefined as unknown as string },
       timeout: 120000,
@@ -65,15 +65,15 @@ export const aiAdminService = {
   },
 
   deleteDocument: async (documentPath: string): Promise<ApiResponse<void>> => {
-    return apiClient.delete<any, ApiResponse<void>>('/admin/ai/documents', { data: { documentPath } });
+    return apiClient.delete<any, ApiResponse<void>>('/ai/documents', { data: { documentPath } });
   },
 
   reEmbedDocuments: async (workspaceSlug?: string): Promise<ApiResponse<void>> => {
     const params = workspaceSlug ? { workspace: workspaceSlug } : {};
-    return apiClient.post<any, ApiResponse<void>>('/admin/ai/documents/re-embed', null, { params });
+    return apiClient.post<any, ApiResponse<void>>('/ai/documents/re-embed', null, { params });
   },
 
   getAiVersion: async (): Promise<ApiResponse<AiVersionInfo>> => {
-    return apiClient.get<any, ApiResponse<AiVersionInfo>>('/admin/ai/version');
+    return apiClient.get<any, ApiResponse<AiVersionInfo>>('/ai/version');
   },
 };
