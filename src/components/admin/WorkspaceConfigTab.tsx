@@ -383,14 +383,30 @@ const WorkspaceConfigTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white border border-admin-outline rounded-sm p-6 h-fit">
+        <div className="bg-white border border-admin-outline rounded-sm p-6 sticky top-8 self-start">
+          {workspace && (
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50/30 border border-uml-blue/20 rounded-lg p-4 mb-5">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-uml-blue/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <Bot size={18} className="text-uml-blue" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-bold text-uml-blue uppercase tracking-[0.12em] mb-0.5">
+                    Current Workspace
+                  </div>
+                  <div className="text-sm font-extrabold text-black truncate">{workspace.name}</div>
+                  <div className="text-[11px] text-admin-secondary font-mono mt-0.5">{workspace.slug}</div>
+                  <div className="mt-2 text-[11px] text-admin-secondary flex items-center gap-1">
+                    <FileText size={12} />
+                    {workspace.documentCount} document{workspace.documentCount !== 1 ? 's' : ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <h2 className="text-lg font-bold text-black mb-4">Current Settings</h2>
           {workspace && (
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between py-2 border-b border-gray-50">
-                <span className="text-admin-secondary font-semibold">Documents</span>
-                <span className="font-bold text-black">{workspace.documentCount}</span>
-              </div>
               <div className="flex justify-between py-2 border-b border-gray-50">
                 <span className="text-admin-secondary font-semibold">Chat Mode</span>
                 <span className="font-bold text-black capitalize">{workspace.chatMode || '—'}</span>

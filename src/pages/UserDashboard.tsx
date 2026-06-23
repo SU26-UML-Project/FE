@@ -196,7 +196,7 @@ const UserDashboard: React.FC = () => {
   }
 
   return (
-    <div className="bg-admin-bg text-admin-on-surface font-priego h-screen flex overflow-hidden pt-[88px]">
+    <div className="bg-admin-bg text-admin-on-surface font-priego h-screen flex overflow-hidden pt-[72px]">
       <div className="absolute inset-0 grid-background opacity-30 pointer-events-none" />
 
       {/* SideNavBar */}

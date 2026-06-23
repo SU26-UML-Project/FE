@@ -265,7 +265,7 @@ const ProfilePage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center pt-[88px]">
+      <div className="min-h-screen flex items-center justify-center pt-[72px]">
         <Loader2 size={32} className="text-uml-blue animate-spin" />
       </div>
     )

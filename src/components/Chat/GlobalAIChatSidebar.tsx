@@ -193,9 +193,9 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({ isOpen, onTog
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-[88px] right-0 h-[calc(100vh-88px)] w-full max-w-[380px] bg-white z-[70] flex flex-col border-l border-gray-100 shadow-[-4px_0_12px_-2px_rgba(0,0,0,0.05)]"
+            className="fixed top-[72px] right-0 h-[calc(100vh-72px)] w-full max-w-[380px] bg-white z-[70] flex flex-col border-l border-gray-100 shadow-[-4px_0_12px_-2px_rgba(0,0,0,0.05)]"
           >
-            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white/80 backdrop-blur-md">
+            <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between bg-white/80 backdrop-blur-md">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowHistory(!showHistory)}

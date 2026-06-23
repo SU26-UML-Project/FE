@@ -77,7 +77,7 @@ const UserMenu = () => {
             role="menu"
           >
             {/* Header */}
-            <div className="px-4 py-3.5 bg-gradient-to-br from-blue-50 to-white border-b border-gray-100 flex items-center gap-3">
+            <div className="px-4 py-2.5 bg-gradient-to-br from-blue-50 to-white border-b border-gray-100 flex items-center gap-3">
               <div className="w-11 h-11 rounded-full bg-uml-blue flex items-center justify-center text-white font-bold overflow-hidden shrink-0">
                 {user?.avatarUrl ? (
                   <img src={user.avatarUrl} alt={displayName} className="w-full h-full object-cover" />

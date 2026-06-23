@@ -237,7 +237,7 @@ export default function WorkspacePage() {
         onAiToggle={setAiEnabled}
       />
       {saveStatus !== 'saved' && (
-        <div className="bg-white px-4 py-1 border-b border-gray-200 flex items-center justify-end gap-2 fixed top-[88px] right-0 z-50 rounded-bl-lg shadow-sm">
+        <div className="bg-white px-4 py-1 border-b border-gray-200 flex items-center justify-end gap-2 fixed top-[72px] right-0 z-50 rounded-bl-lg shadow-sm">
           {saveStatus === 'saving' && (
             <span className="text-[10px] text-uml-blue font-bold uppercase animate-pulse">● Saving...</span>
           )}

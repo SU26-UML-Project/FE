@@ -52,7 +52,7 @@ export default function TemplateDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-admin-bg pt-[88px] flex items-center justify-center">
+      <div className="min-h-screen bg-admin-bg pt-[72px] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
       </div>
     )
@@ -60,7 +60,7 @@ export default function TemplateDetail() {
 
   if (error || !template) {
     return (
-      <div className="min-h-screen bg-admin-bg pt-[88px] flex items-center justify-center">
+      <div className="min-h-screen bg-admin-bg pt-[72px] flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-black text-black mb-2">Template not found</h2>
           <p className="text-gray-500 mb-6">The template you're looking for doesn't exist.</p>
@@ -78,7 +78,7 @@ export default function TemplateDetail() {
   const Icon = categoryIcons[template.category] || Layers
 
   return (
-    <div className="min-h-screen bg-admin-bg pt-[88px]">
+    <div className="min-h-screen bg-admin-bg pt-[72px]">
       <div className="relative max-w-5xl mx-auto px-6 py-10">
         <button
           onClick={() => navigate(-1)}

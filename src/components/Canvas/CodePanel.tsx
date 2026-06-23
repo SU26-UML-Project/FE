@@ -92,7 +92,7 @@ const CodePanel = ({ diagramXml, onClose }: CodePanelProps) => {
 
   return (
     <div className="w-[420px] border-l border-gray-200 bg-white flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 h-12 border-b border-gray-200 shrink-0">
+        <div className="flex items-center justify-between px-4 h-10 border-b border-gray-200 shrink-0">
         <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Code Export</h3>
         <button
           onClick={onClose}

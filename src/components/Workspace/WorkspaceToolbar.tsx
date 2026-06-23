@@ -31,7 +31,7 @@ export default function WorkspaceToolbar({
   } = useEditableName(workspaceName, onNameChange)
 
   return (
-    <div className="h-12 bg-gradient-to-r from-uml-blue to-blue-700 shadow-sm border-b border-blue-400/10 flex items-center justify-between px-4 shrink-0 z-10">
+    <div className="h-10 bg-gradient-to-r from-uml-blue to-blue-700 shadow-sm border-b border-blue-400/10 flex items-center justify-between px-4 shrink-0 z-10">
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}

@@ -79,7 +79,7 @@ export default function PrebuiltDetail() {
   const docCount = workspace.documents.length
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-[88px]">
+    <div className="min-h-screen bg-gray-50 pt-[72px]">
       <div className="max-w-5xl mx-auto px-6 py-8">
         <button
           onClick={() => navigate('/dashboard')}

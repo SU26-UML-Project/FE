@@ -54,7 +54,7 @@ export default function AIChatPanel({
     <div className="flex flex-col h-full bg-gray-100 p-2">
       <div className="flex-1 flex flex-col bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden min-h-0">
         {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-100 shrink-0">
+        <div className="px-4 py-2 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-uml-blue/10 flex items-center justify-center">
               <Bot size={15} className="text-uml-blue" />

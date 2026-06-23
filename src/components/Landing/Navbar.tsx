@@ -47,8 +47,8 @@ const Navbar = () => {
           className={`
             w-full flex items-center justify-between transition-all duration-400 ease-in-out pointer-events-auto
             ${isScrolled
-              ? 'max-w-[95%] lg:max-w-5xl px-6 lg:px-8 py-2 bg-white/60 backdrop-blur-sm rounded-[999px] shadow-lg border border-gray-200/50 mt-4'
-              : 'max-w-full px-12 py-6 footer-bg mt-0 border-b border-gray-200/0 rounded-[0px]'
+              ? 'max-w-[95%] lg:max-w-5xl px-6 lg:px-8 py-1.5 bg-white/60 backdrop-blur-sm rounded-[999px] shadow-lg border border-gray-200/50 mt-4'
+              : 'max-w-full px-12 py-4 footer-bg mt-0 border-b border-gray-200/0 rounded-[0px]'
             }
             ${isDashboardPage && !isScrolled ? 'bg-white border-b border-admin-outline' : ''}
           `}
@@ -60,7 +60,7 @@ const Navbar = () => {
             data-purpose="logo-container"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           >
-            <span className={`font-extrabold tracking-tight text-black font-priego-extrabold transition-all duration-500 ${isScrolled ? 'text-xl' : 'text-2xl'}`}>
+            <span className={`font-extrabold tracking-tight text-black font-priego-extrabold transition-all duration-500 ${isScrolled ? 'text-lg' : 'text-xl'}`}>
               DiaUML Studio
             </span>
           </Link>

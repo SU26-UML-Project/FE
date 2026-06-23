@@ -247,7 +247,7 @@ const AIChatWidget: React.FC = () => {
               style={{ height: isMinimized ? 56 : 520 }}
             >
               {/* Header */}
-              <div className="bg-gradient-to-r from-uml-blue to-indigo-600 px-4 py-3 flex items-center gap-3 shrink-0">
+              <div className="bg-gradient-to-r from-uml-blue to-indigo-600 px-4 py-2 flex items-center gap-3 shrink-0">
                 <div className="relative">
                   <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
                     <Sparkles size={16} className="text-white" />
