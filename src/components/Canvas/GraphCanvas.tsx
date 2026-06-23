@@ -17,7 +17,7 @@ import '@xyflow/react/dist/style.css'
 import { useCanvasStore } from '../../stores/canvasStore'
 import { nodeTypes } from './nodes/registry'
 import { edgeTypes } from './edges/index'
-import { MarkerDefs } from './MarkerDefs'
+
 
 function GraphCanvasInner() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
@@ -71,7 +71,6 @@ function GraphCanvasInner() {
 
   return (
     <div ref={reactFlowWrapper} className="w-full h-full relative">
-      <MarkerDefs />
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -86,8 +85,10 @@ function GraphCanvasInner() {
         nodeTypes={stableNodeTypes}
         edgeTypes={stableEdgeTypes}
         defaultEdgeOptions={{ type: 'associationEdge' }}
-        connectionRadius={40}
+        connectionRadius={20}
         connectionLineStyle={{ stroke: '#3b82f6', strokeWidth: 2.5 }}
+        snapToGrid
+        snapGrid={[15, 15]}
         fitView
         deleteKeyCode="Delete"
         className="react-flow-canvas"

@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { temporal } from 'zundo'
 import { immer } from 'zustand/middleware/immer'
 import { nanoid } from 'nanoid'
-import { type Node, type Edge, applyNodeChanges, applyEdgeChanges } from '@xyflow/react'
+import { type Node, type Edge, MarkerType, applyNodeChanges, applyEdgeChanges } from '@xyflow/react'
 
 export type EdgeType = 'association' | 'inheritance' | 'realization' | 'composition' | 'aggregation' | 'dependency' | 'include' | 'extend'
 
@@ -64,12 +64,18 @@ export const useCanvasStore = create<CanvasState>()(
 
       onConnect: (connection) =>
         set((state) => {
-          state.edges.push({
+          const id = nanoid(6)
+          const newEdge: any = {
+            id,
             ...connection,
             sourceHandle: connection.sourceHandle ?? null,
             targetHandle: connection.targetHandle ?? null,
             type: 'associationEdge',
-          } as Edge)
+            style: {},
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#333' },
+            markerStart: undefined,
+          }
+          state.edges.push(newEdge as unknown as Edge)
         }),
 
       addNode: (type, position) => {
@@ -85,7 +91,23 @@ export const useCanvasStore = create<CanvasState>()(
       setEdgeType: (id, type) =>
         set((state) => {
           const e = state.edges.find((e) => e.id === id)
-          if (e) e.type = `${type}Edge`
+          if (e) {
+            e.type = `${type}Edge`
+            e.markerStart = undefined
+            e.markerEnd = { type: MarkerType.ArrowClosed, color: '#333' }
+            e.style = {}
+            switch (type) {
+              case 'realization':
+                e.markerEnd = { type: MarkerType.Arrow, color: '#333' }
+                e.style = { strokeDasharray: '6 4' }; break
+              case 'dependency': case 'include': case 'extend':
+                e.style = { strokeDasharray: '6 4' }; break
+              case 'composition':
+                e.markerStart = { type: MarkerType.ArrowClosed, color: '#333' }; break
+              case 'aggregation':
+                e.markerStart = { type: MarkerType.Arrow, color: '#333' }; break
+            }
+          }
         }),
 
       setNodeData: (id, patch) =>

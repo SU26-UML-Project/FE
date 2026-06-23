@@ -1,11 +1,9 @@
 import { getSmoothStepPath, type EdgeProps } from '@xyflow/react'
 
 export function DependencyEdge(props: EdgeProps) {
-  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition } = props
+  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style = {} } = props
   const [path] = getSmoothStepPath({
-    sourceX, sourceY, sourcePosition,
-    targetX, targetY, targetPosition,
-    borderRadius: 8,
+    sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 8,
   })
 
   return (
@@ -14,10 +12,11 @@ export function DependencyEdge(props: EdgeProps) {
       className="react-flow__edge-path"
       d={path}
       stroke="#333"
-      strokeWidth={1.5}
-      strokeDasharray="6 4"
+      strokeWidth={2.5}
       fill="none"
-      markerEnd="url(#arrow)"
+      strokeDasharray="6 4"
+      markerEnd={markerEnd}
+      style={{ ...style, pointerEvents: 'all' }}
     />
   )
 }

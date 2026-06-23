@@ -102,6 +102,21 @@
   }
 }
 
+@layer base {
+  .react-flow__edge-path {
+    cursor: pointer;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .react-flow__edge {
+    pointer-events: all;
+  }
+  .react-flow__edge.selected .react-flow__edge-path {
+    stroke: #2563eb;
+    stroke-width: 3px;
+  }
+}
+
 @layer utilities {
   .grid-background {
     background-color: #ffffff;
