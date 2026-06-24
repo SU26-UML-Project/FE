@@ -32,9 +32,6 @@ export default function WorkspaceToolbar({
 
   return (
     <div className="h-10 bg-gradient-to-r from-uml-blue to-blue-700 shadow-sm border-b border-blue-400/10 flex items-center justify-between px-4 shrink-0 z-10">
-      <div className="flex items-center gap-1 min-w-0">
-        <span className="text-sm font-extrabold text-blue-100 tracking-wider select-none whitespace-nowrap">DiaUML Studio</span>
-      </div>
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
@@ -43,6 +40,7 @@ export default function WorkspaceToolbar({
         >
           <ArrowLeft size={18} />
         </button>
+        <span className="text-sm font-extrabold text-blue-100 tracking-wider select-none whitespace-nowrap">DiaUML Studio</span>
         <span className="w-px h-5 bg-blue-400/40" />
         {isEditing ? (
           <input

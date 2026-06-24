@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Layers, ListTree, FileText, CheckCircle, Table, Eye, Cpu, AlertTriangle, Hash } from 'lucide-react'
 import { getTemplateContent } from '../utils/templates'
-import CanvasFrame from '../components/Canvas/CanvasFrame'
+import { GraphCanvas } from '../components/Canvas/GraphCanvas'
 import type { TemplateContent } from '../utils/templates'
 
 const badgeColors: Record<string, string> = {
@@ -30,7 +30,6 @@ export default function TemplateDetail() {
   const [template, setTemplate] = useState<TemplateContent | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const [diagramXml, setDiagramXml] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -40,14 +39,6 @@ export default function TemplateDetail() {
       .then(setTemplate)
       .catch(() => setError(true))
       .finally(() => setLoading(false))
-  }, [id])
-
-  useEffect(() => {
-    if (!id) return
-    fetch(`/templates/${id}/diagram.xml`)
-      .then(r => r.text())
-      .then(setDiagramXml)
-      .catch(() => setDiagramXml(null))
   }, [id])
 
   if (loading) {
@@ -314,7 +305,7 @@ export default function TemplateDetail() {
             Preview
           </h2>
           <div className="relative h-96 rounded-sm overflow-hidden border border-gray-200 bg-gray-50">
-            <CanvasFrame onXmlChange={() => {}} onSave={() => {}} xml={diagramXml || undefined} />
+            <GraphCanvas />
           </div>
         </motion.div>
 

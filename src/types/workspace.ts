@@ -15,7 +15,11 @@ export interface WorkspaceSheet {
   id: string
   name: string
   diagramType: string
-  diagramXml: string
+  canvasData: {
+    nodes: any[]
+    edges: any[]
+    viewport?: any
+  }
 }
 
 export interface WorkspaceDocument {

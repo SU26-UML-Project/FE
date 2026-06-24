@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useWorkspaceStore } from '../stores/workspaceStore'
+import { useCanvasStore } from '../stores/canvasStore'
 import { projectService } from '../services/projectService'
 import WorkspaceToolbar from '../components/Workspace/WorkspaceToolbar'
 import WorkspaceLayout from '../components/Workspace/WorkspaceLayout'
-import type { WorkspaceSheet, WorkspaceDocument, ChatMessage, Clarification } from '../types/workspace'
+import type { WorkspaceDocument, ChatMessage, Clarification } from '../types/workspace'
 import toast from 'react-hot-toast'
 
 export default function WorkspacePage() {
@@ -30,10 +31,10 @@ export default function WorkspacePage() {
           documents: [],
           sheets: [
             {
-              id: 'default-sheet', // Static ID since we only have one now
+              id: 'default-sheet',
               name: 'Diagram',
               diagramType: 'blank',
-              diagramXml: p.projectData || '',
+              canvasData: { nodes: [], edges: [] },
             }
           ],
           aiContext: { intent: '', clarifications: [], history: [] },
@@ -85,33 +86,41 @@ export default function WorkspacePage() {
   }
 
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved')
+  const loadedSnapshotRef = useRef<string>('')
 
-  // Stable Auto-save logic
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const autoSave = useCallback((sheetId: string, xml: string) => {
-    if (!id) return
-    setSaveStatus('saving')
-    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
-    
-    autoSaveTimerRef.current = setTimeout(async () => {
-      try {
-        await projectService.updateProject(id, {
-          projectName: wsName,
-          projectData: xml
-        })
-        setSaveStatus('saved')
-        console.log('Auto-saved project data to backend')
-      } catch (error) {
-        setSaveStatus('error')
-        console.error('Auto-save failed:', error)
+  // Track loaded data snapshot for dirty detection
+  useEffect(() => {
+    if (!workspace) return
+    const sheet = workspace.sheets.find(s => s.id === store.activeSheetId)
+    if (sheet?.canvasData) {
+      loadedSnapshotRef.current = JSON.stringify(sheet.canvasData)
+    }
+  }, [store.activeSheetId, workspace])
+
+  const hasUnsavedChanges = useCallback((): boolean => {
+    const { nodes, edges } = useCanvasStore.getState()
+    const current = JSON.stringify({ nodes, edges })
+    return current !== loadedSnapshotRef.current
+  }, [])
+
+  // Warn on tab close / refresh
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges()) {
+        e.preventDefault()
       }
-    }, 1000)
-  }, [id, wsName])
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [hasUnsavedChanges])
 
-  const handleXmlChange = useCallback((sheetId: string, xml: string) => {
-    store.updateSheet(sheetId, { diagramXml: xml })
-    autoSave(sheetId, xml)
-  }, [autoSave, store])
+  const handleBack = useCallback(() => {
+    if (hasUnsavedChanges()) {
+      const confirmed = window.confirm('You have unsaved changes. Do you want to save before leaving?')
+      if (!confirmed) return
+    }
+    navigate('/dashboard')
+  }, [hasUnsavedChanges, navigate])
 
   // TODO: API — POST /api/ai/chat
   const handleSendMessage = (message: string) => {
@@ -192,11 +201,26 @@ export default function WorkspacePage() {
   const handleSave = async () => {
     if (!workspace || !id) return
 
+    // Snapshot current canvas into active sheet
+    const canvasState = useCanvasStore.getState()
+    const activeSheet = workspace.sheets.find(s => s.id === store.activeSheetId)
+    if (activeSheet) {
+      activeSheet.canvasData = {
+        nodes: canvasState.nodes,
+        edges: canvasState.edges,
+      }
+    }
+
     try {
       const response = await projectService.updateProject(id, {
         projectName: wsName,
         description: workspace.category,
-        projectData: workspace.sheets[0]?.diagramXml || ''
+        projectData: JSON.stringify(workspace.sheets.map(s => ({
+          id: s.id,
+          name: s.name,
+          diagramType: s.diagramType,
+          canvasData: s.canvasData,
+        }))),
       });
       if (response.code === 200) {
         toast.success('Workspace saved');
@@ -230,7 +254,7 @@ export default function WorkspacePage() {
       <WorkspaceToolbar
         workspaceName={wsName}
         onNameChange={handleNameChange}
-        onBack={() => navigate('/dashboard')}
+        onBack={handleBack}
         onSave={handleSave}
         onExport={handleExport}
         aiEnabled={aiEnabled}
@@ -262,7 +286,6 @@ export default function WorkspacePage() {
           onSheetAdd={handleSheetAdd}
           onSheetDelete={handleSheetDelete}
           onSheetRename={handleSheetRename}
-          onXmlChange={handleXmlChange}
           onSendMessage={handleSendMessage}
           onStopGeneration={handleStopGeneration}
           onClarificationAnswer={handleClarificationAnswer}

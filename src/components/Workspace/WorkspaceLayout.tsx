@@ -18,7 +18,6 @@ interface WorkspaceLayoutProps {
   onSheetAdd: () => void
   onSheetDelete: (id: string) => void
   onSheetRename: (id: string, name: string) => void
-  onXmlChange: (sheetId: string, xml: string) => void
   onSendMessage: (message: string) => void
   onStopGeneration: () => void
   onClarificationAnswer: (answer: string) => void
@@ -41,7 +40,6 @@ export default function WorkspaceLayout({
   onSheetAdd,
   onSheetDelete,
   onSheetRename,
-  onXmlChange,
   onSendMessage,
   onStopGeneration,
   onClarificationAnswer,
@@ -58,7 +56,6 @@ export default function WorkspaceLayout({
           onSheetAdd={onSheetAdd}
           onSheetDelete={onSheetDelete}
           onSheetRename={onSheetRename}
-          onXmlChange={onXmlChange}
         />
       </Panel>
       <Separator className="w-1 bg-gray-100 hover:bg-uml-blue/30 transition cursor-col-resize" />

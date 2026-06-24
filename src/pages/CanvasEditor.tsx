@@ -48,8 +48,6 @@ const CanvasEditor = () => {
   return (
     <div className="h-screen flex flex-col bg-white">
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-200 bg-gray-50 shrink-0">
-        <span className="text-xs font-bold text-gray-500 tracking-wider select-none mr-1">DiaUML Studio</span>
-        <span className="w-px h-4 bg-gray-300" />
         <button
           onClick={() => navigate('/dashboard')}
           className="p-1.5 hover:bg-gray-200 rounded transition-colors"
@@ -59,6 +57,9 @@ const CanvasEditor = () => {
             <path d="M19 12H5m7-7-7 7 7 7" />
           </svg>
         </button>
+        <span className="w-px h-4 bg-gray-300" />
+        <span className="text-xs font-bold text-gray-500 tracking-wider select-none mr-1">DiaUML Studio</span>
+        <span className="w-px h-4 bg-gray-300" />
         <input
           value={diagramName}
           onChange={(e) => setDiagramName(e.target.value)}

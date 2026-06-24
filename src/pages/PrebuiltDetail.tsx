@@ -36,11 +36,16 @@ export default function PrebuiltDetail() {
         
         // Combine all sheets from prebuilt into one XML for the new projectData structure
         // If there are multiple sheets, draw.io will handle them internally in the XML
-        const combinedXml = project.workspace.sheets.map(s => s.diagramXml).join('\n'); 
+        const combinedData = JSON.stringify(project.workspace.sheets.map(s => ({
+          id: s.id,
+          name: s.name,
+          diagramType: s.diagramType,
+          canvasData: s.canvasData || { nodes: [], edges: [] },
+        })));
         
         await projectService.updateProject(newProjectId, {
           projectName: `${project.workspace.name} (Clone)`,
-          projectData: combinedXml
+          projectData: combinedData
         });
         
         toast.success('Project cloned successfully');
