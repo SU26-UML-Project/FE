@@ -92,7 +92,7 @@ export interface ChatSession {
 export interface DiagramChatRequest {
   message: string;
   sessionId?: string;
-  sheetId: string;
+  sheetId?: string;
 }
 
 export interface DiagramChatResponse {

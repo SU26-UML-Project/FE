@@ -1,3 +1,5 @@
+import type { ChatMessage } from './ai'
+
 export interface Workspace {
   id: string
   name: string
@@ -41,12 +43,6 @@ export interface Clarification {
   options: string[]
   answer: string
   answeredAt: string
-}
-
-export interface ChatMessage {
-  role: 'ai' | 'user'
-  content: string
-  timestamp: string
 }
 
 export interface PrebuiltMeta {

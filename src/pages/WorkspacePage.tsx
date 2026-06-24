@@ -20,6 +20,7 @@ export default function WorkspacePage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [clarificationRound, setClarificationRound] = useState(0)
   const [sessionId, setSessionId] = useState<string | undefined>(undefined)
+  const [sessions, setSessions] = useState<any[]>([])
   const [showExitDialog, setShowExitDialog] = useState(false)
   const pendingNavigationRef = useRef<(() => void) | null>(null)
 
@@ -290,7 +291,10 @@ export default function WorkspacePage() {
       if (response.code === 200 && response.result) {
         const { answer, sessionId: newSessionId, newState, questions } = response.result
         
-        setSessionId(newSessionId)
+        if (!sessionId || sessionId !== newSessionId) {
+          setSessionId(newSessionId)
+          fetchSessions()
+        }
         
         // Map questions from BE to clarifications format
         const newClarifications = (questions || []).map(q => ({
@@ -348,6 +352,80 @@ export default function WorkspacePage() {
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to connect to AI service')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const fetchSessions = useCallback(async () => {
+    try {
+      const response = await anythingllmService.getChatSessions()
+      if (response.code === 200) {
+        setSessions(response.result || [])
+      }
+    } catch (e) {
+      console.error('Failed to fetch chat sessions:', e)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchSessions()
+  }, [fetchSessions])
+
+  const handleSessionSelect = async (newSessionId: string) => {
+    setSessionId(newSessionId)
+    setIsProcessing(true)
+    try {
+      const response = await anythingllmService.getChatHistory(newSessionId)
+      if (response.code === 200) {
+        const historyData = response.result
+        let mappedHistory: ChatMessage[] = []
+        if (Array.isArray(historyData)) {
+          mappedHistory = historyData.map((msg: any) => ({
+            role: msg.role === 'user' ? 'user' : 'ai',
+            content: msg.content,
+            timestamp: msg.timestamp || new Date().toISOString(),
+          }))
+        } else if (historyData && typeof historyData === 'object' && 'messages' in historyData) {
+          mappedHistory = (historyData as any).messages.map((msg: any) => ({
+            role: msg.role === 'user' ? 'user' : 'ai',
+            content: msg.content,
+            timestamp: msg.timestamp || new Date().toISOString(),
+          }))
+        }
+        
+        if (workspace) {
+          store.updateWorkspace({
+            aiContext: { ...workspace.aiContext, history: mappedHistory, clarifications: [] },
+          })
+          setClarificationRound(0)
+        }
+      }
+    } catch (error) {
+      toast.error('Failed to load chat history')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleNewSession = async () => {
+    setIsProcessing(true)
+    try {
+      const response = await anythingllmService.createChatSession()
+      if (response.code === 200) {
+        const newSession = response.result
+        setSessions(prev => [newSession, ...prev])
+        setSessionId(newSession.id)
+        if (workspace) {
+          store.updateWorkspace({
+            aiContext: { ...workspace.aiContext, history: [], clarifications: [] },
+          })
+          setClarificationRound(0)
+        }
+        toast.success('New chat session created')
+      }
+    } catch (error) {
+      toast.error('Failed to create new session')
     } finally {
       setIsProcessing(false)
     }
@@ -489,6 +567,8 @@ export default function WorkspacePage() {
           aiClarifications={workspace.aiContext.clarifications}
           aiEnabled={aiEnabled}
           isProcessing={isProcessing}
+          sessions={sessions}
+          currentSessionId={sessionId}
           onSheetSelect={handleSheetSelect}
           onSheetAdd={handleSheetAdd}
           onSheetDelete={handleSheetDelete}
@@ -498,6 +578,8 @@ export default function WorkspacePage() {
           onClarificationAnswer={handleClarificationAnswer}
           onAddDocuments={handleAddDocuments}
           onRemoveDocument={handleRemoveDocument}
+          onSessionSelect={handleSessionSelect}
+          onNewSession={handleNewSession}
         />
       </div>
       <footer className="h-6 bg-gradient-to-r from-uml-blue/5 to-blue-700/5 border-t border-blue-200/20 flex items-center justify-center shrink-0 select-none">

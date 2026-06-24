@@ -1,9 +1,12 @@
 import { useState } from 'react'
-import { Bot, Send, Square, User, ChevronDown, ChevronRight, Target, MessageSquare, Paperclip } from 'lucide-react'
+import { Bot, Send, Square, User, ChevronDown, ChevronRight, Target, MessageSquare, Paperclip, History, Plus, Loader2 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import QuestionBox from './QuestionBox'
 import FilePanel from './FilePanel'
 import type { ChatMessage, Clarification, WorkspaceDocument } from '../../types/workspace'
 import { useScrollToBottom } from '../../hooks/useScrollToBottom'
+import type { ChatSession } from '../../types/ai'
 
 interface AIChatPanelProps {
   history: ChatMessage[]
@@ -13,11 +16,15 @@ interface AIChatPanelProps {
   intent: string
   clarifications: Clarification[]
   documents: WorkspaceDocument[]
+  sessions?: ChatSession[]
+  currentSessionId?: string | null
   onSendMessage: (message: string) => void
   onStopGeneration: () => void
   onClarificationAnswer: (answer: string) => void
   onAddDocuments: (docs: WorkspaceDocument[]) => void
   onRemoveDocument: (id: string) => void
+  onSessionSelect?: (id: string) => void
+  onNewSession?: () => void
 }
 
 export default function AIChatPanel({
@@ -28,15 +35,20 @@ export default function AIChatPanel({
   intent,
   clarifications,
   documents,
+  sessions = [],
+  currentSessionId = null,
   onSendMessage,
   onStopGeneration,
   onClarificationAnswer,
   onAddDocuments,
   onRemoveDocument,
+  onSessionSelect,
+  onNewSession,
 }: AIChatPanelProps) {
   const [input, setInput] = useState('')
   const [contextOpen, setContextOpen] = useState(true)
   const [filesOpen, setFilesOpen] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const messagesEndRef = useScrollToBottom(history, clarification)
 
   const handleSubmit = () => {
@@ -50,81 +62,176 @@ export default function AIChatPanel({
 
   return (
     <div className="flex flex-col h-full bg-gray-100 p-2">
-      <div className="flex-1 flex flex-col bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden min-h-0 relative">
         {/* Header */}
-        <div className="px-4 py-2 border-b border-gray-100 shrink-0">
+        <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between bg-white/80 backdrop-blur-md shrink-0">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-uml-blue/10 flex items-center justify-center">
-              <Bot size={15} className="text-uml-blue" />
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className={`p-1.5 rounded-md transition-colors ${showHistory ? 'bg-uml-blue/10 text-uml-blue' : 'text-gray-500 hover:bg-gray-100'}`}
+              title="Lịch sử chat"
+            >
+              <History size={18} />
+            </button>
+            <div className="h-4 w-[1px] bg-gray-200 mx-1" />
+            <button
+              onClick={() => {
+                setShowHistory(false);
+                onNewSession?.();
+              }}
+              className="p-1.5 text-gray-500 hover:bg-gray-100 hover:text-uml-blue rounded-md transition-colors"
+              title="Đoạn chat mới"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-gray-50 border border-gray-100">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">AI Agent</span>
             </div>
-            <span className="text-sm font-bold text-gray-900">AI Assistant</span>
           </div>
         </div>
 
-        {/* Chat messages */}
-        <div className="flex-1 overflow-y-auto min-h-0">
-          {hasContext && (
-            <div className="border-b border-gray-100">
-              <button
-                onClick={() => setContextOpen(!contextOpen)}
-                className="w-full flex items-center gap-2 px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition"
-              >
-                {contextOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                AI Context
-              </button>
-              {contextOpen && (
-                <div className="px-4 pb-3 space-y-2">
-                  {intent && (
-                    <div className="flex items-start gap-2 text-xs bg-blue-50 rounded-lg p-2.5">
-                      <Target size={14} className="text-uml-blue shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold text-uml-blue">Detected Intent:</span>
-                        <p className="text-gray-700 mt-0.5">{intent}</p>
-                      </div>
-                    </div>
-                  )}
-                  {clarifications.length > 0 && (
-                    <div className="space-y-1.5">
-                      {clarifications.map((c, i) => (
-                        c.answer ? (
-                          <div key={i} className="flex items-start gap-2 text-xs bg-amber-50 rounded-lg p-2.5">
-                            <MessageSquare size={14} className="text-amber-500 shrink-0 mt-0.5" />
-                            <div>
-                              <span className="font-bold text-amber-600">#{i + 1}:</span>
-                              <span className="text-gray-600"> {c.question}</span>
-                              <p className="text-gray-800 mt-0.5">→ {c.answer}</p>
-                            </div>
-                          </div>
-                        ) : null
-                      ))}
-                    </div>
-                  )}
+        {showHistory && (
+          <div className="absolute inset-0 top-[53px] bg-white z-20 flex flex-col border-b border-gray-100">
+            <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50/50 custom-scrollbar">
+              {sessions.length === 0 ? (
+                <div className="text-center py-12">
+                  <History size={32} className="text-gray-200 mx-auto mb-2" />
+                  <p className="text-xs text-gray-400">Chưa có lịch sử</p>
                 </div>
+              ) : (
+                sessions.map((session) => {
+                  const sId = (session as any).sessionId || session.id;
+                  return (
+                    <button
+                      key={sId}
+                      onClick={() => {
+                        onSessionSelect?.(sId);
+                        setShowHistory(false);
+                      }}
+                      className={`w-full text-left p-3 rounded-lg border transition-all ${
+                        currentSessionId === sId
+                          ? 'bg-white border-uml-blue shadow-sm ring-1 ring-uml-blue/5'
+                          : 'bg-white border-gray-100 hover:border-gray-200'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <span className="text-xs font-bold text-gray-800 truncate pr-2">
+                          {session.title || 'Phiên chat mới'}
+                        </span>
+                        <span className="text-[9px] text-gray-400 whitespace-nowrap">
+                          {new Date(session.updatedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })
               )}
             </div>
-          )}
+          </div>
+        )}
+
+        {/* Chat messages */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+        {/* Context - collapsible */}
+        {hasContext && (
+          <div className="border-b border-gray-100 bg-gray-50/30">
+            <button
+              onClick={() => setContextOpen(!contextOpen)}
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition uppercase tracking-wider"
+            >
+              {contextOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              AI Context
+            </button>
+            {contextOpen && (
+              <div className="px-4 pb-3 space-y-2">
+                {intent && (
+                  <div className="flex items-start gap-2 text-xs bg-blue-50/50 border border-blue-100 rounded-lg p-2.5">
+                    <Target size={14} className="text-uml-blue shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-uml-blue">Mục tiêu hiện tại:</span>
+                      <p className="text-gray-700 mt-0.5">{intent}</p>
+                    </div>
+                  </div>
+                )}
+                {clarifications.length > 0 && (
+                  <div className="space-y-1.5">
+                    {clarifications.map((c, i) => (
+                      c.answer ? (
+                        <div key={i} className="flex items-start gap-2 text-xs bg-amber-50/50 border border-amber-100 rounded-lg p-2.5">
+                          <MessageSquare size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold text-amber-600">Câu hỏi #{i + 1}:</span>
+                            <span className="text-gray-600"> {c.question}</span>
+                            <p className="text-gray-800 font-medium mt-0.5">→ {c.answer}</p>
+                          </div>
+                        </div>
+                      ) : null
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
           <div className="px-4 py-3 space-y-4">
             {history.length === 0 && !clarification && (
-              <div className="text-center py-12">
-                <Bot size={36} className="text-gray-200 mx-auto mb-3" />
-                <p className="text-sm text-gray-400 font-medium">Describe your system or ask a question to get started.</p>
+              <div className="h-full flex flex-col items-center justify-center text-center space-y-4 px-6 py-12">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-uml-blue to-indigo-600 flex items-center justify-center shadow-lg shadow-uml-blue/20">
+                  <Bot size={24} className="text-white" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900">Bắt đầu trò chuyện</h4>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                    Tôi là trợ lý AI, tôi có thể giúp bạn giải đáp thắc mắc về hệ thống hoặc hỗ trợ vẽ biểu đồ.
+                  </p>
+                </div>
               </div>
             )}
             {history.map((msg, i) => (
               <div key={i} className={`flex items-start gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
                   msg.role === 'ai' ? 'bg-uml-blue/10 text-uml-blue' : 'bg-gray-100 text-gray-500'
                 }`}>
                   {msg.role === 'ai' ? <Bot size={14} /> : <User size={14} />}
                 </div>
-                <div className={`max-w-[85%] px-3 py-2 rounded-xl text-sm ${
-                  msg.role === 'ai'
-                    ? 'bg-gray-50 border border-gray-100 text-gray-800'
-                    : 'bg-uml-blue text-white rounded-br-md'
-                }`}>
-                  <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                  <p className={`text-[10px] mt-1.5 ${
-                    msg.role === 'ai' ? 'text-gray-400' : 'text-blue-200'
+                <div className={`max-w-[85%] group relative`}>
+                  <div className={`px-3 py-2 rounded-xl text-xs leading-relaxed ${
+                    msg.role === 'ai'
+                      ? 'bg-gray-50 border border-gray-100 text-gray-800 rounded-tl-sm'
+                      : 'bg-uml-blue text-white rounded-tr-sm shadow-sm'
+                  }`}>
+                    {msg.role === 'ai' ? (
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                          ul: ({ children }) => <ul className="list-disc ml-4 mb-2 space-y-1">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal ml-4 mb-2 space-y-1">{children}</ol>,
+                          li: ({ children }) => <li className="mb-0.5">{children}</li>,
+                          table: ({ children }) => (
+                            <div className="overflow-x-auto my-2 border border-gray-200 rounded-lg">
+                              <table className="w-full text-[11px] border-collapse">{children}</table>
+                            </div>
+                          ),
+                          thead: ({ children }) => <thead className="bg-gray-100/50">{children}</thead>,
+                          th: ({ children }) => <th className="border border-gray-200 px-2 py-1.5 font-bold text-left">{children}</th>,
+                          td: ({ children }) => <td className="border border-gray-200 px-2 py-1.5">{children}</td>,
+                          strong: ({ children }) => <strong className="font-bold text-gray-900">{children}</strong>,
+                          code: ({ children }) => <code className="bg-gray-200/50 px-1 py-0.5 rounded text-[10px] font-mono">{children}</code>,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    ) : (
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    )}
+                  </div>
+                  <p className={`text-[10px] mt-1 text-gray-400 ${
+                    msg.role === 'user' ? 'text-right' : ''
                   }`}>
                     {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
@@ -136,7 +243,13 @@ export default function AIChatPanel({
                 <div className="w-7 h-7 rounded-full bg-uml-blue/10 flex items-center justify-center shrink-0">
                   <Bot size={14} className="text-uml-blue" />
                 </div>
-                <div className="w-14 h-10 rounded-xl bg-gradient-to-br from-blue-300/60 via-uml-blue/40 via-purple-400/30 via-emerald-300/30 to-blue-300/60 animate-gradient-swirl bg-[length:400%_400%] shadow-lg shadow-uml-blue/15 ring-1 ring-white/10" />
+                <div className="bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl rounded-tl-sm shadow-sm">
+                  <div className="flex gap-1 items-center h-3">
+                    <div className="w-1 h-1 rounded-full bg-uml-blue animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-1 h-1 rounded-full bg-uml-blue animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-1 h-1 rounded-full bg-uml-blue animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -185,31 +298,41 @@ export default function AIChatPanel({
         )}
 
         {/* Input */}
-        <div className="border-t border-gray-100 px-3 py-2.5 shrink-0">
-          <div className="flex items-center gap-2">
-            <input
+        <div className="border-t border-gray-100 px-3 py-3 shrink-0 bg-white">
+          <div className="relative group">
+            <textarea
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
-              placeholder="Ask anything..."
+              placeholder="Nhập câu hỏi..."
               disabled={isProcessing}
-              className="flex-1 text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-uml-blue focus:ring-1 focus:ring-uml-blue/20 disabled:opacity-50 placeholder-gray-400"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 pr-12 text-xs focus:outline-none focus:ring-2 focus:ring-uml-blue/10 focus:border-uml-blue transition-all resize-none min-h-[40px] max-h-[120px] placeholder:text-gray-400"
+              rows={1}
+              onInput={(e) => {
+                const el = e.currentTarget;
+                el.style.height = 'auto';
+                el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+              }}
             />
             {isProcessing ? (
               <button
                 onClick={onStopGeneration}
-                className="p-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition shrink-0"
+                className="absolute right-1.5 bottom-1.5 w-8 h-8 rounded-lg flex items-center justify-center transition-all bg-red-500 text-white shadow-md hover:bg-red-600"
                 title="Stop generating"
               >
-                <Square size={15} />
+                <Square size={14} />
               </button>
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={!input.trim()}
-                className="p-2 rounded-lg bg-uml-blue text-white hover:bg-blue-700 transition disabled:opacity-50 shrink-0"
+                disabled={!input.trim() || isProcessing}
+                className={`absolute right-1.5 bottom-1.5 w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                  input.trim() && !isProcessing
+                    ? 'bg-uml-blue text-white shadow-md hover:bg-blue-600'
+                    : 'bg-gray-100 text-gray-400'
+                }`}
               >
-                <Send size={15} />
+                <Send size={14} />
               </button>
             )}
           </div>

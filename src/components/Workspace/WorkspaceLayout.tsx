@@ -2,6 +2,7 @@ import { Group, Panel, Separator } from 'react-resizable-panels'
 import CanvasPanel from './CanvasPanel'
 import AIChatPanel from './AIChatPanel'
 import type { WorkspaceSheet, WorkspaceDocument, ChatMessage, Clarification } from '../../types/workspace'
+import type { ChatSession } from '../../types/ai'
 
 interface WorkspaceLayoutProps {
   sheets: WorkspaceSheet[]
@@ -14,6 +15,8 @@ interface WorkspaceLayoutProps {
   aiIntent: string
   aiClarifications: Clarification[]
   isProcessing: boolean
+  sessions?: ChatSession[]
+  currentSessionId?: string | null
   onSheetSelect: (id: string) => void
   onSheetAdd: () => void
   onSheetDelete: (id: string) => void
@@ -23,6 +26,8 @@ interface WorkspaceLayoutProps {
   onClarificationAnswer: (answer: string) => void
   onAddDocuments: (docs: WorkspaceDocument[]) => void
   onRemoveDocument: (id: string) => void
+  onSessionSelect?: (id: string) => void
+  onNewSession?: () => void
 }
 
 export default function WorkspaceLayout({
@@ -36,6 +41,8 @@ export default function WorkspaceLayout({
   aiIntent,
   aiClarifications,
   isProcessing,
+  sessions = [],
+  currentSessionId = null,
   onSheetSelect,
   onSheetAdd,
   onSheetDelete,
@@ -45,6 +52,8 @@ export default function WorkspaceLayout({
   onClarificationAnswer,
   onAddDocuments,
   onRemoveDocument,
+  onSessionSelect,
+  onNewSession,
 }: WorkspaceLayoutProps) {
   return (
     <Group orientation="horizontal" className="flex-1 overflow-hidden">
@@ -69,11 +78,15 @@ export default function WorkspaceLayout({
             intent={aiIntent}
             clarifications={aiClarifications}
             documents={documents}
+            sessions={sessions}
+            currentSessionId={currentSessionId}
             onSendMessage={onSendMessage}
             onStopGeneration={onStopGeneration}
             onClarificationAnswer={onClarificationAnswer}
             onAddDocuments={onAddDocuments}
             onRemoveDocument={onRemoveDocument}
+            onSessionSelect={onSessionSelect}
+            onNewSession={onNewSession}
           />
         </Panel>
       )}
