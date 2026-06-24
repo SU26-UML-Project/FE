@@ -1,11 +1,12 @@
 # DiaUML Studio — Drag. Connect. Document.
 
-A web-based UML diagramming tool built with React 19, featuring 27 built-in UML/C4 templates and an interactive canvas powered by draw.io.
+A web-based UML diagramming tool built with React 19, featuring 27 built-in UML/C4 templates and an interactive canvas powered by React Flow.
 
 ## Features
 
 - **27 Built-in Templates** — 18 UML/C4 knowledge templates + 9 project-specific samples
-- **Interactive Canvas** — Full draw.io editor embedded directly in the browser
+- **Interactive Canvas** — Full UML editor powered by React Flow with custom nodes and edges
+- **Auto Layout** — Intelligent diagram arrangement using Dagre engine
 - **Template Library** — Browse by category (Structural / Behavioral / C4) with grid/list view
 - **Code Panels** — PlantUML, Mermaid, and XML views for every diagram
 - **Dashboard** — Tab-based sidebar with persistent state
@@ -20,7 +21,8 @@ A web-based UML diagramming tool built with React 19, featuring 27 built-in UML/
 | Bundler | Vite 8 |
 | Styling | Tailwind CSS 4 |
 | Animation | Framer Motion 12 |
-| Canvas | draw.io embed |
+| Canvas | React Flow (@xyflow/react) |
+| Layout | Dagre |
 | State | Zustand 5 |
 | Icons | Lucide React |
 | HTTP | Axios |
@@ -63,7 +65,7 @@ npm run preview
 | `/` | Landing / Hero | Marketing page with features overview |
 | `/pricing` | Pricing | Subscription plans with billing toggle |
 | `/dashboard` | Dashboard | Project list, template library, sidebar |
-| `/canvas` | Canvas Editor | Full-screen draw.io editor |
+| `/canvas` | Canvas Editor | UML editor with custom nodes |
 | `/templates/:id` | Template Detail | Detailed view of a specific template |
 | `/admin` | Admin Dashboard | User/plan management |
 | `/auth/callback` | Auth Callback | OAuth2 redirect handler |
@@ -80,11 +82,11 @@ User Browser
     ├── Dashboard (`/dashboard`)─► Sidebar + Template grid
     │       │
     │       ├── Template Detail (`/templates/:id`)
-    │       │       └── Draw.io embed with pre-loaded diagram.xml
+    │       │       └── React Flow preview with custom nodes
     │       │
     │       └── Canvas Editor (`/canvas`)
-    │               └── Draw.io embed (full-screen)
-    │                   Supports: zoom, shape palette, export PNG/XML
+    │               └── Full-screen React Flow editor
+    │                   Supports: drag-n-drop, custom edges, auto-layout
     │
     └── Admin (`/admin`) ────────► User management panel
 ```
@@ -93,10 +95,10 @@ User Browser
 
 1. User browses templates on Dashboard
 2. Clicks a template → `/templates/:id`
-3. Template detail page shows: purpose, best-for, requirements sections and an interactive draw.io preview with the template diagram loaded
+3. Template detail page shows: purpose, best-for, requirements sections and an interactive React Flow preview with the template diagram loaded
 4. Clicks "Open in Canvas" → `/canvas?template=:id`
-5. Canvas page loads the same diagram in full-screen draw.io editor
-6. User edits freely, adds shapes, exports
+5. Canvas page loads the same diagram in full-screen React Flow editor
+6. User edits freely, adds shapes, auto-layout, exports
 
 ### Template Storage
 
@@ -106,11 +108,9 @@ All templates are static files — no backend required:
 public/templates/
 ├── template-list.json              ← Master index of all 27 templates
 ├── lib-class-diagram/
-│   ├── content.json                 ← Metadata, elements, descriptions
-│   └── diagram.xml                  ← Pre-generated draw.io diagram
+│   └── content.json                 ← Metadata, elements, descriptions, nodes, edges
 ├── usecase-ecommerce/
-│   ├── content.json
-│   └── diagram.xml
+│   └── content.json
 └── ... (27 template directories)
 ```
 
@@ -124,30 +124,23 @@ public/templates/
 | **Sample Templates** | 9 | E-Commerce (Use Case, Class), OAuth2 (Sequence), Order Approval (Activity), Kubernetes (Deployment), C4 for E-Commerce (4 levels) |
 
 Each template contains:
-- `content.json` — name, description, purpose, elements table, requirements, keywords
-- `diagram.xml` — Pre-rendered draw.io diagram (auto-generated from `content.json`)
+- `content.json` — name, description, purpose, elements table, requirements, keywords, and graph data (nodes/edges)
 
-## Canvas (draw.io)
+## Canvas (React Flow)
 
-The current canvas is powered by draw.io embedded with minimal UI (`ui=min`):
+The current canvas is powered by React Flow with custom node types:
 
-```
-URL: https://embed.diagrams.net/?embed=1&proto=json&spin=1&ui=min&libs=general;uml
-```
+- **ClassNode**: UML Class with attributes and methods
+- **InterfaceNode**: UML Interface with methods
+- **UseCaseNode**: UML Use Case ellipse
+- **ActorNode**: UML Actor stick figure
 
 ### Features
-
-- **Shape Libraries**: General + UML shapes available
-- **PostMessage Protocol**: Secure communication between React app and draw.io iframe
-- **Export**: PNG and XML export
-- **Code Panel**: PlantUML, Mermaid, and XML views
-
-### Known Issues
-
-1. **draw.io may fail on localhost** due to third-party cookie / storage blocking. A fallback "Open in new tab" button is shown when connectivity fails.
-2. **draw.io XML ↔ React Flow JSON converter** is post-MVP. Templates use draw.io XML; the React Flow canvas (planned) will require a separate conversion layer.
-3. **UML shape fidelity**: The auto-generated `diagram.xml` files render most UML elements using correct draw.io shapes (actors as stick figures, use cases as ellipses, etc.), but some edge cases (e.g., component icon positioning, sequence lifeline auto-render) are still approximate. Generated diagrams are intended as a starting point — users can refine layouts within the draw.io editor.
-4. **Canvas toolbars (code panel) are stubbed** — export functions rely on draw.io's built-in export. Custom export via `html-to-image` is planned.
+- **Auto Layout**: Powered by Dagre for automatic positioning
+- **Custom Edges**: Association, Inheritance, Realization, Composition, Aggregation, Dependency, Include, Extend
+- **Lock Mechanism**: Canvas is locked during AI processing to maintain state integrity
+- **Properties Panel**: Contextual editing of node/edge data
+- **Undo/Redo**: Full history support via Zundo
 
 ## Project Structure
 
@@ -240,10 +233,7 @@ URL: https://embed.diagrams.net/?embed=1&proto=json&spin=1&ui=min&libs=general;u
 
 | Branch | Purpose | Status |
 |--------|---------|--------|
-| `main` | Production — draw.io canvas only | Active |
-| `phase-2` | React Flow canvas development | In progress |
-
-Phase 2 will replace draw.io with React Flow, adding native UML node types, custom edges, shape panel, properties panel, and undo/redo.
+| `main` | Production — React Flow canvas | Active |
 
 ## License
 

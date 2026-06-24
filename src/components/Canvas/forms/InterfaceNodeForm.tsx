@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import type { Node } from '@xyflow/react'
-import type { InterfaceNodeData } from '../nodes/InterfaceNode'
+import type { InterfaceNodeData } from '../custom-nodes/InterfaceNode'
 
 interface FormProps {
   node: Node

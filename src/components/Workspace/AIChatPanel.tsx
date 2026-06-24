@@ -20,8 +20,6 @@ interface AIChatPanelProps {
   onRemoveDocument: (id: string) => void
 }
 
-const MAX_CLARIFICATION_ROUNDS = 3
-
 export default function AIChatPanel({
   history,
   clarification,
@@ -180,8 +178,8 @@ export default function AIChatPanel({
             <QuestionBox
               clarification={clarification}
               onAnswer={onClarificationAnswer}
-              round={clarificationRound}
-              maxRounds={MAX_CLARIFICATION_ROUNDS}
+              round={clarificationRound + 1}
+              maxRounds={clarifications.length}
             />
           </div>
         )}

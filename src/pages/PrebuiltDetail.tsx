@@ -34,8 +34,7 @@ export default function PrebuiltDetail() {
       if (createRes.code === 200 && createRes.result) {
         const newProjectId = createRes.result.id;
         
-        // Combine all sheets from prebuilt into one XML for the new projectData structure
-        // If there are multiple sheets, draw.io will handle them internally in the XML
+        // Combine all sheets from prebuilt into projectData structure
         const combinedData = JSON.stringify(project.workspace.sheets.map(s => ({
           id: s.id,
           name: s.name,

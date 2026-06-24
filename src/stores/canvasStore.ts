@@ -15,6 +15,7 @@ export interface CanvasState {
   diagramName: string
   diagramType: string
   saveStatus: 'idle' | 'saving' | 'saved' | 'error'
+  isLocked: boolean
 
   onNodesChange: (changes: any) => void
   onEdgesChange: (changes: any) => void
@@ -29,6 +30,7 @@ export interface CanvasState {
   setNodeData: (id: string, patch: Partial<any>) => void
   setDiagramName: (name: string) => void
   setDiagramType: (type: string) => void
+  setLocked: (locked: boolean) => void
   loadDiagram: (nodes: Node[], edges: Edge[], name: string, type?: string) => void
   clearCanvas: () => void
 }
@@ -50,7 +52,7 @@ function defaultNodeData(type: string): any {
 
 export const useCanvasStore = create<CanvasState>()(
   temporal(
-    immer((set) => ({
+    immer((set, get) => ({
       nodes: [],
       edges: [],
       selectedNodeId: null,
@@ -59,15 +61,20 @@ export const useCanvasStore = create<CanvasState>()(
       diagramName: 'Untitled Diagram',
       diagramType: 'custom',
       saveStatus: 'idle',
+      isLocked: false,
 
       onNodesChange: (changes) => {
+        if (get().isLocked) return
         set((state) => { state.nodes = applyNodeChanges(changes, state.nodes) as Node[] })
       },
 
-      onEdgesChange: (changes) =>
-        set((state) => { state.edges = applyEdgeChanges(changes, state.edges) as Edge[] }),
+      onEdgesChange: (changes) => {
+        if (get().isLocked) return
+        set((state) => { state.edges = applyEdgeChanges(changes, state.edges) as Edge[] })
+      },
 
-      onConnect: (connection) =>
+      onConnect: (connection) => {
+        if (get().isLocked) return
         set((state) => {
           state.edges.push({
             id: nanoid(6),
@@ -77,9 +84,11 @@ export const useCanvasStore = create<CanvasState>()(
             type: 'associationEdge',
             style: {},
           } as unknown as Edge)
-        }),
+        })
+      },
 
       addNode: (type, position) => {
+        if (get().isLocked) return
         set((state) => {
           state.nodes.push({ id: nanoid(6), type, position, data: defaultNodeData(type) } as Node)
         })
@@ -89,7 +98,8 @@ export const useCanvasStore = create<CanvasState>()(
 
       selectEdge: (id) => set((state) => { state.selectedEdgeId = id; state.selectedNodeId = null }),
 
-      setEdgeType: (id, type) =>
+      setEdgeType: (id, type) => {
+        if (get().isLocked) return
         set((state) => {
           const e = state.edges.find((e) => e.id === id)
           if (e) {
@@ -100,15 +110,19 @@ export const useCanvasStore = create<CanvasState>()(
                 e.style = { strokeDasharray: '5 5' }; break
             }
           }
-        }),
+        })
+      },
 
-      setEdgeStyle: (id, style) =>
+      setEdgeStyle: (id, style) => {
+        if (get().isLocked) return
         set((state) => {
           const e = state.edges.find((e) => e.id === id)
           if (e) { e.style = { ...(e.style || {}), ...style } }
-        }),
+        })
+      },
 
-      flipEdge: (id) =>
+      flipEdge: (id) => {
+        if (get().isLocked) return
         set((state) => {
           const e = state.edges.find((e) => e.id === id)
           if (e) {
@@ -119,24 +133,48 @@ export const useCanvasStore = create<CanvasState>()(
             e.target = tmpSource
             e.targetHandle = tmpSourceHandle
           }
-        }),
+        })
+      },
 
-      setEditingNodeId: (id) => set((state) => { state.editingNodeId = id }),
+      setEditingNodeId: (id) => {
+        if (get().isLocked && id !== null) return
+        set((state) => { state.editingNodeId = id })
+      },
 
-      setNodeData: (id, patch) =>
+      setNodeData: (id, patch) => {
+        if (get().isLocked) return
         set((state) => {
           const n = state.nodes.find((n) => n.id === id)
           if (n) Object.assign(n.data, patch)
-        }),
+        })
+      },
 
       setDiagramName: (name) => set((state) => { state.diagramName = name }),
       setDiagramType: (type) => set((state) => { state.diagramType = type }),
+      setLocked: (locked) => set((state) => { state.isLocked = locked }),
 
       loadDiagram: (nodes, edges, name, type = 'custom') =>
-        set((state) => { state.nodes = nodes; state.edges = edges; state.diagramName = name; state.diagramType = type }),
+        set((state) => {
+          state.nodes = nodes
+          state.edges = edges
+          state.diagramName = name
+          state.diagramType = type
+          state.selectedNodeId = null
+          state.selectedEdgeId = null
+          state.editingNodeId = null
+        }),
 
-      clearCanvas: () =>
-        set((state) => { state.nodes = []; state.edges = []; state.selectedNodeId = null; state.selectedEdgeId = null; state.editingNodeId = null; state.diagramType = 'custom' }),
+      clearCanvas: () => {
+        if (get().isLocked) return
+        set((state) => {
+          state.nodes = []
+          state.edges = []
+          state.selectedNodeId = null
+          state.selectedEdgeId = null
+          state.editingNodeId = null
+          state.diagramType = 'custom'
+        })
+      },
     })),
     {
       partialize: (state) => ({ nodes: state.nodes, edges: state.edges, diagramType: state.diagramType }),

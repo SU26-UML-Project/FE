@@ -1,4 +1,4 @@
-import dagre from 'dagre'
+import * as dagre from '@dagrejs/dagre'
 import { type Node, type Edge } from '@xyflow/react'
 
 const NODE_PADDING = 40

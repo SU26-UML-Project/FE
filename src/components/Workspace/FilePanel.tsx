@@ -12,7 +12,6 @@ interface FilePanelProps {
 const fileTypeConfig: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
   md: { icon: <FileText size={14} />, label: 'MD', color: 'bg-blue-100 text-blue-600' },
   pdf: { icon: <FileText size={14} />, label: 'PDF', color: 'bg-red-100 text-red-600' },
-  drawio: { icon: <FileCode size={14} />, label: 'Draw', color: 'bg-purple-100 text-purple-600' },
   image: { icon: <Image size={14} />, label: 'IMG', color: 'bg-green-100 text-green-600' },
 }
 
@@ -61,7 +60,6 @@ export default function FilePanel({ documents, onAddDocuments, onRemoveDocument,
   const getFileType = (name: string): WorkspaceDocument['type'] => {
     const ext = name.split('.').pop()?.toLowerCase()
     if (ext === 'pdf') return 'pdf'
-    if (ext === 'drawio' || ext === 'xml') return 'drawio'
     if (['png', 'jpg', 'jpeg', 'svg', 'gif'].includes(ext || '')) return 'image'
     return 'md'
   }
@@ -115,7 +113,7 @@ export default function FilePanel({ documents, onAddDocuments, onRemoveDocument,
           <p className={`font-medium text-gray-400 ${compact ? 'text-[11px]' : 'text-xs'}`}>
             {isDragOver ? 'Drop files here' : 'Drop files or click to upload'}
           </p>
-          {!compact && <p className="text-[10px] text-gray-300 mt-0.5">MD, PDF, draw.io, images</p>}
+          {!compact && <p className="text-[10px] text-gray-300 mt-0.5">MD, PDF, images</p>}
         </div>
       </div>
 
@@ -123,7 +121,7 @@ export default function FilePanel({ documents, onAddDocuments, onRemoveDocument,
         ref={fileInputRef}
         type="file"
         multiple
-        accept=".md,.pdf,.drawio,.xml,.png,.jpg,.jpeg,.svg,.gif"
+        accept=".md,.pdf,.png,.jpg,.jpeg,.svg,.gif"
         className="hidden"
         onChange={handleFileSelect}
       />

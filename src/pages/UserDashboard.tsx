@@ -97,12 +97,17 @@ const UserDashboard: React.FC = () => {
       const response = await projectService.getAllProjects();
       // Map API ProjectResponse to Frontend Workspace type
       const mapped = (response.result || []).map((p: ProjectResponse) => {
-        // Count sheets from XML projectData
+        // Count sheets from projectData
         let sheetCount = 0;
         if (p.projectData) {
-          // A simple way to count <diagram> tags in the draw.io XML
-          const matches = p.projectData.match(/<diagram/g);
-          sheetCount = matches ? matches.length : 1;
+          try {
+            // Try parsing as JSON first (new format)
+            const data = JSON.parse(p.projectData);
+            sheetCount = Array.isArray(data) ? data.length : 1;
+          } catch (e) {
+            // Fallback for legacy XML format or other data
+            sheetCount = 1;
+          }
         } else {
           sheetCount = 0;
         }

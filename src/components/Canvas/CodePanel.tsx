@@ -7,7 +7,7 @@ interface CodePanelProps {
   onClose: () => void
 }
 
-const CodePanel = ({ diagramXml, onClose }: CodePanelProps) => {
+export const CodePanel = ({ diagramXml, onClose }: CodePanelProps) => {
   const [activeTab, setActiveTab] = useState<CodeTab>('plantuml')
   const [copied, setCopied] = useState(false)
 

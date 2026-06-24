@@ -92,10 +92,13 @@ export interface ChatSession {
 export interface DiagramChatRequest {
   message: string;
   sessionId?: string;
+  sheetId: string;
 }
 
 export interface DiagramChatResponse {
   answer: string;
   sessionId: string;
   questions: ChatQuestion[];
+  actions?: any[];
+  newState?: string; // Backend trả về string JSON
 }

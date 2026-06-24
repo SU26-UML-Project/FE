@@ -3,9 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useWorkspaceStore } from '../stores/workspaceStore'
 import { useCanvasStore } from '../stores/canvasStore'
 import { projectService } from '../services/projectService'
+import { sheetService } from '../services/sheetService'
+import { anythingllmService } from '../services/anythingllmService'
 import WorkspaceToolbar from '../components/Workspace/WorkspaceToolbar'
 import WorkspaceLayout from '../components/Workspace/WorkspaceLayout'
 import type { WorkspaceDocument, ChatMessage, Clarification } from '../types/workspace'
+import type { DiagramChatRequest, DiagramChatResponse } from '../types/ai'
 import toast from 'react-hot-toast'
 
 export default function WorkspacePage() {
@@ -16,33 +19,70 @@ export default function WorkspacePage() {
   const [aiEnabled, setAiEnabled] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [clarificationRound, setClarificationRound] = useState(0)
+  const [sessionId, setSessionId] = useState<string | undefined>(undefined)
+
+  const setLocked = useCanvasStore(s => s.setLocked)
+
+  useEffect(() => {
+    setLocked(isProcessing)
+  }, [isProcessing, setLocked])
 
   useEffect(() => {
     if (!id) return
     const fetchWorkspace = async () => {
       try {
-        const response = await projectService.getProjectById(id);
-        const p = response.result;
+        const [projRes, sheetsRes] = await Promise.all([
+          projectService.getProjectById(id),
+          sheetService.getSheetsByProject(id)
+        ]);
+
+        const p = projRes.result;
+        let sheets = (sheetsRes.result || []).map(s => ({
+          ...s,
+          canvasData: typeof s.diagramData === 'string' ? JSON.parse(s.diagramData) : (s.diagramData || { nodes: [], edges: [] })
+        }));
+
+        // If no sheets, create a default one via API to get a real UUID
+        if (sheets.length === 0) {
+          try {
+            const createSheetRes = await sheetService.createSheet({
+              projectId: id,
+              name: 'Diagram 1',
+              diagramType: 'blank',
+              diagramData: JSON.stringify({ nodes: [], edges: [] })
+            });
+            if (createSheetRes.result) {
+              const newSheet = createSheetRes.result;
+              sheets = [{
+                ...newSheet,
+                canvasData: typeof newSheet.diagramData === 'string' ? JSON.parse(newSheet.diagramData) : (newSheet.diagramData || { nodes: [], edges: [] })
+              }];
+            }
+          } catch (e) {
+            console.error('Failed to create initial sheet:', e);
+            // Fallback only if API fails, but user warned against this
+            sheets = [{
+              id: 'fallback-uuid-please-refresh',
+              name: 'Diagram 1',
+              diagramType: 'blank',
+              canvasData: { nodes: [], edges: [] } as any,
+            }];
+          }
+        }
+
         const workspaceData = {
           id: p.id,
           name: p.projectName,
           category: p.description || 'general',
           type: 'user' as const,
           documents: [],
-          sheets: [
-            {
-              id: 'default-sheet',
-              name: 'Diagram',
-              diagramType: 'blank',
-              canvasData: { nodes: [], edges: [] },
-            }
-          ],
+          sheets: sheets,
           aiContext: { intent: '', clarifications: [], history: [] },
           createdAt: p.createdAt,
           updatedAt: p.updatedAt,
         };
         store.setCurrentWorkspace(workspaceData);
-        store.setActiveSheetId('default-sheet');
+        store.setActiveSheetId(sheets[0].id);
       } catch (error: any) {
         toast.error(error.message || 'Failed to load workspace');
         navigate('/dashboard');
@@ -74,15 +114,53 @@ export default function WorkspacePage() {
   }
 
   const handleSheetAdd = async () => {
-    toast.error('Multiple sheets are handled internally by the diagram editor.');
+    if (!id) return
+    try {
+      const response = await sheetService.createSheet({
+        projectId: id,
+        name: `Diagram ${workspace?.sheets.length ? workspace.sheets.length + 1 : 1}`,
+        diagramType: 'blank',
+        diagramData: JSON.stringify({ nodes: [], edges: [] }),
+      })
+      if (response.code === 200 && response.result) {
+        const newSheet = response.result
+        const mappedSheet = {
+          ...newSheet,
+          canvasData: typeof newSheet.diagramData === 'string' ? JSON.parse(newSheet.diagramData) : (newSheet.diagramData || { nodes: [], edges: [] })
+        }
+        store.addSheet(mappedSheet)
+        toast.success('Sheet added')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add sheet')
+    }
   }
 
   const handleSheetDelete = async (sheetId: string) => {
-    toast.error('Sheet management is handled internally by the diagram editor.');
+    if (workspace && workspace.sheets.length <= 1) {
+      toast.error('Cannot delete the last sheet')
+      return
+    }
+    try {
+      const response = await sheetService.deleteSheet(sheetId)
+      if (response.code === 200) {
+        store.deleteSheet(sheetId)
+        toast.success('Sheet deleted')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete sheet')
+    }
   }
 
   const handleSheetRename = async (sheetId: string, name: string) => {
-    // Internally rename if needed
+    try {
+      const response = await sheetService.updateSheet(sheetId, { name })
+      if (response.code === 200) {
+        store.updateSheet(sheetId, { name })
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to rename sheet')
+    }
   }
 
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved')
@@ -122,66 +200,173 @@ export default function WorkspacePage() {
     navigate('/dashboard')
   }, [hasUnsavedChanges, navigate])
 
-  // TODO: API — POST /api/ai/chat
-  const handleSendMessage = (message: string) => {
-    if (!workspace) return
+  // Auto-save on node drag stop or any canvas change
+  useEffect(() => {
+    const handleCanvasChange = async (e: any) => {
+      if (!workspace || !store.activeSheetId) return
+      const { nodes, edges } = e.detail
+      
+      // Update local store state immediately
+      const updatedSheets = workspace.sheets.map(s => {
+        if (s.id === store.activeSheetId) {
+          return { ...s, canvasData: { nodes, edges } }
+        }
+        return s
+      })
+      store.updateWorkspace({ sheets: updatedSheets })
+
+      // Auto-save to Backend (PATCH /sheets/{id})
+    setSaveStatus('saving')
+    try {
+      const diagramDataStr = JSON.stringify({ nodes, edges })
+      const response = await sheetService.updateSheet(store.activeSheetId, {
+        diagramData: diagramDataStr,
+      })
+      if (response.code === 200) {
+        loadedSnapshotRef.current = diagramDataStr
+        setSaveStatus('saved')
+      }
+    } catch (error) {
+        console.error('Auto-save failed:', error)
+        setSaveStatus('error')
+      }
+    }
+
+    window.addEventListener('canvas-data-change', handleCanvasChange)
+    return () => window.removeEventListener('canvas-data-change', handleCanvasChange)
+  }, [workspace, store.activeSheetId, store.updateWorkspace])
+
+  // API — POST /api/v1/chat
+  const handleSendMessage = async (message: string) => {
+    if (!workspace || !store.activeSheetId) return
+    
+    // Auto-save current canvas state to Backend before chatting
+    // This ensures Backend has the latest positions for its Merger logic
+    const canvasState = useCanvasStore.getState()
+    const diagramDataStr = JSON.stringify({
+      nodes: canvasState.nodes,
+      edges: canvasState.edges,
+    })
+
+    try {
+      await sheetService.updateSheet(store.activeSheetId, {
+        diagramData: diagramDataStr,
+      })
+      // Update local snapshot to avoid prompt for unsaved changes if any
+      loadedSnapshotRef.current = diagramDataStr
+    } catch (e) {
+      console.error('Pre-chat auto-save failed:', e)
+      // We continue anyway, but the merger might use slightly older positions
+    }
+
+    // Check for "Other" option answer
+    let finalMessage = message
+    
     const userMsg: ChatMessage = {
       role: 'user',
-      content: message,
+      content: finalMessage,
       timestamp: new Date().toISOString(),
     }
+    
     const updatedHistory = [...workspace.aiContext.history, userMsg]
     store.updateWorkspace({
       aiContext: { ...workspace.aiContext, history: updatedHistory },
     })
 
     setIsProcessing(true)
-    setTimeout(() => {
-      const aiMsg: ChatMessage = {
-        role: 'ai',
-        content: `Thanks for your input. I understand you're interested in "${message}". Based on the project context, I can help you create UML diagrams. What specific aspect would you like to model?`,
-        timestamp: new Date().toISOString(),
+    
+    try {
+      const request: DiagramChatRequest = {
+        message: finalMessage,
+        sessionId,
+        sheetId: store.activeSheetId,
       }
-      const newHistory = [...updatedHistory, aiMsg]
-      store.updateWorkspace({
-        aiContext: { ...workspace.aiContext, history: newHistory },
-      })
+      
+      const response = await anythingllmService.sendDiagramChat(request)
+      
+      if (response.code === 200 && response.result) {
+        const { answer, sessionId: newSessionId, newState, questions } = response.result
+        
+        setSessionId(newSessionId)
+        
+        // Map questions from BE to clarifications format
+        const newClarifications = (questions || []).map(q => ({
+          question: q.title,
+          options: q.options,
+          answer: '',
+          answeredAt: ''
+        }))
+        
+        const aiMsg: ChatMessage = {
+          role: 'ai',
+          content: answer,
+          timestamp: new Date().toISOString(),
+        }
+        
+        const newHistory = [...updatedHistory, aiMsg]
+        
+        // Update workspace context with new history and questions
+        store.updateWorkspace({
+          aiContext: { 
+            ...workspace.aiContext, 
+            history: newHistory,
+            clarifications: [...workspace.aiContext.clarifications, ...newClarifications]
+          },
+        })
+
+        // Point to the latest unanswered clarification
+        const allClarifications = [...workspace.aiContext.clarifications, ...newClarifications]
+        const unansweredIndex = allClarifications.findIndex(c => !c.answer)
+        if (unansweredIndex !== -1) {
+          setClarificationRound(unansweredIndex)
+        }
+
+        // Update Canvas if newState is provided
+        if (newState) {
+          try {
+            const parsedState = typeof newState === 'string' ? JSON.parse(newState) : newState
+            if (parsedState && parsedState.nodes) {
+              // We use setTimeout to ensure store updates don't conflict
+              setTimeout(() => {
+                useCanvasStore.getState().loadDiagram(
+                  parsedState.nodes,
+                  parsedState.edges || [],
+                  useCanvasStore.getState().diagramName,
+                  useCanvasStore.getState().diagramType
+                )
+              }, 0)
+            }
+          } catch (e) {
+            console.error('Failed to parse newState JSON:', e)
+          }
+        }
+      } else {
+        toast.error(response.message || 'AI processing failed')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to connect to AI service')
+    } finally {
       setIsProcessing(false)
-    }, 1500)
+    }
   }
 
-  // TODO: API — POST /api/ai/clarify
+  // API — Answer a question from AI
   const handleClarificationAnswer = (answer: string) => {
     if (!workspace) return
-    const newRound = clarificationRound + 1
-    setClarificationRound(newRound)
 
-    const clarification: Clarification = {
-      question: workspace.aiContext.clarifications[clarificationRound]?.question ?? '',
-      options: workspace.aiContext.clarifications[clarificationRound]?.options ?? [],
-      answer,
-      answeredAt: new Date().toISOString(),
+    // Update the answer in local state
+    const updatedClarifications = [...workspace.aiContext.clarifications]
+    if (updatedClarifications[clarificationRound]) {
+      updatedClarifications[clarificationRound].answer = answer
+      updatedClarifications[clarificationRound].answeredAt = new Date().toISOString()
     }
 
-    const updatedClarifications = [...workspace.aiContext.clarifications, clarification]
     store.updateWorkspace({
       aiContext: { ...workspace.aiContext, clarifications: updatedClarifications },
     })
 
-    if (newRound < 3) {
-      setTimeout(() => {
-        const nextClarification: Clarification = {
-          question: 'What type of diagram would best represent this part of your system?',
-          options: ['Use Case', 'Class Diagram', 'Sequence Diagram', 'C4 Context'],
-          answer: '',
-          answeredAt: '',
-        }
-        const nextClarifications = [...updatedClarifications, nextClarification]
-        store.updateWorkspace({
-          aiContext: { ...workspace.aiContext, clarifications: nextClarifications },
-        })
-      }, 1000)
-    }
+    // Send the answer as a new message to continue the flow
+    handleSendMessage(answer)
   }
 
   const handleAddDocuments = (docs: WorkspaceDocument[]) => {
@@ -199,34 +384,35 @@ export default function WorkspacePage() {
   }
 
   const handleSave = async () => {
-    if (!workspace || !id) return
+    if (!workspace || !id || !store.activeSheetId) return
 
     // Snapshot current canvas into active sheet
     const canvasState = useCanvasStore.getState()
     const activeSheet = workspace.sheets.find(s => s.id === store.activeSheetId)
-    if (activeSheet) {
-      activeSheet.canvasData = {
-        nodes: canvasState.nodes,
-        edges: canvasState.edges,
-      }
-    }
+    
+    if (!activeSheet) return
+
+    const diagramDataStr = JSON.stringify({
+      nodes: canvasState.nodes,
+      edges: canvasState.edges,
+    })
 
     try {
-      const response = await projectService.updateProject(id, {
-        projectName: wsName,
-        description: workspace.category,
-        projectData: JSON.stringify(workspace.sheets.map(s => ({
-          id: s.id,
-          name: s.name,
-          diagramType: s.diagramType,
-          canvasData: s.canvasData,
-        }))),
-      });
+      const response = await sheetService.updateSheet(store.activeSheetId, {
+        diagramData: diagramDataStr,
+      })
+      
       if (response.code === 200) {
-        toast.success('Workspace saved');
+        // Update local store
+        activeSheet.canvasData = {
+          nodes: canvasState.nodes,
+          edges: canvasState.edges,
+        }
+        loadedSnapshotRef.current = diagramDataStr
+        toast.success('Diagram saved')
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save');
+      toast.error(error.message || 'Failed to save diagram')
     }
   }
 

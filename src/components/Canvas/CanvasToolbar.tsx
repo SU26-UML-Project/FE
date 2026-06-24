@@ -5,7 +5,11 @@ interface CanvasToolbarProps {
   onNameChange: (name: string) => void
   onBack: () => void
   onToggleCode: () => void
+  onToggleProps: () => void
+  onLayout: () => void
   isCodePanelOpen: boolean
+  isPropsPanelOpen: boolean
+  isLocked?: boolean
   onExportPng?: () => void
   onExportXml?: () => void
 }
@@ -15,7 +19,11 @@ const CanvasToolbar = ({
   onNameChange,
   onBack,
   onToggleCode,
+  onToggleProps,
+  onLayout,
   isCodePanelOpen,
+  isPropsPanelOpen,
+  isLocked,
 }: CanvasToolbarProps) => {
   const {
     isEditing,
@@ -70,6 +78,16 @@ const CanvasToolbar = ({
 
       <div className="flex items-center gap-1.5">
         <button
+          onClick={onLayout}
+          disabled={isLocked}
+          className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition disabled:opacity-50"
+        >
+          Layout
+        </button>
+
+        <span className="w-px h-5 bg-gray-200" />
+
+        <button
           onClick={onToggleCode}
           className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
             isCodePanelOpen
@@ -78,6 +96,17 @@ const CanvasToolbar = ({
           }`}
         >
           Code
+        </button>
+
+        <button
+          onClick={onToggleProps}
+          className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
+            isPropsPanelOpen
+              ? 'bg-uml-blue text-white'
+              : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+          }`}
+        >
+          Props
         </button>
 
         <span className="w-px h-5 bg-gray-200" />

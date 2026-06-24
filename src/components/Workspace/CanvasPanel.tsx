@@ -3,8 +3,12 @@ import { Plus, X } from 'lucide-react'
 import { GraphCanvas } from '../Canvas/GraphCanvas'
 import { ShapePanel } from '../Canvas/ShapePanel'
 import { PropsPanel } from '../Canvas/PropsPanel'
+import { CodePanel } from '../Canvas/CodePanel'
+import CanvasToolbar from '../Canvas/CanvasToolbar'
 import { useCanvasStore } from '../../stores/canvasStore'
+import { useAutoLayout } from '../../hooks/useAutoLayout'
 import type { WorkspaceSheet } from '../../types/workspace'
+import { ReactFlowProvider } from '@xyflow/react'
 
 interface CanvasPanelProps {
   sheets: WorkspaceSheet[]
@@ -15,7 +19,7 @@ interface CanvasPanelProps {
   onSheetRename: (id: string, name: string) => void
 }
 
-export default function CanvasPanel({
+function CanvasPanelInner({
   sheets,
   activeSheetId,
   onSheetSelect,
@@ -26,7 +30,18 @@ export default function CanvasPanel({
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [showProps, setShowProps] = useState(false)
+  const [showCode, setShowCode] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const { layout } = useAutoLayout()
+  const isLocked = useCanvasStore(s => s.isLocked)
+  const diagramName = useCanvasStore(s => s.diagramName)
+  const setDiagramName = useCanvasStore(s => s.setDiagramName)
+  const nodes = useCanvasStore(s => s.nodes)
+  const edges = useCanvasStore(s => s.edges)
+
+  const handleLayout = useCallback(() => {
+    layout(nodes, edges)
+  }, [layout, nodes, edges])
 
   useEffect(() => {
     if (editingSheetId && inputRef.current) {
@@ -100,6 +115,20 @@ export default function CanvasPanel({
   return (
     <div className="flex flex-col h-full bg-gray-100 p-2">
       <div className="flex-1 flex flex-col bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        {/* Canvas Toolbar */}
+        <CanvasToolbar
+          diagramName={diagramName}
+          onNameChange={setDiagramName}
+          onBack={() => {}} // WorkspaceToolbar handles this
+          onToggleCode={() => setShowCode(!showCode)}
+          onToggleProps={() => setShowProps(!showProps)}
+          onLayout={handleLayout}
+          isCodePanelOpen={showCode}
+          isPropsPanelOpen={showProps}
+          isLocked={isLocked}
+        />
+
+        {/* Sheets Tab Bar */}
         <div className="flex items-center gap-1 px-2 py-1 border-b border-gray-200 bg-gray-50 shrink-0">
           {sheets.map((sheet) => (
             <div
@@ -142,32 +171,30 @@ export default function CanvasPanel({
           >
             <Plus size={12} />
           </button>
-          <div className="flex-1" />
-          <button
-            onClick={() => setShowProps(p => !p)}
-            className={`text-xs px-2 py-1 rounded transition-colors ${
-              showProps ? 'bg-gray-200 text-gray-700' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Props
-          </button>
         </div>
         <div className="flex-1 flex overflow-hidden">
           <ShapePanel />
-          <div className="flex-1 relative">
-            {activeSheet ? (
-              <GraphCanvas />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                  <p className="text-sm text-gray-400 font-medium mb-2">No sheets yet</p>
-                  <button
-                    onClick={handleAdd}
-                    className="px-4 py-2 bg-uml-blue text-white text-xs font-bold uppercase rounded-md hover:bg-blue-700 transition"
-                  >
-                    Create First Sheet
-                  </button>
+          <div className="flex-1 relative flex flex-col">
+            <div className="flex-1 relative">
+              {activeSheet ? (
+                <GraphCanvas />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-400 font-medium mb-2">No sheets yet</p>
+                    <button
+                      onClick={handleAdd}
+                      className="px-4 py-2 bg-uml-blue text-white text-xs font-bold uppercase rounded-md hover:bg-blue-700 transition"
+                    >
+                      Create First Sheet
+                    </button>
+                  </div>
                 </div>
+              )}
+            </div>
+            {showCode && (
+              <div className="h-1/3 border-t border-gray-200">
+                <CodePanel />
               </div>
             )}
           </div>
@@ -175,5 +202,13 @@ export default function CanvasPanel({
         </div>
       </div>
     </div>
+  )
+}
+
+export default function CanvasPanel(props: CanvasPanelProps) {
+  return (
+    <ReactFlowProvider>
+      <CanvasPanelInner {...props} />
+    </ReactFlowProvider>
   )
 }

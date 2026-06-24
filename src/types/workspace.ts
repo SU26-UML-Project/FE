@@ -25,7 +25,7 @@ export interface WorkspaceSheet {
 export interface WorkspaceDocument {
   id: string
   name: string
-  type: 'md' | 'pdf' | 'drawio' | 'image'
+  type: 'md' | 'pdf' | 'image'
   content: string
   url?: string
 }

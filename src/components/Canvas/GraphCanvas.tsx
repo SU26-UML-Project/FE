@@ -16,7 +16,7 @@ import {
 import '@xyflow/react/dist/style.css'
 
 import { useCanvasStore } from '../../stores/canvasStore'
-import { nodeTypes } from './nodes/registry'
+import { nodeTypes } from './custom-nodes/registry'
 import { edgeTypes } from './edges/index'
 import { MarkerDefs } from './MarkerDefs'
 
@@ -80,6 +80,18 @@ function GraphCanvasInner() {
     [screenToFlowPosition, addNode],
   )
 
+  const onNodeDragStop = useCallback(() => {
+    // When a node stops moving, we force an update to the workspace store
+    // This will trigger the useEffect in WorkspacePage to mark the diagram as unsaved
+    // and provide fresh data for the next AI chat.
+    const { nodes, edges } = useCanvasStore.getState()
+    
+    // Dispatch a custom event to notify WorkspacePage that nodes have moved
+    window.dispatchEvent(new CustomEvent('canvas-data-change', { 
+      detail: { nodes, edges } 
+    }))
+  }, [])
+
   return (
     <div ref={reactFlowWrapper} className="w-full h-full relative">
       <ReactFlow
@@ -94,6 +106,7 @@ function GraphCanvasInner() {
         onPaneClick={onPaneClick}
         onDragOver={onDragOver}
         onDrop={onDrop}
+        onNodeDragStop={onNodeDragStop}
         nodeTypes={stableNodeTypes}
         edgeTypes={stableEdgeTypes}
         defaultEdgeOptions={{ type: 'associationEdge' }}
