@@ -3,8 +3,9 @@ import type { ApiResponse } from '../types/api';
 import type { ProjectRequest, ProjectResponse } from '../types/project';
 
 export const projectService = {
-  getAllProjects: async (): Promise<ApiResponse<ProjectResponse[]>> => {
-    return apiClient.get<any, ApiResponse<ProjectResponse[]>>('/projects');
+  getAllProjects: async (params?: { isDraft?: boolean }): Promise<ApiResponse<ProjectResponse[]>> => {
+    const query = params?.isDraft !== undefined ? `?isDraft=${params.isDraft}` : '';
+    return apiClient.get<any, ApiResponse<ProjectResponse[]>>(`/projects${query}`);
   },
 
   getAllProjectsForAdmin: async (): Promise<ApiResponse<ProjectResponse[]>> => {

@@ -20,6 +20,8 @@ export default function WorkspacePage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [clarificationRound, setClarificationRound] = useState(0)
   const [sessionId, setSessionId] = useState<string | undefined>(undefined)
+  const [showExitDialog, setShowExitDialog] = useState(false)
+  const pendingNavigationRef = useRef<(() => void) | null>(null)
 
   const setLocked = useCanvasStore(s => s.setLocked)
 
@@ -194,8 +196,9 @@ export default function WorkspacePage() {
 
   const handleBack = useCallback(() => {
     if (hasUnsavedChanges()) {
-      const confirmed = window.confirm('You have unsaved changes. Do you want to save before leaving?')
-      if (!confirmed) return
+      pendingNavigationRef.current = () => navigate('/dashboard')
+      setShowExitDialog(true)
+      return
     }
     navigate('/dashboard')
   }, [hasUnsavedChanges, navigate])
@@ -409,12 +412,30 @@ export default function WorkspacePage() {
           edges: canvasState.edges,
         }
         loadedSnapshotRef.current = diagramDataStr
-        toast.success('Diagram saved')
+        toast.success('Workspace saved')
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to save diagram')
     }
   }
+
+  const handleSaveAndExit = useCallback(async () => {
+    await handleSave()
+    setShowExitDialog(false)
+    pendingNavigationRef.current?.()
+    pendingNavigationRef.current = null
+  }, [handleSave])
+
+  const handleDiscardAndExit = useCallback(() => {
+    setShowExitDialog(false)
+    pendingNavigationRef.current?.()
+    pendingNavigationRef.current = null
+  }, [])
+
+  const handleCancelExit = useCallback(() => {
+    setShowExitDialog(false)
+    pendingNavigationRef.current = null
+  }, [])
 
   const handleStopGeneration = () => {
     setIsProcessing(false)
@@ -482,6 +503,37 @@ export default function WorkspacePage() {
       <footer className="h-6 bg-gradient-to-r from-uml-blue/5 to-blue-700/5 border-t border-blue-200/20 flex items-center justify-center shrink-0 select-none">
         <span className="text-[10px] text-gray-400 font-medium tracking-wide">DiaUML Studio | Canvas</span>
       </footer>
+
+      {showExitDialog && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-96 mx-4">
+            <h3 className="text-base font-semibold text-gray-800 mb-2">Unsaved Changes</h3>
+            <p className="text-sm text-gray-500 mb-6">
+              You have unsaved changes in your diagrams. Save before leaving?
+            </p>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={handleCancelExit}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 rounded-md hover:bg-gray-100 transition font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDiscardAndExit}
+                className="px-4 py-2 text-sm text-red-600 hover:text-red-800 rounded-md hover:bg-red-50 transition font-medium"
+              >
+                Discard
+              </button>
+              <button
+                onClick={handleSaveAndExit}
+                className="px-4 py-2 text-sm font-bold text-white bg-uml-blue rounded-md hover:bg-blue-700 transition shadow-sm"
+              >
+                Save & Exit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

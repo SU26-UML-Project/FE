@@ -89,7 +89,7 @@ export default function WorkspaceToolbar({
           className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-white text-uml-blue hover:bg-blue-50 transition flex items-center gap-1.5 shadow-sm ml-1"
         >
           <Save size={14} />
-          Save
+          Save Workspace
         </button>
       </div>
     </div>

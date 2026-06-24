@@ -3,10 +3,7 @@ import { Plus, X } from 'lucide-react'
 import { GraphCanvas } from '../Canvas/GraphCanvas'
 import { ShapePanel } from '../Canvas/ShapePanel'
 import { PropsPanel } from '../Canvas/PropsPanel'
-import { CodePanel } from '../Canvas/CodePanel'
-import CanvasToolbar from '../Canvas/CanvasToolbar'
 import { useCanvasStore } from '../../stores/canvasStore'
-import { useAutoLayout } from '../../hooks/useAutoLayout'
 import type { WorkspaceSheet } from '../../types/workspace'
 import { ReactFlowProvider } from '@xyflow/react'
 
@@ -30,18 +27,7 @@ function CanvasPanelInner({
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [showProps, setShowProps] = useState(false)
-  const [showCode, setShowCode] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const { layout } = useAutoLayout()
-  const isLocked = useCanvasStore(s => s.isLocked)
-  const diagramName = useCanvasStore(s => s.diagramName)
-  const setDiagramName = useCanvasStore(s => s.setDiagramName)
-  const nodes = useCanvasStore(s => s.nodes)
-  const edges = useCanvasStore(s => s.edges)
-
-  const handleLayout = useCallback(() => {
-    layout(nodes, edges)
-  }, [layout, nodes, edges])
 
   useEffect(() => {
     if (editingSheetId && inputRef.current) {
@@ -115,61 +101,61 @@ function CanvasPanelInner({
   return (
     <div className="flex flex-col h-full bg-gray-100 p-2">
       <div className="flex-1 flex flex-col bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        {/* Canvas Toolbar */}
-        <CanvasToolbar
-          diagramName={diagramName}
-          onNameChange={setDiagramName}
-          onBack={() => {}} // WorkspaceToolbar handles this
-          onToggleCode={() => setShowCode(!showCode)}
-          onToggleProps={() => setShowProps(!showProps)}
-          onLayout={handleLayout}
-          isCodePanelOpen={showCode}
-          isPropsPanelOpen={showProps}
-          isLocked={isLocked}
-        />
-
         {/* Sheets Tab Bar */}
-        <div className="flex items-center gap-1 px-2 py-1 border-b border-gray-200 bg-gray-50 shrink-0">
-          {sheets.map((sheet) => (
-            <div
-              key={sheet.id}
-              onClick={() => handleTabClick(sheet.id)}
-              onDoubleClick={() => handleSheetDblClick(sheet)}
-              className={`group flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer transition-colors ${
-                sheet.id === activeSheetId
-                  ? 'bg-blue-100 text-blue-700 font-medium'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {editingSheetId === sheet.id ? (
-                <input
-                  ref={inputRef}
-                  value={editName}
-                  onChange={e => setEditName(e.target.value)}
-                  onBlur={handleSheetNameSubmit}
-                  onKeyDown={e => { if (e.key === 'Enter') handleSheetNameSubmit(); if (e.key === 'Escape') setEditingSheetId(null) }}
-                  className="w-20 text-xs bg-white border border-blue-300 rounded px-1 py-0 outline-none"
-                  onClick={e => e.stopPropagation()}
-                />
-              ) : (
-                <span className="truncate max-w-24">{sheet.name}</span>
-              )}
-              {sheets.length > 1 && (
-                <button
-                  onClick={(e) => handleDelete(e, sheet.id)}
-                  className="opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-red-100"
-                >
-                  <X size={10} />
-                </button>
-              )}
-            </div>
-          ))}
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200 bg-gray-50/80 shrink-0">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap select-none">Sheets:</span>
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin flex-1 min-w-0">
+            {sheets.map((sheet) => (
+              <div
+                key={sheet.id}
+                onClick={() => handleTabClick(sheet.id)}
+                onDoubleClick={() => handleSheetDblClick(sheet)}
+                className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs cursor-pointer transition-all border shadow-sm whitespace-nowrap ${
+                  sheet.id === activeSheetId
+                    ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm font-medium'
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800'
+                }`}
+              >
+                {editingSheetId === sheet.id ? (
+                  <input
+                    ref={inputRef}
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    onBlur={handleSheetNameSubmit}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSheetNameSubmit(); if (e.key === 'Escape') setEditingSheetId(null) }}
+                    className="w-20 text-xs bg-white border border-blue-300 rounded px-1 py-0 outline-none"
+                    onClick={e => e.stopPropagation()}
+                  />
+                ) : (
+                  <span className="truncate max-w-28">{sheet.name}</span>
+                )}
+                {sheets.length > 1 && (
+                  <button
+                    onClick={(e) => handleDelete(e, sheet.id)}
+                    className="opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-red-100 flex-shrink-0"
+                  >
+                    <X size={10} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
           <button
             onClick={handleAdd}
-            className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors flex-shrink-0 bg-white border border-gray-200 shadow-sm"
             title="Add sheet"
           >
             <Plus size={12} />
+          </button>
+          <button
+            onClick={() => setShowProps(p => !p)}
+            className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all border shadow-sm flex-shrink-0 ${
+              showProps
+                ? 'bg-gray-200 text-gray-700 border-gray-300'
+                : 'bg-white text-gray-500 hover:text-gray-700 border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            Props
           </button>
         </div>
         <div className="flex-1 flex overflow-hidden">
@@ -192,13 +178,8 @@ function CanvasPanelInner({
                 </div>
               )}
             </div>
-            {showCode && (
-              <div className="h-1/3 border-t border-gray-200">
-                <CodePanel />
-              </div>
-            )}
-          </div>
           {showProps && <PropsPanel />}
+          </div>
         </div>
       </div>
     </div>

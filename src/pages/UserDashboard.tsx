@@ -17,11 +17,13 @@ import {
   Copy,
   Clock,
   Loader2,
+  PenTool,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getTemplateList } from '../utils/templates';
 import type { TemplateMeta } from '../utils/templates';
 import { projectService } from '../services/projectService';
+import { sheetService } from '../services/sheetService';
 import type { ProjectResponse } from '../types/project';
 import type { Workspace, PrebuiltMeta } from '../types/workspace';
 import toast from 'react-hot-toast';
@@ -53,6 +55,8 @@ const UserDashboard: React.FC = () => {
   const [filterLoading, setFilterLoading] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspacesLoading, setWorkspacesLoading] = useState(false);
+  const [drafts, setDrafts] = useState<Workspace[]>([]);
+  const [draftsLoading, setDraftsLoading] = useState(false);
   const [prebuilts, setPrebuilts] = useState<PrebuiltMeta[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newWsName, setNewWsName] = useState('');
@@ -88,6 +92,9 @@ const UserDashboard: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'all' || activeTab === 'archived' || activeTab === 'trash') {
       fetchWorkspaces();
+    }
+    if (activeTab === 'drafts') {
+      fetchDrafts();
     }
   }, [activeTab]);
 
@@ -131,6 +138,54 @@ const UserDashboard: React.FC = () => {
       setWorkspaces([]);
     } finally {
       setWorkspacesLoading(false);
+    }
+  };
+
+  const fetchDrafts = async () => {
+    setDraftsLoading(true);
+    try {
+      const response = await projectService.getAllProjects({ isDraft: true });
+      const mapped = (response.result || []).map((p: ProjectResponse) => ({
+        id: p.id,
+        name: p.projectName,
+        category: p.description || 'draft',
+        type: 'user' as const,
+        documents: [],
+        sheets: [{
+          id: 'loading',
+          name: 'Diagram',
+          diagramType: 'blank',
+          canvasData: { nodes: [], edges: [] },
+        }],
+        aiContext: { intent: '', clarifications: [], history: [] },
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      }));
+
+      // Fetch first sheet for each draft
+      const sheetResults = await Promise.allSettled(
+        mapped.map(d => sheetService.getSheetsByProject(d.id))
+      );
+      const withSheets = mapped.map((d, i) => {
+        const sheetsRes = sheetResults[i]
+        if (sheetsRes.status === 'fulfilled' && sheetsRes.value.result?.length > 0) {
+          const s: any = sheetsRes.value.result[0]
+          d.sheets = [{
+            id: s.id,
+            name: s.name,
+            diagramType: s.diagramType,
+            canvasData: typeof s.diagramData === 'string' ? JSON.parse(s.diagramData) : (s.diagramData || { nodes: [], edges: [] }),
+          }]
+        }
+        return d
+      })
+
+      setDrafts(withSheets);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load drafts');
+      setDrafts([]);
+    } finally {
+      setDraftsLoading(false);
     }
   };
 
@@ -250,6 +305,13 @@ const UserDashboard: React.FC = () => {
             collapsed={isSidebarCollapsed}
           />
           <SidebarItem 
+            icon={<PenTool size={20} />} 
+            label="Drafts" 
+            active={activeTab === 'drafts'} 
+            onClick={() => setActiveTab('drafts')} 
+            collapsed={isSidebarCollapsed}
+          />
+          <SidebarItem 
             icon={<Users size={20} />} 
             label="Shared with Me" 
             active={activeTab === 'shared'} 
@@ -317,6 +379,13 @@ const UserDashboard: React.FC = () => {
                           : 'Pre-built diagram templates tied to real-world projects. Use as a starting point.'}
                       </p>
                     </>
+                  ) : activeTab === 'drafts' ? (
+                    <>
+                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Drafts</h1>
+                      <p className="text-lg text-admin-on-surface-variant">
+                        Quick diagrams saved as standalone drafts. Open and continue editing anytime.
+                      </p>
+                    </>
                   ) : (
                     <>
                       <h1 className="text-4xl font-black tracking-tight text-black mb-2">My Workspaces</h1>
@@ -328,7 +397,7 @@ const UserDashboard: React.FC = () => {
 
                 {/* Grid/List Toggle */}
                 <div className="flex items-center gap-3">
-                  {activeTab !== 'templates' && (
+                  {activeTab !== 'templates' && activeTab !== 'drafts' && (
                     <button
                       onClick={() => setShowCreateModal(true)}
                       className="px-4 py-2 bg-uml-blue text-white font-bold rounded-md text-sm hover:bg-blue-700 transition flex items-center gap-2"
@@ -445,6 +514,50 @@ const UserDashboard: React.FC = () => {
                   </motion.div>
                 </AnimatePresence>
               )
+            ) : activeTab === 'drafts' ? (
+              <section className="mb-12">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-black">
+                    Drafts
+                    <span className="ml-2 text-sm font-normal text-gray-400">({drafts.length})</span>
+                  </h2>
+                </div>
+                {draftsLoading ? (
+                  <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
+                    <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : drafts.length === 0 ? (
+                  <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
+                    <PenTool size={48} className="text-gray-200 mx-auto mb-3" />
+                    <h3 className="text-lg font-bold text-gray-400 mb-1">No drafts yet</h3>
+                    <p className="text-sm text-gray-300">Create a diagram from the canvas and save as a draft.</p>
+                  </div>
+                ) : viewMode === 'grid' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {drafts.map((d) => (
+                      <DraftCard key={d.id} draft={d} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white border border-admin-outline rounded-sm overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
+                          <th className="py-4 px-6">Draft Name</th>
+                          <th className="py-4 px-6">Category</th>
+                          <th className="py-4 px-6">Last Edited</th>
+                          <th className="py-4 px-6 text-right">Diagrams</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {drafts.map((d) => (
+                          <DraftListRow key={d.id} draft={d} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
             ) : (
               <>
                 {/* My Workspaces */}
@@ -752,6 +865,66 @@ const TemplateListRow = ({ template, index = 0 }: { template: TemplateMeta; inde
       <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">
         {template.kind === 'sample' ? `${template.nodeCount}` : '—'}
       </td>
+    </motion.tr>
+  )
+}
+
+const DraftCard = ({ draft }: { draft: Workspace }) => {
+  const navigate = useNavigate()
+  const sheetId = draft.sheets[0]?.id
+  return (
+    <motion.div
+      whileHover={{ y: -4 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      onClick={() => navigate(`/canvas?projectId=${draft.id}&sheetId=${sheetId}`)}
+      className="bg-white border border-admin-outline rounded flex flex-col group transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px]"
+    >
+      <div className="h-36 bg-gradient-to-br from-amber-50 to-orange-50 border-b border-admin-outline relative overflow-hidden">
+        <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
+        <div className="absolute top-3 right-3 flex gap-1.5">
+          <span className="px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border bg-amber-100 text-amber-700 border-amber-200">
+            Draft
+          </span>
+        </div>
+      </div>
+      <div className="p-5 flex-1 flex flex-col justify-between">
+        <div>
+          <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{draft.name}</h3>
+          <p className="text-[11px] text-admin-secondary font-bold uppercase tracking-widest">{draft.sheets.length} diagram</p>
+        </div>
+        <div className="flex items-center gap-2 text-[10px] text-gray-400">
+          <Clock size={12} />
+          {formatRelativeTime(draft.updatedAt)}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+const DraftListRow = ({ draft }: { draft: Workspace }) => {
+  const navigate = useNavigate()
+  const sheetId = draft.sheets[0]?.id
+  return (
+    <motion.tr
+      initial={{ opacity: 0, x: -8 }}
+      onClick={() => navigate(`/canvas?projectId=${draft.id}&sheetId=${sheetId}`)}
+      className="border-b border-admin-outline hover:bg-gray-50/50 transition-colors group cursor-pointer"
+    >
+      <td className="py-4 px-6">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded flex items-center justify-center shrink-0 bg-amber-100 text-amber-700">
+            <PenTool size={18} />
+          </div>
+          <span className="font-bold text-black group-hover:text-uml-blue transition-colors">{draft.name}</span>
+        </div>
+      </td>
+      <td className="py-4 px-6">
+        <span className="px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest border bg-amber-100 text-amber-700 border-amber-200">
+          Draft
+        </span>
+      </td>
+      <td className="py-4 px-6 text-admin-on-surface-variant font-bold text-[12px] uppercase">{formatRelativeTime(draft.updatedAt)}</td>
+      <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">{draft.sheets.length}</td>
     </motion.tr>
   )
 }
