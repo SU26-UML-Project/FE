@@ -1,9 +1,9 @@
 import { getSmoothStepPath, type EdgeProps } from '@xyflow/react'
 
 export function RealizationEdge(props: EdgeProps) {
-  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style = {} } = props
+  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style = {} } = props
   const [path] = getSmoothStepPath({
-    sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 8,
+    sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 0,
   })
 
   return (
@@ -11,11 +11,12 @@ export function RealizationEdge(props: EdgeProps) {
       id={props.id}
       className="react-flow__edge-path"
       d={path}
-      stroke="#333"
-      strokeWidth={2.5}
+      stroke={style.stroke || '#000'}
+      color={style.stroke || '#000'}
+      strokeWidth={1.5}
       fill="none"
-      strokeDasharray="6 4"
-      markerEnd={markerEnd}
+      strokeDasharray="5 5"
+      markerEnd="url(#realization)"
       style={{ ...style, pointerEvents: 'all' }}
     />
   )

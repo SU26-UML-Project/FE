@@ -246,28 +246,33 @@ export default function WorkspacePage() {
           )}
         </div>
       )}
-      <WorkspaceLayout
-        sheets={workspace.sheets}
-        activeSheetId={store.activeSheetId}
-        documents={workspace.documents}
-        chatHistory={workspace.aiContext.history}
-        clarification={workspace.aiContext.clarifications[clarificationRound] ?? null}
-        clarificationRound={clarificationRound}
-        aiIntent={workspace.aiContext.intent}
-        aiClarifications={workspace.aiContext.clarifications}
-        aiEnabled={aiEnabled}
-        isProcessing={isProcessing}
-        onSheetSelect={handleSheetSelect}
-        onSheetAdd={handleSheetAdd}
-        onSheetDelete={handleSheetDelete}
-        onSheetRename={handleSheetRename}
-        onXmlChange={handleXmlChange}
-        onSendMessage={handleSendMessage}
-        onStopGeneration={handleStopGeneration}
-        onClarificationAnswer={handleClarificationAnswer}
-        onAddDocuments={handleAddDocuments}
-        onRemoveDocument={handleRemoveDocument}
-      />
+      <div className="flex-1 overflow-hidden">
+        <WorkspaceLayout
+          sheets={workspace.sheets}
+          activeSheetId={store.activeSheetId}
+          documents={workspace.documents}
+          chatHistory={workspace.aiContext.history}
+          clarification={workspace.aiContext.clarifications[clarificationRound] ?? null}
+          clarificationRound={clarificationRound}
+          aiIntent={workspace.aiContext.intent}
+          aiClarifications={workspace.aiContext.clarifications}
+          aiEnabled={aiEnabled}
+          isProcessing={isProcessing}
+          onSheetSelect={handleSheetSelect}
+          onSheetAdd={handleSheetAdd}
+          onSheetDelete={handleSheetDelete}
+          onSheetRename={handleSheetRename}
+          onXmlChange={handleXmlChange}
+          onSendMessage={handleSendMessage}
+          onStopGeneration={handleStopGeneration}
+          onClarificationAnswer={handleClarificationAnswer}
+          onAddDocuments={handleAddDocuments}
+          onRemoveDocument={handleRemoveDocument}
+        />
+      </div>
+      <footer className="h-6 bg-gradient-to-r from-uml-blue/5 to-blue-700/5 border-t border-blue-200/20 flex items-center justify-center shrink-0 select-none">
+        <span className="text-[10px] text-gray-400 font-medium tracking-wide">DiaUML Studio | Canvas</span>
+      </footer>
     </div>
   )
 }

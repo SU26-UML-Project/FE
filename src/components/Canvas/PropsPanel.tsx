@@ -51,7 +51,9 @@ export function PropsPanel() {
     s.edges.find(e => e.id === s.selectedEdgeId)
   )
   const setNodeData = useCanvasStore(s => s.setNodeData)
+  const flipEdge = useCanvasStore(s => s.flipEdge)
   const setEdgeType = useCanvasStore(s => s.setEdgeType)
+  const setEdgeStyle = useCanvasStore(s => s.setEdgeStyle)
 
   if (selectedEdge) {
     const currentType = selectedEdge.type?.replace('Edge', '') as EdgeType
@@ -71,6 +73,16 @@ export function PropsPanel() {
             <div className="props-edge-endpoint">{selectedEdge.target?.slice(0, 8)}</div>
           </div>
           <div className="props-field">
+            <label>Direction</label>
+            <button className="flip-btn" onClick={() => flipEdge(selectedEdge.id)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 16l-4-4 4-4" />
+                <path d="M3 12h18" />
+              </svg>
+              Reverse
+            </button>
+          </div>
+          <div className="props-field">
             <label>Type</label>
             <div className="edge-type-list">
               {EDGE_WITH_PREVIEW.map(({ type, label, preview }) => (
@@ -83,6 +95,19 @@ export function PropsPanel() {
                   {preview}
                   <span className="edge-type-label">{label}</span>
                 </button>
+              ))}
+            </div>
+          </div>
+          <div className="props-field">
+            <label>Color</label>
+            <div className="props-color-row">
+              {['#000', '#e00', '#0a0', '#00c', '#c80', '#a0a'].map(c => (
+                <button
+                  key={c}
+                  onClick={() => setEdgeStyle(selectedEdge.id, { stroke: c === '#000' ? '#000' : c })}
+                  className={`props-color-swatch ${(selectedEdge.style?.stroke || '#000') === c ? 'active' : ''}`}
+                  style={{ background: c, border: `2px solid ${c === '#fff' ? '#ccc' : c}` }}
+                />
               ))}
             </div>
           </div>
@@ -174,4 +199,14 @@ const EDGE_PROPS_CSS = `
   .edge-type-btn:hover { background: #e9ecef; border-color: #bbb; }
   .edge-type-btn.active { background: #dbeafe; border-color: #3b82f6; }
   .edge-type-label { font-size: 8px; color: #555; line-height: 1; }
+  .flip-btn {
+    display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px;
+    border: 1px solid #d0d0d0; border-radius: 3px; background: #fff;
+    cursor: pointer; font-size: 11px; color: #555; font-family: inherit;
+    transition: all 0.1s;
+  }
+  .flip-btn:hover { background: #e9ecef; border-color: #bbb; }
+  .props-color-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .props-color-swatch { width: 24px; height: 24px; border-radius: 4px; cursor: pointer; }
+  .props-color-swatch.active { outline: 2px solid #3b82f6; outline-offset: 2px; }
 `

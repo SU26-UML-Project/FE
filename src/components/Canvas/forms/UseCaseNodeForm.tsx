@@ -19,6 +19,19 @@ export function UseCaseNodeForm({ node, setNodeData }: FormProps) {
         <label>Label</label>
         <input value={data.label} onChange={e => onChange('label', e.target.value)} />
       </div>
+      <div className="props-field">
+        <label>Color</label>
+        <div className="props-color-row">
+          {['#fff', '#ffe0e0', '#e0ffe0', '#e0e0ff', '#fff8dc', '#e0ffff'].map(c => (
+            <button
+              key={c}
+              onClick={() => onChange('color', c === '#fff' ? undefined : c)}
+              className={`props-color-swatch ${(data.color || '#fff') === c ? 'active' : ''}`}
+              style={{ background: c, border: `2px solid ${c === '#fff' ? '#ccc' : c}` }}
+            />
+          ))}
+        </div>
+      </div>
       <style>{`
         .props-form { padding: 12px; display: flex; flex-direction: column; gap: 12px; font-size: 12px; }
         .props-field { display: flex; flex-direction: column; gap: 4px; }
@@ -28,6 +41,9 @@ export function UseCaseNodeForm({ node, setNodeData }: FormProps) {
           font-size: 12px; font-family: inherit; outline: none;
         }
         .props-field input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+        .props-color-row { display: flex; gap: 6px; flex-wrap: wrap; }
+        .props-color-swatch { width: 24px; height: 24px; border-radius: 4px; cursor: pointer; }
+        .props-color-swatch.active { outline: 2px solid #3b82f6; outline-offset: 2px; }
       `}</style>
     </div>
   )

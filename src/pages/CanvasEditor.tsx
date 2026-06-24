@@ -48,6 +48,8 @@ const CanvasEditor = () => {
   return (
     <div className="h-screen flex flex-col bg-white">
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-200 bg-gray-50 shrink-0">
+        <span className="text-xs font-bold text-gray-500 tracking-wider select-none mr-1">DiaUML Studio</span>
+        <span className="w-px h-4 bg-gray-300" />
         <button
           onClick={() => navigate('/dashboard')}
           className="p-1.5 hover:bg-gray-200 rounded transition-colors"
@@ -97,7 +99,7 @@ const CanvasEditor = () => {
       </div>
       <div className="h-6 border-t border-gray-200 bg-gray-50/50 flex items-center justify-center shrink-0">
         <span className="text-[10px] text-gray-400 tracking-wider select-none">
-          Dia-Canvas — React Flow
+          DiaUML Studio | Canvas
         </span>
       </div>
       <MermaidImportDialog open={importOpen} onClose={() => setImportOpen(false)} />

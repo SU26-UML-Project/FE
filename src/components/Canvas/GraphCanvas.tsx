@@ -5,6 +5,7 @@ import {
   Controls,
   MiniMap,
   useReactFlow,
+  ConnectionMode,
   type Node,
   type Edge,
   type OnNodesChange,
@@ -17,6 +18,7 @@ import '@xyflow/react/dist/style.css'
 import { useCanvasStore } from '../../stores/canvasStore'
 import { nodeTypes } from './nodes/registry'
 import { edgeTypes } from './edges/index'
+import { MarkerDefs } from './MarkerDefs'
 
 
 function GraphCanvasInner() {
@@ -29,6 +31,7 @@ function GraphCanvasInner() {
   const onConnect = useCanvasStore((s) => s.onConnect)
   const selectNode = useCanvasStore((s) => s.selectNode)
   const selectEdge = useCanvasStore((s) => s.selectEdge)
+  const setEditingNodeId = useCanvasStore((s) => s.setEditingNodeId)
   const addNode = useCanvasStore((s) => s.addNode)
 
   const stableNodeTypes = useMemo(() => nodeTypes, [])
@@ -41,6 +44,13 @@ function GraphCanvasInner() {
     [selectNode],
   )
 
+  const onNodeDoubleClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      setEditingNodeId(node.id)
+    },
+    [setEditingNodeId],
+  )
+
   const onEdgeClick = useCallback(
     (_: React.MouseEvent, edge: Edge) => {
       selectEdge(edge.id)
@@ -51,7 +61,8 @@ function GraphCanvasInner() {
   const onPaneClick = useCallback(() => {
     selectNode(null)
     selectEdge(null)
-  }, [selectNode, selectEdge])
+    setEditingNodeId(null)
+  }, [selectNode, selectEdge, setEditingNodeId])
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault()
@@ -78,6 +89,7 @@ function GraphCanvasInner() {
         onEdgesChange={onEdgesChange as OnEdgesChange}
         onConnect={onConnect as OnConnect}
         onNodeClick={onNodeClick}
+        onNodeDoubleClick={onNodeDoubleClick}
         onEdgeClick={onEdgeClick}
         onPaneClick={onPaneClick}
         onDragOver={onDragOver}
@@ -85,14 +97,17 @@ function GraphCanvasInner() {
         nodeTypes={stableNodeTypes}
         edgeTypes={stableEdgeTypes}
         defaultEdgeOptions={{ type: 'associationEdge' }}
+        connectionMode={ConnectionMode.Loose}
         connectionRadius={20}
         connectionLineStyle={{ stroke: '#3b82f6', strokeWidth: 2.5 }}
         snapToGrid
         snapGrid={[15, 15]}
         fitView
         deleteKeyCode="Delete"
+        proOptions={{ hideAttribution: true }}
         className="react-flow-canvas"
       >
+        <MarkerDefs />
         <Background color="#f0f0f0" gap={20} />
         <Controls />
         <MiniMap

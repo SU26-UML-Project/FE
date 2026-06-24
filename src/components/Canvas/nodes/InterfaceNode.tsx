@@ -1,21 +1,51 @@
+import { useCallback, useEffect, useRef } from 'react'
 import { type Node, type NodeProps } from '@xyflow/react'
+import { useCanvasStore } from '../../../stores/canvasStore'
 import { BaseNode } from './BaseNode'
 
 export interface InterfaceNodeData {
   type: 'interfaceNode'
   label: string
   methods?: string[]
+  color?: string
   [key: string]: unknown
 }
 
 type InterfaceNodeType = Node<InterfaceNodeData, 'interfaceNode'>
 
-export function InterfaceNode({ data }: NodeProps<InterfaceNodeType>) {
+export function InterfaceNode({ id, data }: NodeProps<InterfaceNodeType>) {
+  const editingNodeId = useCanvasStore((s) => s.editingNodeId)
+  const setEditingNodeId = useCanvasStore((s) => s.setEditingNodeId)
+  const setNodeData = useCanvasStore((s) => s.setNodeData)
+  const isEditing = editingNodeId === id
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isEditing) inputRef.current?.focus()
+  }, [isEditing])
+
+  const finishEdit = useCallback(() => setEditingNodeId(null), [setEditingNodeId])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === 'Escape') finishEdit()
+  }, [finishEdit])
+
   return (
     <BaseNode className="interface-node">
       <div className="interface-node-header">
         <div className="interface-node-stereotype">«interface»</div>
-        <div className="interface-node-title">{data.label}</div>
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            className="interface-node-edit"
+            value={data.label}
+            onChange={e => setNodeData(id, { label: e.target.value })}
+            onKeyDown={handleKeyDown}
+            onBlur={finishEdit}
+          />
+        ) : (
+          <div className="interface-node-title">{data.label}</div>
+        )}
       </div>
       {data.methods && data.methods.length > 0 && (
         <div className="interface-node-section">
@@ -26,7 +56,7 @@ export function InterfaceNode({ data }: NodeProps<InterfaceNodeType>) {
       )}
       <style>{`
         .interface-node {
-          background: #fff;
+          background: ${data.color || '#fff'};
           border: 2px solid #000;
           border-radius: 2px;
           min-width: 180px;
@@ -47,6 +77,18 @@ export function InterfaceNode({ data }: NodeProps<InterfaceNodeType>) {
         .interface-node-title {
           font-weight: bold;
           font-size: 13px;
+        }
+        .interface-node-edit {
+          font-weight: bold;
+          font-size: 13px;
+          text-align: center;
+          border: 1px solid #3b82f6;
+          border-radius: 2px;
+          padding: 2px 4px;
+          outline: none;
+          width: 100%;
+          box-sizing: border-box;
+          font-family: inherit;
         }
         .interface-node-section {
           padding: 4px 10px;

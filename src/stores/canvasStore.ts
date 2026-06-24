@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { temporal } from 'zundo'
 import { immer } from 'zustand/middleware/immer'
 import { nanoid } from 'nanoid'
-import { type Node, type Edge, MarkerType, applyNodeChanges, applyEdgeChanges } from '@xyflow/react'
+import { type Node, type Edge, applyNodeChanges, applyEdgeChanges } from '@xyflow/react'
 
 export type EdgeType = 'association' | 'inheritance' | 'realization' | 'composition' | 'aggregation' | 'dependency' | 'include' | 'extend'
 
@@ -11,6 +11,7 @@ export interface CanvasState {
   edges: Edge[]
   selectedNodeId: string | null
   selectedEdgeId: string | null
+  editingNodeId: string | null
   diagramName: string
   diagramType: string
   saveStatus: 'idle' | 'saving' | 'saved' | 'error'
@@ -22,6 +23,9 @@ export interface CanvasState {
   selectNode: (id: string | null) => void
   selectEdge: (id: string | null) => void
   setEdgeType: (id: string, type: EdgeType) => void
+  setEdgeStyle: (id: string, style: Record<string, string>) => void
+  flipEdge: (id: string) => void
+  setEditingNodeId: (id: string | null) => void
   setNodeData: (id: string, patch: Partial<any>) => void
   setDiagramName: (name: string) => void
   setDiagramType: (type: string) => void
@@ -51,6 +55,7 @@ export const useCanvasStore = create<CanvasState>()(
       edges: [],
       selectedNodeId: null,
       selectedEdgeId: null,
+      editingNodeId: null,
       diagramName: 'Untitled Diagram',
       diagramType: 'custom',
       saveStatus: 'idle',
@@ -64,18 +69,14 @@ export const useCanvasStore = create<CanvasState>()(
 
       onConnect: (connection) =>
         set((state) => {
-          const id = nanoid(6)
-          const newEdge: any = {
-            id,
+          state.edges.push({
+            id: nanoid(6),
             ...connection,
             sourceHandle: connection.sourceHandle ?? null,
             targetHandle: connection.targetHandle ?? null,
             type: 'associationEdge',
             style: {},
-            markerEnd: { type: MarkerType.ArrowClosed, color: '#333' },
-            markerStart: undefined,
-          }
-          state.edges.push(newEdge as unknown as Edge)
+          } as unknown as Edge)
         }),
 
       addNode: (type, position) => {
@@ -93,22 +94,34 @@ export const useCanvasStore = create<CanvasState>()(
           const e = state.edges.find((e) => e.id === id)
           if (e) {
             e.type = `${type}Edge`
-            e.markerStart = undefined
-            e.markerEnd = { type: MarkerType.ArrowClosed, color: '#333' }
             e.style = {}
             switch (type) {
-              case 'realization':
-                e.markerEnd = { type: MarkerType.Arrow, color: '#333' }
-                e.style = { strokeDasharray: '6 4' }; break
-              case 'dependency': case 'include': case 'extend':
-                e.style = { strokeDasharray: '6 4' }; break
-              case 'composition':
-                e.markerStart = { type: MarkerType.ArrowClosed, color: '#333' }; break
-              case 'aggregation':
-                e.markerStart = { type: MarkerType.Arrow, color: '#333' }; break
+              case 'realization': case 'dependency': case 'include': case 'extend':
+                e.style = { strokeDasharray: '5 5' }; break
             }
           }
         }),
+
+      setEdgeStyle: (id, style) =>
+        set((state) => {
+          const e = state.edges.find((e) => e.id === id)
+          if (e) { e.style = { ...(e.style || {}), ...style } }
+        }),
+
+      flipEdge: (id) =>
+        set((state) => {
+          const e = state.edges.find((e) => e.id === id)
+          if (e) {
+            const tmpSource = e.source
+            const tmpSourceHandle = e.sourceHandle
+            e.source = e.target
+            e.sourceHandle = e.targetHandle
+            e.target = tmpSource
+            e.targetHandle = tmpSourceHandle
+          }
+        }),
+
+      setEditingNodeId: (id) => set((state) => { state.editingNodeId = id }),
 
       setNodeData: (id, patch) =>
         set((state) => {
@@ -123,7 +136,7 @@ export const useCanvasStore = create<CanvasState>()(
         set((state) => { state.nodes = nodes; state.edges = edges; state.diagramName = name; state.diagramType = type }),
 
       clearCanvas: () =>
-        set((state) => { state.nodes = []; state.edges = []; state.selectedNodeId = null; state.selectedEdgeId = null; state.diagramType = 'custom' }),
+        set((state) => { state.nodes = []; state.edges = []; state.selectedNodeId = null; state.selectedEdgeId = null; state.editingNodeId = null; state.diagramType = 'custom' }),
     })),
     {
       partialize: (state) => ({ nodes: state.nodes, edges: state.edges, diagramType: state.diagramType }),
