@@ -172,7 +172,7 @@ const AdminDashboard: React.FC = () => {
       </nav>
 
       {/* ── Main ── */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative z-0">
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
         <main className="flex-1 overflow-y-auto p-8 lg:p-12 relative">
           <div className="max-w-[1200px] mx-auto">
             {(() => {
