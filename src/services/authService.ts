@@ -33,12 +33,12 @@ export const authService = {
 
   //ADMIN: Tạo tài khoản Admin mới
   registerAdmin: async (data: RegisterRequest): Promise<ApiResponse<User>> => {
-    return apiClient.post<any, ApiResponse<User>>('/admin/register', data);
+    return apiClient.post<any, ApiResponse<User>>('/users/admin/register', data);
   },
 
   //ADMIN: Khóa hoặc mở khóa tài khoản user
   toggleUserStatus: async (userId: string): Promise<ApiResponse<void>> => {
-    return apiClient.delete<any, ApiResponse<void>>(`/admin/${userId}`);
+    return apiClient.delete<any, ApiResponse<void>>(`/users/admin/${userId}`);
   },
 
 
