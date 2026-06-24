@@ -101,7 +101,7 @@ const UserDashboard: React.FC = () => {
   const fetchWorkspaces = async () => {
     setWorkspacesLoading(true);
     try {
-      const response = await projectService.getAllProjects();
+      const response = await projectService.getAllProjects({ isDraft: false });
       // Map API ProjectResponse to Frontend Workspace type
       const mapped = (response.result || []).map((p: ProjectResponse) => {
         // Count sheets from projectData
@@ -169,7 +169,8 @@ const UserDashboard: React.FC = () => {
       const withSheets = mapped.map((d, i) => {
         const sheetsRes = sheetResults[i]
         if (sheetsRes.status === 'fulfilled' && sheetsRes.value.result?.length > 0) {
-          const s: any = sheetsRes.value.result[0]
+          const all = sheetsRes.value.result
+          const s: any = all.find((x: any) => x.diagramData && x.diagramData !== '{"nodes":[],"edges":[]}') || all[0]
           d.sheets = [{
             id: s.id,
             name: s.name,
@@ -379,6 +380,11 @@ const UserDashboard: React.FC = () => {
                           : 'Pre-built diagram templates tied to real-world projects. Use as a starting point.'}
                       </p>
                     </>
+                  ) : activeTab === 'all' ? (
+                    <>
+                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">All Projects</h1>
+                      <p className="text-lg text-admin-on-surface-variant">Create and manage your architectural design workspaces.</p>
+                    </>
                   ) : activeTab === 'drafts' ? (
                     <>
                       <h1 className="text-4xl font-black tracking-tight text-black mb-2">Drafts</h1>
@@ -386,10 +392,20 @@ const UserDashboard: React.FC = () => {
                         Quick diagrams saved as standalone drafts. Open and continue editing anytime.
                       </p>
                     </>
+                  ) : activeTab === 'archived' ? (
+                    <>
+                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Archived</h1>
+                      <p className="text-lg text-admin-on-surface-variant">View your archived projects.</p>
+                    </>
+                  ) : activeTab === 'trash' ? (
+                    <>
+                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Trash</h1>
+                      <p className="text-lg text-admin-on-surface-variant">Deleted projects can be recovered here.</p>
+                    </>
                   ) : (
                     <>
-                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">My Workspaces</h1>
-                      <p className="text-lg text-admin-on-surface-variant">Create and manage your architectural design workspaces.</p>
+                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Shared with Me</h1>
+                      <p className="text-lg text-admin-on-surface-variant">Projects shared with you by other users.</p>
                     </>
                   )}
                 </div>
@@ -876,7 +892,7 @@ const DraftCard = ({ draft }: { draft: Workspace }) => {
     <motion.div
       whileHover={{ y: -4 }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      onClick={() => navigate(`/canvas?projectId=${draft.id}&sheetId=${sheetId}`)}
+      onClick={() => navigate(`/canvas?projectId=${draft.id}&sheetId=${sheetId}&draft=true`)}
       className="bg-white border border-admin-outline rounded flex flex-col group transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px]"
     >
       <div className="h-36 bg-gradient-to-br from-amber-50 to-orange-50 border-b border-admin-outline relative overflow-hidden">
@@ -907,7 +923,7 @@ const DraftListRow = ({ draft }: { draft: Workspace }) => {
   return (
     <motion.tr
       initial={{ opacity: 0, x: -8 }}
-      onClick={() => navigate(`/canvas?projectId=${draft.id}&sheetId=${sheetId}`)}
+      onClick={() => navigate(`/canvas?projectId=${draft.id}&sheetId=${sheetId}&draft=true`)}
       className="border-b border-admin-outline hover:bg-gray-50/50 transition-colors group cursor-pointer"
     >
       <td className="py-4 px-6">

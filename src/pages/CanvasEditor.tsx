@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Save } from 'lucide-react'
+import { Save, ArrowUpFromLine } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { GraphCanvas } from '../components/Canvas/GraphCanvas'
 import { MermaidImportDialog } from '../components/Canvas/MermaidImportDialog'
@@ -15,10 +15,11 @@ import toast from 'react-hot-toast'
 
 const CanvasEditor = () => {
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const [importOpen, setImportOpen] = useState(false)
   const [showProps, setShowProps] = useState(true)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [showWsDialog, setShowWsDialog] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [wsName, setWsName] = useState('')
   const diagramName = useCanvasStore((s) => s.diagramName)
@@ -44,7 +45,7 @@ const CanvasEditor = () => {
 
         const sheetRes = await sheetService.getSheetsByProject(projectId)
         const sheets = sheetRes.result || []
-        const sheet = sheets.find(s => s.id === sheetId) || sheets[0]
+        const sheet = sheets.find((s: any) => s.id === sheetId) || sheets[0]
         if (sheet) {
           const raw: any = sheet
           let canvasData = raw.canvasData || null
@@ -90,19 +91,23 @@ const CanvasEditor = () => {
     }
   }, []) // Only on mount
 
+  const getDiagramDataStr = () => {
+    const canvasState = useCanvasStore.getState()
+    return JSON.stringify({
+      nodes: canvasState.nodes,
+      edges: canvasState.edges,
+    })
+  }
+
   const handleSave = useCallback(async () => {
     setIsSaving(true)
     try {
-      const canvasState = useCanvasStore.getState()
-      const diagramDataStr = JSON.stringify({
-        nodes: canvasState.nodes,
-        edges: canvasState.edges,
-      })
+      const diagramDataStr = getDiagramDataStr()
 
       if (projectId && sheetId) {
         const res = await sheetService.updateSheet(sheetId, { diagramData: diagramDataStr })
         if (res.code === 200) {
-          toast.success('Saved')
+          toast.success(isDraft ? 'Draft saved' : 'Saved')
         }
       } else {
         setShowSaveDialog(true)
@@ -113,16 +118,12 @@ const CanvasEditor = () => {
     } finally {
       setIsSaving(false)
     }
-  }, [projectId, sheetId])
+  }, [projectId, sheetId, isDraft])
 
   const handleSaveAsDraft = async () => {
     setIsSaving(true)
     try {
-      const canvasState = useCanvasStore.getState()
-      const diagramDataStr = JSON.stringify({
-        nodes: canvasState.nodes,
-        edges: canvasState.edges,
-      })
+      const diagramDataStr = getDiagramDataStr()
 
       const projRes = await projectService.createProject({
         projectName: wsName.trim() || diagramName || 'Untitled Draft',
@@ -132,19 +133,16 @@ const CanvasEditor = () => {
 
       if (projRes.code === 200 && projRes.result) {
         const newProjectId = projRes.result.id
-        const sheetRes = await sheetService.createSheet({
-          projectId: newProjectId,
-          name: diagramName || 'Diagram',
-          diagramData: diagramDataStr,
-        })
+        const defaultSheet = (projRes.result as any).sheets?.[0]
 
-        if (sheetRes.code === 200 && sheetRes.result) {
-          const newSheetId = sheetRes.result.id
-          const params = new URLSearchParams(searchParams.toString())
-          params.set('projectId', newProjectId)
-          params.set('sheetId', newSheetId)
-          params.set('draft', 'true')
-          navigate(`/canvas?${params.toString()}`, { replace: true })
+        if (defaultSheet) {
+          await sheetService.updateSheet(defaultSheet.id, {
+            name: diagramName || 'Diagram',
+            diagramData: diagramDataStr,
+          })
+
+          clearCanvas()
+          setDiagramName('Untitled Diagram')
           toast.success('Draft saved')
         }
       }
@@ -159,11 +157,7 @@ const CanvasEditor = () => {
   const handleCreateWorkspace = async () => {
     setIsSaving(true)
     try {
-      const canvasState = useCanvasStore.getState()
-      const diagramDataStr = JSON.stringify({
-        nodes: canvasState.nodes,
-        edges: canvasState.edges,
-      })
+      const diagramDataStr = getDiagramDataStr()
 
       const projRes = await projectService.createProject({
         projectName: wsName.trim() || diagramName || 'Untitled Workspace',
@@ -172,22 +166,51 @@ const CanvasEditor = () => {
 
       if (projRes.code === 200 && projRes.result) {
         const newProjectId = projRes.result.id
-        const sheetRes = await sheetService.createSheet({
-          projectId: newProjectId,
-          name: diagramName || 'Diagram',
-          diagramData: diagramDataStr,
-        })
+        const defaultSheet = (projRes.result as any).sheets?.[0]
 
-        if (sheetRes.code === 200 && sheetRes.result) {
-          navigate(`/workspace/${newProjectId}`)
-          toast.success('Workspace created')
+        if (defaultSheet) {
+          await sheetService.updateSheet(defaultSheet.id, {
+            name: diagramName || 'Diagram',
+            diagramData: diagramDataStr,
+          })
         }
+
+        navigate(`/workspace/${newProjectId}`)
+        toast.success('Workspace created')
       }
     } catch (e: any) {
       toast.error(e.message || 'Failed to create workspace')
     } finally {
       setIsSaving(false)
       setShowSaveDialog(false)
+    }
+  }
+
+  const handleSaveAsWorkspace = async () => {
+    if (!projectId || !sheetId) return
+    setIsSaving(true)
+    try {
+      const diagramDataStr = getDiagramDataStr()
+
+      await sheetService.updateSheet(sheetId, { diagramData: diagramDataStr })
+
+      const res = await projectService.updateProject(projectId, {
+        projectName: wsName.trim() || diagramName || 'Untitled Workspace',
+        description: 'general',
+        isDraft: false,
+      })
+
+      if (res.code === 200) {
+        navigate(`/workspace/${projectId}`)
+        toast.success('Workspace created')
+      } else {
+        toast.error('Failed to update project: unexpected response')
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save as workspace')
+    } finally {
+      setIsSaving(false)
+      setShowWsDialog(false)
     }
   }
 
@@ -239,6 +262,16 @@ const CanvasEditor = () => {
           <Save size={12} />
           Save
         </button>
+        {projectId && isDraft && (
+          <button
+            onClick={() => setShowWsDialog(true)}
+            disabled={isSaving}
+            className="text-xs px-2.5 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors flex items-center gap-1 font-medium disabled:opacity-50"
+          >
+            <ArrowUpFromLine size={12} />
+            Save as Workspace
+          </button>
+        )}
         <button
           onClick={() => setShowProps(p => !p)}
           className={`text-xs px-2 py-1 rounded transition-colors ${showProps ? 'bg-gray-200 text-gray-700' : 'text-gray-500 hover:text-gray-700'}`}
@@ -282,7 +315,7 @@ const CanvasEditor = () => {
               value={wsName}
               onChange={e => setWsName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleSaveAsDraft() }}
-              placeholder="Diagram name"
+              placeholder="Workspace name"
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-uml-blue focus:ring-1 focus:ring-uml-blue/20 mb-6"
               autoFocus
             />
@@ -306,6 +339,43 @@ const CanvasEditor = () => {
                 className="px-4 py-2 text-sm font-bold text-white bg-uml-blue rounded-md hover:bg-blue-700 transition disabled:opacity-50"
               >
                 Create Workspace
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {showWsDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowWsDialog(false)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={e => e.stopPropagation()}
+            className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4"
+          >
+            <h2 className="text-base font-semibold text-black mb-2">Save to Workspace?</h2>
+            <p className="text-sm text-gray-500 mb-4">This diagram is currently a draft. Create a workspace to save permanently?</p>
+            <input
+              value={wsName}
+              onChange={e => setWsName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSaveAsWorkspace() }}
+              placeholder="Workspace name"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-uml-blue focus:ring-1 focus:ring-uml-blue/20 mb-6"
+              autoFocus
+            />
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setShowWsDialog(false)}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 rounded-md hover:bg-gray-100 transition font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveAsWorkspace}
+                disabled={isSaving}
+                className="px-4 py-2 text-sm font-bold text-white bg-uml-blue rounded-md hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                Save as Workspace
               </button>
             </div>
           </motion.div>
