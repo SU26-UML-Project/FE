@@ -5,6 +5,7 @@ import {
   ChevronRight, Loader2, X, Search, Bell, HelpCircle, TrendingUp,
   TrendingDown, Minus, CheckCircle2, MoreVertical, Mail, Phone,
   Calendar, AlertCircle, Lock, Unlock, Trash2, Home,
+  ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -244,17 +245,20 @@ const AnalyticsTab: React.FC = () => {
       setLoading(true);
       try {
         const [usersRes, projectsRes] = await Promise.all([
-          authService.getAllUsers(),
+          authService.getAllUsers({ page: 0, size: 1 }),
           projectService.getAllProjectsForAdmin(),
         ]);
 
-        const allUsers = usersRes.result || [];
         const allProjects = projectsRes.result || [];
+        const totalUsers = usersRes.result.totalElements ?? 0;
+        const activeSubscribers = usersRes.result.content.filter(
+          (u: AdminUserListItem) => u.status === 'ACTIVE'
+        ).length;
 
         setStats({
           totalProjects: allProjects.length,
-          totalUsers: allUsers.length,
-          activeSubscribers: allUsers.filter((u: AdminUserListItem) => u.status === 'ACTIVE').length,
+          totalUsers,
+          activeSubscribers,
           storageUsed: Math.round(allProjects.length * 0.15 * 10) / 10,
         });
 
@@ -360,18 +364,42 @@ const UserManagementTab: React.FC = () => {
     fullName: '', email: '', password: '', phone: '',
   });
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [roleFilter, setRoleFilter] = React.useState<'all' | 'ADMIN' | 'USER'>('all');
+  const [page, setPage] = React.useState(0);
+  const [totalPages, setTotalPages] = React.useState(0);
+  const [totalElements, setTotalElements] = React.useState(0);
+  const PAGE_SIZE = 20;
+  const [sort, setSort] = React.useState<{ field: string; dir: 'asc' | 'desc' }>({
+    field: 'createdAt',
+    dir: 'desc',
+  });
+
+  const handleSort = (field: string) => {
+    setSort((prev) =>
+      prev.field === field
+        ? { field, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { field, dir: 'asc' }
+    );
+    setPage(0);
+  };
 
   React.useEffect(() => {
     let mounted = true;
     setLoading(true);
     setError(null);
     authService
-      .getAllUsers()
-      .then((res) => { if (mounted) setUsers(res.result); })
+      .getAllUsers({ page, size: PAGE_SIZE, sort: `${sort.field},${sort.dir}` })
+      .then((res) => {
+        if (mounted) {
+          setUsers(res.result.content);
+          setTotalPages(res.result.totalPages);
+          setTotalElements(res.result.totalElements);
+        }
+      })
       .catch((e: any) => { if (mounted) setError(e?.message || 'Failed to load users'); })
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
-  }, []);
+  }, [page, sort]);
 
   const handleViewDetail = async (userId: string) => {
     setSelectedUser(null);
@@ -423,13 +451,20 @@ const UserManagementTab: React.FC = () => {
 
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
-    return (
+    const matchSearch =
       !q ||
       (u.fullName || '').toLowerCase().includes(q) ||
       u.email.toLowerCase().includes(q) ||
       getRoleName(u.role).toLowerCase().includes(q) ||
-      (u.status || '').toLowerCase().includes(q)
-    );
+      (u.status || '').toLowerCase().includes(q);
+
+    const roleName = getRoleName(u.role).toUpperCase();
+    const matchRole =
+      roleFilter === 'all' ||
+      (roleFilter === 'ADMIN' && roleName === 'ADMIN') ||
+      (roleFilter === 'USER' && roleName !== 'ADMIN');
+
+    return matchSearch && matchRole;
   });
 
   return (
@@ -459,6 +494,21 @@ const UserManagementTab: React.FC = () => {
                 {filtered.length}
               </span>
             )}
+            <div className="flex items-center ml-2 bg-gray-100 rounded p-0.5 border border-admin-outline">
+              {(['all', 'ADMIN', 'USER'] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRoleFilter(r)}
+                  className={`px-3 py-1 rounded text-[11px] font-black uppercase tracking-wider transition-all ${
+                    roleFilter === r
+                      ? 'bg-white text-uml-blue shadow-sm border border-admin-outline'
+                      : 'text-admin-secondary hover:text-black'
+                  }`}
+                >
+                  {r === 'all' ? 'All' : r === 'ADMIN' ? 'Admin' : 'User'}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex items-center bg-white rounded border border-admin-outline px-3 py-1.5 w-full md:w-[300px] focus-within:border-uml-blue transition-all">
             <Search size={16} className="text-gray-400 mr-2 shrink-0" />
@@ -506,9 +556,9 @@ const UserManagementTab: React.FC = () => {
                 <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
                   <th className="py-4 px-6">User</th>
                   <th className="py-4 px-6">Email</th>
-                  <th className="py-4 px-6">Role</th>
+                  <SortableTh label="Role" field="role.roleName" sort={sort} onSort={handleSort} />
                   <th className="py-4 px-6">Status</th>
-                  <th className="py-4 px-6">Last Login</th>
+                  <SortableTh label="Joined" field="createdAt" sort={sort} onSort={handleSort} />
                   <th className="py-4 px-6 text-right">Actions</th>
                 </tr>
               </thead>
@@ -521,7 +571,7 @@ const UserManagementTab: React.FC = () => {
                     email={user.email}
                     role={getRoleName(user.role)}
                     status={STATUS_LABEL[user.status || ''] || user.status || 'Active'}
-                    lastLogin="—"
+                    joinedAt={formatDate(user.createdAt)}
                     avatarUrl={user.avatarUrl}
                     onViewDetail={handleViewDetail}
                     onToggleStatus={handleToggleStatus}
@@ -531,6 +581,33 @@ const UserManagementTab: React.FC = () => {
             </table>
           )}
         </div>
+
+        {/* Pagination footer */}
+        {!loading && !error && totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-admin-outline flex items-center justify-between bg-gray-50/30">
+            <p className="text-[12px] text-admin-secondary font-bold">
+              Page <span className="text-black">{page + 1}</span> of{' '}
+              <span className="text-black">{totalPages}</span>
+              <span className="ml-2 text-gray-400">({totalElements} users)</span>
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-bold border border-admin-outline rounded hover:border-uml-blue hover:text-uml-blue transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={14} /> Prev
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+                className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-bold border border-admin-outline rounded hover:border-uml-blue hover:text-uml-blue transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add Admin Modal */}
@@ -717,8 +794,34 @@ const HealthBar = ({ label, value, valueLabel, color = 'blue' }: { label: string
   </div>
 );
 
-const UserRow = ({ id, name, email, role, status, lastLogin, avatarUrl, onViewDetail, onToggleStatus }: {
-  id: string; name: string; email: string; role: string; status: string; lastLogin: string; avatarUrl?: string;
+const SortableTh = ({
+  label, field, sort, onSort,
+}: {
+  label: string;
+  field: string;
+  sort: { field: string; dir: 'asc' | 'desc' };
+  onSort: (field: string) => void;
+}) => {
+  const isActive = sort.field === field;
+  const Icon = isActive ? (sort.dir === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
+  return (
+    <th
+      onClick={() => onSort(field)}
+      className="py-4 px-6 cursor-pointer select-none group"
+    >
+      <span className="flex items-center gap-1.5">
+        {label}
+        <Icon
+          size={13}
+          className={isActive ? 'text-uml-blue' : 'text-gray-300 group-hover:text-gray-500 transition-colors'}
+        />
+      </span>
+    </th>
+  );
+};
+
+const UserRow = ({ id, name, email, role, status, joinedAt, avatarUrl, onViewDetail, onToggleStatus }: {
+  id: string; name: string; email: string; role: string; status: string; joinedAt: string; avatarUrl?: string;
   onViewDetail: (id: string) => void; onToggleStatus: (id: string) => void;
 }) => {
   const [isToggling, setIsToggling] = React.useState(false);
@@ -747,7 +850,7 @@ const UserRow = ({ id, name, email, role, status, lastLogin, avatarUrl, onViewDe
       <td className="py-4 px-6">
         <span className={`inline-flex items-center px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest ${statusColors[status] || 'bg-gray-100 text-gray-500'}`}>{status}</span>
       </td>
-      <td className="py-4 px-6 text-admin-on-surface-variant">{lastLogin}</td>
+      <td className="py-4 px-6 text-admin-on-surface-variant">{joinedAt}</td>
       <td className="py-4 px-6 text-right">
         <div className="flex items-center justify-end gap-2">
           <button title={isLocked ? 'Unlock User' : 'Lock User'} onClick={handleToggle} disabled={isToggling} className={`p-1.5 rounded hover:bg-gray-100 transition-colors ${isLocked ? 'text-emerald-500' : 'text-admin-error'} ${isToggling ? 'opacity-50 cursor-not-allowed' : ''}`}>

@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import type { ApiResponse } from '../types/api';
+import type { ApiResponse, Page } from '../types/api';
 import type {
   LoginRequest,
   LoginResponse,
@@ -17,9 +17,13 @@ import type {
 } from '../types/auth';
 
 export const authService = {
-  //ADMIN: Danh sách tất cả users
-  getAllUsers: async (): Promise<ApiResponse<AdminUserListItem[]>> => {
-    return apiClient.get<any, ApiResponse<AdminUserListItem[]>>('/users');
+  //ADMIN: Danh sách tất cả users (phân trang + sort)
+  getAllUsers: async (params?: {
+    page?: number;
+    size?: number;
+    sort?: string;
+  }): Promise<ApiResponse<Page<AdminUserListItem>>> => {
+    return apiClient.get<any, ApiResponse<Page<AdminUserListItem>>>('/users', { params });
   },
 
   //ADMIN: Lấy chi tiết 1 user theo UUID
