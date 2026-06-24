@@ -303,11 +303,12 @@ export default function WorkspacePage() {
           answer: '',
           answeredAt: ''
         }))
-        
+
         const aiMsg: ChatMessage = {
           role: 'ai',
           content: answer,
           timestamp: new Date().toISOString(),
+          questions: questions || [],
         }
         
         const newHistory = [...updatedHistory, aiMsg]
@@ -372,32 +373,57 @@ export default function WorkspacePage() {
     fetchSessions()
   }, [fetchSessions])
 
+  const normalizeChatRole = (role: unknown): 'user' | 'ai' => {
+    const value = String(role ?? '').trim().toLowerCase()
+
+    if (value === 'user') return 'user'
+    if (value === 'assistant') return 'ai'
+    if (value === 'ai') return 'ai'
+
+    return 'ai'
+  }
+
+  const normalizeChatMessage = (msg: any): ChatMessage => {
+    return {
+      role: normalizeChatRole(msg.role),
+      content: msg.content ?? '',
+      timestamp: msg.timestamp || msg.createdAt || new Date().toISOString(),
+      questions: Array.isArray(msg.questions) ? msg.questions : [],
+    }
+  }
+
   const handleSessionSelect = async (newSessionId: string) => {
     setSessionId(newSessionId)
     setIsProcessing(true)
+
     try {
       const response = await anythingllmService.getChatHistory(newSessionId)
+
       if (response.code === 200) {
         const historyData = response.result
+
         let mappedHistory: ChatMessage[] = []
+
         if (Array.isArray(historyData)) {
-          mappedHistory = historyData.map((msg: any) => ({
-            role: msg.role === 'user' ? 'user' : 'ai',
-            content: msg.content,
-            timestamp: msg.timestamp || new Date().toISOString(),
-          }))
-        } else if (historyData && typeof historyData === 'object' && 'messages' in historyData) {
-          mappedHistory = (historyData as any).messages.map((msg: any) => ({
-            role: msg.role === 'user' ? 'user' : 'ai',
-            content: msg.content,
-            timestamp: msg.timestamp || new Date().toISOString(),
-          }))
+          mappedHistory = historyData.map(normalizeChatMessage)
+        } else if (
+            historyData &&
+            typeof historyData === 'object' &&
+            'messages' in historyData &&
+            Array.isArray((historyData as any).messages)
+        ) {
+          mappedHistory = (historyData as any).messages.map(normalizeChatMessage)
         }
-        
+
         if (workspace) {
           store.updateWorkspace({
-            aiContext: { ...workspace.aiContext, history: mappedHistory, clarifications: [] },
+            aiContext: {
+              ...workspace.aiContext,
+              history: mappedHistory,
+              clarifications: [],
+            },
           })
+
           setClarificationRound(0)
         }
       }

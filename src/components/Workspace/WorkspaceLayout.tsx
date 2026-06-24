@@ -71,22 +71,19 @@ export default function WorkspaceLayout({
       {aiEnabled && (
         <Panel id="ai-chat" defaultSize={28} minSize={18}>
           <AIChatPanel
-            history={chatHistory}
-            clarification={clarification}
-            clarificationRound={clarificationRound}
-            isProcessing={isProcessing}
-            intent={aiIntent}
-            clarifications={aiClarifications}
-            documents={documents}
-            sessions={sessions}
-            currentSessionId={currentSessionId}
-            onSendMessage={onSendMessage}
-            onStopGeneration={onStopGeneration}
-            onClarificationAnswer={onClarificationAnswer}
-            onAddDocuments={onAddDocuments}
-            onRemoveDocument={onRemoveDocument}
-            onSessionSelect={onSessionSelect}
-            onNewSession={onNewSession}
+              history={chatHistory}
+              isProcessing={isProcessing}
+              intent={aiIntent}
+              clarifications={aiClarifications}
+              documents={documents}
+              sessions={sessions}
+              currentSessionId={currentSessionId}
+              onSendMessage={onSendMessage}
+              onStopGeneration={onStopGeneration}
+              onAddDocuments={onAddDocuments}
+              onRemoveDocument={onRemoveDocument}
+              onSessionSelect={onSessionSelect}
+              onNewSession={onNewSession}
           />
         </Panel>
       )}

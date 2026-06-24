@@ -1,5 +1,7 @@
 import type { ChatMessage } from './ai'
 
+export type { ChatMessage } from './ai'
+
 export interface Workspace {
   id: string
   name: string
