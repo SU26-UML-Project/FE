@@ -4,7 +4,7 @@ import { immer } from 'zustand/middleware/immer'
 import { nanoid } from 'nanoid'
 import { type Node, type Edge, applyNodeChanges, applyEdgeChanges } from '@xyflow/react'
 
-export type EdgeType = 'association' | 'inheritance' | 'realization' | 'composition' | 'aggregation' | 'dependency' | 'include' | 'extend'
+export type EdgeType = 'association' | 'inheritance' | 'realization' | 'composition' | 'aggregation' | 'dependency' | 'include' | 'extend' | 'controlFlow' | 'objectFlow'
 
 export interface CanvasState {
   nodes: Node[]
@@ -24,6 +24,7 @@ export interface CanvasState {
   selectNode: (id: string | null) => void
   selectEdge: (id: string | null) => void
   setEdgeType: (id: string, type: EdgeType) => void
+  setEdgeLabel: (id: string, label: string) => void
   setEdgeStyle: (id: string, style: Record<string, string>) => void
   flipEdge: (id: string) => void
   setEditingNodeId: (id: string | null) => void
@@ -45,6 +46,18 @@ function defaultNodeData(type: string): any {
       return { type: 'useCaseNode', label: 'Use Case' }
     case 'actorNode':
       return { type: 'actorNode', label: 'Actor' }
+    case 'initialNode':
+      return { type: 'initialNode' }
+    case 'finalNode':
+      return { type: 'finalNode' }
+    case 'decisionNode':
+      return { type: 'decisionNode', label: 'Decision?' }
+    case 'stateNode':
+      return { type: 'stateNode', label: 'State', entry: '', do: '', exit: '' }
+    case 'actionNode':
+      return { type: 'actionNode', label: 'Action' }
+    case 'forkJoinNode':
+      return { type: 'forkJoinNode', orientation: 'horizontal' }
     default:
       return { type: 'genericNode', label: 'Node', sourceType: type }
   }
@@ -108,7 +121,19 @@ export const useCanvasStore = create<CanvasState>()(
             switch (type) {
               case 'realization': case 'dependency': case 'include': case 'extend':
                 e.style = { strokeDasharray: '5 5' }; break
+              case 'objectFlow':
+                e.style = { strokeDasharray: '4 4' }; break
             }
+          }
+        })
+      },
+
+      setEdgeLabel: (id, label) => {
+        if (get().isLocked) return
+        set((state) => {
+          const e = state.edges.find((e) => e.id === id)
+          if (e) {
+            e.label = label
           }
         })
       },

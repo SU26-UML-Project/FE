@@ -9,6 +9,20 @@ const MIN_HEIGHT = 60
 const MAX_WIDTH = 500
 
 export function estimateNodeSize(node: Node): { width: number; height: number } {
+  // Handle fixed-size special nodes
+  switch (node.type) {
+    case 'initialNode':
+      return { width: 30, height: 30 }
+    case 'finalNode':
+      return { width: 35, height: 35 }
+    case 'decisionNode':
+      return { width: 80, height: 80 }
+    case 'forkJoinNode': {
+      const isVertical = (node.data as any)?.orientation === 'vertical'
+      return isVertical ? { width: 10, height: 100 } : { width: 100, height: 10 }
+    }
+  }
+
   const d = node.data as any
   const lines: string[] = []
 
@@ -31,7 +45,7 @@ export function estimateNodeSize(node: Node): { width: number; height: number } 
 export function applyLayout(nodes: Node[], edges: Edge[]): Node[] {
   const g = new dagre.graphlib.Graph()
   g.setDefaultEdgeLabel(() => ({}))
-  g.setGraph({ rankdir: 'TB', nodesep: 60, ranksep: 100, marginx: 40, marginy: 40 })
+  g.setGraph({ rankdir: 'TB', nodesep: 100, ranksep: 120, marginx: 60, marginy: 60 })
 
   nodes.forEach(n => {
     const { width, height } = estimateNodeSize(n)

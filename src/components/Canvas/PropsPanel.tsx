@@ -3,6 +3,10 @@ import { ClassNodeForm } from './forms/ClassNodeForm'
 import { InterfaceNodeForm } from './forms/InterfaceNodeForm'
 import { UseCaseNodeForm } from './forms/UseCaseNodeForm'
 import { ActorNodeForm } from './forms/ActorNodeForm'
+import { StateNodeForm } from './forms/StateNodeForm'
+import { ActionNodeForm } from './forms/ActionNodeForm'
+import { DecisionNodeForm } from './forms/DecisionNodeForm'
+import { ForkJoinNodeForm } from './forms/ForkJoinNodeForm'
 import type { ComponentType, ReactNode } from 'react'
 import type { Node } from '@xyflow/react'
 
@@ -16,6 +20,10 @@ const NODE_FORM_REGISTRY: Record<string, ComponentType<FormProps>> = {
   interfaceNode: InterfaceNodeForm,
   useCaseNode: UseCaseNodeForm,
   actorNode: ActorNodeForm,
+  stateNode: StateNodeForm,
+  actionNode: ActionNodeForm,
+  decisionNode: DecisionNodeForm,
+  forkJoinNode: ForkJoinNodeForm,
 }
 
 function EdgePreview({ label, dashed, arrow, diamond }: { label: string; dashed?: boolean; arrow?: string; diamond?: 'filled' | 'open' }) {
@@ -41,6 +49,8 @@ const EDGE_WITH_PREVIEW: { type: EdgeType; label: string; preview: ReactNode }[]
   { type: 'dependency', label: 'Dependency', preview: <EdgePreview label="" dashed arrow="closed" /> },
   { type: 'include', label: '«include»', preview: <EdgePreview label="«include»" dashed arrow="closed" /> },
   { type: 'extend', label: '«extend»', preview: <EdgePreview label="«extend»" dashed arrow="closed" /> },
+  { type: 'controlFlow', label: 'Control Flow', preview: <EdgePreview label="" arrow="closed" /> },
+  { type: 'objectFlow', label: 'Object Flow', preview: <EdgePreview label="" dashed arrow="closed" /> },
 ]
 
 export function PropsPanel() {
@@ -51,6 +61,7 @@ export function PropsPanel() {
     s.edges.find(e => e.id === s.selectedEdgeId)
   )
   const setNodeData = useCanvasStore(s => s.setNodeData)
+  const setEdgeLabel = useCanvasStore(s => s.setEdgeLabel)
   const flipEdge = useCanvasStore(s => s.flipEdge)
   const setEdgeType = useCanvasStore(s => s.setEdgeType)
   const setEdgeStyle = useCanvasStore(s => s.setEdgeStyle)
@@ -81,6 +92,15 @@ export function PropsPanel() {
               </svg>
               Reverse
             </button>
+          </div>
+          <div className="props-field">
+            <label>Label (Trigger [Guard] / Effect)</label>
+            <input 
+              value={selectedEdge.label as string || ''} 
+              onChange={e => setEdgeLabel(selectedEdge.id, e.target.value)} 
+              placeholder="e.g. pay [balance > 0] / confirm"
+              className="props-input"
+            />
           </div>
           <div className="props-field">
             <label>Type</label>
@@ -188,7 +208,18 @@ const EDGE_PROPS_CSS = `
   .props-form { padding: 12px; display: flex; flex-direction: column; gap: 12px; font-size: 12px; }
   .props-field { display: flex; flex-direction: column; gap: 4px; }
   .props-field label { font-weight: 600; color: #555; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
-  .props-edge-endpoint { font-family: 'Consolas', monospace; font-size: 11px; color: #666; padding: 4px 0; }
+        .props-input {
+          border: 1px solid #d0d0d0;
+          border-radius: 4px;
+          padding: 6px 8px;
+          font-size: 12px;
+          outline: none;
+        }
+        .props-input:focus {
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+        }
+        .props-edge-endpoint { font-family: 'Consolas', monospace; font-size: 11px; color: #666; padding: 4px 0; }
   .edge-type-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
   .edge-type-btn {
     font-size: 9px; padding: 3px 4px; border: 1px solid #d0d0d0; border-radius: 3px;

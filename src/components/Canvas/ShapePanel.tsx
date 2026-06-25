@@ -64,6 +64,70 @@ const SHAPE_CONFIG: ShapeConfig[] = [
       </svg>
     ),
   },
+  // Behavioral Diagrams (State Machine & Activity)
+  {
+    type: 'initialNode',
+    label: 'Initial',
+    group: 'Behavioral',
+    preview: (
+      <svg viewBox="0 0 80 50" width="80" height="50">
+        <circle cx="40" cy="25" r="8" fill="#000" stroke="#000" strokeWidth="1" />
+      </svg>
+    ),
+  },
+  {
+    type: 'finalNode',
+    label: 'Final',
+    group: 'Behavioral',
+    preview: (
+      <svg viewBox="0 0 80 50" width="80" height="50">
+        <circle cx="40" cy="25" r="10" fill="#fff" stroke="#000" strokeWidth="1.5" />
+        <circle cx="40" cy="25" r="6" fill="#000" />
+      </svg>
+    ),
+  },
+  {
+    type: 'stateNode',
+    label: 'State',
+    group: 'Behavioral',
+    preview: (
+      <svg viewBox="0 0 80 50" width="80" height="50">
+        <rect x="10" y="10" width="60" height="30" rx="8" ry="8" fill="#fff" stroke="#000" strokeWidth="1.5" />
+        <text x="40" y="30" textAnchor="middle" fontSize="8" fontWeight="bold">State</text>
+      </svg>
+    ),
+  },
+  {
+    type: 'actionNode',
+    label: 'Action',
+    group: 'Behavioral',
+    preview: (
+      <svg viewBox="0 0 80 50" width="80" height="50">
+        <rect x="5" y="12" width="70" height="26" rx="13" ry="13" fill="#fff" stroke="#000" strokeWidth="1.5" />
+        <text x="40" y="30" textAnchor="middle" fontSize="8" fontWeight="bold">Action</text>
+      </svg>
+    ),
+  },
+  {
+    type: 'decisionNode',
+    label: 'Decision',
+    group: 'Behavioral',
+    preview: (
+      <svg viewBox="0 0 80 50" width="80" height="50">
+        <path d="M40 5 L70 25 L40 45 L10 25 Z" fill="#fff" stroke="#000" strokeWidth="1.5" />
+      </svg>
+    ),
+  },
+  {
+    type: 'forkJoinNode',
+    label: 'Fork/Join',
+    group: 'Behavioral',
+    preview: (
+      <svg viewBox="0 0 80 50" width="80" height="50">
+        <rect x="10" y="22" width="60" height="6" rx="2" ry="2" fill="#000" />
+      </svg>
+    ),
+  },
 ]
 
 export function ShapePanel() {
@@ -75,23 +139,27 @@ export function ShapePanel() {
     }
   }, [])
 
+  const groups = Array.from(new Set(SHAPE_CONFIG.map(s => s.group)))
+
   return (
     <div className="shape-panel">
-      <div className="shape-panel-group">
-        <h3 className="shape-panel-title">UML</h3>
-        {SHAPE_CONFIG.map(shape => (
-          <div
-            key={shape.type}
-            className="shape-item"
-            draggable
-            onDragStart={e => handleDragStart(e, shape.type)}
-            title={shape.label}
-          >
-            {shape.preview}
-            <span className="shape-item-label">{shape.label}</span>
-          </div>
-        ))}
-      </div>
+      {groups.map(group => (
+        <div key={group} className="shape-panel-group">
+          <h3 className="shape-panel-title">{group}</h3>
+          {SHAPE_CONFIG.filter(s => s.group === group).map(shape => (
+            <div
+              key={shape.type}
+              className="shape-item"
+              draggable
+              onDragStart={e => handleDragStart(e, shape.type)}
+              title={shape.label}
+            >
+              {shape.preview}
+              <span className="shape-item-label">{shape.label}</span>
+            </div>
+          ))}
+        </div>
+      ))}
       <style>{`
         .shape-panel {
           width: 220px;

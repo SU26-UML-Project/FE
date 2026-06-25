@@ -5,6 +5,7 @@ import { useCanvasStore } from '../stores/canvasStore'
 import { projectService } from '../services/projectService'
 import { sheetService } from '../services/sheetService'
 import { anythingllmService } from '../services/anythingllmService'
+import { applyLayout } from '../utils/mermaid/layout'
 import WorkspaceToolbar from '../components/Workspace/WorkspaceToolbar'
 import WorkspaceLayout from '../components/Workspace/WorkspaceLayout'
 import type { WorkspaceDocument, ChatMessage, Clarification } from '../types/workspace'
@@ -334,14 +335,23 @@ export default function WorkspacePage() {
           try {
             const parsedState = typeof newState === 'string' ? JSON.parse(newState) : newState
             if (parsedState && parsedState.nodes) {
+              // Apply auto-layout before loading into diagram
+              const laidOutNodes = applyLayout(parsedState.nodes, parsedState.edges || [])
+              
               // We use setTimeout to ensure store updates don't conflict
               setTimeout(() => {
+                const finalEdges = parsedState.edges || []
                 useCanvasStore.getState().loadDiagram(
-                  parsedState.nodes,
-                  parsedState.edges || [],
+                  laidOutNodes,
+                  finalEdges,
                   useCanvasStore.getState().diagramName,
                   useCanvasStore.getState().diagramType
                 )
+
+                // Dispatch event to trigger auto-save with the new laid-out positions
+                window.dispatchEvent(new CustomEvent('canvas-data-change', { 
+                  detail: { nodes: laidOutNodes, edges: finalEdges } 
+                }))
               }, 0)
             }
           } catch (e) {
