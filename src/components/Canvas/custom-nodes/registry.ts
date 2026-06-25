@@ -2,10 +2,13 @@ import { ClassNode } from './ClassNode'
 import { InterfaceNode } from './InterfaceNode'
 import { UseCaseNode } from './UseCaseNode'
 import { ActorNode } from './ActorNode'
+import { SystemBoundaryNode } from './SystemBoundaryNode'
 
 export const nodeTypes = {
   classNode: ClassNode,
   interfaceNode: InterfaceNode,
+
   useCaseNode: UseCaseNode,
   actorNode: ActorNode,
+  systemBoundaryNode: SystemBoundaryNode,
 }

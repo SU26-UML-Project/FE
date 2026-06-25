@@ -6,7 +6,6 @@ import { BaseNode } from './BaseNode'
 export interface UseCaseNodeData {
   type: 'useCaseNode'
   label: string
-  stereotype?: 'include' | 'extend'
   color?: string
   [key: string]: unknown
 }

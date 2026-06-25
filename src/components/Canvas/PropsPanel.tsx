@@ -3,6 +3,7 @@ import { ClassNodeForm } from './forms/ClassNodeForm'
 import { InterfaceNodeForm } from './forms/InterfaceNodeForm'
 import { UseCaseNodeForm } from './forms/UseCaseNodeForm'
 import { ActorNodeForm } from './forms/ActorNodeForm'
+import { SystemBoundaryNodeForm } from './forms/SystemBoundaryNodeForm'
 import type { ComponentType, ReactNode } from 'react'
 import type { Node } from '@xyflow/react'
 
@@ -16,6 +17,7 @@ const NODE_FORM_REGISTRY: Record<string, ComponentType<FormProps>> = {
   interfaceNode: InterfaceNodeForm,
   useCaseNode: UseCaseNodeForm,
   actorNode: ActorNodeForm,
+  systemBoundaryNode: SystemBoundaryNodeForm,
 }
 
 function EdgePreview({ label, dashed, arrow, diamond }: { label: string; dashed?: boolean; arrow?: string; diamond?: 'filled' | 'open' }) {
@@ -41,6 +43,8 @@ const EDGE_WITH_PREVIEW: { type: EdgeType; label: string; preview: ReactNode }[]
   { type: 'dependency', label: 'Dependency', preview: <EdgePreview label="" dashed arrow="closed" /> },
   { type: 'include', label: '«include»', preview: <EdgePreview label="«include»" dashed arrow="closed" /> },
   { type: 'extend', label: '«extend»', preview: <EdgePreview label="«extend»" dashed arrow="closed" /> },
+  {type: 'useCaseAssociation', label: 'Use Case Association', preview: <EdgePreview label="" />,},
+  {type: 'generalization', label: 'Generalization', preview: <EdgePreview label="" arrow="open" />,},
 ]
 
 export function PropsPanel() {

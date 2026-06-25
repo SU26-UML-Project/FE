@@ -6,9 +6,11 @@ import { AggregationEdge } from './AggregationEdge'
 import { DependencyEdge } from './DependencyEdge'
 import { IncludeEdge } from './IncludeEdge'
 import { ExtendEdge } from './ExtendEdge'
+import { UseCaseAssociationEdge } from './UseCaseAssociationEdge'
 
 export const edgeTypes = {
   associationEdge: AssociationEdge,
+  useCaseAssociationEdge: UseCaseAssociationEdge,
   inheritanceEdge: InheritanceEdge,
   realizationEdge: RealizationEdge,
   compositionEdge: CompositionEdge,

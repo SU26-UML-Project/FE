@@ -109,7 +109,7 @@ function GraphCanvasInner() {
         onNodeDragStop={onNodeDragStop}
         nodeTypes={stableNodeTypes}
         edgeTypes={stableEdgeTypes}
-        defaultEdgeOptions={{ type: 'associationEdge' }}
+        defaultEdgeOptions={{ type: 'associationEdge', zIndex: 5 }}
         connectionMode={ConnectionMode.Loose}
         connectionRadius={20}
         connectionLineStyle={{ stroke: '#3b82f6', strokeWidth: 2.5 }}
