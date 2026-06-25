@@ -335,8 +335,15 @@ export default function WorkspacePage() {
           try {
             const parsedState = typeof newState === 'string' ? JSON.parse(newState) : newState
             if (parsedState && parsedState.nodes) {
+              // Map AI nodes to include parentId (React Flow property) from AI's parentNode field
+              const nodesWithParent = parsedState.nodes.map((node: any) => ({
+                ...node,
+                parentId: node.parentNode || node.parentId, // Handle both just in case
+                extent: (node.parentNode || node.parentId) ? 'parent' : undefined,
+              }))
+
               // Apply auto-layout before loading into diagram
-              const laidOutNodes = applyLayout(parsedState.nodes, parsedState.edges || [])
+              const laidOutNodes = applyLayout(nodesWithParent, parsedState.edges || [])
               
               // We use setTimeout to ensure store updates don't conflict
               setTimeout(() => {

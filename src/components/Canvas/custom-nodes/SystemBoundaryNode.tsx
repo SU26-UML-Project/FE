@@ -65,11 +65,12 @@ export function SystemBoundaryNode({ id, data, selected }: NodeProps<SystemBound
           min-width: 240px;
           min-height: 160px;
           background: ${data.color || 'rgba(255, 255, 255, 0.35)'};
-          border: 2px solid #000;
+          border: 2px solid #334155;
           border-radius: 4px;
           position: relative;
           font-family: 'Consolas', 'Monaco', monospace;
           box-sizing: border-box;
+          pointer-events: none; /* Allow clicking through to child nodes */
         }
 
         .system-boundary-header {
@@ -80,6 +81,7 @@ export function SystemBoundaryNode({ id, data, selected }: NodeProps<SystemBound
           height: 24px;
           display: flex;
           align-items: center;
+          pointer-events: all; /* Allow interacting with the label/edit input */
         }
 
         .system-boundary-title {

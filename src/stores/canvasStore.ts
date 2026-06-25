@@ -18,6 +18,18 @@ import {create} from 'zustand'
      | 'noteLink' 
      | 'controlFlow'
      | 'objectFlow'
+     | 'associationEdge'
+     | 'useCaseAssociationEdge'
+     | 'inheritanceEdge'
+     | 'generalizationEdge'
+     | 'realizationEdge'
+     | 'compositionEdge'
+     | 'aggregationEdge'
+     | 'dependencyEdge'
+     | 'includeEdge'
+     | 'extendEdge'
+     | 'controlFlowEdge'
+     | 'objectFlowEdge'
  
  export interface CanvasState { 
      nodes: Node[] 
@@ -33,7 +45,7 @@ import {create} from 'zustand'
      onNodesChange: (changes: any) => void 
      onEdgesChange: (changes: any) => void 
      onConnect: (connection: any) => void 
-     addNode: (type: string, position: { x: number; y: number }) => void 
+     addNode: (type: string, position: { x: number; y: number }, parentId?: string) => void 
      selectNode: (id: string | null) => void 
      selectEdge: (id: string | null) => void 
      setEdgeType: (id: string, type: EdgeType) => void 
@@ -78,46 +90,24 @@ import {create} from 'zustand'
      } 
  } 
  
- function toReactFlowEdgeType(type: EdgeType): string { 
+ function toReactFlowEdgeType(type: string): string { 
+     // Nếu đã có suffix 'Edge' thì trả về luôn
+     if (type.endsWith('Edge')) return type
+
      switch (type) { 
-         case 'association': 
-             return 'associationEdge' 
- 
-         case 'useCaseAssociation': 
-             return 'useCaseAssociationEdge' 
- 
-         case 'inheritance': 
-             return 'inheritanceEdge' 
- 
-         case 'generalization': 
-             return 'generalizationEdge' 
- 
-         case 'realization': 
-             return 'realizationEdge' 
- 
-         case 'composition': 
-             return 'compositionEdge' 
- 
-         case 'aggregation': 
-             return 'aggregationEdge' 
- 
-         case 'dependency': 
-             return 'dependencyEdge' 
- 
-         case 'include': 
-             return 'includeEdge' 
- 
-         case 'extend': 
-             return 'extendEdge' 
-
-         case 'controlFlow':
-             return 'controlFlowEdge'
-
-         case 'objectFlow':
-             return 'objectFlowEdge'
- 
-         default: 
-             return 'associationEdge' 
+         case 'association': return 'associationEdge' 
+         case 'useCaseAssociation': return 'useCaseAssociationEdge' 
+         case 'inheritance': return 'inheritanceEdge' 
+         case 'generalization': return 'generalizationEdge' 
+         case 'realization': return 'realizationEdge' 
+         case 'composition': return 'compositionEdge' 
+         case 'aggregation': return 'aggregationEdge' 
+         case 'dependency': return 'dependencyEdge' 
+         case 'include': return 'includeEdge' 
+         case 'extend': return 'extendEdge' 
+         case 'controlFlow': return 'controlFlowEdge'
+         case 'objectFlow': return 'objectFlowEdge'
+         default: return 'associationEdge' 
      } 
  } 
  
@@ -161,7 +151,7 @@ import {create} from 'zustand'
                  }) 
              }, 
  
-             onConnect: (connection) => { 
+     onConnect: (connection) => { 
                  if (get().isLocked) return 
                  set((state) => { 
                      state.edges.push({ 
@@ -176,7 +166,7 @@ import {create} from 'zustand'
                  }) 
              }, 
  
-             addNode: (type, position) => { 
+             addNode: (type, position, parentId) => { 
                  if (get().isLocked) return 
  
                  set((state) => { 
@@ -202,6 +192,8 @@ import {create} from 'zustand'
                          id, 
                          type, 
                          position, 
+                         parentId,
+                         extent: parentId ? 'parent' : undefined,
                          data: defaultNodeData(type), 
                          zIndex: 10, 
                      } as Node) 

@@ -43,32 +43,60 @@ export function estimateNodeSize(node: Node): { width: number; height: number } 
 }
 
 export function applyLayout(nodes: Node[], edges: Edge[]): Node[] {
-  const g = new dagre.graphlib.Graph()
+  const g = new dagre.graphlib.Graph({ compound: true })
   g.setDefaultEdgeLabel(() => ({}))
-  g.setGraph({ rankdir: 'TB', nodesep: 100, ranksep: 120, marginx: 60, marginy: 60 })
+  g.setGraph({ rankdir: 'LR', nodesep: 80, ranksep: 100, marginx: 50, marginy: 50 })
 
+  // 1. Set nodes and parents
   nodes.forEach(n => {
     const { width, height } = estimateNodeSize(n)
     g.setNode(n.id, { width, height })
+    if (n.parentId) {
+      g.setParent(n.id, n.parentId)
+    }
   })
 
+  // 2. Set edges
   edges.forEach(e => {
     g.setEdge(e.source, e.target)
   })
 
+  // 3. Run layout
   dagre.layout(g)
 
-  return nodes.map(n => {
-    const pos = g.node(n.id)
-    if (!pos) return n
-    const { width, height } = estimateNodeSize(n)
+  // 4. Calculate relative positions for children and update parent sizes
+  const resultNodes = nodes.map(n => {
+    const nodeLayout = g.node(n.id)
+    if (!nodeLayout) return n
+
+    const width = nodeLayout.width
+    const height = nodeLayout.height
+
+    let position = {
+      x: nodeLayout.x - width / 2,
+      y: nodeLayout.y - height / 2,
+    }
+
+    // If node has a parent, Dagre gives absolute position, 
+    // but React Flow needs relative to parent's top-left
+    if (n.parentId) {
+      const parentLayout = g.node(n.parentId)
+      if (parentLayout) {
+        const parentLeft = parentLayout.x - parentLayout.width / 2
+        const parentTop = parentLayout.y - parentLayout.height / 2
+        position = {
+          x: position.x - parentLeft,
+          y: position.y - parentTop,
+        }
+      }
+    }
+
     return {
       ...n,
-      position: {
-        x: pos.x - width / 2,
-        y: pos.y - height / 2,
-      },
+      position,
       style: { width, height },
     }
   })
+
+  return resultNodes
 }
