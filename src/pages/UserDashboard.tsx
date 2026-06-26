@@ -64,6 +64,9 @@ const UserDashboard: React.FC = () => {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showConfirm, setShowConfirm] = useState(false);
+  const [draftSelectionMode, setDraftSelectionMode] = useState(false);
+  const [draftSelectedIds, setDraftSelectedIds] = useState<Set<string>>(new Set());
+  const [showDraftConfirm, setShowDraftConfirm] = useState(false);
 
   useEffect(() => { sessionStorage.setItem('dashboard_tab', activeTab); }, [activeTab]);
   useEffect(() => { sessionStorage.setItem('dashboard_templateKind', templateKind); }, [templateKind]);
@@ -253,6 +256,42 @@ const UserDashboard: React.FC = () => {
       fetchWorkspaces();
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete projects');
+    }
+  }
+
+  const isAllDraftsSelected = drafts.length > 0 && draftSelectedIds.size === drafts.length;
+
+  const handleToggleDraftSelect = (id: string) => {
+    setDraftSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const handleDraftDeleteClick = () => {
+    if (draftSelectedIds.size === 0) return;
+    setShowDraftConfirm(true);
+  }
+
+  const handleAllDraftsClick = () => {
+    if (!isAllDraftsSelected) {
+      setDraftSelectedIds(new Set(drafts.map(d => d.id)));
+    }
+    setShowDraftConfirm(true);
+  }
+
+  const handleConfirmDraftDelete = async () => {
+    setShowDraftConfirm(false);
+    try {
+      await projectService.deleteProjects([...draftSelectedIds]);
+      toast.success(`${draftSelectedIds.size} draft(s) deleted`);
+      setDraftSelectedIds(new Set());
+      setDraftSelectionMode(false);
+      fetchDrafts();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete drafts');
     }
   }
 
@@ -537,6 +576,54 @@ const UserDashboard: React.FC = () => {
                     Drafts
                     <span className="ml-2 text-sm font-normal text-gray-400">({drafts.length})</span>
                   </h2>
+                  <motion.div
+                    layout
+                    transition={{ type: 'spring', stiffness: 250, damping: 25 }}
+                    className={`flex items-center border-2 rounded-full bg-white ${
+                      draftSelectionMode ? 'border-gray-300 px-1.5 py-1' : 'border-gray-300'
+                    }`}
+                  >
+                    <AnimatePresence mode="popLayout">
+                      {draftSelectionMode && (
+                        <motion.div
+                          key="red-pill-draft"
+                          initial={{ width: 0, opacity: 0 }}
+                          animate={{ width: 120, opacity: 1 }}
+                          exit={{ width: 0, opacity: 0 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                          className="flex items-center overflow-hidden bg-red-600 rounded-full h-8"
+                        >
+                          <div className="flex items-center h-full shrink-0" style={{ width: 120 }}>
+                            <button
+                              onClick={handleDraftDeleteClick}
+                              disabled={draftSelectedIds.size === 0}
+                              className={`h-full font-bold text-xs whitespace-nowrap flex-[7] flex items-center justify-center ${draftSelectedIds.size === 0 ? 'text-gray-400' : 'text-white'}`}
+                            >
+                              Delete
+                            </button>
+                            <div className="w-[1px] h-5 bg-white/80 shrink-0" />
+                            <button
+                              onClick={handleAllDraftsClick}
+                              className="h-full font-bold text-xs whitespace-nowrap flex-[3] flex items-center justify-center text-white"
+                            >
+                              All
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    <button
+                      onClick={() => { setDraftSelectionMode(!draftSelectionMode); if (draftSelectionMode) setDraftSelectedIds(new Set()); }}
+                      className={`flex items-center justify-center font-bold text-xs transition-colors cursor-pointer ${
+                        draftSelectionMode
+                          ? 'px-3 py-1 text-gray-500 hover:text-gray-700'
+                          : 'w-9 h-9 text-gray-400 hover:text-red-500 hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]'
+                      }`}
+                      title="Delete drafts"
+                    >
+                      {draftSelectionMode ? 'Cancel' : <Trash2 size={16} />}
+                    </button>
+                  </motion.div>
                 </div>
                 {draftsLoading ? (
                   <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
@@ -551,7 +638,13 @@ const UserDashboard: React.FC = () => {
                 ) : viewMode === 'grid' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {drafts.map((d) => (
-                      <DraftCard key={d.id} draft={d} />
+                      <DraftCard
+                        key={d.id}
+                        draft={d}
+                        selectionMode={draftSelectionMode}
+                        selected={draftSelectedIds.has(d.id)}
+                        onToggleSelect={handleToggleDraftSelect}
+                      />
                     ))}
                   </div>
                 ) : (
@@ -567,7 +660,13 @@ const UserDashboard: React.FC = () => {
                       </thead>
                       <tbody>
                         {drafts.map((d) => (
-                          <DraftListRow key={d.id} draft={d} />
+                          <DraftListRow
+                            key={d.id}
+                            draft={d}
+                            selectionMode={draftSelectionMode}
+                            selected={draftSelectedIds.has(d.id)}
+                            onToggleSelect={handleToggleDraftSelect}
+                          />
                         ))}
                       </tbody>
                     </table>
@@ -762,6 +861,44 @@ const UserDashboard: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {showDraftConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 250, damping: 25 }}
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4"
+            >
+              <h3 className="text-lg font-bold text-black mb-2">Delete drafts?</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Are you sure you want to delete {draftSelectedIds.size} draft(s)? This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => { setShowDraftConfirm(false); setDraftSelectedIds(new Set()); setDraftSelectionMode(false); }}
+                  className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 rounded-md transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDraftDelete}
+                  className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -885,15 +1022,23 @@ const TemplateListRow = ({ template, index = 0 }: { template: TemplateMeta; inde
   )
 }
 
-const DraftCard = ({ draft }: { draft: Workspace }) => {
+const DraftCard = ({ draft, selectionMode, selected, onToggleSelect }: { draft: Workspace } & CardActions) => {
   const navigate = useNavigate()
   const sheetId = draft.sheets[0]?.id
   return (
     <motion.div
       whileHover={{ y: -4 }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      onClick={() => navigate(`/canvas?projectId=${draft.id}&sheetId=${sheetId}&draft=true`)}
-      className="bg-white border border-admin-outline rounded flex flex-col group transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px]"
+      onClick={() => {
+        if (selectionMode) {
+          onToggleSelect(draft.id)
+        } else {
+          navigate(`/canvas?projectId=${draft.id}&sheetId=${sheetId}&draft=true`)
+        }
+      }}
+      className={`bg-white border rounded flex flex-col group transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px] ${
+        selected ? 'border-red-400 ring-2 ring-red-400/25' : 'border-admin-outline hover:border-amber-400'
+      }`}
     >
       <div className="h-36 bg-gradient-to-br from-amber-50 to-orange-50 border-b border-admin-outline relative overflow-hidden">
         <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
@@ -913,19 +1058,50 @@ const DraftCard = ({ draft }: { draft: Workspace }) => {
           {formatRelativeTime(draft.updatedAt)}
         </div>
       </div>
+      {selected && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="absolute inset-0 bg-red-50/80 z-20 flex items-center justify-center"
+        >
+          <motion.div
+            animate={{ opacity: [0.4, 1, 0.4] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Trash2 size={28} className="text-red-500/80" />
+          </motion.div>
+        </motion.div>
+      )}
     </motion.div>
   )
 }
 
-const DraftListRow = ({ draft }: { draft: Workspace }) => {
+const DraftListRow = ({ draft, selectionMode, selected, onToggleSelect }: { draft: Workspace } & CardActions) => {
   const navigate = useNavigate()
   const sheetId = draft.sheets[0]?.id
   return (
-    <motion.tr
-      initial={{ opacity: 0, x: -8 }}
-      onClick={() => navigate(`/canvas?projectId=${draft.id}&sheetId=${sheetId}&draft=true`)}
-      className="border-b border-admin-outline hover:bg-gray-50/50 transition-colors group cursor-pointer"
+    <tr
+      onClick={() => {
+        if (selectionMode) {
+          onToggleSelect(draft.id)
+        } else {
+          navigate(`/canvas?projectId=${draft.id}&sheetId=${sheetId}&draft=true`)
+        }
+      }}
+      className={`relative overflow-hidden border-b transition-colors group cursor-pointer ${
+        selected ? 'border-red-400 bg-red-50/50' : 'border-admin-outline hover:bg-gray-50/50'
+      }`}
     >
+      {selected && selectionMode && (
+        <td className="absolute inset-0 z-20 flex items-center justify-center bg-red-50/80" colSpan={4}>
+          <motion.div
+            animate={{ opacity: [0.4, 1, 0.4] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Trash2 size={20} className="text-red-500/80" />
+          </motion.div>
+        </td>
+      )}
       <td className="py-4 px-6">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded flex items-center justify-center shrink-0 bg-amber-100 text-amber-700">
@@ -941,7 +1117,7 @@ const DraftListRow = ({ draft }: { draft: Workspace }) => {
       </td>
       <td className="py-4 px-6 text-admin-on-surface-variant font-bold text-[12px] uppercase">{formatRelativeTime(draft.updatedAt)}</td>
       <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">{draft.sheets.length}</td>
-    </motion.tr>
+    </tr>
   )
 }
 
