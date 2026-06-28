@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { motion, animate, useMotionValue, useTransform } from 'framer-motion'
 import { Check, ArrowRight, ArrowDown, Activity, RefreshCw, HardDrive, Globe, X, ChevronDown, LogIn } from 'lucide-react'
 import AuthModal from '../components/Auth/AuthModal'
+import { useNavigate } from 'react-router-dom'
+import { useAuthStore } from '../stores/useAuthStore'
 import type { BillingCycle, Plan, ComparisonRow } from '../types/pricing'
 
 const plans: Plan[] = [
@@ -334,6 +336,8 @@ const PlanCard = ({
   onToggle: () => void
   openAuth: (mode: 'login' | 'register') => void
 }) => {
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuthStore()
   const [isHovered, setIsHovered] = useState(false)
   const price = billing === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice
   const monthlyPrice = plan.monthlyPrice
@@ -462,7 +466,23 @@ const PlanCard = ({
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                openAuth(plan.name === 'Education' ? 'register' : 'login')
+                const activePrice = billing === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
+                if (activePrice !== null && activePrice > 0) {
+                  if (isAuthenticated) {
+                    navigate('/payment-information', {
+                      state: {
+                        planName: plan.name,
+                        price: activePrice,
+                        billingCycle: billing,
+                        description: plan.description
+                      }
+                    });
+                  } else {
+                    openAuth(plan.name === 'Education' ? 'register' : 'login')
+                  }
+                } else {
+                  openAuth(plan.name === 'Education' ? 'register' : 'login')
+                }
               }}
               className={`w-full py-3 rounded-xl font-bold uppercase text-sm tracking-wider transition-colors duration-200 ${
                 plan.highlight

@@ -5,6 +5,7 @@ import Navbar from './components/Landing/Navbar'
 import Footer from './components/Landing/Footer'
 import LandingPage from './pages/LandingPage'
 import Pricing from './pages/Pricing'
+import PaymentInformationPage from './pages/PaymentInformationPage'
 import AdminDashboard from './pages/AdminDashboard'
 import UserDashboard from './pages/UserDashboard'
 import ProfilePage from './pages/ProfilePage'
@@ -143,7 +144,7 @@ function App() {
   const isDashboardPage = location.pathname.startsWith('/dashboard')
   const isCanvasPage = location.pathname.startsWith('/canvas')
   const isWorkspacePage = location.pathname.startsWith('/workspace')
-  const isMarketingPage = location.pathname === '/' || location.pathname === '/pricing'
+  const isMarketingPage = location.pathname === '/' || location.pathname === '/pricing' || location.pathname === '/payment-information'
 
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false)
   const { isAuthenticated, checkAuth } = useAuthStore()
@@ -155,7 +156,7 @@ function App() {
   return (
     <div className={`min-h-screen flex flex-col ${!isAdminPage && !isDashboardPage && !isCanvasPage && !isWorkspacePage ? 'grid-background' : ''}`}>
       <OAuth2Handler />
-      {!isAdminPage && !isCanvasPage && !isWorkspacePage && <Navbar />}
+      {!isAdminPage && !isCanvasPage && !isWorkspacePage && location.pathname !== '/payment-information' && <Navbar />}
       
       <div className="flex-1 flex overflow-hidden relative">
         <main className={`flex-1 transition-all duration-300 ease-in-out ${isAiSidebarOpen && !isAdminPage && !isCanvasPage && !isWorkspacePage && !isMarketingPage ? 'mr-[380px]' : ''}`}>
@@ -172,6 +173,7 @@ function App() {
               <Route path="/workspace/:id" element={<WorkspacePage />} />
               <Route path="/prebuilts/:id" element={<PrebuiltDetail />} />
               <Route path="/templates/:id" element={<TemplateDetail />} />
+              <Route path="/payment-information" element={<PaymentInformationPage />} />
             </Route>
 
             {/* Admin Routes */}
@@ -194,7 +196,7 @@ function App() {
         )}
       </div>
 
-      {!isAdminPage && !isDashboardPage && !isCanvasPage && !isWorkspacePage && <Footer />}
+      {!isAdminPage && !isDashboardPage && !isCanvasPage && !isWorkspacePage && location.pathname !== '/payment-information' && <Footer />}
       <ScrollToHash />
       <Toaster position="top-right" />
     </div>
