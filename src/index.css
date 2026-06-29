@@ -5,8 +5,11 @@
   --color-uml-dark: #000000;
   
   --font-priego: "Priego", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Admin Dashboard Colors */
+  /* Admin Dashboard Colors (v1 — used by UserDashboard) */
   --color-admin-bg: #f7f9fb;
   --color-admin-surface: #eceef0;
   --color-admin-outline: #c3c6d7;
@@ -15,6 +18,29 @@
   --color-admin-on-surface: #191c1e;
   --color-admin-on-surface-variant: #434655;
   --color-admin-error: #ba1a1a;
+
+  /* Admin v2 — White theme palette (prefix-free for clean templates) */
+  --color-av2-bg: #f5f5f5;
+  --color-av2-panel: #ffffff;
+  --color-av2-surface: #f3f4f6;
+  --color-av2-surface2: #e5e7eb;
+  --color-av2-mint: #e5e7eb;
+  --color-av2-ink: #1a1a1a;
+  --color-av2-gold: #e4a11b;
+  --color-av2-golddk: #c2870f;
+  /* Short aliases for cleaner templates */
+  --color-cream: var(--color-av2-bg);
+  --color-panel: var(--color-av2-panel);
+  --color-surface: var(--color-av2-surface);
+  --color-surface2: var(--color-av2-surface2);
+  --color-mint: var(--color-av2-mint);
+  --color-ink: var(--color-av2-ink);
+  --color-gold: var(--color-av2-gold);
+  --color-golddk: var(--color-av2-golddk);
+
+  /* Shadows */
+  --shadow-soft: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 2px 6px -2px rgb(15 23 42 / 0.06);
+  --shadow-soft-md: 0 4px 14px -4px rgb(15 23 42 / 0.1), 0 2px 6px -3px rgb(15 23 42 / 0.06);
 }
 
 @font-face {
@@ -264,5 +290,102 @@
   }
   .custom-scrollbar:hover::-webkit-scrollbar-thumb {
     background: rgba(0, 0, 0, 0.15);
+  }
+
+  /* ===== Admin v2 ===== */
+  .av2-scroll-slim::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .av2-scroll-slim::-webkit-scrollbar-thumb {
+    background: rgba(26, 26, 26, 0.15);
+    border-radius: 999px;
+  }
+  .av2-scroll-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .av2-hover-lift {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .av2-hover-lift:hover {
+    box-shadow: var(--shadow-soft-md);
+    transform: translateY(-2px);
+  }
+
+  @keyframes av2-fade-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .av2-animate-fade-up {
+    animation: av2-fade-up 0.4s ease both;
+  }
+
+  @keyframes av2-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .av2-animate-fade-in {
+    animation: av2-fade-in 0.3s ease both;
+  }
+
+  @keyframes av2-soft-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+  }
+  .av2-animate-soft-pulse {
+    animation: av2-soft-pulse 2s ease-in-out infinite;
+  }
+
+  /* ===== V1 Admin (aligned with uml-admin-interface-design-v1) ===== */
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  .hover-lift {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .hover-lift:hover {
+    box-shadow: var(--shadow-soft-md);
+    transform: translateY(-2px);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .animate-fade-up {
+    animation: fadeUp 0.4s ease both;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease both;
+  }
+
+  @keyframes softPulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+  }
+  .animate-soft-pulse {
+    animation: softPulse 2s ease-in-out infinite;
+  }
+
+  .scroll-slim::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scroll-slim::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 999px;
+  }
+  .scroll-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::selection {
+    background: rgba(79, 70, 229, 0.14);
   }
 }

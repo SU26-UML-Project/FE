@@ -92,6 +92,9 @@ export interface AdminUserListItem {
   avatarUrl?: string;
   status?: string;       // ACTIVE | LOCKED | PENDING_DELETE
   createdAt?: string;
+  lastActiveAt?: string;
+  projectCount?: number;
+  diagramCount?: number;
   profileCompleted?: boolean;
   role: string | {
     id: string;

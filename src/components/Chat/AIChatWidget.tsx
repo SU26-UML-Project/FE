@@ -110,7 +110,7 @@ const WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
   content:
-    'Xin chào! Tôi là AI Assistant được tích hợp với AnythingLLM. Tôi có thể giúp bạn trả lời câu hỏi về dự án, UML diagrams, và nhiều hơn nữa. Bắt đầu nhé! 🚀',
+    'Xin chào! Tôi là AI Assistant được tích hợp với AnythingLLM. Tôi có thể giúp bạn trả lời câu hỏi về dự án, UML diagrams, và nhiều hơn nữa.',
   timestamp: new Date(),
 };
 

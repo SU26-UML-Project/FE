@@ -1,14 +1,13 @@
 import { useState } from "react";
-import Topbar from "../components/admin/Header";
-import Sidebar from "../components/admin/Sidebar";
-import DashboardSection from "../components/admin/sections/Dashboard";
-import UsersSection from "../components/admin/sections/Users";
-import ProjectsSection from "../components/admin/sections/Projects";
-import IntelligenceSection from "../components/admin/sections/Intelligence";
-import OperationSection from "../components/admin/sections/Operation";
-import SubscriptionsSection from "../components/admin/sections/Subscriptions";
-import { useAuthStore } from "../stores/useAuthStore";
-import type { SectionId } from "../components/admin/data";
+import Sidebar from "@/components/Sidebar";
+import Topbar from "@/components/Topbar";
+import Dashboard from "@/sections/Dashboard";
+import Users from "@/sections/Users";
+import Projects from "@/sections/Projects";
+import Intelligence from "@/sections/Intelligence";
+import Operation from "@/sections/Operation";
+import Subscriptions from "@/sections/Subscriptions";
+import type { SectionId } from "@/data/mock";
 
 const meta: Record<SectionId, { title: string; subtitle: string }> = {
   dashboard: { title: "Dashboard", subtitle: "Tổng quan hệ thống UML" },
@@ -21,23 +20,30 @@ const meta: Record<SectionId, { title: string; subtitle: string }> = {
 
 function useCollapsed() {
   const [collapsed, setCollapsed] = useState<boolean>(() => {
-    try { return localStorage.getItem("sidebar.collapsed") === "1"; } catch { return false; }
+    try {
+      return localStorage.getItem("sidebar.collapsed") === "1";
+    } catch {
+      return false;
+    }
   });
   const toggle = () => {
     setCollapsed((c) => {
       const next = !c;
-      try { localStorage.setItem("sidebar.collapsed", next ? "1" : "0"); } catch { /* */ }
+      try {
+        localStorage.setItem("sidebar.collapsed", next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
       return next;
     });
   };
   return { collapsed, toggle };
 }
 
-export default function AdminDashboard() {
+export default function App() {
   const [section, setSection] = useState<SectionId>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { collapsed, toggle } = useCollapsed();
-  const user = useAuthStore((s) => s.user);
 
   const navigate = (id: SectionId) => {
     setSection(id);
@@ -45,7 +51,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#fafafa] text-slate-900 font-sans">
+    <div className="relative min-h-screen bg-[#fafafa] text-slate-900">
       <Sidebar
         active={section}
         onNavigate={navigate}
@@ -53,7 +59,6 @@ export default function AdminDashboard() {
         onClose={() => setSidebarOpen(false)}
         collapsed={collapsed}
         onToggleCollapse={toggle}
-        user={user}
       />
 
       <div className={cnBase(collapsed)}>
@@ -61,16 +66,15 @@ export default function AdminDashboard() {
           title={meta[section].title}
           subtitle={meta[section].subtitle}
           onOpenSidebar={() => setSidebarOpen(true)}
-          user={user}
         />
         <main className="px-4 py-6 sm:px-6 lg:px-8">
           <div key={section} className="mx-auto max-w-[1400px] animate-fade-up">
-            {section === "dashboard" && <DashboardSection />}
-            {section === "users" && <UsersSection />}
-            {section === "projects" && <ProjectsSection />}
-            {section === "intelligence" && <IntelligenceSection />}
-            {section === "operation" && <OperationSection />}
-            {section === "subscription" && <SubscriptionsSection />}
+            {section === "dashboard" && <Dashboard />}
+            {section === "users" && <Users />}
+            {section === "projects" && <Projects />}
+            {section === "intelligence" && <Intelligence />}
+            {section === "operation" && <Operation />}
+            {section === "subscription" && <Subscriptions />}
           </div>
         </main>
       </div>

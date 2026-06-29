@@ -1,3 +1,4 @@
+import LoadingOverlay from '../ui/LoadingOverlay'
 import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -406,12 +407,7 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({
 
                   <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                     {loadingHistory ? (
-                        <div className="h-full flex flex-col items-center justify-center space-y-3">
-                          <Loader2 className="w-8 h-8 text-uml-blue animate-spin" />
-                          <p className="text-sm text-gray-400 font-medium">
-                            Đang tải...
-                          </p>
-                        </div>
+                        <LoadingOverlay message="Đang tải..." absolute={false} />
                     ) : messages.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-center space-y-4 px-6">
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-uml-blue to-indigo-600 flex items-center justify-center shadow-lg shadow-uml-blue/20">
