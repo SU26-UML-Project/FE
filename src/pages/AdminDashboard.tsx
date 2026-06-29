@@ -6,7 +6,12 @@ import {
   TrendingDown, Minus, CheckCircle2, MoreVertical, Mail, Phone,
   Calendar, AlertCircle, Lock, Unlock, Trash2, Home,
   ArrowUpDown, ArrowUp, ArrowDown,
+  Image as ImageIcon, Brain, Zap, Clock,
 } from 'lucide-react';
+import {
+  ResponsiveContainer, AreaChart, Area, LineChart, Line,
+  XAxis, YAxis, Tooltip, CartesianGrid,
+} from 'recharts';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authService } from '../services/authService';
@@ -18,23 +23,17 @@ import LlmProviderTab from '../components/admin/LlmProviderTab';
 import WorkspaceConfigTab from '../components/admin/WorkspaceConfigTab';
 import DocumentsTab from '../components/admin/DocumentsTab';
 import type { AdminTab, NavItemConfig, NavSection } from '../types/admin';
+import {
+  MOCK_ACTIVITY_CHART_DATA,
+  MOCK_KPIS,
+  MOCK_ACTIVITY_LOGS,
+} from '../mocks/admin';
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    label: 'Operations',
+    label: 'Overview',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={18} /> },
-      { id: 'system-settings', label: 'System Settings', icon: <Settings size={18} /> },
-      { id: 'audit-logs', label: 'Audit Logs', icon: <Shield size={18} /> },
-      { id: 'support-tickets', label: 'Support Tickets', icon: <LifeBuoy size={18} /> },
-    ],
-  },
-  {
-    label: 'Intelligence',
-    items: [
-      { id: 'ai-model-config', label: 'AI / Model Config', icon: <Bot size={18} /> },
-      { id: 'workspace-config', label: 'Workspace Config', icon: <SlidersHorizontal size={18} /> },
-      { id: 'document-manager', label: 'Document Manager', icon: <FileText size={18} /> },
     ],
   },
   {
@@ -43,6 +42,22 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'user-management', label: 'User Management', icon: <Users size={18} /> },
       { id: 'role-permissions', label: 'Role & Permissions', icon: <ShieldCheck size={18} /> },
       { id: 'user-activity', label: 'User Activity', icon: <Activity size={18} /> },
+    ],
+  },
+  {
+    label: 'Intelligence',
+    items: [
+      { id: 'ai-model-config', label: 'AI / Model Config', icon: <Bot size={18} /> },
+      { id: 'workspace-config', label: 'Workspace Config', icon: <SlidersHorizontal size={18} /> },
+      { id: 'document-manager',label: 'Document Manager', icon: <FileText size={18} /> },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { id: 'system-settings', label: 'System Settings', icon: <Settings size={18} /> },
+      { id: 'audit-logs', label: 'Audit Logs', icon: <Shield size={18} /> },
+      { id: 'support-tickets', label: 'Support Tickets', icon: <LifeBuoy size={18} /> },
     ],
   },
 ];
@@ -115,23 +130,25 @@ const AdminDashboard: React.FC = () => {
           {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
 
-        <div
-          className={`px-6 mb-10 flex items-center gap-3 transition-all duration-300 ${
+        <Link
+          to="/"
+          title="Back to Landing Page"
+          className={`px-6 mb-10 flex items-center gap-3 transition-all duration-300 group cursor-pointer ${
             isSidebarCollapsed ? 'px-4 justify-center' : ''
           }`}
         >
-          <div className="w-10 h-10 bg-uml-blue rounded flex items-center justify-center text-white font-bold text-xl shrink-0">
+          <div className="w-10 h-10 bg-uml-blue rounded flex items-center justify-center text-white font-bold text-xl shrink-0 group-hover:bg-blue-700 transition-colors">
             SA
           </div>
           {!isSidebarCollapsed && (
             <div className="overflow-hidden whitespace-nowrap">
-              <h2 className="font-bold text-lg leading-tight">System Admin</h2>
+              <h2 className="font-bold text-lg leading-tight group-hover:text-uml-blue transition-colors">System Admin</h2>
               <p className="text-[11px] text-admin-secondary font-bold uppercase tracking-widest mt-1">
                 Enterprise Tier
               </p>
             </div>
           )}
-        </div>
+        </Link>
 
         <div className="flex-1 overflow-y-auto px-4 space-y-6 [&::-webkit-scrollbar]:w-0">
           {NAV_SECTIONS.map((section) => (
@@ -234,8 +251,6 @@ const AnalyticsTab: React.FC = () => {
   const [stats, setStats] = React.useState({
     totalProjects: 0,
     totalUsers: 0,
-    activeSubscribers: 0,
-    storageUsed: 0,
   });
   const [recentProjects, setRecentProjects] = React.useState<ProjectResponse[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -251,18 +266,14 @@ const AnalyticsTab: React.FC = () => {
 
         const allProjects = projectsRes.result || [];
         const totalUsers = usersRes.result.totalElements ?? 0;
-        const activeSubscribers = usersRes.result.content.filter(
-          (u: AdminUserListItem) => u.status === 'ACTIVE'
-        ).length;
 
-        setStats({
+        setStats(prev => ({
+          ...prev,
           totalProjects: allProjects.length,
           totalUsers,
-          activeSubscribers,
-          storageUsed: Math.round(allProjects.length * 0.15 * 10) / 10,
-        });
+        }));
 
-        setRecentProjects(allProjects.slice(0, 4));
+        setRecentProjects(allProjects.slice(0, 5));
       } catch (error) {
         console.error('Failed to fetch analytics data', error);
       } finally {
@@ -272,82 +283,162 @@ const AnalyticsTab: React.FC = () => {
     fetchData();
   }, []);
 
+  const chartData = MOCK_ACTIVITY_CHART_DATA;
+
   return (
-    <>
-      <div className="mb-10">
-        <h1 className="text-4xl font-black tracking-tight text-black">Analytics Overview</h1>
-        <p className="text-lg text-admin-on-surface-variant mt-2">
-          Monitor system health and project metrics.
-        </p>
+    <div className="flex flex-col gap-6">
+      {/* 1. Page Header */}
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold text-slate-800">Analytics Overview</h1>
+        <p className="text-sm text-gray-500">Monitor application performance and system health</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <StatCard title="Total Diagrams" value={loading ? '...' : stats.totalProjects.toLocaleString()} trend="+100%" />
-        <StatCard title="Active Users" value={loading ? '...' : stats.totalUsers.toLocaleString()} trend="+100%" />
-        <StatCard title="Storage Used (MB)" value={loading ? '...' : stats.storageUsed.toString()} trend="+0%" neutral />
-        <StatCard title="Active Subscriptions" value={loading ? '...' : stats.activeSubscribers.toLocaleString()} trend="+100%" />
+      {/* 2. Tier 1: KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard
+          title="Active Users"
+          value={loading ? '...' : stats.totalUsers}
+          badge="+100% vs last week"
+          badgeColor="green"
+          icon={<Users className="text-blue-500" size={20} />}
+        />
+        <KPICard
+          title="Total Diagrams"
+          value="1"
+          badge="+0%"
+          badgeColor="gray"
+          icon={<ImageIcon className="text-purple-500" size={20} />}
+        />
+        <KPICard
+          title="AI Requests"
+          value="142"
+          badge="+12% usage"
+          badgeColor="green"
+          icon={<Brain className="text-amber-500" size={20} />}
+        />
+        <KPICard
+          title="System Status"
+          value="All Systems Operational"
+          icon={<BlinkingDot />}
+          isStatus
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white border border-admin-outline rounded-sm flex flex-col overflow-hidden">
-          <div className="p-6 border-b border-admin-outline flex justify-between items-center bg-gray-50/50">
-            <h2 className="text-xl font-bold text-black">Recent Projects</h2>
-            <button className="text-[12px] font-bold text-uml-blue hover:underline uppercase tracking-wider">
-              View All
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 size={24} className="animate-spin text-uml-blue" />
-              </div>
-            ) : (
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
-                    <th className="py-4 px-6">Project Name</th>
-                    <th className="py-4 px-6">Last Modified</th>
-                    <th className="py-4 px-6">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm">
-                  {recentProjects.length > 0 ? (
-                    recentProjects.map((p: any) => (
-                      <ProjectRow key={p.id} name={p.projectName} time={new Date(p.updatedAt).toLocaleDateString()} status="Published" />
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={3} className="py-10 text-center text-gray-400 font-bold">
-                        No projects found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
+      {/* 3. Tier 2: Main Analytics */}
+      <div className="flex flex-col lg:flex-row gap-4 min-h-[300px]">
+        {/* Left Section: Application Activity */}
+        <div className="lg:w-[70%] bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-bold text-slate-800 mb-6">Application Activity (Diagrams & Users)</h3>
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorDiagrams" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8884d8" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#82ca9d" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" hide />
+                <YAxis hide />
+                <Tooltip />
+                <Area type="monotone" dataKey="diagrams" stroke="#8884d8" fillOpacity={1} fill="url(#colorDiagrams)" />
+                <Area type="monotone" dataKey="users" stroke="#82ca9d" fillOpacity={1} fill="url(#colorUsers)" />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="bg-white border border-admin-outline rounded-sm flex flex-col overflow-hidden relative">
-          <div className="p-6 border-b border-admin-outline flex justify-between items-center bg-white z-10">
-            <h2 className="text-xl font-bold text-black">System Health</h2>
-            <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
+        {/* Right Section: System Telemetry */}
+        <div className="lg:w-[30%] flex flex-col gap-4">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 flex-1">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Server Load (%)</h3>
+            <div className="flex items-end justify-between mb-4">
+              <span className="text-3xl font-black text-slate-800">{MOCK_KPIS.serverLoad.value}</span>
+              <div className="h-8 w-24">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData.slice(-10)}>
+                    <Line type="monotone" dataKey="users" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </div>
-          <div className="p-6 flex-1 flex flex-col z-10 bg-white/90 backdrop-blur-sm">
-            <HealthBar label="Server Load" value={12} />
-            <HealthBar label="API Latency" value={15} valueLabel="45ms" color="emerald" />
-            <div className="mt-auto pt-4 border-t border-admin-outline">
-              <p className="text-[11px] text-admin-secondary font-bold uppercase flex items-center gap-1.5">
-                <CheckCircle2 size={14} className="text-emerald-500" />
-                All systems operational. Last checked 1 min ago.
-              </p>
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 flex-1">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">API Latency (ms)</h3>
+            <div className="flex items-end justify-between">
+              <div>
+                <span className="text-3xl font-black text-slate-800">{MOCK_KPIS.apiLatency.value}</span>
+                <span className="ml-2 px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[10px] font-black rounded">{MOCK_KPIS.apiLatency.statusLabel}</span>
+              </div>
+              <div className="h-8 w-24">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData.slice(-10)}>
+                    <Line type="monotone" dataKey="diagrams" stroke="#10b981" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </>
+
+      {/* 4. Tier 3: Details & Logs */}
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* Left Section: Recent Projects */}
+        <div className="lg:w-[60%] bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+            <h3 className="text-lg font-bold text-slate-800">Recent Projects</h3>
+            <button className="text-sm font-bold text-blue-600 hover:text-blue-700">View All</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
+                  <th className="py-3 px-6">Name</th>
+                  <th className="py-3 px-6">Last Modified</th>
+                  <th className="py-3 px-6">Status</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {loading ? (
+                  <tr><td colSpan={3} className="py-10 text-center text-slate-400">Loading projects...</td></tr>
+                ) : recentProjects.length > 0 ? (
+                  recentProjects.map((p: any) => (
+                    <tr key={p.id} className="border-b border-gray-50 hover:bg-slate-50/50 transition-colors">
+                      <td className="py-4 px-6 font-bold text-slate-700">{p.projectName}</td>
+                      <td className="py-4 px-6 text-slate-500">{new Date(p.updatedAt).toLocaleDateString()}</td>
+                      <td className="py-4 px-6">
+                        <span className="px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-black uppercase rounded tracking-wider">Published</span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr><td colSpan={3} className="py-10 text-center text-slate-400">No projects found</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right Section: System Activity Log */}
+        <div className="lg:w-[40%] bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-bold text-slate-800 mb-6">System Activity Log</h3>
+          <div className="space-y-6">
+            {MOCK_ACTIVITY_LOGS.map((log, idx) => (
+              <LogEntry key={idx} time={log.time} text={log.text} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // User Management Tab
@@ -756,40 +847,50 @@ const NavItem = ({ icon, label, active = false, small = false, onClick, collapse
   </button>
 );
 
-const StatCard = ({ title, value, trend, negative = false, neutral = false }: { title: string; value: string; trend: string; negative?: boolean; neutral?: boolean }) => (
-  <div className="bg-white border border-admin-outline p-6 flex flex-col justify-between h-[140px] hover:border-uml-blue/50 transition-colors">
-    <h3 className="text-[11px] font-bold text-admin-secondary uppercase tracking-widest">{title}</h3>
-    <div className="flex items-end justify-between">
-      <span className="text-3xl font-black text-black">{value}</span>
-      <div className={`flex items-center text-[13px] font-bold ${negative ? 'text-admin-error' : neutral ? 'text-admin-secondary' : 'text-uml-blue'}`}>
-        {neutral ? <Minus size={14} className="mr-1" /> : trend.startsWith('+') ? <TrendingUp size={14} className="mr-1" /> : <TrendingDown size={14} className="mr-1" />}
-        {trend}
+const KPICard = ({ title, value, badge, badgeColor, icon, isStatus }: {
+  title: string;
+  value: string | number;
+  badge?: string;
+  badgeColor?: 'green' | 'gray';
+  icon: React.ReactNode;
+  isStatus?: boolean;
+}) => (
+  <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+    <div className="flex justify-between items-start mb-4">
+      <div className="p-2 bg-slate-50 rounded-lg">
+        {icon}
       </div>
+      {badge && (
+        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+          badgeColor === 'green' ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-500'
+        }`}>
+          {badge}
+        </span>
+      )}
+    </div>
+    <div>
+      <h3 className="text-sm font-medium text-gray-500 mb-1">{title}</h3>
+      <p className={`font-bold text-slate-800 ${isStatus ? 'text-sm' : 'text-2xl'}`}>{value}</p>
     </div>
   </div>
 );
 
-const ProjectRow = ({ name, time, status }: { name: string; time: string; status: string }) => {
-  const statusColors: Record<string, string> = { Published: 'bg-blue-100 text-uml-blue', Draft: 'bg-gray-100 text-gray-600', Archived: 'bg-gray-200 text-gray-500' };
-  return (
-    <tr className="border-b border-admin-outline hover:bg-gray-50/50 transition-colors group">
-      <td className="py-4 px-6 font-bold text-black">{name}</td>
-      <td className="py-4 px-6 text-admin-on-surface-variant">{time}</td>
-      <td className="py-4 px-6">
-        <span className={`inline-flex items-center px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest ${statusColors[status]}`}>{status}</span>
-      </td>
-    </tr>
-  );
-};
+const BlinkingDot = () => (
+  <div className="relative flex h-3 w-3">
+    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+  </div>
+);
 
-const HealthBar = ({ label, value, valueLabel, color = 'blue' }: { label: string; value: number; valueLabel?: string; color?: 'blue' | 'emerald' }) => (
-  <div className="mb-6">
-    <div className="flex justify-between items-end mb-2">
-      <span className="text-[11px] font-bold text-admin-secondary uppercase tracking-widest">{label}</span>
-      <span className="text-sm font-bold text-black">{valueLabel || `${value}%`}</span>
+const LogEntry = ({ time, text }: { time: string; text: string }) => (
+  <div className="flex gap-4 relative pb-6 last:pb-0">
+    <div className="absolute left-[11px] top-6 bottom-0 w-px bg-slate-100 last:hidden" />
+    <div className="relative z-10 w-6 h-6 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0">
+      <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
     </div>
-    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-      <div className={`h-full transition-all duration-1000 ${color === 'blue' ? 'bg-uml-blue' : 'bg-emerald-500'}`} style={{ width: `${value}%` }} />
+    <div className="flex-1 pt-0.5">
+      <p className="text-xs font-bold text-slate-400 mb-1">{time}</p>
+      <p className="text-sm text-slate-600 leading-relaxed">{text}</p>
     </div>
   </div>
 );

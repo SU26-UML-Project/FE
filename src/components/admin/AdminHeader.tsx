@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Search, Bell, ExternalLink, ChevronDown, Loader2 } from 'lucide-react';
 import { aiAdminService } from '../../services/aiAdminService';
 import type { AiVersionInfo } from '../../types/ai';
@@ -36,7 +37,7 @@ const AdminHeader: React.FC = () => {
       <div className="px-8 lg:px-12">
         <div className="flex items-center justify-between py-3 gap-4">
           <div className="flex items-center gap-4 min-w-0">
-            <span className="text-lg font-black tracking-tight text-black shrink-0">DiaUML Studio</span>
+            <Link to="/" title="Back to Landing Page" className="text-lg font-black tracking-tight text-black shrink-0 hover:text-uml-blue transition-colors cursor-pointer">DiaUML Studio</Link>
 
             <div className="h-5 w-px bg-gray-200 shrink-0" />
 
