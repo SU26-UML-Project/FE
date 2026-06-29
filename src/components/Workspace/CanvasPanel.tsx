@@ -183,7 +183,9 @@ function CanvasPanelInner({
           <div className="flex-1 relative flex flex-col">
             <div className="flex-1 relative">
               {activeSheet ? (
-                <GraphCanvas />
+                <>
+                  <GraphCanvas />
+                </>
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
                   <div className="text-center">

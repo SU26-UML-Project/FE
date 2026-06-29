@@ -1,4 +1,4 @@
-import { ArrowLeft, Save, Download, Bot, BotOff } from 'lucide-react'
+import { ArrowLeft, Save, Download, Bot, BotOff, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useEditableName } from '../../hooks/useEditableName'
 
 interface WorkspaceToolbarProps {
@@ -9,6 +9,7 @@ interface WorkspaceToolbarProps {
   onExport: () => void
   aiEnabled: boolean
   onAiToggle: (enabled: boolean) => void
+  saveStatus?: 'saved' | 'saving' | 'error'
 }
 
 export default function WorkspaceToolbar({
@@ -19,6 +20,7 @@ export default function WorkspaceToolbar({
   onExport,
   aiEnabled,
   onAiToggle,
+  saveStatus = 'saved',
 }: WorkspaceToolbarProps) {
   const {
     isEditing,
@@ -86,10 +88,25 @@ export default function WorkspaceToolbar({
         </button>
         <button
           onClick={onSave}
-          className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-white text-uml-blue hover:bg-blue-50 transition flex items-center gap-1.5 shadow-sm ml-1"
+          disabled={saveStatus === 'saving'}
+          className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm ml-1 ${
+            saveStatus === 'saving' 
+              ? 'bg-blue-600/50 text-blue-200 cursor-not-allowed'
+              : saveStatus === 'error'
+              ? 'bg-red-500 text-white hover:bg-red-600'
+              : 'bg-white text-uml-blue hover:bg-blue-50'
+          }`}
         >
-          <Save size={14} />
-          Save Workspace
+          {saveStatus === 'saving' ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : saveStatus === 'error' ? (
+            <AlertCircle size={14} />
+          ) : saveStatus === 'saved' ? (
+            <CheckCircle2 size={14} className="text-emerald-500" />
+          ) : (
+            <Save size={14} />
+          )}
+          {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'error' ? 'Retry Save' : 'Saved'}
         </button>
       </div>
     </div>

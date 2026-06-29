@@ -17,6 +17,7 @@ interface WorkspaceLayoutProps {
   isProcessing: boolean
   sessions?: ChatSession[]
   currentSessionId?: string | null
+  saveStatus?: 'saved' | 'saving' | 'error'
   onSheetSelect: (id: string) => void
   onSheetAdd: () => void
   onSheetDelete: (id: string) => void
@@ -43,6 +44,7 @@ export default function WorkspaceLayout({
   isProcessing,
   sessions = [],
   currentSessionId = null,
+  saveStatus = 'saved',
   onSheetSelect,
   onSheetAdd,
   onSheetDelete,

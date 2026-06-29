@@ -43,8 +43,8 @@ export const DIAGRAMS: DiagramDef[] = [
       P("note", "Note", { label: "A note…" }, 170, 90),
     ],
     edges: [
-      { id: "cf", label: "Control flow", markerEnd: M.arrow, dashed: false, path: "smoothstep" },
-      { id: "note", label: "Note link", markerEnd: M.none, dashed: true, path: "smoothstep" },
+      { id: "cf", label: "Control flow", markerEnd: M.arrow, dashed: false, path: "smoothstep", autoLabel: "" },
+      { id: "note", label: "Note link", markerEnd: M.none, dashed: true, path: "smoothstep", autoLabel: "" },
     ],
   },
   {
@@ -58,9 +58,9 @@ export const DIAGRAMS: DiagramDef[] = [
       P("note", "Note", { label: "Comment…" }, 170, 80),
     ],
     edges: [
-      { id: "sync", label: "Synchronous", markerEnd: M.arrow, dashed: false, path: "smoothstep" },
-      { id: "async", label: "Asynchronous", markerEnd: M.openArrow, dashed: false, path: "smoothstep" },
-      { id: "return", label: "Return", markerEnd: M.openArrow, dashed: true, path: "bezier" },
+      { id: "sync", label: "Synchronous", markerEnd: M.arrow, dashed: false, path: "smoothstep", autoLabel: "" },
+      { id: "async", label: "Asynchronous", markerEnd: M.openArrow, dashed: false, path: "smoothstep", autoLabel: "" },
+      { id: "return", label: "Return", markerEnd: M.openArrow, dashed: true, path: "bezier", autoLabel: "" },
     ],
   },
   {
@@ -76,8 +76,8 @@ export const DIAGRAMS: DiagramDef[] = [
       P("note", "Note", { label: "Note…" }, 170, 80),
     ],
     edges: [
-      { id: "trans", label: "Transition", markerEnd: M.arrow, dashed: false, path: "smoothstep" },
-      { id: "self", label: "Self / internal", markerEnd: M.arrow, dashed: true, path: "smoothstep" },
+      { id: "trans", label: "Transition", markerEnd: M.arrow, dashed: false, path: "smoothstep", autoLabel: "" },
+      { id: "self", label: "Self / internal", markerEnd: M.arrow, dashed: true, path: "smoothstep", autoLabel: "" },
     ],
   },
   {
@@ -92,12 +92,12 @@ export const DIAGRAMS: DiagramDef[] = [
       P("note", "Note", { label: "Note…" }, 170, 80),
     ],
     edges: [
-      { id: "inherit", label: "Inheritance", markerEnd: M.triangle, dashed: false, path: "smoothstep" },
-      { id: "realize", label: "Realization", markerEnd: M.triangle, dashed: true, path: "smoothstep" },
-      { id: "assoc", label: "Association", markerEnd: M.openArrow, dashed: false, path: "smoothstep" },
-      { id: "aggr", label: "Aggregation", markerStart: M.diamondOpenStart, markerEnd: "", dashed: false, path: "smoothstep" },
-      { id: "comp", label: "Composition", markerStart: M.diamondFilledStart, markerEnd: "", dashed: false, path: "smoothstep" },
-      { id: "depend", label: "Dependency", markerEnd: M.openArrow, dashed: true, path: "smoothstep" },
+      { id: "inherit", label: "Inheritance", markerEnd: M.triangle, dashed: false, path: "smoothstep", autoLabel: "" },
+      { id: "realize", label: "Realization", markerEnd: M.triangle, dashed: true, path: "smoothstep", autoLabel: "" },
+      { id: "assoc", label: "Association", markerEnd: M.openArrow, dashed: false, path: "smoothstep", autoLabel: "" },
+      { id: "aggr", label: "Aggregation", markerStart: M.diamondOpenStart, markerEnd: "", dashed: false, path: "smoothstep", autoLabel: "" },
+      { id: "comp", label: "Composition", markerStart: M.diamondFilledStart, markerEnd: "", dashed: false, path: "smoothstep", autoLabel: "" },
+      { id: "depend", label: "Dependency", markerEnd: M.openArrow, dashed: true, path: "smoothstep", autoLabel: "" },
     ],
   },
   {
@@ -112,7 +112,8 @@ export const DIAGRAMS: DiagramDef[] = [
       P("note", "Note", { label: "Note…" }, 170, 80),
     ],
     edges: [
-      { id: "assoc", label: "Association", markerEnd: M.none, dashed: false, path: "smoothstep" },
+      { id: "inherit", label: "Generalization", markerEnd: M.triangle, dashed: false, path: "smoothstep", autoLabel: "" },
+      { id: "assoc", label: "Association", markerEnd: M.none, dashed: false, path: "smoothstep", autoLabel: "" },
       { id: "include", label: "«include»", markerEnd: M.openArrow, dashed: true, path: "smoothstep", autoLabel: "«include»" },
       { id: "extend", label: "«extend»", markerEnd: M.openArrow, dashed: true, path: "smoothstep", autoLabel: "«extend»" },
     ],
@@ -129,11 +130,11 @@ export const DIAGRAMS: DiagramDef[] = [
       P("note", "Note", { label: "Note…" }, 170, 80),
     ],
     edges: [
-      { id: "assoc", label: "Association", markerEnd: M.openArrow, dashed: false, path: "smoothstep" },
-      { id: "depend", label: "Dependency", markerEnd: M.openArrow, dashed: true, path: "smoothstep" },
-      { id: "realize", label: "Realization", markerEnd: M.triangle, dashed: true, path: "smoothstep" },
-      { id: "aggr", label: "Aggregation", markerStart: M.diamondOpenStart, markerEnd: "", dashed: false, path: "smoothstep" },
-      { id: "comp", label: "Composition", markerStart: M.diamondFilledStart, markerEnd: "", dashed: false, path: "smoothstep" },
+      { id: "assoc", label: "Association", markerEnd: M.openArrow, dashed: false, path: "smoothstep", autoLabel: "" },
+      { id: "depend", label: "Dependency", markerEnd: M.openArrow, dashed: true, path: "smoothstep", autoLabel: "" },
+      { id: "realize", label: "Realization", markerEnd: M.triangle, dashed: true, path: "smoothstep", autoLabel: "" },
+      { id: "aggr", label: "Aggregation", markerStart: M.diamondOpenStart, markerEnd: "", dashed: false, path: "smoothstep", autoLabel: "" },
+      { id: "comp", label: "Composition", markerStart: M.diamondFilledStart, markerEnd: "", dashed: false, path: "smoothstep", autoLabel: "" },
     ],
   },
 ];

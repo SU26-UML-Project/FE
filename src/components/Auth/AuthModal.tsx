@@ -453,19 +453,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                       Quên mật khẩu?
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={() => {
-                      setEmail('admin@diauml.com');
-                      setPassword('Admin@123');
-                      toast.success('Đã điền thông tin Admin mock data');
-                    }}
-                    className="w-full h-[40px] border border-zinc-200 rounded-lg text-[13px] font-bold text-zinc-600 hover:bg-zinc-50 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <ShieldCheck size={16} />
-                    Login as Admin (Mock)
-                  </button>
                 </div>
               )}
 

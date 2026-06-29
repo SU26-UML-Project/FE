@@ -56,3 +56,4 @@ coverage/
 .eslintcache
 *.tsbuildinfo
 /.trae/skills
+/build-minimalist-uml-diagramming-tool

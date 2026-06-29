@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useStore } from 'zustand'
 import { useEditableName } from '../../hooks/useEditableName'
 import { useCanvasStore } from '../../stores/canvasStore'
 import { DIAGRAMS } from '../../utils/diagrams'
+import toast from 'react-hot-toast'
 
 interface CanvasToolbarProps {
   diagramName: string
@@ -59,9 +60,10 @@ const CanvasToolbar = ({
     handleKeyDown,
   } = useEditableName(diagramName, onNameChange)
 
-  const { clearCanvas, diagramType } = useCanvasStore()
+  const { clearCanvas, diagramType, nodes, edges, loadDiagram } = useCanvasStore()
   const { undo, redo, pastStates, futureStates } = useStore(useCanvasStore.temporal, (state) => state)
   const [exportMenu, setExportMenu] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!exportMenu) return
@@ -69,6 +71,56 @@ const CanvasToolbar = ({
     window.addEventListener('click', close)
     return () => window.removeEventListener('click', close)
   }, [exportMenu])
+
+  const handleExportJson = () => {
+    const data = {
+      nodes,
+      edges,
+      diagramType,
+      diagramName,
+      version: '1.0',
+      exportedAt: new Date().toISOString()
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${diagramName.replace(/\s+/g, '_')}_diagram.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    setExportMenu(false)
+    toast.success('JSON exported successfully')
+  }
+
+  const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string)
+        if (!json.nodes || !json.edges) {
+          throw new Error('Invalid diagram file format')
+        }
+        
+        loadDiagram(json.nodes, json.edges, json.diagramName || diagramName, json.diagramType || diagramType)
+        
+        // Dispatch event to trigger auto-save
+        window.dispatchEvent(new CustomEvent('canvas-data-change', { 
+          detail: { nodes: json.nodes, edges: json.edges } 
+        }))
+
+        toast.success('Diagram imported successfully')
+      } catch (err: any) {
+        toast.error('Import failed: ' + err.message)
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = '' // Reset input
+  }
 
   return (
     <header className="z-20 flex h-14 shrink-0 items-center gap-3 border-b border-zinc-200 bg-white px-3">
@@ -232,6 +284,24 @@ const CanvasToolbar = ({
           </svg>
         </IconBtn>
 
+        <Divider />
+
+        {/* Import */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept=".json"
+          onChange={handleImportJson}
+        />
+        <IconBtn label="Import JSON" onClick={() => fileInputRef.current?.click()}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+        </IconBtn>
+
         {/* Export menu */}
         <div className="relative" onClick={(e) => e.stopPropagation()}>
           <button
@@ -254,6 +324,7 @@ const CanvasToolbar = ({
                 PNG image
               </button>
               <button
+                onClick={handleExportJson}
                 className="block w-full px-3.5 py-2 text-left text-[13px] text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
               >
                 JSON file

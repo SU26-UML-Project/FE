@@ -314,7 +314,7 @@ function EdgeEditor({
                 key={o.id}
                 onClick={() => {
                   onChange({
-                    label: o.autoLabel || (edge.label as string),
+                    label: o.autoLabel !== undefined ? o.autoLabel : (edge.label as string),
                     markerEnd: o.markerEnd,
                     markerStart: o.markerStart,
                     dashed: o.dashed,

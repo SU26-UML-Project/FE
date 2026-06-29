@@ -169,21 +169,27 @@ export default function WorkspacePage() {
 
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved')
   const loadedSnapshotRef = useRef<string>('')
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Track loaded data snapshot for dirty detection
-  useEffect(() => {
-    if (!workspace) return
-    const sheet = workspace.sheets.find(s => s.id === store.activeSheetId)
-    if (sheet?.canvasData) {
-      loadedSnapshotRef.current = JSON.stringify(sheet.canvasData)
+  // Auto-save to Backend
+  const performSave = useCallback(async (nodes: any[], edges: any[]) => {
+    if (!store.activeSheetId) return
+    
+    setSaveStatus('saving')
+    try {
+      const diagramDataStr = JSON.stringify({ nodes, edges })
+      const response = await sheetService.updateSheet(store.activeSheetId, {
+        diagramData: diagramDataStr,
+      })
+      if (response.code === 200) {
+        loadedSnapshotRef.current = diagramDataStr
+        setSaveStatus('saved')
+      }
+    } catch (error) {
+      console.error('Auto-save failed:', error)
+      setSaveStatus('error')
     }
-  }, [store.activeSheetId, workspace])
-
-  const hasUnsavedChanges = useCallback((): boolean => {
-    const { nodes, edges } = useCanvasStore.getState()
-    const current = JSON.stringify({ nodes, edges })
-    return current !== loadedSnapshotRef.current
-  }, [])
+  }, [store.activeSheetId])
 
   // Warn on tab close / refresh
   useEffect(() => {
@@ -205,9 +211,24 @@ export default function WorkspacePage() {
     navigate('/dashboard')
   }, [hasUnsavedChanges, navigate])
 
+  // Track loaded data snapshot for dirty detection
+  useEffect(() => {
+    if (!workspace) return
+    const sheet = workspace.sheets.find(s => s.id === store.activeSheetId)
+    if (sheet?.canvasData) {
+      loadedSnapshotRef.current = JSON.stringify(sheet.canvasData)
+    }
+  }, [store.activeSheetId, workspace])
+
+  const hasUnsavedChanges = useCallback((): boolean => {
+    const { nodes, edges } = useCanvasStore.getState()
+    const current = JSON.stringify({ nodes, edges })
+    return current !== loadedSnapshotRef.current
+  }, [])
+
   // Auto-save on node drag stop or any canvas change
   useEffect(() => {
-    const handleCanvasChange = async (e: any) => {
+    const handleCanvasChange = (e: any) => {
       if (!workspace || !store.activeSheetId) return
       const { nodes, edges } = e.detail
       
@@ -220,26 +241,19 @@ export default function WorkspacePage() {
       })
       store.updateWorkspace({ sheets: updatedSheets })
 
-      // Auto-save to Backend (PATCH /sheets/{id})
-    setSaveStatus('saving')
-    try {
-      const diagramDataStr = JSON.stringify({ nodes, edges })
-      const response = await sheetService.updateSheet(store.activeSheetId, {
-        diagramData: diagramDataStr,
-      })
-      if (response.code === 200) {
-        loadedSnapshotRef.current = diagramDataStr
-        setSaveStatus('saved')
-      }
-    } catch (error) {
-        console.error('Auto-save failed:', error)
-        setSaveStatus('error')
-      }
+      // Debounced Auto-save to Backend
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+      saveTimeoutRef.current = setTimeout(() => {
+        performSave(nodes, edges)
+      }, 1500) // Wait 1.5s after last change before saving to BE
     }
 
     window.addEventListener('canvas-data-change', handleCanvasChange)
-    return () => window.removeEventListener('canvas-data-change', handleCanvasChange)
-  }, [workspace, store.activeSheetId, store.updateWorkspace])
+    return () => {
+      window.removeEventListener('canvas-data-change', handleCanvasChange)
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    }
+  }, [workspace, store.activeSheetId, store.updateWorkspace, performSave])
 
   // API — POST /api/v1/chat
   const handleSendMessage = async (message: string) => {
@@ -587,18 +601,9 @@ export default function WorkspacePage() {
         onExport={handleExport}
         aiEnabled={aiEnabled}
         onAiToggle={setAiEnabled}
+        saveStatus={saveStatus}
       />
-      {saveStatus !== 'saved' && (
-        <div className="bg-white px-4 py-1 border-b border-gray-200 flex items-center justify-end gap-2 fixed top-[72px] right-0 z-50 rounded-bl-lg shadow-sm">
-          {saveStatus === 'saving' && (
-            <span className="text-[10px] text-uml-blue font-bold uppercase animate-pulse">● Saving...</span>
-          )}
-          {saveStatus === 'error' && (
-            <span className="text-[10px] text-red-500 font-bold uppercase">! Connection error</span>
-          )}
-        </div>
-      )}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
         <WorkspaceLayout
           sheets={workspace.sheets}
           activeSheetId={store.activeSheetId}
@@ -612,6 +617,7 @@ export default function WorkspacePage() {
           isProcessing={isProcessing}
           sessions={sessions}
           currentSessionId={sessionId}
+          saveStatus={saveStatus}
           onSheetSelect={handleSheetSelect}
           onSheetAdd={handleSheetAdd}
           onSheetDelete={handleSheetDelete}
