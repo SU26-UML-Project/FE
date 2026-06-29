@@ -104,10 +104,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
 
     try {
       if (mode === 'login') {
-        // Step 1: authenticate, get token from backend
+        // Step 1: authenticate, get token from backend (or mock service)
         const loginResponse = await authService.login({ email, password });
 
-        // Step 1b: save token as cookie (if backend didn't set it automatically)
+        // Step 1b: save token as cookie
         if (loginResponse.result?.token) {
           setAuthCookie(COOKIE_KEYS.ACCESS_TOKEN, loginResponse.result.token);
         }
@@ -442,14 +442,29 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
 
               {/* Forgot Password Link */}
               {mode === 'login' && (
-                <div className="flex justify-end mt-[-8px]">
+                <div className="flex flex-col gap-3 mt-[-8px]">
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => switchMode('forgot')}
+                      className="text-[14px] font-bold text-uml-blue hover:underline disabled:opacity-50"
+                    >
+                      Quên mật khẩu?
+                    </button>
+                  </div>
                   <button
                     type="button"
                     disabled={loading}
-                    onClick={() => switchMode('forgot')}
-                    className="text-[14px] font-bold text-uml-blue hover:underline disabled:opacity-50"
+                    onClick={() => {
+                      setEmail('admin@diauml.com');
+                      setPassword('Admin@123');
+                      toast.success('Đã điền thông tin Admin mock data');
+                    }}
+                    className="w-full h-[40px] border border-zinc-200 rounded-lg text-[13px] font-bold text-zinc-600 hover:bg-zinc-50 transition-colors flex items-center justify-center gap-2"
                   >
-                    Quên mật khẩu?
+                    <ShieldCheck size={16} />
+                    Login as Admin (Mock)
                   </button>
                 </div>
               )}

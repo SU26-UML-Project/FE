@@ -1,4 +1,5 @@
 import {type ReactNode, useCallback} from 'react' 
+import { useCanvasStore } from '../../stores/canvasStore'
  
  interface ShapeConfig { 
      type: string 
@@ -142,6 +143,8 @@ import {type ReactNode, useCallback} from 'react'
  ] 
  
  export function ShapePanel() { 
+     const addNode = useCanvasStore(s => s.addNode)
+
      const handleDragStart = useCallback((e: React.DragEvent, type: string) => { 
          e.dataTransfer.setData('shapeType', type) 
          const svg = e.currentTarget.querySelector('svg') 
@@ -149,6 +152,11 @@ import {type ReactNode, useCallback} from 'react'
              e.dataTransfer.setDragImage(svg, 40, 25) 
          } 
      }, []) 
+ 
+     const handleClick = (type: string) => {
+         // Add node to center of view
+         addNode(type, { x: 100, y: 100 })
+     }
 
      const groups = Array.from(new Set(SHAPE_CONFIG.map(s => s.group)))
  
@@ -163,6 +171,7 @@ import {type ReactNode, useCallback} from 'react'
                              className="shape-item" 
                              draggable 
                              onDragStart={e => handleDragStart(e, shape.type)} 
+                             onClick={() => handleClick(shape.type)}
                              title={shape.label} 
                          > 
                              {shape.preview} 

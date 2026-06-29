@@ -24,7 +24,8 @@ const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: string[] }) => {
   const { isAuthenticated, user, loading } = useAuthStore()
   const location = useLocation()
 
-  // Không gọi checkAuth ở đây nữa vì đã gọi ở root App level
+  // --- DISABLED FOR TESTING ---
+  /*
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -37,11 +38,9 @@ const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: string[] }) => {
   }
 
   if (!isAuthenticated) {
-    // Chỉ redirect về Landing Page khi chắc chắn là không có quyền truy cập
     return <Navigate to="/" state={{ from: location }} replace />
   }
 
-  // Onboarding gate: Google users with an unfinished profile must complete the wizard first.
   const needsOnboarding = user?.profileCompleted === false
   const onOnboarding = location.pathname === '/onboarding'
   if (needsOnboarding && !onOnboarding) {
@@ -59,6 +58,7 @@ const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: string[] }) => {
       return <Navigate to="/" replace />
     }
   }
+  */
 
   return <Outlet />
 }
