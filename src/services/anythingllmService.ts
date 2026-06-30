@@ -1,81 +1,85 @@
 /**
- * Chat Service — FE → BE → AnythingLLM
-
- * FE calls  : POST /api/v1/chat
- * BE proxies: AnythingLLM API
+ * anythingllmService — AI interaction layer (AnythingLLM / LLM backend).
  *
- apiClient interceptor tự động:
-   nwrap envelope → trả thẳng { reply }
-  Đính kèm JWT Authorization header
-   Tự refresh token khi hết hạn (401 → refresh → retry)
-   Redirect về / nếu refresh thất bại
+ * AI Interaction Flow (steps 2–4):
+ *   1. User types in AIChatPanel → sendChat() forwards to the LLM.
+ *   2. Response comes back as one of:
+ *        - reply   (plain text)
+ *        - diagram (Mermaid / PlantUML / raw nodes) → parsed → drawn on canvas
+ *        - questions (HITL) → QuestionBox shown
+ *
+ * Until the backend exists, this is a STUB. The FE currently parses Mermaid/
+ * PlantUML locally (lib/importers.ts) and keyword-matches prompts (panels/
+ * AIChat.tsx). Replace `sendChat` with a real fetch when the API is ready.
+ *
+ * See docs/SYSTEM_PROMPT.md for the JSON contract the backend must return.
  */
-import axios from 'axios';
+import type { ChatMsg, DiagramType, FlowEdge, FlowNode } from "../types";
+import type { ImportQuestion } from "../lib/importers";
 import apiClient from './apiClient';
 import type { ApiResponse } from '../types/api';
-import type {
-  ChatMessage,
-  ChatSession,
-  DiagramChatRequest,
-  DiagramChatResponse
-} from '../types/ai';
+import type { DiagramChatRequest, DiagramChatResponse, ChatSession } from '../types/ai';
+
+/** Discriminated union the backend MUST return (matches docs/SYSTEM_PROMPT.md). */
+export type AIResponse =
+  | { kind: "reply"; text: string }
+  | {
+      kind: "diagram";
+      format: "mermaid" | "plantuml" | "raw";
+      code?: string;
+      nodes?: FlowNode[];
+      edges?: FlowEdge[];
+      type?: DiagramType;
+      summary: string;
+    }
+  | { kind: "questions"; summary: string; questions: ImportQuestion[] };
+
+export interface ChatRequest {
+  message: string;
+  diagramType: DiagramType;
+  history: ChatMsg[];
+}
 
 export const anythingllmService = {
-  /**
-   * Gửi tin nhắn đến Diagram AI.
-   * Hỗ trợ sessionId để duy trì ngữ cảnh.
-   */
+  // Gửi tin nhắn chat và nhận phản hồi (UML AI Chat)
+  sendChat: async (data: DiagramChatRequest): Promise<ApiResponse<DiagramChatResponse>> => {
+    return apiClient.post<any, ApiResponse<DiagramChatResponse>>('/ai/chat', data);
+  },
+
+  // Alias for sendChat to match GlobalAIChatSidebar
   sendDiagramChat: async (data: DiagramChatRequest): Promise<ApiResponse<DiagramChatResponse>> => {
-    return apiClient.post<any, ApiResponse<DiagramChatResponse>>('/diagram-ai/chat', data);
+    return apiClient.post<any, ApiResponse<DiagramChatResponse>>('/ai/chat', data);
   },
 
-  /**
-   * Lấy danh sách tất cả các phiên chat của người dùng.
-   */
-  getChatSessions: async (): Promise<ApiResponse<ChatSession[]>> => {
-    return apiClient.get<any, ApiResponse<ChatSession[]>>('/diagram-ai/chat/sessions');
+  // Lấy lịch sử chat của một session
+  getChatHistory: async (sessionId: string): Promise<ApiResponse<any[]>> => {
+    return apiClient.get<any, ApiResponse<any[]>>(`/ai/sessions/${sessionId}/history`);
   },
 
-  /**
-   * Tạo một phiên chat mới.
-   */
+  // Tạo session chat mới
   createChatSession: async (): Promise<ApiResponse<ChatSession>> => {
-    return apiClient.post<any, ApiResponse<ChatSession>>('/diagram-ai/chat/sessions');
+    return apiClient.post<any, ApiResponse<ChatSession>>('/ai/sessions');
   },
 
-  /**
-   * Lấy lịch sử tin nhắn của một phiên chat.
-   */
-  getChatHistory: async (sessionId: string): Promise<ApiResponse<ChatMessage[]>> => {
-    return apiClient.get<any, ApiResponse<ChatMessage[]>>(`/diagram-ai/chat/sessions/${sessionId}/messages`);
+  // Lấy danh sách tất cả các sessions của user
+  getChatSessions: async (): Promise<ApiResponse<ChatSession[]>> => {
+    return apiClient.get<any, ApiResponse<ChatSession[]>>('/ai/sessions');
   },
 
-  /**
-   * Ping BE actuator để kiểm tra server online.
-   */
-  checkHealth: async (): Promise<boolean> => {
-    try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL ?? '';
-      await axios.get(`${baseUrl}/actuator/health`);
-      return true;
-    } catch (err: any) {
-        return false;
-      }
-    },
+  // Xóa một session chat
+  deleteChatSession: async (sessionId: string): Promise<ApiResponse<void>> => {
+    return apiClient.delete<any, ApiResponse<void>>(`/ai/sessions/${sessionId}`);
+  }
+};
 
-    /**
-     * [DEPRECATED] Gửi tin nhắn đến BE, BE proxy sang AnythingLLM.
-     * Dùng sendDiagramChat thay thế để hỗ trợ session.
-     */
-    sendChatMessage: async (message: string): Promise<string> => {
-      const response = await apiClient.post<any, ApiResponse<{ reply: string }>>(
-        '/api/v1/chat',
-        { message },
-        { timeout: 420000 }
-      );
+/**
+ * Streaming variant (preferred UX): the LLM streams tokens, then sends a final
+ * AIResponse JSON describing the diagram / questions. Uncomment when the
+ * backend supports Server-Sent Events.
+ */
+// export async function streamChat(
+//   req: ChatRequest,
+//   onToken: (t: string) => void
+// ): Promise<AIResponse> { /* SSE ... */ }
 
-      let reply = response.result?.reply ?? 'Không có phản hồi từ AI.';
-      reply = reply.replace(/<think>[\s\S]*?<\/think>\n*/g, '').trim();
-      return reply;
-    },
-  };
+export {};

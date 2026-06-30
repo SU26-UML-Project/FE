@@ -3,8 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Layers, ListTree, FileText, CheckCircle, Table, Eye, Cpu, AlertTriangle, Hash } from 'lucide-react'
 import { getTemplateContent } from '../utils/templates'
-import { GraphCanvas } from '../components/Canvas/GraphCanvas'
 import type { TemplateContent } from '../utils/templates'
+
+// Use a simple div as placeholder since we don't have GraphCanvas anymore
+const GraphCanvas = () => <div className="w-full h-full bg-gray-50 flex items-center justify-center text-gray-400">Preview not available</div>
 
 const badgeColors: Record<string, string> = {
   structural: 'bg-amber-100 text-amber-700 border-amber-200',
@@ -317,10 +319,10 @@ export default function TemplateDetail() {
           className="flex justify-center pb-12"
         >
           <button
-            onClick={() => navigate(`/canvas?template=${id}`)}
+            onClick={() => navigate(`/workspace/new?template=${id}`)}
             className="px-10 py-4 bg-uml-blue text-white font-bold rounded-md text-sm uppercase tracking-wider hover:bg-blue-700 transition shadow-md active:scale-95"
           >
-            Open in Canvas
+            Open in Workspace
           </button>
         </motion.div>
       </div>

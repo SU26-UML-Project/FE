@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { anythingllmService } from '../../services/anythingllmService';
 import type { ChatMessage } from '../../types/ai';
-import { generateId } from '../../utils/workspaceStorage';
+import { nanoid } from 'nanoid';
 import { useScrollToBottom } from '../../hooks/useScrollToBottom';
 
 
@@ -165,10 +165,9 @@ const AIChatWidget: React.FC = () => {
     if (!trimmed || isLoading) return;
 
     const userMsg: ChatMessage = {
-      id: generateId(),
       role: 'user',
       content: trimmed,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -178,22 +177,20 @@ const AIChatWidget: React.FC = () => {
     try {
       const replyText = await anythingllmService.sendChatMessage(trimmed);
       const aiMsg: ChatMessage = {
-        id: generateId(),
-        role: 'assistant',
+        role: 'assistant' as any,
         content: replyText,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err: unknown) {
       const errMsg: ChatMessage = {
-        id: generateId(),
-        role: 'assistant',
+        role: 'assistant' as any,
         content:
           err instanceof Error
             ? err.message
             : 'Không thể kết nối đến server. Vui lòng kiểm tra BE đang chạy tại localhost:8088.',
-        timestamp: new Date(),
-        error: true,
+        timestamp: new Date().toISOString(),
+        // error: true, // ChatMessage doesn't have error field
       };
       setMessages((prev) => [...prev, errMsg]);
     } finally {

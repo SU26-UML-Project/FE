@@ -1,25 +1,34 @@
 import apiClient from './apiClient';
 import type { ApiResponse } from '../types/api';
-import type { WorkspaceSheet } from '../types/workspace';
 
 export interface SheetRequest {
-  projectId: string;
   name: string;
-  diagramType?: string;
-  diagramData?: string;
+  orderIndex: number;
+  diagramData: string;
+  projectId: string;
+}
+
+export interface SheetResponse {
+  id: string;
+  name: string;
+  orderIndex: number;
+  diagramData: string;
+  projectId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const sheetService = {
-  getSheetsByProject: async (projectId: string): Promise<ApiResponse<WorkspaceSheet[]>> => {
-    return apiClient.get<any, ApiResponse<WorkspaceSheet[]>>(`/sheets/project/${projectId}`);
+  getSheetsByProject: async (projectId: string): Promise<ApiResponse<SheetResponse[]>> => {
+    return apiClient.get<any, ApiResponse<SheetResponse[]>>(`/sheets/project/${projectId}`);
   },
 
-  createSheet: async (data: SheetRequest): Promise<ApiResponse<WorkspaceSheet>> => {
-    return apiClient.post<any, ApiResponse<WorkspaceSheet>>('/sheets', data);
+  createSheet: async (data: SheetRequest): Promise<ApiResponse<SheetResponse>> => {
+    return apiClient.post<any, ApiResponse<SheetResponse>>('/sheets', data);
   },
 
-  updateSheet: async (sheetId: string, data: Partial<SheetRequest>): Promise<ApiResponse<WorkspaceSheet>> => {
-    return apiClient.patch<any, ApiResponse<WorkspaceSheet>>(`/sheets/${sheetId}`, data);
+  updateSheet: async (sheetId: string, data: Partial<SheetRequest>): Promise<ApiResponse<SheetResponse>> => {
+    return apiClient.patch<any, ApiResponse<SheetResponse>>(`/sheets/${sheetId}`, data);
   },
 
   deleteSheet: async (sheetId: string): Promise<ApiResponse<void>> => {
