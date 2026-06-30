@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "../../utils/cn";
 
 const sizeMap = {
@@ -14,6 +15,7 @@ export function Modal({
   onClose,
   title,
   desc,
+  headerExtra,
   children,
   footer,
   size = "md",
@@ -22,15 +24,16 @@ export function Modal({
   onClose: () => void;
   title: string;
   desc?: string;
+  headerExtra?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   size?: keyof typeof sizeMap;
 }) {
   if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 font-sans">
       <div
-        className="absolute inset-0 animate-fade-in bg-slate-900/40 backdrop-blur-sm"
+        className="absolute inset-0 animate-fade-in bg-black/20 backdrop-blur-md"
         onClick={onClose}
       />
       <div
@@ -43,6 +46,7 @@ export function Modal({
           <div className="min-w-0">
             <h3 className="text-[15px] font-semibold text-slate-900">{title}</h3>
             {desc && <p className="mt-0.5 text-[13px] text-slate-500">{desc}</p>}
+            {headerExtra && <div className="mt-3">{headerExtra}</div>}
           </div>
           <button
             onClick={onClose}
@@ -58,6 +62,7 @@ export function Modal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

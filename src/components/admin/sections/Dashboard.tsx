@@ -1,18 +1,40 @@
-import { ArrowUpRight, Send, Sparkles, TrendingUp } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Activity, ArrowUpRight, CalendarDays, FolderKanban, Network, Send, Sparkles, TrendingUp, Users } from "lucide-react";
 import {
   activityFeed,
   projectsTrend,
-  stats,
   topContributors,
   umlDistribution,
 } from "../data";
 import { AreaChart, Donut, Sparkline } from "../charts";
 import { Avatar, Badge, Card } from "../ui";
 import { useAuthStore } from "../../../stores/useAuthStore";
+import {
+  getDashboardUserStats,
+  getDashboardProjectStats,
+  getDashboardDiagramStats,
+  type StatCardData,
+  type RangeKey,
+} from "../../../services/dashboardService";
+import { cn } from "../../../utils/cn";
 
 const statColors = ["#6366f1", "#0ea5e9", "#8b5cf6", "#f43f5e"];
 
-function StatCard({ s, i }: { s: (typeof stats)[number]; i: number }) {
+const rangeOptions: { key: RangeKey; label: string }[] = [
+  { key: "24h", label: "24h" },
+  { key: "7d", label: "7 ngày" },
+  { key: "30d", label: "30 ngày" },
+  { key: "custom", label: "Tuỳ chỉnh" },
+];
+
+const cardConfig: { id: string; label: string; icon: typeof Users; value: string; delta: string; trend: "up" | "down"; spark: number[] }[] = [
+  { id: "users", label: "Tổng người dùng", icon: Users, value: "—", delta: "", trend: "up", spark: [] },
+  { id: "projects", label: "Dự án toàn hệ thống", icon: FolderKanban, value: "—", delta: "", trend: "up", spark: [] },
+  { id: "diagrams", label: "Sơ đồ UML đã tạo", icon: Network, value: "—", delta: "", trend: "up", spark: [] },
+  { id: "latency", label: "Độ trễ AI trung bình", icon: Activity, value: "1,2s", delta: "-9,4%", trend: "down", spark: [32, 30, 28, 29, 26, 24, 25, 22, 21, 20, 19, 17] },
+];
+
+function StatCard({ s, i }: { s: (typeof cardConfig)[number]; i: number }) {
   const Icon = s.icon;
   const color = statColors[i % statColors.length];
   return (
@@ -24,15 +46,17 @@ function StatCard({ s, i }: { s: (typeof stats)[number]; i: number }) {
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
           <Icon className="h-[18px] w-[18px]" />
         </span>
-        <Badge tone={s.trend === "up" ? "emerald" : "rose"}>
-          <TrendingUp className={`h-3 w-3 ${s.trend === "down" ? "rotate-180" : ""}`} />
-          {s.delta}
-        </Badge>
+        {s.delta && (
+          <Badge tone={s.trend === "up" ? "emerald" : "rose"}>
+            <TrendingUp className={`h-3 w-3 ${s.trend === "down" ? "rotate-180" : ""}`} />
+            {s.delta}
+          </Badge>
+        )}
       </div>
       <p className="mt-4 text-[24px] font-semibold tracking-tight text-slate-900">{s.value}</p>
       <div className="mt-1 flex items-end justify-between">
         <p className="text-[13px] text-slate-500">{s.label}</p>
-        <Sparkline data={s.spark} color={color} />
+        {s.spark.length > 0 && <Sparkline data={s.spark} color={color} />}
       </div>
     </Card>
   );
@@ -40,6 +64,58 @@ function StatCard({ s, i }: { s: (typeof stats)[number]; i: number }) {
 
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user);
+  const [range, setRange] = useState<RangeKey>("30d");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [userStat, setUserStat] = useState<StatCardData | null>(null);
+  const [projectStat, setProjectStat] = useState<StatCardData | null>(null);
+  const [diagramStat, setDiagramStat] = useState<StatCardData | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      getDashboardUserStats(range, from || undefined, to || undefined).catch(() => null),
+      getDashboardProjectStats(range, from || undefined, to || undefined).catch(() => null),
+      getDashboardDiagramStats(range, from || undefined, to || undefined).catch(() => null),
+    ])
+      .then(([u, p, d]) => {
+        setUserStat(u);
+        setProjectStat(p);
+        setDiagramStat(d);
+      })
+      .finally(() => setLoading(false));
+  }, [range, from, to]);
+
+  const fmtToday = () => {
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  };
+
+  const handleRange = (key: RangeKey) => {
+    setRange(key);
+    if (key !== "custom") {
+      setFrom("");
+      setTo("");
+    } else {
+      setFrom(fmtToday());
+      setTo(fmtToday());
+    }
+  };
+
+  const resolvedStats = cardConfig.map((cfg) => {
+    if (cfg.id === "users" && userStat) {
+      return { ...cfg, value: userStat.total.toLocaleString("vi-VN"), delta: `${userStat.delta > 0 ? "+" : ""}${userStat.delta.toLocaleString("vi-VN")}%`, trend: userStat.trend, spark: userStat.sparkline };
+    }
+    if (cfg.id === "projects" && projectStat) {
+      return { ...cfg, value: projectStat.total.toLocaleString("vi-VN"), delta: `${projectStat.delta > 0 ? "+" : ""}${projectStat.delta.toLocaleString("vi-VN")}%`, trend: projectStat.trend, spark: projectStat.sparkline };
+    }
+    if (cfg.id === "diagrams" && diagramStat) {
+      return { ...cfg, value: diagramStat.total.toLocaleString("vi-VN"), delta: `${diagramStat.delta > 0 ? "+" : ""}${diagramStat.delta.toLocaleString("vi-VN")}%`, trend: diagramStat.trend, spark: diagramStat.sparkline };
+    }
+    return cfg;
+  });
+
   return (
     <div className="space-y-5">
       {/* Welcome + AI prompt */}
@@ -65,9 +141,47 @@ export default function Dashboard() {
         </div>
       </Card>
 
+      {/* Range filter */}
+      <Card className="flex flex-wrap items-center gap-3 p-4">
+        <CalendarDays className="h-4 w-4 text-slate-400" />
+        <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+          {rangeOptions.map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => handleRange(opt.key)}
+              className={cn(
+                "rounded-md px-3.5 py-1.5 text-[13px] font-medium transition",
+                range === opt.key ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {range === "custom" && (
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] text-slate-400">Từ</span>
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[13px] outline-none"
+            />
+            <span className="text-[13px] text-slate-400">Đến</span>
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[13px] outline-none"
+            />
+          </div>
+        )}
+        {loading && <span className="text-[12px] text-slate-400">Đang tải...</span>}
+      </Card>
+
       {/* Stat cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((s, i) => (
+        {resolvedStats.map((s, i) => (
           <StatCard key={s.id} s={s} i={i} />
         ))}
       </div>

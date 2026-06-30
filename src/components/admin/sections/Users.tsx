@@ -206,6 +206,17 @@ export default function Users() {
           <LoadingOverlay message="Đang tải..." />
         ) : error ? (
           <p className="py-10 text-center text-[13px] text-rose-500">{error}</p>
+        ) : users.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-4 py-16">
+            <svg viewBox="0 0 120 120" className="h-28 w-28 text-slate-300" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="60" cy="45" r="18" strokeDasharray="4 3" />
+              <path d="M28 97c0-18 14-32 32-32s32 14 32 32" strokeDasharray="4 3" />
+              <path d="M60 32a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
+              <path d="M52 40a6 6 0 0 1 16 0" />
+            </svg>
+            <p className="text-[15px] font-medium text-slate-400">Không có người dùng nào</p>
+            <p className="text-[13px] text-slate-400">Danh sách người dùng sẽ hiển thị tại đây khi có dữ liệu.</p>
+          </div>
         ) : (
           <div className="-mx-2 overflow-x-auto">
             <table className="w-full min-w-[760px] border-collapse text-left">

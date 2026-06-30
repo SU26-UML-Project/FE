@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, LogOut, PanelLeftClose, PanelLeftOpen, Settings2, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, LogOut, Settings2, Sparkles, X } from "lucide-react";
 import { navSections, type SectionId } from "./data";
 import { cn } from "../../utils/cn";
 import type { User } from "../../types/auth";
@@ -111,21 +111,19 @@ export default function Sidebar({
         {/* header + collapse toggle */}
         <div className={cn("flex items-center pb-4 pt-5", collapsed ? "flex-col gap-2 px-3" : "justify-between px-4")}>
           <Logo collapsed={collapsed} />
-          <div className={cn("flex items-center gap-1", collapsed && "w-full justify-center")}>
-            {/* desktop collapse toggle */}
-            <button
-              onClick={onToggleCollapse}
-              title={collapsed ? "Mở rộng sidebar" : "Thu gọn sidebar"}
-              className="hidden rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 lg:inline-flex"
-            >
-              {collapsed ? <PanelLeftOpen className="h-[18px] w-[18px]" /> : <PanelLeftClose className="h-[18px] w-[18px]" />}
-            </button>
-            {/* mobile close */}
-            <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 lg:hidden">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 lg:hidden">
+            <X className="h-5 w-5" />
+          </button>
         </div>
+
+        {/* desktop collapse toggle — circular button on right edge */}
+        <button
+          onClick={onToggleCollapse}
+          title={collapsed ? "Mở rộng sidebar" : "Thu gọn sidebar"}
+          className="absolute -right-3 top-8 z-10 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition hover:shadow-md lg:flex"
+        >
+          {collapsed ? <ChevronRight className="h-3.5 w-3.5 text-slate-500" /> : <ChevronLeft className="h-3.5 w-3.5 text-slate-500" />}
+        </button>
 
         <nav className={cn("flex-1 px-3 pb-4", collapsed ? "space-y-3 overflow-visible" : "space-y-5 overflow-y-auto")}>
           {navSections.map((section) => (

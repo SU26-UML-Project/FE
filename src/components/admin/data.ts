@@ -1,5 +1,4 @@
 import {
-  Activity,
   Boxes,
   BrainCircuit,
   CreditCard,
@@ -13,7 +12,6 @@ import {
   LayoutTemplate,
   type LucideIcon,
   MessagesSquare,
-  Network,
   ShoppingBag,
   Users,
   Cloud,
@@ -89,55 +87,6 @@ export const navSections: NavSection[] = [
 ];
 
 /* ----------------------------- Dashboard ----------------------------- */
-export type Stat = {
-  id: string;
-  label: string;
-  value: string;
-  delta: string;
-  trend: "up" | "down";
-  icon: LucideIcon;
-  spark: number[];
-};
-
-export const stats: Stat[] = [
-  {
-    id: "users",
-    label: "Tổng người dùng",
-    value: "2.847",
-    delta: "+12,5%",
-    trend: "up",
-    icon: Users,
-    spark: [12, 18, 15, 22, 28, 24, 33, 30, 42, 38, 47, 55],
-  },
-  {
-    id: "projects",
-    label: "Dự án toàn hệ thống",
-    value: "1.924",
-    delta: "+8,2%",
-    trend: "up",
-    icon: FolderKanban,
-    spark: [8, 10, 9, 14, 13, 19, 17, 24, 22, 28, 31, 36],
-  },
-  {
-    id: "diagrams",
-    label: "Sơ đồ UML đã tạo",
-    value: "9.612",
-    delta: "+18,9%",
-    trend: "up",
-    icon: Network,
-    spark: [20, 25, 23, 30, 35, 33, 41, 45, 50, 58, 62, 71],
-  },
-  {
-    id: "latency",
-    label: "Độ trễ AI trung bình",
-    value: "1,2s",
-    delta: "-9,4%",
-    trend: "down",
-    icon: Activity,
-    spark: [32, 30, 28, 29, 26, 24, 25, 22, 21, 20, 19, 17],
-  },
-];
-
 export const projectsTrend = [
   { m: "T1", v: 64 },
   { m: "T2", v: 72 },

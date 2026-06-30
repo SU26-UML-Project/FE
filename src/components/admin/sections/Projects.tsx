@@ -108,6 +108,16 @@ export default function Projects() {
           <LoadingOverlay message="Đang tải..." />
         ) : error ? (
           <p className="py-10 text-center text-[13px] text-rose-500">{error}</p>
+        ) : projects.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-4 py-16">
+            <svg viewBox="0 0 120 120" className="h-28 w-28 text-slate-300" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 30h38l8 12h42v52H16z" strokeDasharray="4 3" />
+              <path d="M36 60h48M36 74h36" />
+              <circle cx="90" cy="44" r="3" />
+            </svg>
+            <p className="text-[15px] font-medium text-slate-400">Không có dự án nào</p>
+            <p className="text-[13px] text-slate-400">Danh sách dự án sẽ hiển thị tại đây khi có dữ liệu.</p>
+          </div>
         ) : view === "grid" ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {projects.map((p) => (
