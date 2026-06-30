@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Search, X } from "lucide-react";
 import { cn } from "../../utils/cn";
 
 /* ---------- Card ---------- */
@@ -166,18 +167,50 @@ export function Segmented<T extends string>({
 }
 
 /* ---------- Button ---------- */
+/* ---------- Search Input ---------- */
+export function SearchInput({
+  value,
+  onChange,
+  placeholder = "Tìm kiếm…",
+  className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("relative", className)}>
+      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-7 text-[12px] outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+      />
+      {value && (
+        <button onClick={() => onChange("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function Button({
   children,
   variant = "primary",
   className,
   onClick,
   type = "button",
+  disabled,
 }: {
   children: ReactNode;
   variant?: "primary" | "secondary" | "ghost";
   className?: string;
   onClick?: () => void;
   type?: "button" | "submit";
+  disabled?: boolean;
 }) {
   const variants = {
     primary: "bg-slate-900 text-white hover:bg-slate-700",
@@ -188,9 +221,11 @@ export function Button({
     <button
       type={type}
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium transition",
         variants[variant],
+        disabled && "cursor-not-allowed opacity-50",
         className
       )}
     >

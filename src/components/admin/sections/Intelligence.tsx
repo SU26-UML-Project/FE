@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import {
+  BrainCircuit,
+  Briefcase,
   Check,
   CheckCircle2,
+  Cloud,
+  Cpu,
   Database,
   Eye,
   FileText,
@@ -12,22 +17,23 @@ import {
   Plus,
   RefreshCw,
   Save,
-  ScanSearch,
-  Search,
+  Settings,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 import {
   intelConfig,
   vectorDbCatalog,
-  type RagDoc,
+  llmProviderCatalog,
 } from "../data";
-import { Badge, Button, Card, EndpointBadge } from "../ui";
+import { Badge, Button, Card, EndpointBadge, SearchInput } from "../ui";
+import SmartSelect from "../../ui/SmartSelect";
 import { Modal } from "../Modal";
 import { MarkdownEditor, MarkdownView } from "../MarkdownView";
 import { cn } from "../../../utils/cn";
 import { aiAdminService } from "../../../services/aiAdminService";
-import type { AiWorkspaceInfo, AiDocument, AiSystemConfig, AiVersionInfo } from "../../../types/ai";
+import type { AiWorkspaceInfo, AiWorkspace, AiWorkspaceUpdateRequest, AiDocument, AiSystemConfig, AiVersionInfo } from "../../../types/ai";
 
 type CatKey = (typeof intelConfig)[number]["key"];
 type VdbInstance = { providerId: string; fields: Record<string, string> };
@@ -38,15 +44,28 @@ type DisplayDoc = {
   workspace: string;
   size: string;
   status: "ready" | "processing" | "failed";
-  content?: string;
   docpath?: string;
-  isLocal: boolean;
+};
+
+type DocEditorState = {
+  mode: "create" | "edit";
+  name: string;
+  workspace: string;
+  content: string;
+  originalDocpath?: string;
 };
 
 const inputCls =
   "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-800 outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100";
 
 const localProviders = ["Ollama", "LM Studio", "LocalAI"];
+const providerDefaultBaseUrl: Record<string, string> = {
+  Ollama: "http://localhost:11434",
+  "LM Studio": "http://localhost:1234",
+  LocalAI: "http://localhost:8080",
+  OpenAI: "https://api.openai.com",
+  Anthropic: "https://api.anthropic.com",
+};
 const kindLabel: Record<string, string> = {
   embedded: "Nhúng sẵn",
   "self-hosted": "Self-hosted",
@@ -62,30 +81,6 @@ function Field({ label, children, hint }: { label: string; children: React.React
       </span>
       {children}
     </label>
-  );
-}
-
-function Select({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
-  return (
-    <div className="relative">
-      <select value={value} onChange={(e) => onChange(e.target.value)} className={cn(inputCls, "appearance-none pr-9")}>
-        {options.map((o) => (<option key={o}>{o}</option>))}
-      </select>
-      <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-    </div>
-  );
-}
-
-function DetectButton({ loading, onClick, label }: { loading: boolean; onClick: () => void; label: string }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-[12.5px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-    >
-      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanSearch className="h-4 w-4" />}
-      {loading ? "Đang quét…" : label}
-    </button>
   );
 }
 
@@ -110,10 +105,9 @@ export default function Intelligence() {
   const [cat, setCat] = useState<CatKey>("connection");
 
   // ---- Connection ----
-  const [baseUrl, setBaseUrl] = useState("");
-  const [apiKey, setApiKey] = useState("");
   const [test, setTest] = useState<"idle" | "loading" | "ok" | "fail">("idle");
   const [testLatency, setTestLatency] = useState("");
+  const [testTimestamp, setTestTimestamp] = useState("");
 
   // ---- Version & Config ----
   const [versionInfo, setVersionInfo] = useState<AiVersionInfo | null>(null);
@@ -124,8 +118,17 @@ export default function Intelligence() {
 
   // ---- Workspaces ----
   const [workspaces, setWorkspaces] = useState<AiWorkspaceInfo[]>([]);
-  const [showCreate, setShowCreate] = useState(false);
+  const [wsTab, setWsTab] = useState<"_all" | "_create" | string>("_all");
+  const [creatingWs, setCreatingWs] = useState(false);
   const [newName, setNewName] = useState("");
+  const [wsSearch, setWsSearch] = useState("");
+  const [wsConfirmDel, setWsConfirmDel] = useState<string | null>(null);
+  const [wsTabDetail, setWsTabDetail] = useState<AiWorkspace | null>(null);
+  const [wsTabDirty, setWsTabDirty] = useState<Partial<AiWorkspaceUpdateRequest> | null>(null);
+  const [wsTabLoading, setWsTabLoading] = useState(false);
+  const [wsSavingSlug, setWsSavingSlug] = useState<string | null>(null);
+  const [detectedWsModels, setDetectedWsModels] = useState<string[]>([]);
+  const [detectingWsModels, setDetectingWsModels] = useState(false);
 
   // ---- LLM ----
   const [llmProvider, setLlmProvider] = useState("");
@@ -133,29 +136,32 @@ export default function Intelligence() {
   const [model, setModel] = useState("");
   const [detectedLlm, setDetectedLlm] = useState<string[]>([]);
   const [detectingLlm, setDetectingLlm] = useState(false);
-  const [temp, setTemp] = useState(0.7);
+  const [llmSearch, setLlmSearch] = useState("");
 
   // ---- Embedding ----
   const [embProvider, setEmbProvider] = useState("");
   const [emb, setEmb] = useState("");
   const [detectedEmb, setDetectedEmb] = useState<string[]>([]);
   const [detectingEmb, setDetectingEmb] = useState(false);
+  const [embSearch, setEmbSearch] = useState("");
 
   // ---- Vector DB ----
   const [activeVdbs, setActiveVdbs] = useState<VdbInstance[]>([{ providerId: "lancedb", fields: {} }]);
   const [vdb, setVdb] = useState("lancedb");
-  const [vdbModal, setVdbModal] = useState(false);
-  const [vdbPick, setVdbPick] = useState("chroma");
-  const [vdbForm, setVdbForm] = useState<Record<string, string>>({});
+  const [vdbSearch, setVdbSearch] = useState("");
 
   // ---- Documents ----
   const [docs, setDocs] = useState<AiDocument[]>([]);
-  const [localDocs, setLocalDocs] = useState<RagDoc[]>([]);
-  const [docWs, setDocWs] = useState("all");
+  const [docContentCache, setDocContentCache] = useState<Record<string, string>>({});
+  const [uploadTarget, setUploadTarget] = useState("");
   const [docSearch, setDocSearch] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [reembedding, setReembedding] = useState(false);
+  const [reembedConfirm, setReembedConfirm] = useState(false);
   const [viewDoc, setViewDoc] = useState<{ name: string; content: string; workspace: string } | null>(null);
-  const [docEditor, setDocEditor] = useState<{ mode: "create" | "edit"; doc?: RagDoc; name: string; workspace: string; content: string } | null>(null);
-  const [confirmDel, setConfirmDel] = useState<{ name: string; workspace: string; docpath?: string; isLocal: boolean } | null>(null);
+  const [docEditor, setDocEditor] = useState<DocEditorState | null>(null);
+  const [confirmCloseEditor, setConfirmCloseEditor] = useState(false);
+  const [confirmDel, setConfirmDel] = useState<{ name: string; workspace: string; docpath?: string } | null>(null);
 
   // ---- Save states ----
   const [saving, setSaving] = useState<Record<string, boolean>>({});
@@ -199,6 +205,8 @@ export default function Intelligence() {
           setSysConfig(cfg);
           if (cfg.llmProvider) setLlmProvider(cfg.llmProvider);
           if (cfg.model) { setModel(cfg.model); }
+          if (cfg.documentChunkSize != null) setChunkSize(cfg.documentChunkSize);
+          if (cfg.documentChunkOverlap != null) setChunkOverlap(cfg.documentChunkOverlap);
           if (cfg.vectorDb) {
             setVdb(cfg.vectorDb);
             setActiveVdbs([{ providerId: cfg.vectorDb, fields: { url: cfg.vectorDbEndpoint || "" } }]);
@@ -206,43 +214,54 @@ export default function Intelligence() {
         }
         if (verRes?.result) setVersionInfo(verRes.result);
         if (provRes?.result && provRes.result.length > 0) setProviders(provRes.result);
-        if (wsRes?.result) setWorkspaces(wsRes.result);
+        if (wsRes?.result) { setWorkspaces(wsRes.result); if (!uploadTarget) setUploadTarget(wsRes.result[0]?.slug || ""); }
         if (docRes?.result) setDocs(docRes.result);
       })
       .finally(() => setLoading(false));
   }, []);
 
+  // Auto-detect when local provider or base URL changes (debounced)
+  useEffect(() => {
+    if (!canDetectLlm || !llmUrl.trim()) return;
+    const timer = setTimeout(autoDetectLlm, 800);
+    return () => clearTimeout(timer);
+  }, [llmProvider, llmUrl]);
+
+  useEffect(() => {
+    if (!canDetectEmb || !llmUrl.trim()) return;
+    const timer = setTimeout(autoDetectEmb, 800);
+    return () => clearTimeout(timer);
+  }, [embProvider, llmUrl]);
+
   const wsSlugs = workspaces.map((w) => w.slug);
+  const filteredWs = wsSearch ? workspaces.filter((w) => w.name.toLowerCase().includes(wsSearch.toLowerCase()) || w.slug.toLowerCase().includes(wsSearch.toLowerCase())) : workspaces;
   const canDetectLlm = localProviders.includes(llmProvider);
   const canDetectEmb = localProviders.includes(embProvider);
   const llmOptions = detectedLlm.length ? detectedLlm : (model ? [model] : []);
   const embOptions = detectedEmb.length ? detectedEmb : (emb ? [emb] : []);
+  const filteredLlmProviders = llmSearch ? llmProviderCatalog.filter((p) => p.name.toLowerCase().includes(llmSearch.toLowerCase())) : llmProviderCatalog;
+  const filteredEmbProviders = embSearch ? llmProviderCatalog.filter((p) => p.name.toLowerCase().includes(embSearch.toLowerCase())) : llmProviderCatalog;
+  const filteredVdbProviders = vdbSearch ? vectorDbCatalog.filter((p) => p.name.toLowerCase().includes(vdbSearch.toLowerCase())) : vectorDbCatalog;
 
-  // ---- Merge API docs + local docs for display ----
-  const allDocs: DisplayDoc[] = [
-    ...docs.map((d) => ({
-      id: d.docId,
-      name: d.filename,
-      workspace: d.docpath?.split("/")[0] || d.filename.split(".")[0],
-      size: d.size != null ? `${(d.size / 1024).toFixed(1)} KB` : "—",
-      status: (d.status === "ready" || d.status === "processing" || d.status === "failed" ? d.status : "processing") as DisplayDoc["status"],
-      docpath: d.docpath,
-      isLocal: false as const,
-    })),
-    ...localDocs.map((d) => ({
-      id: String(d.id),
-      name: d.name,
-      workspace: d.workspace,
-      size: d.size,
-      status: d.status,
-      content: d.content,
-      isLocal: true as const,
-    })),
-  ];
+  const allDocs: DisplayDoc[] = docs.map((d) => ({
+    id: d.docId,
+    name: d.filename,
+    workspace: d.docpath?.split("/")[0] || d.filename.split(".")[0],
+    size: d.size != null ? `${(d.size / 1024).toFixed(1)} KB` : "—",
+    status: (d.status === "ready" || d.status === "processing" || d.status === "failed" ? d.status : "processing") as DisplayDoc["status"],
+    docpath: d.docpath,
+  }));
 
-  const filteredDocs = allDocs.filter(
-    (d) => (docWs === "all" || d.workspace === docWs) && d.name.toLowerCase().includes(docSearch.toLowerCase())
-  );
+  const filteredDocs = allDocs
+    .filter((d) => d.name.toLowerCase().includes(docSearch.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  async function refreshSysConfig() {
+    try {
+      const res = await aiAdminService.getSystemConfig();
+      if (res?.result) { setSysConfig(res.result); }
+    } catch {}
+  }
 
   const latencyStr = testLatency || "—";
   const wsCount = workspaces.length;
@@ -253,166 +272,347 @@ export default function Intelligence() {
     setTestLatency("");
     aiAdminService.testConnection()
       .then((res) => {
+        const now = new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+        setTestTimestamp(now);
         if (res.result.connected) {
           setTest("ok");
           setTestLatency(`${res.result.latencyMs}ms`);
+          toast.success(`Kết nối thành công · ${res.result.latencyMs}ms`);
         } else {
           setTest("fail");
+          toast.error("Kết nối thất bại");
         }
       })
-      .catch(() => setTest("fail"));
-  }
-
-  function saveConnection() {
-    triggerSave("conn", () => aiAdminService.updateSystemConfig({ baseUrl, apiKey }));
+      .catch(() => {
+        setTest("fail");
+        const now = new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+        setTestTimestamp(now);
+        toast.error("Kết nối thất bại");
+      });
   }
 
   // ---- Workspace handlers ----
-  function addWs() {
+  async function addWs() {
     if (!newName.trim()) return;
+    setCreatingWs(true);
     const slug = slugify(newName);
-    aiAdminService.updateWorkspace({ model: model || undefined }, slug)
-      .then(() => aiAdminService.getWorkspaces())
-      .then((res) => setWorkspaces(res.result || []))
-      .catch(() => {});
-    setNewName("");
-    setShowCreate(false);
+    try {
+      await aiAdminService.createWorkspace({ slug, name: newName.trim() });
+      const res = await aiAdminService.getWorkspaces();
+      if (res?.result) setWorkspaces(res.result);
+      setNewName("");
+      setWsTab("_all");
+      toast.success(`Đã tạo workspace ${slug}`);
+    } catch {
+      toast.error("Không thể tạo workspace");
+    } finally {
+      setCreatingWs(false);
+    }
   }
 
-  function deleteWs(slug: string) {
-    aiAdminService.updateWorkspace({}, slug)
-      .then(() => setWorkspaces((arr) => arr.filter((w) => w.slug !== slug)))
-      .catch(() => {});
+  async function deleteWs(slug: string) {
+    try {
+      await aiAdminService.deleteWorkspace(slug);
+      setWorkspaces((arr) => arr.filter((w) => w.slug !== slug));
+      setWsConfirmDel(null);
+      if (wsTab === slug) setWsTab("_all");
+      toast.success(`Đã xoá workspace ${slug}`);
+    } catch {
+      toast.error("Không thể xoá workspace");
+    }
+  }
+
+  // ---- Workspace tab handlers ----
+  async function loadWsTabDetail(slug: string) {
+    setWsTabLoading(true);
+    try {
+      const res = await aiAdminService.getWorkspace(slug);
+      if (res?.result) {
+        setWsTabDetail(res.result);
+        setWsTabDirty(null);
+      }
+    } catch { toast.error("Không thể tải thông tin workspace"); }
+    finally { setWsTabLoading(false); }
+  }
+
+  function switchWsTab(tab: string) {
+    setWsTab(tab);
+    setWsTabDetail(null);
+    setWsTabDirty(null);
+    setDetectedWsModels([]);
+    if (tab !== "_all" && tab !== "_create") loadWsTabDetail(tab);
+  }
+
+  function updateWsTabField(field: string, value: any) {
+    setWsTabDirty((d) => ({ ...(d || {}), [field]: value }));
+  }
+
+  async function saveWsTab() {
+    if (typeof wsTab !== "string" || wsTab === "_all" || wsTab === "_create" || !wsTabDirty) return;
+    setWsSavingSlug(wsTab);
+    try {
+      const res = await aiAdminService.updateWorkspace(wsTabDirty, wsTab);
+      if (res?.result) {
+        setWsTabDetail(res.result);
+        setWsTabDirty(null);
+        toast.success(`Đã lưu workspace ${wsTab}`);
+      }
+    } catch { toast.error(`Không thể lưu workspace ${wsTab}`); }
+    finally { setWsSavingSlug(null); }
+  }
+
+  function detectWsModels() {
+    const provider = (wsTabDirty?.chatProvider ?? wsTabDetail?.chatProvider ?? "");
+    if (!localProviders.includes(provider)) { setDetectedWsModels([]); return; }
+    setDetectingWsModels(true);
+    aiAdminService.getProviderModels(provider, llmUrl || undefined)
+      .then((res) => {
+        const list = res.result || [];
+        setDetectedWsModels(list);
+        if (list.length > 0 && !(wsTabDirty?.model ?? wsTabDetail?.chatModel)) updateWsTabField("model", list[0]);
+      })
+      .catch(() => setDetectedWsModels([]))
+      .finally(() => setDetectingWsModels(false));
   }
 
   // ---- LLM handlers ----
   function autoDetectLlm() {
+    if (!canDetectLlm) { setDetectedLlm([]); return; }
     setDetectingLlm(true);
-    setDetectedLlm([]);
     aiAdminService.getProviderModels(llmProvider, llmUrl || undefined)
       .then((res) => {
         const models = res.result || [];
         setDetectedLlm(models);
-        if (models.length > 0) setModel(models[0]);
+        if (models.length > 0 && !model) setModel(models[0]);
       })
-      .catch(() => {})
+      .catch(() => { setDetectedLlm([]); })
       .finally(() => setDetectingLlm(false));
   }
 
   function saveLlm() {
-    triggerSave("llm", () => aiAdminService.updateSystemConfig({ llmProvider, baseUrl: llmUrl, model }));
+    triggerSave("llm", async () => {
+      const r = await aiAdminService.updateSystemConfig({ llmProvider, baseUrl: llmUrl, model });
+      await refreshSysConfig();
+      return r;
+    });
   }
 
   // ---- Embedding handlers ----
   function autoDetectEmb() {
+    if (!canDetectEmb) { setDetectedEmb([]); return; }
     setDetectingEmb(true);
-    setDetectedEmb([]);
     aiAdminService.getProviderModels(embProvider, llmUrl || undefined)
       .then((res) => {
         const models = res.result || [];
         setDetectedEmb(models);
-        if (models.length > 0) setEmb(models[0]);
+        if (models.length > 0 && !emb) setEmb(models[0]);
       })
-      .catch(() => {})
+      .catch(() => { setDetectedEmb([]); })
       .finally(() => setDetectingEmb(false));
   }
 
+  const [chunkSize, setChunkSize] = useState(1000);
+  const [chunkOverlap, setChunkOverlap] = useState(200);
+
   function saveEmb() {
-    triggerSave("emb", () => aiAdminService.updateSystemConfig({ model: emb }));
+    triggerSave("emb", async () => {
+      const r = await aiAdminService.updateSystemConfig({
+        embeddingProvider: embProvider,
+        embeddingModel: emb,
+        documentChunkSize: chunkSize,
+        documentChunkOverlap: chunkOverlap,
+      });
+      await refreshSysConfig();
+      return r;
+    });
   }
 
   // ---- Vector DB handlers ----
   const providerById = (id: string) => vectorDbCatalog.find((p) => p.id === id)!;
   const isVdbActive = (id: string) => activeVdbs.some((a) => a.providerId === id);
 
-  function addVdb() {
-    const prov = providerById(vdbPick);
-    if (isVdbActive(prov.id)) return;
-    setActiveVdbs((a) => [...a, { providerId: prov.id, fields: vdbForm }]);
-    setVdb(prov.id);
-    setVdbModal(false);
-    setVdbForm({});
+  function toggleVdbProvider(id: string) {
+    if (isVdbActive(id)) { setVdb(id); return; }
+    setActiveVdbs((a) => [...a, { providerId: id, fields: {} }]);
+    setVdb(id);
   }
 
   function removeVdb(id: string) {
     if (id === "lancedb") return;
     setActiveVdbs((a) => a.filter((x) => x.providerId !== id));
-    if (vdb === id) setVdb("lancedb");
+    if (vdb === id) setVdb(activeVdbs.find((x) => x.providerId !== id)?.providerId || "lancedb");
+  }
+
+  function updateVdbField(providerId: string, key: string, value: string) {
+    setActiveVdbs((arr) => arr.map((a) => a.providerId === providerId ? { ...a, fields: { ...a.fields, [key]: value } } : a));
   }
 
   function saveVdb() {
     const active = activeVdbs.find((a) => a.providerId === vdb);
-    triggerSave("vdb", () => aiAdminService.updateSystemConfig({
-      vectorDb: vdb,
-      vectorDbEndpoint: active?.fields?.url || "",
-    }));
+    triggerSave("vdb", async () => {
+      const r = await aiAdminService.updateSystemConfig({
+        vectorDb: vdb,
+        vectorDbEndpoint: active?.fields?.url || "",
+      });
+      await refreshSysConfig();
+      return r;
+    });
   }
 
   // ---- Document handlers ----
   function openCreate() {
-    setDocEditor({ mode: "create", name: "", workspace: wsSlugs[0] || "default", content: "# Tên tài liệu\n\nMô tả nội dung..." });
+    setDocEditor({ mode: "create", name: "", workspace: uploadTarget || wsSlugs[0] || "default", content: "# Tên tài liệu\n\nMô tả nội dung..." });
   }
 
   function openEdit(d: DisplayDoc) {
-    const local = localDocs.find((x) => String(x.id) === d.id);
-    if (!local) return;
-    setDocEditor({ mode: "edit", doc: local, name: local.name, workspace: local.workspace, content: local.content });
+    const content = docContentCache[d.name];
+    if (!content) {
+      toast.error("Không thể chỉnh sửa tài liệu này — nội dung không khả dụng");
+      return;
+    }
+    setDocEditor({ mode: "edit", name: d.name, workspace: d.workspace, content, originalDocpath: d.docpath });
   }
 
   function openView(d: DisplayDoc) {
-    const local = localDocs.find((x) => String(x.id) === d.id);
-    setViewDoc({ name: d.name, content: local?.content || "Nội dung không khả dụng để xem trực tiếp.", workspace: d.workspace });
+    setViewDoc({ name: d.name, content: docContentCache[d.name] || "Nội dung không khả dụng để xem trực tiếp.", workspace: d.workspace });
   }
 
-  function saveDoc() {
+  async function saveDoc() {
     if (!docEditor) return;
     const name = normalizeName(docEditor.name);
-    if (docEditor.mode === "create") {
-      const newDoc: RagDoc = {
-        id: Date.now(),
-        name,
-        workspace: docEditor.workspace,
-        size: `${Math.max(0.2, (docEditor.content || "").length / 1024).toFixed(1)} KB`,
-        status: "ready",
-        content: docEditor.content || "",
-      };
-      setLocalDocs((d) => [newDoc, ...d]);
+    setUploading(true);
+    try {
+      const blob = new Blob([docEditor.content || ""], { type: "text/markdown" });
+      const file = new File([blob], name, { type: "text/markdown" });
+      if (docEditor.mode === "edit" && docEditor.originalDocpath) {
+        await aiAdminService.deleteDocument(docEditor.originalDocpath).catch(() => {});
+      }
+      await aiAdminService.uploadDocument(file, docEditor.workspace);
+      setDocContentCache((c) => ({ ...c, [name]: docEditor.content || "" }));
+      const fresh = await aiAdminService.getDocuments();
+      if (fresh?.result) setDocs(fresh.result);
       setDocEditor(null);
-    } else if (docEditor.doc) {
-      const id = docEditor.doc.id;
-      setLocalDocs((d) =>
-        d.map((x) =>
-          x.id === id
-            ? { ...x, name, workspace: docEditor.workspace, content: docEditor.content || "", size: `${Math.max(0.2, (docEditor.content || "").length / 1024).toFixed(1)} KB` }
-            : x
-        )
-      );
-      setDocEditor(null);
+      toast.success(`Đã ${docEditor.mode === "create" ? "tạo" : "cập nhật"} ${name}`);
+    } catch {
+      toast.error(`Không thể ${docEditor.mode === "create" ? "tạo" : "cập nhật"} tài liệu`);
+    } finally {
+      setUploading(false);
     }
   }
 
-  function doDelete() {
-    if (!confirmDel) return;
-    if (confirmDel.isLocal) {
-      setLocalDocs((d) => d.filter((x) => x.name !== confirmDel.name));
-    } else if (confirmDel.docpath) {
-      aiAdminService.deleteDocument(confirmDel.docpath)
-        .then(() => setDocs((d) => d.filter((x) => x.docpath !== confirmDel.docpath)))
-        .catch(() => {});
+  async function doDelete() {
+    if (!confirmDel || !confirmDel.docpath) return;
+    try {
+      await aiAdminService.deleteDocument(confirmDel.docpath);
+      setDocs((d) => d.filter((x) => x.docpath !== confirmDel.docpath));
+      setDocContentCache((c) => {
+        const copy = { ...c };
+        delete copy[confirmDel.name];
+        return copy;
+      });
+      setConfirmDel(null);
+      toast.success(`Đã xoá ${confirmDel.name}`);
+    } catch {
+      toast.error(`Không thể xoá ${confirmDel.name}`);
     }
-    setConfirmDel(null);
   }
+
+  // ─── Drag & Drop Upload ─────────────────────────────────────
+  const [dragOver, setDragOver] = useState(false);
+
+  async function uploadFileList(files: FileList) {
+    const target = uploadTarget || wsSlugs[0];
+    if (!target) { toast.error("Không có workspace nào để upload"); return; }
+    setUploading(true);
+    let ok = 0, fail = 0;
+    for (const file of Array.from(files)) {
+      if (!file.name.endsWith(".md")) { fail++; continue; }
+      try {
+        await aiAdminService.uploadDocument(file, target);
+        ok++;
+      } catch { fail++; }
+    }
+    const fresh = await aiAdminService.getDocuments().catch(() => null);
+    if (fresh?.result) setDocs(fresh.result);
+    setUploading(false);
+    if (ok > 0) toast.success(`Đã upload ${ok} tài liệu`);
+    if (fail > 0) toast.error(`${fail} tài liệu không hợp lệ (chỉ .md)`);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer.files.length > 0) uploadFileList(e.dataTransfer.files);
+  }
+
+  function handleDragOver(e: React.DragEvent) { e.preventDefault(); setDragOver(true); }
+  function handleDragLeave() { setDragOver(false); }
+
+  async function handleReEmbed() {
+    const target = uploadTarget || undefined;
+    setReembedding(true);
+    try {
+      await aiAdminService.reEmbedDocuments(target);
+      toast.success("Re-embed hoàn tất");
+    } catch {
+      toast.error("Re-embed thất bại");
+    } finally {
+      setReembedding(false);
+    }
+  }
+
+  const renderCatBtn = (c: (typeof intelConfig)[number]) => {
+    const active = cat === c.key;
+    return (
+      <button key={c.key} onClick={() => setCat(c.key)} className={cn("flex w-full items-center border-l-[3px] px-3 py-1.5 text-[13px] font-medium text-left transition", active ? "border-indigo-500 bg-indigo-50/60 font-semibold text-indigo-700" : "border-transparent text-slate-600 hover:border-slate-300 hover:bg-slate-50")}>
+        {c.label}
+      </button>
+    );
+  };
 
   if (loading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      <div className="space-y-5 animate-fade-in">
+        <div className="flex animate-pulse items-center gap-4 rounded-xl border border-slate-200 p-5">
+          <div className="h-12 w-12 rounded-xl bg-slate-200" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-48 rounded bg-slate-200" />
+            <div className="h-3 w-72 rounded bg-slate-100" />
+          </div>
+          <div className="flex gap-5">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="space-y-1.5 text-center">
+                <div className="mx-auto h-5 w-12 rounded bg-slate-200" />
+                <div className="mx-auto h-3 w-10 rounded bg-slate-100" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
+          <div className="animate-pulse space-y-1 rounded-xl border border-slate-200 p-2">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="h-9 w-full rounded-lg bg-slate-100" />
+            ))}
+          </div>
+          <div className="animate-pulse space-y-3 rounded-xl border border-slate-200 p-5">
+            <div className="h-4 w-40 rounded bg-slate-200" />
+            <div className="h-3 w-64 rounded bg-slate-100" />
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="space-y-1.5">
+                  <div className="h-3 w-20 rounded bg-slate-200" />
+                  <div className="h-9 w-full rounded-lg bg-slate-100" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5">
+    <div className="flex h-full flex-col gap-5 overflow-hidden">
       {/* connection banner */}
       <Card className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-4">
@@ -423,7 +623,7 @@ export default function Intelligence() {
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-soft-pulse" /> Connected</span>
             </div>
             <p className="mt-0.5 font-mono text-[12px] text-slate-500">
-              {baseUrl || "http://localhost:3001/api"} · {versionInfo?.version || "—"}
+              {sysConfig?.anythingLlmBaseUrl || "http://localhost:3001/api"} · {versionInfo?.version || "—"}
               {versionInfo?.environment ? ` · ${versionInfo.environment}` : ""}
               {sysConfig?.hasApiKey ? " · Bearer ••••" : ""}
             </p>
@@ -442,253 +642,632 @@ export default function Intelligence() {
               </div>
             ))}
           </div>
-          <button onClick={testConnection} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50">
-            {test === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : test === "ok" ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <RefreshCw className="h-4 w-4" />}
-            Test
-          </button>
+          <div className="flex items-center gap-2">
+            {testTimestamp && <span className="text-[11px] text-slate-400">Cập nhật {testTimestamp}</span>}
+            <button onClick={testConnection} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50">
+              {test === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : test === "ok" ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <RefreshCw className="h-4 w-4" />}
+              Test
+            </button>
+          </div>
         </div>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
+      {/* health summary */}
+      <Card className="p-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+          {[
+            { label: "Workspace", value: String(wsCount), color: "bg-indigo-500" },
+            { label: "Tài liệu", value: String(filteredDocs.length), color: "bg-emerald-500" },
+            { label: "LLM", value: model || sysConfig?.model || "—", color: "bg-violet-500", mono: true },
+            { label: "Embedding", value: emb || sysConfig?.embeddingModel || "—", color: "bg-amber-500", mono: true },
+            { label: "Vector DB", value: sysConfig?.vectorDb || "—", color: "bg-cyan-500" },
+            { label: "Chunk size", value: sysConfig?.documentChunkSize ? String(sysConfig.documentChunkSize) : "—", color: "bg-rose-400" },
+          ].map((s) => (
+            <div key={s.label} className="flex items-center gap-2.5">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${s.color}`} />
+              <div className="min-w-0">
+                <p className="truncate text-[12px] font-medium text-slate-900">{s.value}</p>
+                <p className="text-[10.5px] text-slate-400">{s.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[220px_1fr]">
         {/* category nav */}
         <Card className="h-fit p-2">
-          <div className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
+          {/* Mobile: flat list */}
+          <div className="flex gap-1 overflow-x-auto lg:hidden">
             {intelConfig.map((c) => {
               const active = cat === c.key;
               return (
-                <button key={c.key} onClick={() => setCat(c.key)} className={cn("flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition lg:w-full", active ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100")}>
-                  <svg viewBox="0 0 20 20" className={cn("h-[17px] w-[17px] shrink-0", active ? "text-white" : "text-slate-400")} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    {c.key === "connection" && <><path d="M2.5 10h15" /><path d="M10 2.5v15" /><circle cx="10" cy="10" r="5" /><path d="M7.5 7.5 13 13" /><path d="M13 7.5 7.5 13" /></>}
-                    {c.key === "workspaces" && <><rect x="2.5" y="2.5" width="6.5" height="6.5" rx="1.2" /><rect x="11" y="2.5" width="6.5" height="5" rx="1.2" /><rect x="11" y="12.5" width="6.5" height="5" rx="1.2" /><rect x="2.5" y="12.5" width="6.5" height="5" rx="1.2" /></>}
-                    {c.key === "llm" && <><path d="M10 2.5A5 5 0 0 0 5 7.5c0 2 1.5 3.5 2 4l1 3h4l1-3c.5-.5 2-2 2-4a5 5 0 0 0-5-5z" /><circle cx="10" cy="7" r="1.5" /><path d="M8 16h4" /><path d="M9 18h2" /></>}
-                    {c.key === "embeddings" && <><rect x="4" y="2.5" width="12" height="15" rx="2" /><rect x="7" y="5.5" width="6" height="3" rx="0.8" /><circle cx="10" cy="11.5" r="2" /><path d="M8.5 13.5 10 15l1.5-1.5" /></>}
-                    {c.key === "vectordb" && <><ellipse cx="10" cy="5" rx="6" ry="2.5" /><path d="M4 5v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V5" /><path d="M4 9v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V9" /></>}
-                    {c.key === "documents" && <><path d="M12 2.5H6a1.5 1.5 0 0 0-1.5 1.5v12A1.5 1.5 0 0 0 6 17.5h8a1.5 1.5 0 0 0 1.5-1.5V7l-3.5-4.5z" /><path d="M12 2.5V7h4.5" /><rect x="6.5" y="9" width="7" height="1.2" rx="0.6" /><rect x="6.5" y="12" width="5" height="1.2" rx="0.6" /></>}
-                  </svg>
-                  <span className="hidden lg:block">
-                    <span className="block text-[13px] font-medium leading-tight">{c.label}</span>
-                    <span className={cn("block text-[11px]", active ? "text-slate-300" : "text-slate-400")}>{c.desc}</span>
-                  </span>
-                  <span className="lg:hidden text-[13px] font-medium">{c.label}</span>
+                <button key={c.key} onClick={() => setCat(c.key)} className={cn("flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition", active ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100")}>
+                  <c.icon className={cn("h-[17px] w-[17px] shrink-0", active ? "text-white" : "text-slate-400")} />
+                  <span className="text-[13px] font-medium">{c.label}</span>
                 </button>
               );
             })}
           </div>
+          {/* Desktop: grouped sections */}
+          <div className="hidden lg:flex lg:flex-col">
+            <div className="mb-0.5 px-3">
+              <div className="mb-1 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-widest text-slate-400">
+                <Settings className="h-3.5 w-3.5" />
+                Cấu hình hệ thống
+              </div>
+              <div className="border-t border-slate-100" />
+            </div>
+            {intelConfig.filter((c) => c.group === "system").map((c) => renderCatBtn(c))}
+            <div className="mb-0.5 mt-2 px-3">
+              <div className="mb-1 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-widest text-slate-400">
+                <Briefcase className="h-3.5 w-3.5" />
+                Cấu hình workspace
+              </div>
+              <div className="border-t border-slate-100" />
+            </div>
+            {intelConfig.filter((c) => c.group === "workspace").map((c) => renderCatBtn(c))}
+          </div>
         </Card>
 
-        <Card className="p-5">
+        <Card className="flex min-h-0 flex-col overflow-hidden p-5">
           {/* ---------- CONNECTION ---------- */}
           {cat === "connection" && (
             <div className="animate-fade-in">
-              <h3 className="text-[14px] font-semibold text-slate-900">Kết nối AnythingLLM</h3>
-              <p className="text-[13px] text-slate-500">Gọi trực tiếp REST API — không nhúng giao diện bên AnythingLLM để giữ đồng bộ.</p>
+              <h3 className="text-[14px] font-semibold text-slate-900">Kết nối AnythingLLM Engine</h3>
+              <p className="text-[13px] text-slate-500">Cấu hình backend đã được thiết lập sẵn qua <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[12px] text-slate-700">application.yml</code>. Các thông số dưới đây chỉ để tham khảo.</p>
+
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <Field label="Base URL"><input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} className={cn(inputCls, "font-mono")} /></Field>
-                <Field label="API Key" hint="Bearer"><input value={apiKey} onChange={(e) => setApiKey(e.target.value)} type="password" className={cn(inputCls, "font-mono")} /></Field>
-                <Field label="Timeout (ms)"><input defaultValue="30000" className={inputCls} /></Field>
-                <Field label="Tự động đồng bộ"><Select value="Mỗi 5 phút" onChange={() => {}} options={["Mỗi 1 phút", "Mỗi 5 phút", "Mỗi 15 phút", "Tắt"]} /></Field>
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">Base URL</span>
+                  <p className="mt-1 font-mono text-[13px] font-medium text-slate-900">{sysConfig?.anythingLlmBaseUrl || "http://localhost:3001/api"}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">API Key</span>
+                  <p className="mt-1 font-mono text-[13px] font-medium text-slate-900">{sysConfig?.hasApiKey ? "••••••••" : "Không có"}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">Workspace mặc định</span>
+                  <p className="mt-1 font-mono text-[13px] font-medium text-slate-900">{workspaces[0]?.slug || "—"}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">Phiên bản engine</span>
+                  <p className="mt-1 font-mono text-[13px] font-medium text-slate-900">{versionInfo?.version || "—"} {versionInfo?.environment ? `· ${versionInfo.environment}` : ""}</p>
+                </div>
               </div>
+
               <div className="mt-4 flex items-center gap-2 rounded-lg bg-emerald-50 p-3">
                 <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                <p className="text-[12.5px] text-emerald-700">Kết nối thành công. Phiên bản <b>{versionInfo?.version || "—"}</b>, hỗ trợ streaming chat & RAG multi-workspace.</p>
+                <p className="text-[12.5px] text-emerald-700">Kết nối thành công. Backend tự động quản lý kết nối tới AnythingLLM — không cần nhập tay.</p>
               </div>
-              <SaveBar saving={!!saving.conn} saved={!!justSaved.conn} onSave={saveConnection} />
             </div>
           )}
 
           {/* ---------- WORKSPACES ---------- */}
           {cat === "workspaces" && (
-            <div className="animate-fade-in">
-              <div className="flex items-center justify-between">
+            <div className="animate-fade-in flex flex-1 flex-col min-h-0">
+              <div className="shrink-0 flex items-center justify-between gap-3">
                 <div>
                   <h3 className="text-[14px] font-semibold text-slate-900">Quản lý Workspace</h3>
                   <p className="text-[13px] text-slate-500">Không gian tri thức RAG — CRUD qua API.</p>
                 </div>
-                <button onClick={() => setShowCreate((s) => !s)} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-slate-700"><Plus className="h-4 w-4" /> Workspace</button>
+                <button onClick={() => switchWsTab("_create")} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-slate-700"><Plus className="h-4 w-4" /> Workspace</button>
               </div>
-              {showCreate && (
-                <div className="mt-3 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-end">
-                  <div className="flex-1">
-                    <Field label="Tên workspace mới"><input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="VD: Insurance Claims" className={inputCls} /></Field>
+
+              {/* Tab bar */}
+              {wsSlugs.length > 0 && (
+                <div className="shrink-0 mt-3 flex items-center gap-0.5 overflow-x-auto">
+                  <button onClick={() => switchWsTab("_all")} className={cn("shrink-0 rounded-lg px-3 py-1.5 text-[12.5px] font-medium transition", wsTab === "_all" ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100")}>Tất cả</button>
+                  {wsSlugs.slice(0, 4).map((s) => (
+                    <button key={s} onClick={() => switchWsTab(s)} className={cn("shrink-0 rounded-lg px-3 py-1.5 font-mono text-[12px] transition", wsTab === s ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100")}>{s}</button>
+                  ))}
+                  {wsSlugs.length > 4 && (
+                    <SmartSelect
+                      value={wsTab}
+                      onChange={(v) => switchWsTab(v)}
+                      options={wsSlugs.slice(4)}
+                      placeholder={`+${wsSlugs.length - 4}`}
+                      size="sm"
+                      className="min-w-[60px]"
+                    />
+                  )}
+                  <div className="ml-auto shrink-0">
+                    <button onClick={() => switchWsTab("_create")} className="flex items-center gap-1 rounded-lg border border-dashed border-slate-300 px-2.5 py-1.5 text-[12px] font-medium text-slate-400 transition hover:border-slate-400 hover:text-slate-600"><Plus className="h-3.5 w-3.5" /></button>
                   </div>
-                  <button onClick={addWs} className="rounded-lg bg-slate-900 px-4 py-2 text-[13px] font-medium text-white hover:bg-slate-700">Tạo</button>
                 </div>
               )}
-              <div className="mt-4 -mx-2 overflow-x-auto">
-                <table className="w-full min-w-[600px] text-left">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-[11px] uppercase tracking-wide text-slate-400">
-                      <th className="px-3 py-2 font-semibold">Workspace</th>
-                      <th className="px-3 py-2 font-semibold">Slug</th>
-                      <th className="px-3 py-2 font-semibold">Model</th>
-                      <th className="px-3 py-2"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {workspaces.map((w) => (
-                      <tr key={w.slug} className="group transition hover:bg-slate-50">
-                        <td className="px-3 py-2.5">
-                          <div className="flex items-center gap-2.5">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><Layers className="h-4 w-4" /></span>
-                            <div>
-                              <p className="text-[13px] font-medium text-slate-900">{w.name}</p>
+
+              <div className="flex-1 min-h-0 overflow-y-auto">
+              {/* Tab: Tất cả — collapsed list */}
+              {wsTab === "_all" && (
+                <div className="mt-3">
+                  <SearchInput value={wsSearch} onChange={setWsSearch} placeholder="Tìm workspace…" className="mb-3 max-w-[240px]" />
+                  {filteredWs.length === 0 ? (
+                    <div className="flex flex-col items-center gap-3 py-12">
+                      <Layers className="h-10 w-10 text-slate-200" />
+                      <p className="text-[13px] text-slate-400">Không tìm thấy workspace phù hợp</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {filteredWs.map((w) => (
+                        <button key={w.slug} onClick={() => switchWsTab(w.slug)} className="flex w-full items-center gap-3 rounded-lg border border-slate-200 px-4 py-3 text-left transition hover:bg-slate-50">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><Layers className="h-4 w-4" /></span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] font-medium text-slate-900">{w.name}</p>
+                            <p className="font-mono text-[11px] text-slate-400">/{w.slug}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <details className="group mt-4 text-[12px]">
+                    <summary className="cursor-pointer text-slate-400 hover:text-slate-600">API Reference</summary>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <EndpointBadge method="GET" path="/api/v1/workspaces" />
+                      <EndpointBadge method="POST" path="/api/v1/workspace/new" />
+                      <EndpointBadge method="DELETE" path="/api/v1/workspace/{slug}" />
+                    </div>
+                  </details>
+                </div>
+              )}
+
+              {/* Tab: Create */}
+              {wsTab === "_create" && (
+                <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <Field label="Tên workspace mới">
+                    <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="VD: Insurance Claims" className={inputCls} autoFocus />
+                  </Field>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button onClick={addWs} disabled={creatingWs || !newName.trim()} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-[13px] font-medium text-white hover:bg-slate-700 disabled:opacity-60"><Plus className="h-4 w-4" /> {creatingWs ? "Đang tạo…" : "Tạo"}</button>
+                    <button onClick={() => setWsTab("_all")} className="rounded-lg border border-slate-200 px-4 py-2 text-[13px] font-medium text-slate-600 transition hover:bg-slate-100">Huỷ</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab: Workspace detail form */}
+              {wsTab !== "_all" && wsTab !== "_create" && (
+                <div className="mt-3">
+                  {wsTabLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                      <span className="ml-2 text-[13px] text-slate-500">Đang tải cấu hình…</span>
+                    </div>
+                  ) : wsTabDetail ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600"><Layers className="h-4 w-4" /></span>
+                        <div>
+                          <p className="text-[14px] font-semibold text-slate-900">{wsTabDetail.name || wsTab}</p>
+                          <p className="font-mono text-[11px] text-slate-400">/{wsTab}</p>
+                        </div>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="Chat Model">
+                          <div className="flex items-stretch gap-2">
+                            <div className="flex-1">
+                              <SmartSelect
+                                value={wsTabDirty?.model ?? wsTabDetail.chatModel ?? ""}
+                                onChange={(v) => updateWsTabField("model", v || null)}
+                                options={[
+                                  { value: "", label: "— Mặc định —" },
+                                  ...(detectedWsModels.length > 0
+                                    ? detectedWsModels.map((m) => ({ value: m, label: m }))
+                                    : wsTabDetail.chatModel
+                                      ? [{ value: wsTabDetail.chatModel, label: wsTabDetail.chatModel }]
+                                      : []),
+                                ]}
+                                searchable
+                                placeholder="— Mặc định —"
+                              />
                             </div>
+                            <button
+                              onClick={detectWsModels}
+                              disabled={detectingWsModels || !llmUrl.trim()}
+                              className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40"
+                              title="Quét mô hình"
+                            >
+                              {detectingWsModels ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                            </button>
                           </div>
-                        </td>
-                        <td className="px-3 py-2.5 font-mono text-[13px] text-slate-500">/{w.slug}</td>
-                        <td className="px-3 py-2.5"><Badge tone="brand">{model || "—"}</Badge></td>
-                        <td className="px-3 py-2.5">
-                          <div className="flex justify-end opacity-0 transition group-hover:opacity-100">
-                            <button className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" onClick={() => deleteWs(w.slug)}><Trash2 className="h-4 w-4" /></button>
+                        </Field>
+                        <Field label="Chat Provider">
+                          <SmartSelect
+                            value={wsTabDirty?.chatProvider ?? wsTabDetail.chatProvider ?? ""}
+                            onChange={(v) => updateWsTabField("chatProvider", v || null)}
+                            options={[{ value: "", label: "— Mặc định —" }, ...providers]}
+                            placeholder="— Mặc định —"
+                          />
+                        </Field>
+                        <Field label="Chat Mode">
+                          <SmartSelect
+                            value={wsTabDirty?.chatMode ?? wsTabDetail.chatMode ?? ""}
+                            onChange={(v) => updateWsTabField("chatMode", v || null)}
+                            options={[
+                              { value: "", label: "— Mặc định —" },
+                              { value: "chat", label: "Chat" },
+                              { value: "query", label: "Query" },
+                            ]}
+                            placeholder="— Mặc định —"
+                          />
+                        </Field>
+                        <Field label="Temperature">
+                          <div className="flex items-center gap-3">
+                            <input type="range" min={0} max={1} step={0.05} value={wsTabDirty?.temperature ?? wsTabDetail.temperature ?? 0.7} onChange={(e) => updateWsTabField("temperature", parseFloat(e.target.value))} className="w-full accent-indigo-600" />
+                            <span className="w-10 text-right font-mono text-[12px] text-slate-600">{(wsTabDirty?.temperature ?? wsTabDetail.temperature ?? 0.7).toFixed(2)}</span>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <EndpointBadge method="GET" path="/api/v1/workspaces" />
-                <EndpointBadge method="POST" path="/api/v1/workspaces" />
-                <EndpointBadge method="DELETE" path="/api/v1/workspace/{slug}" />
+                        </Field>
+                        <Field label="Top N (số kết quả)">
+                          <input type="text" inputMode="numeric" value={wsTabDirty?.topN ?? wsTabDetail.topN ?? ""} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); updateWsTabField("topN", v ? parseInt(v) : null); }} placeholder="4" className={inputCls} />
+                        </Field>
+                        <Field label="Similarity Threshold">
+                          <div className="flex items-center gap-3">
+                            <input type="range" min={0} max={1} step={0.05} value={wsTabDirty?.similarityThreshold ?? wsTabDetail.similarityThreshold ?? 0.5} onChange={(e) => updateWsTabField("similarityThreshold", parseFloat(e.target.value))} className="w-full accent-indigo-600" />
+                            <span className="w-10 text-right font-mono text-[12px] text-slate-600">{(wsTabDirty?.similarityThreshold ?? wsTabDetail.similarityThreshold ?? 0.5).toFixed(2)}</span>
+                          </div>
+                        </Field>
+                        <Field label="Lịch sử hội thoại">
+                          <input type="text" inputMode="numeric" value={wsTabDirty?.openAiHistory ?? wsTabDetail.openAiHistory ?? ""} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); updateWsTabField("openAiHistory", v ? parseInt(v) : null); }} placeholder="20" className={inputCls} />
+                        </Field>
+                      </div>
+                      <Field label="System Prompt">
+                        <textarea rows={3} value={wsTabDirty?.openAiPrompt ?? wsTabDetail.openAiPrompt ?? ""} onChange={(e) => updateWsTabField("openAiPrompt", e.target.value)} placeholder="Để trống = dùng mặc định của system" className={cn(inputCls, "resize-y font-mono text-[12px] leading-relaxed")} />
+                      </Field>
+                      <Field label="Query Refusal Response">
+                        <textarea rows={2} value={wsTabDirty?.queryRefusalResponse ?? wsTabDetail.queryRefusalResponse ?? ""} onChange={(e) => updateWsTabField("queryRefusalResponse", e.target.value)} placeholder="Phản hồi từ chối truy vấn (nếu có)" className={cn(inputCls, "resize-y font-mono text-[12px] leading-relaxed")} />
+                      </Field>
+                      <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                        <button onClick={() => setWsConfirmDel(wsTab)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-medium text-rose-600 transition hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5" /> Xoá</button>
+                        <button
+                          onClick={saveWsTab}
+                          disabled={wsSavingSlug === wsTab || !wsTabDirty}
+                          className={cn("inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[13px] font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50", wsTabDirty ? "bg-slate-900 hover:bg-slate-700" : "bg-slate-400")}
+                        >
+                          {wsSavingSlug === wsTab ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                          {wsSavingSlug === wsTab ? "Đang lưu…" : "Lưu workspace"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
               </div>
             </div>
           )}
 
           {/* ---------- LLM ---------- */}
           {cat === "llm" && (
-            <div className="animate-fade-in">
-              <h3 className="text-[14px] font-semibold text-slate-900">Cấu hình mô hình LLM</h3>
-              <p className="text-[13px] text-slate-500">Ưu tiên chạy local để bảo mật dữ liệu. Bấm “Tự phát hiện” để quét mô hình từ engine cục bộ.</p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <Field label="LLM Provider"><Select value={llmProvider} onChange={setLlmProvider} options={providers} /></Field>
-                <Field label="Base URL" hint="local"><input value={llmUrl} onChange={(e) => setLlmUrl(e.target.value)} className={cn(inputCls, "font-mono")} /></Field>
-                <Field label="Chat Model">
-                  <div className="flex items-stretch gap-2">
-                    <div className="flex-1"><Select value={model} onChange={setModel} options={llmOptions} /></div>
-                    {canDetectLlm && <DetectButton loading={detectingLlm} onClick={autoDetectLlm} label="Tự phát hiện" />}
-                  </div>
-                </Field>
-                <Field label="Max Tokens"><input defaultValue="4096" className={inputCls} /></Field>
-              </div>
-              {canDetectLlm && (
-                <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
-                  {detectedLlm.length > 0 ? (
+            <div className="animate-fade-in flex flex-1 flex-col min-h-0">
+              <h3 className="shrink-0 text-[14px] font-semibold text-slate-900">Cấu hình mô hình LLM</h3>
+              <p className="mb-4 shrink-0 text-[13px] text-slate-500">Chọn nhà cung cấp LLM, sau đó cấu hình URL & model.</p>
+
+              <div className="flex-1 min-h-0 grid gap-4 lg:grid-cols-[220px_1fr]">
+                {/* provider list */}
+                <div className="scroll-slim min-h-0 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+                  <SearchInput value={llmSearch} onChange={setLlmSearch} placeholder="Tìm provider…" className="mb-1.5 px-1" />
+                  <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Local</p>
+                  {filteredLlmProviders.filter((p) => p.kind === "local").map((p) => {
+                    const sel = llmProvider === p.name;
+                    return (
+                      <button key={p.id} onClick={() => { setLlmProvider(p.name); if (providerDefaultBaseUrl[p.name] && !llmUrl) setLlmUrl(providerDefaultBaseUrl[p.name]); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><Cpu className="h-3.5 w-3.5" /></span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[12.5px] font-medium text-slate-800">{p.name}</span>
+                          <span className="block text-[10.5px] text-slate-400">Tự quản</span>
+                        </span>
+                        {sel && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                      </button>
+                    );
+                  })}
+                  <p className="mb-1.5 mt-3 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Cloud</p>
+                  {filteredLlmProviders.filter((p) => p.kind === "cloud").map((p) => {
+                    const sel = llmProvider === p.name;
+                    return (
+                      <button key={p.id} onClick={() => { setLlmProvider(p.name); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><Cloud className="h-3.5 w-3.5" /></span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[12.5px] font-medium text-slate-800">{p.name}</span>
+                          <span className="block text-[10.5px] text-slate-400">API</span>
+                        </span>
+                        {sel && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* detail config */}
+                <div className="min-h-0 overflow-y-auto rounded-lg border border-slate-200 p-4">
+                  {llmProvider ? (
                     <>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                        <p className="text-[12.5px] text-slate-600">Đã phát hiện <b className="text-slate-900">{detectedLlm.length}</b> mô hình từ <span className="font-mono text-slate-500">{llmUrl}</span></p>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {detectedLlm.map((m) => (
-                          <button key={m} onClick={() => setModel(m)} className={cn("rounded-md px-2 py-1 font-mono text-[11px] transition", model === m ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>{m}</button>
-                        ))}
-                      </div>
+                      {(() => {
+                        const prov = llmProviderCatalog.find((p) => p.name === llmProvider);
+                        return (
+                          <>
+                            {prov && (
+                              <div className="mb-4 flex items-center gap-3">
+                                <span className="flex h-9 w-9 items-center justify-center rounded-lg text-white" style={{ backgroundColor: prov.color }}>{prov.kind === "local" ? <Cpu className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}</span>
+                                <div>
+                                  <p className="text-[14px] font-semibold text-slate-900">{prov.name}</p>
+                                  <p className="text-[11px] text-slate-400">{prov.desc}</p>
+                                </div>
+                              </div>
+                            )}
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              <Field label="Base URL" hint={localProviders.includes(llmProvider) ? "bắt buộc" : "không bắt buộc"}>
+                                <div className="flex items-stretch gap-2">
+                                  <input value={llmUrl} onChange={(e) => setLlmUrl(e.target.value)} className={cn(inputCls, "font-mono", detectingLlm && "animate-pulse")} />
+                                </div>
+                              </Field>
+                              <Field label="Chat Model">
+                                <div className="flex items-stretch gap-2">
+                                  <div className="flex-1"><SmartSelect value={model} onChange={setModel} options={llmOptions} searchable /></div>
+                                  <button onClick={autoDetectLlm} disabled={detectingLlm || !llmUrl.trim()} className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40" title="Quét lại mô hình">
+                                    {detectingLlm ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                  </button>
+                                </div>
+                              </Field>
+                            </div>
+                            {canDetectLlm && (
+                              <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+                                {detectedLlm.length > 0 ? (
+                                  <>
+                                    <div className="flex items-center gap-2">
+                                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                      <p className="text-[12.5px] text-slate-600">Đã phát hiện <b className="text-slate-900">{detectedLlm.length}</b> mô hình từ <span className="font-mono text-slate-500">{llmUrl}</span></p>
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                      {detectedLlm.map((m) => (
+                                        <button key={m} onClick={() => setModel(m)} className={cn("rounded-md px-2 py-1 font-mono text-[11px] transition", model === m ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>{m}</button>
+                                      ))}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    <p className="text-[12.5px] text-slate-500">Quét mô hình cục bộ thông qua</p>
+                                    <EndpointBadge method="GET" path="/api/tags" className="bg-white" />
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+
+                      <SaveBar saving={!!saving.llm} saved={!!justSaved.llm} onSave={saveLlm} />
                     </>
                   ) : (
-                    <div className="flex flex-wrap items-center gap-3">
-                      <p className="text-[12.5px] text-slate-500">Quét mô hình cục bộ thông qua</p>
-                      <EndpointBadge method="GET" path="/api/tags" className="bg-white" />
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                      <BrainCircuit className="mb-3 h-10 w-10 text-slate-200" />
+                      <p className="text-[13px] font-medium text-slate-500">Chọn một nhà cung cấp LLM từ danh sách bên trái</p>
                     </div>
                   )}
                 </div>
-              )}
-              <div className="mt-4 rounded-lg border border-slate-200 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12.5px] font-medium text-slate-700">Temperature</span>
-                  <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-[12px] font-semibold text-slate-700">{temp.toFixed(2)}</span>
-                </div>
-                <input type="range" min={0} max={1} step={0.05} value={temp} onChange={(e) => setTemp(parseFloat(e.target.value))} className="mt-3 w-full accent-indigo-600" />
-                <div className="mt-1 flex justify-between text-[11px] text-slate-400"><span>Tuyến tính</span><span>Sáng tạo</span></div>
               </div>
-              <SaveBar saving={!!saving.llm} saved={!!justSaved.llm} onSave={saveLlm} />
             </div>
           )}
 
           {/* ---------- EMBEDDINGS ---------- */}
           {cat === "embeddings" && (
-            <div className="animate-fade-in">
-              <h3 className="text-[14px] font-semibold text-slate-900">Mô hình Embedding</h3>
-              <p className="text-[13px] text-slate-500">Đổi embedder sẽ cần re-embed toàn bộ corpus.</p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <Field label="Provider"><Select value={embProvider} onChange={setEmbProvider} options={providers} /></Field>
-                <Field label="Embedding Model">
-                  <div className="flex items-stretch gap-2">
-                    <div className="flex-1"><Select value={emb} onChange={setEmb} options={embOptions} /></div>
-                    {canDetectEmb && <DetectButton loading={detectingEmb} onClick={autoDetectEmb} label="Tự phát hiện" />}
-                  </div>
-                </Field>
-                <Field label="Chunk Size"><input defaultValue="1024" className={inputCls} /></Field>
-                <Field label="Chunk Overlap"><input defaultValue="120" className={inputCls} /></Field>
-              </div>
-              {canDetectEmb && (
-                <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
-                  {detectedEmb.length > 0 ? (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                      <p className="mr-2 text-[12.5px] text-slate-600">Phát hiện <b className="text-slate-900">{detectedEmb.length}</b> mô hình nhúng:</p>
-                      {detectedEmb.map((m) => (
-                        <button key={m} onClick={() => setEmb(m)} className={cn("rounded-md px-2 py-1 font-mono text-[11px] transition", emb === m ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>{m}</button>
-                      ))}
-                    </div>
+            <div className="animate-fade-in flex flex-1 flex-col min-h-0">
+              <h3 className="shrink-0 text-[14px] font-semibold text-slate-900">Mô hình Embedding</h3>
+              <p className="mb-4 shrink-0 text-[13px] text-slate-500">Chọn nhà cung cấp embedding, sau đó cấu hình model cụ thể.</p>
+
+              <div className="flex-1 min-h-0 grid gap-4 lg:grid-cols-[220px_1fr]">
+                {/* provider list */}
+                <div className="scroll-slim min-h-0 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+                  <SearchInput value={embSearch} onChange={setEmbSearch} placeholder="Tìm provider…" className="mb-1.5 px-1" />
+                  <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Local</p>
+                  {filteredEmbProviders.filter((p) => p.kind === "local").map((p) => {
+                    const sel = embProvider === p.name;
+                    return (
+                      <button key={p.id} onClick={() => { setEmbProvider(p.name); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><Cpu className="h-3.5 w-3.5" /></span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[12.5px] font-medium text-slate-800">{p.name}</span>
+                          <span className="block text-[10.5px] text-slate-400">Tự quản</span>
+                        </span>
+                        {sel && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                      </button>
+                    );
+                  })}
+                  <p className="mb-1.5 mt-3 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Cloud</p>
+                  {filteredEmbProviders.filter((p) => p.kind === "cloud").map((p) => {
+                    const sel = embProvider === p.name;
+                    return (
+                      <button key={p.id} onClick={() => { setEmbProvider(p.name); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><Cloud className="h-3.5 w-3.5" /></span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[12.5px] font-medium text-slate-800">{p.name}</span>
+                          <span className="block text-[10.5px] text-slate-400">API</span>
+                        </span>
+                        {sel && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* detail config */}
+                <div className="min-h-0 overflow-y-auto rounded-lg border border-slate-200 p-4">
+                  {embProvider ? (
+                    <>
+                      {(() => {
+                        const prov = llmProviderCatalog.find((p) => p.name === embProvider);
+                        return (
+                          prov && (
+                            <div className="mb-4 flex items-center gap-3">
+                              <span className="flex h-9 w-9 items-center justify-center rounded-lg text-white" style={{ backgroundColor: prov.color }}>{prov.kind === "local" ? <Cpu className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}</span>
+                              <div>
+                                <p className="text-[14px] font-semibold text-slate-900">{prov.name}</p>
+                                <p className="text-[11px] text-slate-400">{prov.desc}</p>
+                              </div>
+                            </div>
+                          )
+                        );
+                      })()}
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Field label="Embedding Model">
+                          <div className="flex items-stretch gap-2">
+                            <div className="flex-1"><SmartSelect value={emb} onChange={setEmb} options={embOptions} searchable /></div>
+                            <button onClick={autoDetectEmb} disabled={detectingEmb || !llmUrl.trim()} className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40" title="Quét lại mô hình">
+                              {detectingEmb ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </Field>
+                        <Field label="Chunk Size"><input type="text" inputMode="numeric" value={chunkSize} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); if (v) setChunkSize(Number(v)); }} className={inputCls} /></Field>
+                        <Field label="Chunk Overlap"><input type="text" inputMode="numeric" value={chunkOverlap} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); if (v) setChunkOverlap(Number(v)); }} className={inputCls} /></Field>
+                      </div>
+                      {canDetectEmb && (
+                        <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+                          {detectedEmb.length > 0 ? (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                              <p className="mr-2 text-[12.5px] text-slate-600">Phát hiện <b className="text-slate-900">{detectedEmb.length}</b> mô hình nhúng:</p>
+                              {detectedEmb.map((m) => (
+                                <button key={m} onClick={() => setEmb(m)} className={cn("rounded-md px-2 py-1 font-mono text-[11px] transition", emb === m ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>{m}</button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap items-center gap-3">
+                              <p className="text-[12.5px] text-slate-500">Quét mô hình nhúng cục bộ thông qua</p>
+                              <EndpointBadge method="GET" path="/api/tags" className="bg-white" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div className="mt-4 flex items-center gap-2 rounded-lg bg-amber-50 p-3">
+                        <p className="text-[12.5px] text-amber-700">Đổi mô hình nhúng sẽ kích hoạt re-embedding. Dự kiến ~18 phút.</p>
+                      </div>
+                      <div className="mt-4 rounded-lg border border-slate-200 p-4">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-slate-400" />
+                          <span className="text-[12.5px] font-medium text-slate-700">Tùy chọn chia nhỏ và tách văn bản</span>
+                        </div>
+                        <p className="mt-1 text-[11.5px] leading-relaxed text-slate-500">
+                          Kích thước đoạn văn bản tối đa cho mỗi vector. Chỉ nên thay đổi nếu bạn hiểu cách hoạt động của text splitting.
+                        </p>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <Field label="Kích thước đoạn">
+                            <input type="text" inputMode="numeric" value={chunkSize} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); if (v) setChunkSize(Number(v)); else setChunkSize(0); }} className={inputCls} />
+                            <p className="mt-1 text-[10.5px] text-slate-400">Độ dài tối đa (ký tự) cho mỗi vector. Mặc định: 1,000</p>
+                          </Field>
+                          <Field label="Độ chồng lấp">
+                            <input type="text" inputMode="numeric" value={chunkOverlap} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); if (v) setChunkOverlap(Number(v)); else setChunkOverlap(0); }} className={inputCls} />
+                            <p className="mt-1 text-[10.5px] text-slate-400">Số ký tự chồng lấp giữa hai đoạn liền kề. Mặc định: 200</p>
+                          </Field>
+                        </div>
+                      </div>
+                      <SaveBar saving={!!saving.emb} saved={!!justSaved.emb} onSave={saveEmb} />
+                    </>
                   ) : (
-                    <div className="flex flex-wrap items-center gap-3">
-                      <p className="text-[12.5px] text-slate-500">Quét mô hình nhúng cục bộ thông qua</p>
-                      <EndpointBadge method="GET" path="/api/tags" className="bg-white" />
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                      <BrainCircuit className="mb-3 h-10 w-10 text-slate-200" />
+                      <p className="text-[13px] font-medium text-slate-500">Chọn một nhà cung cấp embedding từ danh sách bên trái</p>
                     </div>
                   )}
                 </div>
-              )}
-              <div className="mt-4 flex items-center gap-2 rounded-lg bg-amber-50 p-3">
-                <p className="text-[12.5px] text-amber-700">Đổi mô hình nhúng sẽ kích hoạt re-embedding. Dự kiến ~18 phút.</p>
               </div>
-              <SaveBar saving={!!saving.emb} saved={!!justSaved.emb} onSave={saveEmb} />
             </div>
           )}
 
           {/* ---------- VECTOR DB ---------- */}
           {cat === "vectordb" && (
-            <div className="animate-fade-in">
-              <div className="flex items-center justify-between">
+            <div className="animate-fade-in flex flex-1 flex-col min-h-0">
+              <div className="flex shrink-0 items-center justify-between">
                 <div>
                   <h3 className="text-[14px] font-semibold text-slate-900">Vector Database</h3>
-                  <p className="text-[13px] text-slate-500">Chọn nhà cung cấp lưu trữ vector. Bấm “Thêm” để cấu hình nhà cung cấp mới.</p>
+                  <p className="text-[13px] text-slate-500">Chọn nhà cung cấp — bấm vào provider để thêm hoặc chọn.</p>
                 </div>
                 <Badge tone="brand"><Database className="h-3 w-3" /> {activeVdbs.length} đã kết nối</Badge>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {activeVdbs.map((inst) => {
-                  const p = providerById(inst.providerId);
-                  const active = vdb === p.id;
-                  const urlVal = inst.fields.url || inst.fields.db;
-                  return (
-                    <div key={p.id} className={cn("relative rounded-lg border p-4 transition", active ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
-                      <button onClick={() => setVdb(p.id)} className="block w-full text-left">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-lg text-white" style={{ backgroundColor: p.color }}><Database className="h-4 w-4" /></span>
-                        <p className="mt-2 text-[13px] font-medium text-slate-900">{p.name}</p>
-                        <p className="text-[11px] text-slate-400">{kindLabel[p.kind]}</p>
-                        {urlVal && <p className="mt-1 truncate font-mono text-[10.5px] text-slate-400">{urlVal}</p>}
-                        {active && <p className="mt-1.5 text-[10.5px] font-semibold text-slate-900">● Đang dùng</p>}
-                      </button>
-                      {p.id !== "lancedb" && (
-                        <button onClick={() => removeVdb(p.id)} className="absolute right-1.5 top-1.5 rounded p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-600"><X className="h-3.5 w-3.5" /></button>
-                      )}
+
+              <div className="mt-4 flex-1 min-h-0 grid gap-4 lg:grid-cols-[220px_1fr]">
+                {/* catalog panel */}
+                <div className="scroll-slim min-h-0 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+                  <SearchInput value={vdbSearch} onChange={setVdbSearch} placeholder="Tìm provider…" className="mb-1.5 px-1" />
+                  {(["embedded", "self-hosted", "cloud"] as const).map((kind) => {
+                    const list = filteredVdbProviders.filter((p) => p.kind === kind);
+                    if (list.length === 0) return null;
+                    return (
+                      <div key={kind}>
+                        <p className="mb-1 mt-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{kindLabel[kind]}</p>
+                        {list.map((p) => {
+                          const active = isVdbActive(p.id);
+                          const sel = vdb === p.id;
+                          return (
+                            <button key={p.id} onClick={() => toggleVdbProvider(p.id)} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><Database className="h-3.5 w-3.5" /></span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[12.5px] font-medium text-slate-800">{p.name}</span>
+                                <span className="block text-[10.5px] text-slate-400">{kindLabel[p.kind]}</span>
+                              </span>
+                              {active && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* active VDB list with config */}
+                <div className="min-h-0 space-y-3 overflow-y-auto">
+                  {activeVdbs.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 py-12 text-center">
+                      <Database className="mb-3 h-10 w-10 text-slate-200" />
+                      <p className="text-[13px] font-medium text-slate-500">Chọn provider từ danh sách bên trái</p>
                     </div>
-                  );
-                })}
-                <button onClick={() => { setVdbModal(true); setVdbForm({}); }} className="flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 text-slate-400 transition hover:border-slate-300 hover:text-slate-600">
-                  <Plus className="h-6 w-6" />
-                  <span className="text-[12.5px] font-medium">Thêm nhà cung cấp</span>
-                </button>
+                  ) : (
+                    activeVdbs.map((inst) => {
+                      const p = providerById(inst.providerId);
+                      const active = vdb === p.id;
+                      const urlVal = inst.fields.url || inst.fields.db;
+                      return (
+                        <div key={p.id} className={cn("rounded-lg border transition", active ? "border-slate-300" : "border-slate-200")}>
+                          <button onClick={() => setVdb(p.id)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white" style={{ backgroundColor: p.color }}><Database className="h-4 w-4" /></span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-[13px] font-medium text-slate-900">{p.name}</p>
+                                {p.id === "lancedb" && <Badge tone="slate">Mặc định</Badge>}
+                                {active && <Badge tone="brand">Đang dùng</Badge>}
+                              </div>
+                              <p className="text-[11px] text-slate-400">{kindLabel[p.kind]}{urlVal ? ` · ${urlVal}` : ""}</p>
+                            </div>
+                            {p.id !== "lancedb" && (
+                              <button onClick={(e) => { e.stopPropagation(); removeVdb(p.id); }} className="rounded p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-600"><X className="h-3.5 w-3.5" /></button>
+                            )}
+                          </button>
+                          {/* config fields (inline, no modal) */}
+                          {active && p.fields.length > 0 && (
+                            <div className="border-t border-slate-100 px-4 pb-3 pt-3">
+                              <div className="space-y-3">
+                                {p.fields.map((f) => (
+                                  <Field key={f.key} label={f.label}>
+                                    <input
+                                      type={f.secret ? "password" : "text"}
+                                      value={inst.fields[f.key] || ""}
+                                      onChange={(e) => updateVdbField(p.id, f.key, e.target.value)}
+                                      placeholder={f.placeholder}
+                                      className={cn(inputCls, f.secret && "font-mono")}
+                                    />
+                                  </Field>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                  <SaveBar saving={!!saving.vdb} saved={!!justSaved.vdb} onSave={saveVdb} />
+                </div>
               </div>
-              <SaveBar saving={!!saving.vdb} saved={!!justSaved.vdb} onSave={saveVdb} />
             </div>
           )}
 
           {/* ---------- DOCUMENTS ---------- */}
           {cat === "documents" && (
-            <div className="animate-fade-in">
-              <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="animate-fade-in flex flex-1 flex-col min-h-0">
+              <div className="shrink-0 flex items-center justify-between gap-3">
                 <div>
                   <h3 className="flex items-center gap-2 text-[14px] font-semibold text-slate-900">
                     Tài liệu RAG <Badge tone="brand"><FileText className="h-3 w-3" /> Chỉ Markdown</Badge>
@@ -698,114 +1277,107 @@ export default function Intelligence() {
                 <Button onClick={openCreate}><Plus className="h-4 w-4" /> Tạo tài liệu</Button>
               </div>
 
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <label className="relative flex items-center">
-                  <Search className="pointer-events-none absolute left-3 h-4 w-4 text-slate-400" />
-                  <input value={docSearch} onChange={(e) => setDocSearch(e.target.value)} placeholder="Tìm tài liệu…" className="w-44 rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-[13px] outline-none focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100 sm:w-56" />
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  <button onClick={() => setDocWs("all")} className={cn("rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition", docWs === "all" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}>Tất cả</button>
-                  {wsSlugs.map((s) => (
-                    <button key={s} onClick={() => setDocWs(s)} className={cn("rounded-lg px-2.5 py-1.5 font-mono text-[11.5px] transition", docWs === s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}>{s}</button>
-                  ))}
+              {/* Upload area — always visible, prominent */}
+              <div className="shrink-0 mb-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <Upload className="h-4 w-4 text-slate-500" />
+                  <span className="text-[13px] font-medium text-slate-700">Tải lên workspace</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <SmartSelect
+                    value={uploadTarget}
+                    onChange={setUploadTarget}
+                    options={wsSlugs}
+                    className="min-w-[160px]"
+                    size="sm"
+                  />
+                  <span className="text-[12px] text-slate-400">chọn nơi lưu trữ</span>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                {filteredDocs.map((d) => (
-                  <div key={d.id} className="group flex items-center gap-3 rounded-lg border border-slate-200 p-3 transition hover:bg-slate-50">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                      {d.status === "processing" ? <Loader2 className="h-4 w-4 animate-spin text-slate-400" /> : <FileText className="h-4 w-4" />}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium text-slate-800">{d.name}</p>
-                      <p className="font-mono text-[11px] text-slate-400">{d.workspace} · {d.size}</p>
-                    </div>
-                    <Badge tone={d.status === "ready" ? "emerald" : d.status === "processing" ? "amber" : "rose"}>
-                      {d.status === "ready" ? "Sẵn sàng" : d.status === "processing" ? "Đang xử lý" : "Lỗi"}
-                    </Badge>
-                    <div className="flex items-center gap-0.5">
-                      <button onClick={() => openView(d)} title="Xem" className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"><Eye className="h-4 w-4" /></button>
-                      {d.isLocal && (
-                        <button onClick={() => openEdit(d)} title="Sửa" className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"><Pencil className="h-4 w-4" /></button>
-                      )}
-                      <button onClick={() => setConfirmDel({ name: d.name, workspace: d.workspace, docpath: d.docpath, isLocal: d.isLocal })} title="Xoá" className="rounded-md p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
-                    </div>
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => document.getElementById("doc-file-input")?.click()}
+                className={cn("shrink-0",
+                  "relative cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition",
+                  dragOver ? "border-indigo-400 bg-indigo-50/70" : "border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-slate-50"
+                )}
+              >
+                <input
+                  id="doc-file-input"
+                  type="file"
+                  accept=".md"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => { if (e.target.files && e.target.files.length > 0) uploadFileList(e.target.files); }}
+                />
+                <Upload className="mx-auto mb-2 h-8 w-8 text-slate-300" />
+                <p className="text-[14px] font-medium text-slate-600">Kéo thả file <b>.md</b> vào đây</p>
+                <p className="mt-1 text-[12px] text-slate-400">hoặc bấm để chọn tệp từ máy</p>
+                {uploading && (
+                  <div className="mt-3 flex items-center justify-center gap-2 text-[13px] text-indigo-600">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Đang tải lên…
                   </div>
-                ))}
-                {filteredDocs.length === 0 && (
-                  <p className="py-10 text-center text-[13px] text-slate-400">Chưa có tài liệu nào phù hợp.</p>
                 )}
               </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <EndpointBadge method="POST" path="/api/v1/document/upload" />
-                <EndpointBadge method="GET" path="/api/v1/document/{docName}" />
-                <EndpointBadge method="DELETE" path="/api/v1/document/{docName}" />
+
+              {/* Document list */}
+              <div className="flex-1 min-h-0 overflow-y-auto mt-4">
+                <SearchInput value={docSearch} onChange={setDocSearch} placeholder="Tìm tài liệu…" className="mb-3 max-w-[240px]" />
+                <div className="space-y-2">
+                  {filteredDocs.length === 0 ? (
+                    <div className="flex flex-col items-center gap-3 py-10">
+                      <FileText className="h-10 w-10 text-slate-200" />
+                      <p className="text-[13px] text-slate-400">Chưa có tài liệu nào.</p>
+                    </div>
+                  ) : (
+                    filteredDocs.map((d) => (
+                      <div key={d.id} className="group flex items-center gap-3 rounded-lg border border-slate-200 p-3 transition hover:bg-slate-50">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                          {d.status === "processing" ? <Loader2 className="h-4 w-4 animate-spin text-slate-400" /> : <FileText className="h-4 w-4" />}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[13px] font-medium text-slate-800">{d.name}</p>
+                          <p className="font-mono text-[11px] text-slate-400">{d.workspace} · {d.size}</p>
+                        </div>
+                        <Badge tone={d.status === "ready" ? "emerald" : d.status === "processing" ? "amber" : "rose"}>
+                          {d.status === "ready" ? "Sẵn sàng" : d.status === "processing" ? "Đang xử lý" : "Lỗi"}
+                        </Badge>
+                        <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100">
+                          <button onClick={() => openView(d)} title="Xem" className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"><Eye className="h-4 w-4" /></button>
+                          {docContentCache[d.name] && (
+                            <button onClick={() => openEdit(d)} title="Sửa" className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"><Pencil className="h-4 w-4" /></button>
+                          )}
+                          <button onClick={() => setConfirmDel({ name: d.name, workspace: d.workspace, docpath: d.docpath })} title="Xoá" className="rounded-md p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setReembedConfirm(true)}
+                    disabled={reembedding}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-[12.5px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {reembedding ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    {reembedding ? "Đang re-embed…" : "Re-embed tài liệu"}
+                  </button>
+                  <details className="group text-[12px]">
+                    <summary className="cursor-pointer text-slate-400 hover:text-slate-600">API Reference</summary>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <EndpointBadge method="POST" path="/api/v1/document/upload" />
+                      <EndpointBadge method="DELETE" path="/api/v1/document/{docName}" />
+                    </div>
+                  </details>
+                </div>
               </div>
             </div>
           )}
         </Card>
       </div>
-
-      {/* ===== Vector DB Modal ===== */}
-      <Modal open={vdbModal} onClose={() => setVdbModal(false)} title="Thêm nhà cung cấp Vector DB" desc="Toàn bộ nhà cung cấp mà AnythingLLM hỗ trợ" size="xl">
-        <div className="grid gap-4 sm:grid-cols-[210px_1fr]">
-          <div className="scroll-slim max-h-[52vh] space-y-1 overflow-y-auto pr-1">
-            {vectorDbCatalog.map((p) => {
-              const sel = vdbPick === p.id;
-              const added = isVdbActive(p.id);
-              return (
-                <button key={p.id} onClick={() => { setVdbPick(p.id); setVdbForm({}); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><Database className="h-3.5 w-3.5" /></span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[12.5px] font-medium text-slate-800">{p.name}</span>
-                    <span className="block text-[10.5px] text-slate-400">{kindLabel[p.kind]}</span>
-                  </span>
-                  {added && <Check className="h-3.5 w-3.5 text-emerald-500" />}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="rounded-lg border border-slate-200 p-4">
-            {(() => {
-              const p = providerById(vdbPick);
-              const added = isVdbActive(p.id);
-              return (
-                <>
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg text-white" style={{ backgroundColor: p.color }}><Database className="h-4 w-4" /></span>
-                    <div className="flex items-center gap-2">
-                      <p className="text-[14px] font-semibold text-slate-900">{p.name}</p>
-                      <Badge tone="slate">{kindLabel[p.kind]}</Badge>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-[12.5px] leading-relaxed text-slate-500">{p.desc}</p>
-                  {p.fields.length === 0 ? (
-                    <div className="mt-4 flex items-center gap-2 rounded-lg bg-slate-50 p-3 text-[12.5px] text-slate-500">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Không cần cấu hình — chạy nhúng sẵn, không yêu cầu URL hay API Key.
-                    </div>
-                  ) : (
-                    <div className="mt-4 space-y-3">
-                      {p.fields.map((f) => (
-                        <Field key={f.key} label={f.label}>
-                          <input type={f.secret ? "password" : "text"} value={vdbForm[f.key] || ""} onChange={(e) => setVdbForm((s) => ({ ...s, [f.key]: e.target.value }))} placeholder={f.placeholder} className={cn(inputCls, f.secret && "font-mono")} />
-                        </Field>
-                      ))}
-                    </div>
-                  )}
-                  <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
-                    <EndpointBadge method="POST" path="/api/v1/system/vector-db" />
-                    <button onClick={addVdb} disabled={added} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50">
-                      <Plus className="h-4 w-4" /> {added ? "Đã thêm" : "Thêm nhà cung cấp"}
-                    </button>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      </Modal>
 
       {/* ===== View document ===== */}
       <Modal open={!!viewDoc} onClose={() => setViewDoc(null)} title={viewDoc?.name || ""} desc={viewDoc ? `Workspace · ${viewDoc.workspace}` : ""} size="lg">
@@ -815,14 +1387,29 @@ export default function Intelligence() {
       {/* ===== Create / Edit document ===== */}
       <Modal
         open={!!docEditor}
-        onClose={() => setDocEditor(null)}
+        onClose={() => {
+          if (docEditor && docEditor.content !== (docContentCache[docEditor.name] || "# Tên tài liệu\n\nMô tả nội dung...")) {
+            setConfirmCloseEditor(true);
+          } else {
+            setDocEditor(null);
+          }
+        }}
         title={docEditor?.mode === "create" ? "Tạo tài liệu Markdown" : "Chỉnh sửa tài liệu"}
         desc="Hỗ trợ duy nhất định dạng Markdown (.md)"
         size="xl"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setDocEditor(null)}><X className="h-4 w-4" /> Huỷ</Button>
-            <Button onClick={saveDoc}><Save className="h-4 w-4" /> Lưu tài liệu</Button>
+            <Button variant="secondary" onClick={() => {
+              if (docEditor && docEditor.content !== (docContentCache[docEditor.name] || "# Tên tài liệu\n\nMô tả nội dung...")) {
+                setConfirmCloseEditor(true);
+              } else {
+                setDocEditor(null);
+              }
+            }} disabled={uploading}><X className="h-4 w-4" /> Huỷ</Button>
+            <Button onClick={saveDoc} disabled={uploading}>
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {uploading ? "Đang tải lên…" : "Lưu tài liệu"}
+            </Button>
           </>
         }
       >
@@ -832,7 +1419,7 @@ export default function Intelligence() {
               <input value={docEditor?.name || ""} onChange={(e) => setDocEditor((s) => (s ? { ...s, name: e.target.value } : s))} placeholder="vd: payment-flow" className={inputCls} />
             </Field>
             <Field label="Workspace">
-              <div className="flex-1"><Select value={docEditor?.workspace || (wsSlugs[0] || "default")} onChange={(v) => setDocEditor((s) => (s ? { ...s, workspace: v } : s))} options={wsSlugs} /></div>
+              <SmartSelect value={docEditor?.workspace || (wsSlugs[0] || "default")} onChange={(v) => setDocEditor((s) => (s ? { ...s, workspace: v } : s))} options={wsSlugs} />
             </Field>
           </div>
           <Field label="Nội dung (Markdown)">
@@ -841,7 +1428,59 @@ export default function Intelligence() {
         </div>
       </Modal>
 
-      {/* ===== Delete confirm ===== */}
+      {/* ===== Workspace delete confirm ===== */}
+      <Modal
+        open={!!wsConfirmDel}
+        onClose={() => setWsConfirmDel(null)}
+        title="Xoá workspace?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setWsConfirmDel(null)}>Huỷ</Button>
+            <button onClick={() => wsConfirmDel && deleteWs(wsConfirmDel)} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[13px] font-medium text-white transition hover:bg-rose-700"><Trash2 className="h-4 w-4" /> Xoá</button>
+          </>
+        }
+      >
+        <p className="text-[13px] leading-relaxed text-slate-600">
+          Workspace <b className="text-slate-900">{wsConfirmDel}</b> sẽ bị xoá vĩnh viễn. Tài liệu trong workspace này cũng sẽ bị gỡ khỏi vector DB. Hành động này không thể hoàn tác.
+        </p>
+      </Modal>
+
+      {/* ===== Re-embed confirm ===== */}
+      <Modal
+        open={reembedConfirm}
+        onClose={() => setReembedConfirm(false)}
+        title="Re-embed toàn bộ tài liệu?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setReembedConfirm(false)}>Huỷ</Button>
+            <button onClick={() => { setReembedConfirm(false); handleReEmbed(); }} className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-[13px] font-medium text-white transition hover:bg-amber-700"><RefreshCw className="h-4 w-4" /> Re-embed</button>
+          </>
+        }
+      >
+        <p className="text-[13px] leading-relaxed text-slate-600">
+          Toàn bộ tài liệu sẽ được nhúng lại vector DB. Quá trình này có thể mất vài phút và không thể hoàn tác giữa chừng.
+        </p>
+      </Modal>
+
+      {/* ===== Confirm close editor ===== */}
+      <Modal
+        open={confirmCloseEditor}
+        onClose={() => setConfirmCloseEditor(false)}
+        title="Huỷ thay đổi?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmCloseEditor(false)}>Tiếp tục soạn</Button>
+            <button onClick={() => { setConfirmCloseEditor(false); setDocEditor(null); }} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[13px] font-medium text-white transition hover:bg-rose-700"><X className="h-4 w-4" /> Huỷ thay đổi</button>
+          </>
+        }
+      >
+        <p className="text-[13px] leading-relaxed text-slate-600">Nội dung chưa lưu sẽ bị mất. Bạn có chắc muốn huỷ?</p>
+      </Modal>
+
+      {/* ===== Delete document confirm ===== */}
       <Modal
         open={!!confirmDel}
         onClose={() => setConfirmDel(null)}

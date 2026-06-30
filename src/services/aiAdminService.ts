@@ -3,6 +3,7 @@ import type { ApiResponse } from '../types/api';
 import type {
   AiSystemConfig,
   AiSystemConfigRequest,
+  AiCreateWorkspaceRequest,
   AiTestConnection,
   AiWorkspace,
   AiWorkspaceUpdateRequest,
@@ -40,6 +41,14 @@ export const aiAdminService = {
 
   getWorkspaces: async (): Promise<ApiResponse<AiWorkspaceInfo[]>> => {
     return apiClient.get<any, ApiResponse<AiWorkspaceInfo[]>>('/ai/workspaces');
+  },
+
+  createWorkspace: async (data: AiCreateWorkspaceRequest): Promise<ApiResponse<void>> => {
+    return apiClient.post<any, ApiResponse<void>>('/ai/workspace', data);
+  },
+
+  deleteWorkspace: async (slug: string): Promise<ApiResponse<void>> => {
+    return apiClient.delete<any, ApiResponse<void>>(`/ai/workspace/${slug}`);
   },
 
   getProviderModels: async (provider: string, basePath?: string): Promise<ApiResponse<string[]>> => {

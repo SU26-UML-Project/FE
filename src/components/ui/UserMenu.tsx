@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { UserCircle, LayoutDashboard, Shield, LogOut, ChevronDown } from 'lucide-react'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useClickOutside } from '../../hooks/useClickOutside'
+import LogoutConfirmModal from './LogoutConfirmModal'
 
 /**
  * Authenticated user chip in the navbar. Hover (desktop) or click opens a
@@ -11,8 +12,9 @@ import { useClickOutside } from '../../hooks/useClickOutside'
  */
 const UserMenu = () => {
   const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
+  const { user } = useAuthStore()
   const [open, setOpen] = useState(false)
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -112,13 +114,14 @@ const UserMenu = () => {
                 danger
                 onClick={() => {
                   setOpen(false)
-                  logout()
+                  setLogoutModalOpen(true)
                 }}
               />
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+      <LogoutConfirmModal open={logoutModalOpen} onClose={() => setLogoutModalOpen(false)} />
     </div>
   )
 }

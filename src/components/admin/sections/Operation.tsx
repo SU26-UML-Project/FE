@@ -478,7 +478,8 @@ export default function Operation() {
   };
 
   return (
-    <Card className="p-5">
+    <div className="flex h-full flex-col gap-5 overflow-hidden">
+    <Card className="flex min-h-0 flex-col overflow-y-auto p-5">
       <div className="mb-5 flex items-center justify-between">
         <Segmented
           value={tab}
@@ -503,5 +504,7 @@ export default function Operation() {
           <Templates list={list} onOpen={setSelectedId} onCreate={createTemplate} />
         ))}
     </Card>
+    </div>
   );
 }
+

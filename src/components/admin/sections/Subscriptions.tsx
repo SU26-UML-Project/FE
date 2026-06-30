@@ -527,7 +527,8 @@ export default function SubscriptionsSection() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="flex h-full flex-col gap-5 overflow-hidden">
+      <div className="flex-1 min-h-0 space-y-5 overflow-y-auto">
       <div>
         <h3 className="text-[15px] font-semibold text-slate-900">Gói Subscription</h3>
         <p className="text-[13px] text-slate-500">Tạo gói và cấu hình tính năng, giá & chu kỳ thanh toán</p>
@@ -619,6 +620,8 @@ export default function SubscriptionsSection() {
         footer={<><button onClick={() => setConfirmDel(null)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50">Huỷ</button><button onClick={doDelete} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-rose-700"><Trash2 className="h-4 w-4" /> Xoá gói</button></>}>
         <p className="text-[13px] leading-relaxed text-slate-600">Gói <b className="text-slate-900">{confirmDel?.name}</b> đang có <b className="text-slate-900">{fmtVnd(confirmDel?.subscribers ?? 0)}</b> thuê bao sẽ bị xoá. Người dùng đang sử dụng gói này sẽ cần được chuyển sang gói khác. Hành động không thể hoàn tác.</p>
       </Modal>
+      </div>
     </div>
   );
 }
+

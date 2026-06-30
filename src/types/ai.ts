@@ -1,8 +1,13 @@
 export interface AiSystemConfig {
   llmProvider: string | null;
   model: string | null;
+  embeddingProvider: string | null;
+  embeddingModel: string | null;
   vectorDb: string | null;
   vectorDbEndpoint: string | null;
+  anythingLlmBaseUrl?: string | null;
+  documentChunkSize?: number | null;
+  documentChunkOverlap?: number | null;
   hasApiKey?: boolean | null;
 }
 
@@ -11,9 +16,18 @@ export interface AiSystemConfigRequest {
   baseUrl?: string;
   apiKey?: string;
   model?: string;
+  embeddingProvider?: string;
+  embeddingModel?: string;
   vectorDb?: string;
   vectorDbEndpoint?: string;
   vectorDbApiKey?: string;
+  documentChunkSize?: number;
+  documentChunkOverlap?: number;
+}
+
+export interface AiCreateWorkspaceRequest {
+  slug: string;
+  name: string;
 }
 
 export interface AiWorkspace {

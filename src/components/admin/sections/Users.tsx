@@ -12,7 +12,6 @@ import {
 import { authService } from "../../../services/authService";
 import type { AdminUserListItem } from "../../../types/auth";
 import { Avatar, Badge, Card } from "../ui";
-import LoadingOverlay from "../../ui/LoadingOverlay";
 import { Modal } from "../Modal";
 import { cn } from "../../../utils/cn";
 
@@ -159,7 +158,45 @@ export default function Users() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="flex h-full flex-col gap-5 overflow-hidden">
+      {loading ? (
+        <div className="animate-pulse space-y-5">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className="flex items-center gap-3 p-4">
+                <div className="h-10 w-10 rounded-lg bg-slate-200" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 w-16 rounded bg-slate-100" />
+                  <div className="h-5 w-20 rounded bg-slate-200" />
+                </div>
+              </Card>
+            ))}
+          </div>
+          <Card className="p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex gap-2">
+                {[1, 2, 3].map((i) => <div key={i} className="h-8 w-16 rounded-lg bg-slate-100" />)}
+              </div>
+              <div className="h-9 w-48 rounded-lg bg-slate-100" />
+            </div>
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-3 py-2">
+                  <div className="h-8 w-8 rounded-full bg-slate-200" />
+                  <div className="flex-1 space-y-1">
+                    <div className="h-3.5 w-32 rounded bg-slate-200" />
+                    <div className="h-3 w-48 rounded bg-slate-100" />
+                  </div>
+                  <div className="h-5 w-16 rounded bg-slate-100" />
+                  <div className="h-5 w-20 rounded bg-slate-100" />
+                  <div className="h-5 w-16 rounded bg-slate-100" />
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      ) : (
+        <div className="flex-1 min-h-0 space-y-5 overflow-y-auto">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <MiniStat icon={UsersIcon} label="Tổng người dùng" value={users.length.toLocaleString("vi-VN")} />
         <MiniStat icon={UserCheck} label="Đang hoạt động" value={activeCount.toLocaleString("vi-VN")} />
@@ -202,9 +239,7 @@ export default function Users() {
           </div>
         </div>
 
-        {loading ? (
-          <LoadingOverlay message="Đang tải..." />
-        ) : error ? (
+        {error ? (
           <p className="py-10 text-center text-[13px] text-rose-500">{error}</p>
         ) : users.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-4 py-16">
@@ -364,6 +399,8 @@ export default function Users() {
           </div>
         )}
       </Modal>
+      </div>
+      )}
     </div>
   );
 }

@@ -45,7 +45,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#fafafa] text-slate-900 font-sans">
+    <div className="relative flex h-screen flex-col overflow-hidden bg-[#fafafa] text-slate-900 font-sans">
       <Sidebar
         active={section}
         onNavigate={navigate}
@@ -63,8 +63,8 @@ export default function AdminDashboard() {
           onOpenSidebar={() => setSidebarOpen(true)}
           user={user}
         />
-        <main className="px-4 py-6 sm:px-6 lg:px-8">
-          <div key={section} className="mx-auto max-w-[1400px] animate-fade-up">
+        <main className="flex-1 overflow-hidden px-4 pb-4 pt-3 sm:px-6 lg:px-8">
+          <div key={section} className="mx-auto flex h-full max-w-[1400px] animate-fade-up flex-col overflow-hidden">
             {section === "dashboard" && <DashboardSection />}
             {section === "users" && <UsersSection />}
             {section === "projects" && <ProjectsSection />}
@@ -80,7 +80,7 @@ export default function AdminDashboard() {
 
 function cnBase(collapsed: boolean) {
   return [
-    "relative transition-[padding] duration-300",
+    "relative flex flex-1 flex-col overflow-hidden transition-[padding] duration-300",
     collapsed ? "lg:pl-[72px]" : "lg:pl-[256px]",
   ].join(" ");
 }

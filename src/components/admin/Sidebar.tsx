@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ChevronLeft, ChevronRight, LogOut, Settings2, Sparkles, X } from "lucide-react";
 import { navSections, type SectionId } from "./data";
 import { cn } from "../../utils/cn";
 import type { User } from "../../types/auth";
+import LogoutConfirmModal from "../ui/LogoutConfirmModal";
 
 function getInitials(name?: string) {
   if (!name) return "?";
@@ -27,7 +29,7 @@ function Logo({ collapsed }: { collapsed: boolean }) {
       </div>
       {!collapsed && (
         <div className="leading-tight">
-          <p className="text-[14px] font-semibold tracking-tight text-slate-900">UML Studio</p>
+          <p className="text-[14px] font-semibold tracking-tight text-slate-900">DiaUML Studio</p>
           <p className="text-[11px] text-slate-400">Admin Console</p>
         </div>
       )}
@@ -91,6 +93,7 @@ export default function Sidebar({
   onToggleCollapse: () => void;
   user: User | null;
 }) {
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   return (
     <>
       <div
@@ -221,7 +224,10 @@ export default function Sidebar({
                 <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
                   <Settings2 className="h-4 w-4" />
                 </button>
-                <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                <button
+                  onClick={() => setLogoutModalOpen(true)}
+                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                >
                   <LogOut className="h-[15px] w-[15px]" />
                 </button>
               </>
@@ -229,6 +235,7 @@ export default function Sidebar({
           </div>
         </div>
       </aside>
+      <LogoutConfirmModal open={logoutModalOpen} onClose={() => setLogoutModalOpen(false)} />
     </>
   );
 }

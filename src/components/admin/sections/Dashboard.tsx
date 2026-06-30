@@ -71,7 +71,7 @@ export default function Dashboard() {
   const [userStat, setUserStat] = useState<StatCardData | null>(null);
   const [projectStat, setProjectStat] = useState<StatCardData | null>(null);
   const [diagramStat, setDiagramStat] = useState<StatCardData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
@@ -123,8 +123,93 @@ export default function Dashboard() {
     return cfg;
   });
 
+  if (loading && !userStat) {
+    return (
+      <div className="flex h-full flex-col gap-5 overflow-hidden">
+        <div className="animate-pulse space-y-5">
+          <Card className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-2">
+              <div className="h-4 w-32 rounded bg-slate-200" />
+              <div className="h-6 w-72 rounded bg-slate-200" />
+              <div className="h-4 w-96 rounded bg-slate-100" />
+            </div>
+            <div className="h-10 w-64 rounded-lg bg-slate-100" />
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-4 w-4 rounded bg-slate-200" />
+              <div className="flex gap-1">
+                {[1, 2, 3, 4].map((i) => <div key={i} className="h-8 w-14 rounded-md bg-slate-100" />)}
+              </div>
+            </div>
+          </Card>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className="p-5">
+                <div className="h-9 w-9 rounded-lg bg-slate-200" />
+                <div className="mt-4 h-7 w-24 rounded bg-slate-200" />
+                <div className="mt-2 h-4 w-36 rounded bg-slate-100" />
+              </Card>
+            ))}
+          </div>
+          <div className="grid gap-4 xl:grid-cols-3">
+            <Card className="p-5 xl:col-span-2">
+              <div className="h-4 w-40 rounded bg-slate-200" />
+              <div className="mt-4 h-[200px] rounded-lg bg-slate-100" />
+            </Card>
+            <Card className="p-5">
+              <div className="h-4 w-32 rounded bg-slate-200" />
+              <div className="mt-4 space-y-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="h-3 w-3 rounded bg-slate-200" />
+                    <div className="h-3 flex-1 rounded bg-slate-100" />
+                    <div className="h-3 w-8 rounded bg-slate-200" />
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+          <div className="grid gap-4 xl:grid-cols-3">
+            <Card className="p-5 xl:col-span-2">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="h-4 w-36 rounded bg-slate-200" />
+                <div className="h-4 w-20 rounded bg-slate-100" />
+              </div>
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-slate-200" />
+                    <div className="h-3 flex-1 rounded bg-slate-100" />
+                    <div className="h-3 w-12 rounded bg-slate-100" />
+                  </div>
+                ))}
+              </div>
+            </Card>
+            <Card className="p-5">
+              <div className="mb-3 h-4 w-28 rounded bg-slate-200" />
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="h-3 w-4 rounded bg-slate-200" />
+                    <div className="h-8 w-8 rounded-full bg-slate-200" />
+                    <div className="flex-1">
+                      <div className="h-3 w-24 rounded bg-slate-100" />
+                      <div className="mt-1 h-2 w-full rounded bg-slate-100" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-5">
+    <div className="flex h-full flex-col gap-5 overflow-hidden">
+      <div className="flex-1 min-h-0 space-y-5 overflow-y-auto">
       {/* Welcome + AI prompt */}
       <Card className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
@@ -262,6 +347,9 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
+      </div>
     </div>
   );
 }
+
+
