@@ -622,4 +622,11 @@ export const subscriptionPlans: SubscriptionPlan[] = [
   },
 ];
 
+export const planUsage: { planId: number; values: number[] }[] = [
+  { planId: 1, values: [820, 910, 880, 1050, 990, 1200, 1150, 1380, 1300, 1520, 1650, 1810] },
+  { planId: 2, values: [340, 390, 420, 470, 510, 560, 600, 650, 690, 740, 790, 850] },
+  { planId: 3, values: [180, 200, 230, 260, 290, 310, 340, 370, 400, 430, 460, 490] },
+  { planId: 4, values: [45, 52, 58, 65, 72, 80, 86, 94, 102, 110, 118, 126] },
+];
+
 export { Boxes };

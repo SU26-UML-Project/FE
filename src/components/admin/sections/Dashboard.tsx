@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { Activity, ArrowUpRight, CalendarDays, FolderKanban, Network, Send, Sparkles, TrendingUp, Users } from "lucide-react";
+import { Activity, CalendarDays, FolderKanban, Network, Send, Sparkles, TrendingUp, Users } from "lucide-react";
 import {
   activityFeed,
-  projectsTrend,
+  subscriptionPlans,
+  planUsage,
   topContributors,
   umlDistribution,
 } from "../data";
-import { AreaChart, Donut, Sparkline } from "../charts";
+import { ChartLegend, Donut, GroupedBarChart, Sparkline } from "../charts";
 import { Avatar, Badge, Card } from "../ui";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import {
@@ -103,6 +104,12 @@ export default function Dashboard() {
     }
   };
 
+  const usageSeries = planUsage.map((st) => {
+    const plan = subscriptionPlans.find((p) => p.id === st.planId);
+    return { label: plan?.name ?? "Unknown", color: plan?.color ?? "#94a3b8", values: st.values };
+  });
+  const months = ["T1","T2","T3","T4","T5","T6","T7","T8","T9","T10","T11","T12"];
+
   const resolvedStats = cardConfig.map((cfg) => {
     if (cfg.id === "users" && userStat) {
       return { ...cfg, value: userStat.total.toLocaleString("vi-VN"), delta: `${userStat.delta > 0 ? "+" : ""}${userStat.delta.toLocaleString("vi-VN")}%`, trend: userStat.trend, spark: userStat.sparkline };
@@ -188,17 +195,13 @@ export default function Dashboard() {
 
       {/* Charts */}
       <div className="grid gap-4 xl:grid-cols-3">
-        <Card className="p-5 xl:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <h3 className="text-[14px] font-semibold text-slate-900">Dự án tạo mới</h3>
-              <p className="text-[13px] text-slate-500">12 tháng gần nhất</p>
-            </div>
-            <Badge tone="emerald">
-              <ArrowUpRight className="h-3 w-3" /> +24% YoY
-            </Badge>
+        <Card className="flex flex-col gap-4 p-5 xl:col-span-2">
+          <div>
+            <h3 className="text-[14px] font-semibold text-slate-900">Lượt sử dụng theo gói</h3>
+            <p className="text-[13px] text-slate-500">3–12 tháng (cuộn để zoom)</p>
           </div>
-          <AreaChart data={projectsTrend} />
+          <GroupedBarChart series={usageSeries} months={months} defaultVisible={6} />
+          <ChartLegend series={usageSeries} />
         </Card>
 
         <Card className="p-5">
