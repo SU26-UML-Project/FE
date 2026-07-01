@@ -73,6 +73,10 @@ export const aiAdminService = {
     });
   },
 
+  getDocumentContent: async (workspace: string, filename: string): Promise<ApiResponse<string>> => {
+    return apiClient.get<any, ApiResponse<string>>('/ai/documents/content', { params: { workspace, filename } });
+  },
+
   deleteDocument: async (documentPath: string): Promise<ApiResponse<void>> => {
     return apiClient.delete<any, ApiResponse<void>>('/ai/documents', { data: { documentPath } });
   },

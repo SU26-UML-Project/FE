@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   BarChart3,
@@ -23,7 +23,7 @@ import {
   type WorkspaceTemplate,
 } from "../data";
 import { AreaChart, HBar } from "../charts";
-import { Badge, Card, Segmented } from "../ui";
+import { Badge, Card, Segmented, Skeleton } from "../ui";
 import { cn } from "../../../utils/cn";
 
 function StatCard({
@@ -444,6 +444,8 @@ export default function Operation() {
   const [tab, setTab] = useState<"overview" | "templates">("templates");
   const [list, setList] = useState<WorkspaceTemplate[]>(seedTemplates);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { const t = setTimeout(() => setLoading(false), 400); return () => clearTimeout(t); }, []);
 
   const selected = useMemo(
     () => list.find((t) => t.id === selectedId) ?? null,
@@ -476,6 +478,35 @@ export default function Operation() {
   const updateDocs = (templateId: number, docs: TemplateDoc[]) => {
     setList((l) => l.map((t) => (t.id === templateId ? { ...t, docs, updated: "Vừa xong" } : t)));
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-full flex-col gap-5 overflow-hidden">
+        <Card className="p-5">
+          <div className="animate-pulse space-y-5">
+            <div className="flex gap-2">
+              {[1, 2].map((i) => <Skeleton key={i} className="h-8 w-28 rounded-lg" />)}
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="rounded-xl border border-slate-200 p-4">
+                  <Skeleton className="h-11 w-11 rounded-xl" />
+                  <Skeleton className="mt-3 h-4 w-36" />
+                  <Skeleton className="mt-1 h-3 w-24" />
+                  <Skeleton className="mt-2 h-8 w-full" />
+                  <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+                    <Skeleton className="h-4 w-10 mx-auto" />
+                    <Skeleton className="h-4 w-10 mx-auto" />
+                    <Skeleton className="h-4 w-10 mx-auto" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col gap-5 overflow-hidden">

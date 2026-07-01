@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useClickOutside } from "../../../hooks/useClickOutside";
 import { BadgePercent, Calculator, CalendarDays, Check, ChevronDown, CircleDollarSign, Crown, LayoutGrid, List, Palette, Pencil, Plus, Sparkles, Trash2, TrendingUp, Users, X, Zap } from "lucide-react";
-import { Badge, Card, Segmented } from "../ui";
+import { Badge, Card, Segmented, Skeleton } from "../ui";
 import { Modal } from "../Modal";
 import { cn } from "../../../utils/cn";
 
@@ -501,6 +501,8 @@ export default function SubscriptionsSection() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [billing, setBilling] = useState<Billing>("monthly");
   const [editorTab, setEditorTab] = useState<"info" | "config" | "features" | "review">("info");
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { const t = setTimeout(() => setLoading(false), 400); return () => clearTimeout(t); }, []);
 
   const activePlans = plans.filter((p) => p.status === "active").length;
   const totalSubs = plans.reduce((s, p) => s + p.subscribers, 0);
@@ -524,6 +526,59 @@ export default function SubscriptionsSection() {
   }
   function changeStatus(planId: number, status: PlanStatus) {
     setPlans((arr) => arr.map((p) => p.id === planId ? { ...p, status } : p));
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-full flex-col gap-5 overflow-hidden">
+        <div className="animate-pulse space-y-5">
+          <div>
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="mt-1 h-4 w-64" />
+          </div>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className="p-4">
+                <Skeleton className="h-9 w-9 rounded-lg" />
+                <Skeleton className="mt-3 h-6 w-20" />
+                <Skeleton className="mt-1 h-4 w-24" />
+              </Card>
+            ))}
+          </div>
+          <Card className="p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="space-y-1">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-8 w-16 rounded-lg" />
+                <Skeleton className="h-8 w-24 rounded-lg" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="rounded-xl border border-slate-200 p-5">
+                  <Skeleton className="h-1.5 w-full" />
+                  <div className="flex items-start justify-between mt-3">
+                    <Skeleton className="h-9 w-9 rounded-xl" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                  <Skeleton className="mt-3 h-6 w-28" />
+                  <Skeleton className="mt-1 h-3 w-full" />
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <Skeleton className="h-10 rounded-xl" />
+                    <Skeleton className="h-10 rounded-xl" />
+                    <Skeleton className="h-10 rounded-xl" />
+                    <Skeleton className="h-10 rounded-xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (

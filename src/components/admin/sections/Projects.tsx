@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { FolderKanban, LayoutGrid, List, Plus } from "lucide-react";
 import { projectService } from "../../../services/projectService";
 import type { ProjectResponse } from "../../../types/project";
-import { Avatar, Badge, Card, Segmented } from "../ui";
+import { Avatar, Badge, Card, Segmented, Skeleton } from "../ui";
 
 const statusMeta: Record<string, { tone: "emerald" | "amber" | "slate"; label: string }> = {
   "on-track": { tone: "emerald", label: "Đúng tiến độ" },
@@ -83,40 +83,40 @@ export default function Projects() {
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
               <Card key={i} className="p-4">
-                <div className="h-3 w-20 rounded bg-slate-200" />
-                <div className="mt-2 h-6 w-16 rounded bg-slate-200" />
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="mt-2 h-6 w-16" />
               </Card>
             ))}
           </div>
           <Card className="p-5">
             <div className="mb-4 flex items-center justify-between">
-              <div className="h-4 w-28 rounded bg-slate-200" />
+              <Skeleton className="h-4 w-28" />
               <div className="flex items-center gap-2">
-                <div className="h-9 w-20 rounded-lg bg-slate-100" />
-                <div className="h-9 w-32 rounded-lg bg-slate-100" />
+                <Skeleton className="h-9 w-20 rounded-lg" />
+                <Skeleton className="h-9 w-32 rounded-lg" />
               </div>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="rounded-xl border border-slate-200 p-4">
                   <div className="flex items-start justify-between">
-                    <div className="h-10 w-10 rounded-lg bg-slate-200" />
-                    <div className="h-6 w-20 rounded-full bg-slate-100" />
+                    <Skeleton className="h-10 w-10 rounded-lg" />
+                    <Skeleton className="h-6 w-20 rounded-full" />
                   </div>
                   <div className="mt-3 space-y-1">
-                    <div className="h-4 w-36 rounded bg-slate-200" />
-                    <div className="h-3 w-full rounded bg-slate-100" />
+                    <Skeleton className="h-4 w-36" />
+                    <Skeleton className="h-3 w-full" />
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-2">
-                    <div className="h-4 w-12 rounded bg-slate-200" />
-                    <div className="h-4 w-12 rounded bg-slate-200" />
+                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="h-4 w-12" />
                   </div>
                   <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 rounded-full bg-slate-200" />
-                      <div className="h-3 w-20 rounded bg-slate-100" />
+                      <Skeleton className="h-6 w-6 rounded-full" />
+                      <Skeleton className="h-3 w-20" />
                     </div>
-                    <div className="h-3 w-16 rounded bg-slate-100" />
+                    <Skeleton className="h-3 w-16" />
                   </div>
                 </div>
               ))}

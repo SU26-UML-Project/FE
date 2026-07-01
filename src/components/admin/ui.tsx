@@ -166,6 +166,11 @@ export function Segmented<T extends string>({
   );
 }
 
+/* ---------- Skeleton ---------- */
+export function Skeleton({ className }: { className?: string }) {
+  return <div className={cn("animate-pulse rounded bg-slate-200", className)} />;
+}
+
 /* ---------- Button ---------- */
 /* ---------- Search Input ---------- */
 export function SearchInput({
