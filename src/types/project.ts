@@ -1,5 +1,5 @@
 export interface ProjectRequest {
-  projectName: string;
+  projectName?: string;
   description?: string;
   projectData?: string;
   isDraft?: boolean;

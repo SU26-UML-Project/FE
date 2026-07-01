@@ -22,11 +22,22 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { getTemplateList } from '../utils/templates';
 import type { TemplateMeta } from '../utils/templates';
-import { projectService } from '../services/projectService';
-import { sheetService } from '../services/sheetService';
+import { projectService, sheetService } from '../services';
 import type { ProjectResponse } from '../types/project';
-import type { Workspace, PrebuiltMeta } from '../types/workspace';
 import toast from 'react-hot-toast';
+
+// Dummy types to fix errors since I deleted workspace.ts
+interface Workspace {
+  id: string;
+  name: string;
+  category: string;
+  updatedAt: string;
+  sheets?: any[];
+}
+interface PrebuiltMeta {
+  id: string;
+  name: string;
+}
 
 const formatRelativeTime = (iso: string): string => {
   const diff = Date.now() - new Date(iso).getTime()
@@ -105,37 +116,33 @@ const UserDashboard: React.FC = () => {
     setWorkspacesLoading(true);
     try {
       const response = await projectService.getAllProjects({ isDraft: false });
-      // Map API ProjectResponse to Frontend Workspace type
-      const mapped = (response.result || []).map((p: ProjectResponse) => {
-        // Count sheets from projectData
-        let sheetCount = 0;
-        if (p.projectData) {
+      const projects = response.result || [];
+      
+      // Fetch sheet counts for all projects
+      const projectWithSheets = await Promise.all(
+        projects.map(async (p: ProjectResponse) => {
           try {
-            // Try parsing as JSON first (new format)
-            const data = JSON.parse(p.projectData);
-            sheetCount = Array.isArray(data) ? data.length : 1;
+            const sheetsRes = await sheetService.getSheetsByProject(p.id);
+            return {
+              id: p.id,
+              name: p.projectName,
+              category: p.description || 'general',
+              updatedAt: p.updatedAt,
+              sheets: sheetsRes.result || []
+            };
           } catch (e) {
-            // Fallback for legacy XML format or other data
-            sheetCount = 1;
+            return {
+              id: p.id,
+              name: p.projectName,
+              category: p.description || 'general',
+              updatedAt: p.updatedAt,
+              sheets: []
+            };
           }
-        } else {
-          sheetCount = 0;
-        }
-
-        return {
-          id: p.id,
-          name: p.projectName,
-          category: p.description || 'general',
-          type: 'user' as const,
-          documents: [],
-          // Create a mock sheet array with the correct length to satisfy the UI
-          sheets: Array(sheetCount).fill({ id: 'mock', name: 'Page', diagramType: 'blank', diagramXml: '' }),
-          aiContext: { intent: '', clarifications: [], history: [] },
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt,
-        };
-      });
-      setWorkspaces(mapped);
+        })
+      );
+      
+      setWorkspaces(projectWithSheets);
     } catch (error: any) {
       toast.error(error.message || 'Failed to load projects');
       setWorkspaces([]);
@@ -148,43 +155,33 @@ const UserDashboard: React.FC = () => {
     setDraftsLoading(true);
     try {
       const response = await projectService.getAllProjects({ isDraft: true });
-      const mapped = (response.result || []).map((p: ProjectResponse) => ({
-        id: p.id,
-        name: p.projectName,
-        category: p.description || 'draft',
-        type: 'user' as const,
-        documents: [],
-        sheets: [{
-          id: 'loading',
-          name: 'Diagram',
-          diagramType: 'blank',
-          canvasData: { nodes: [], edges: [] },
-        }],
-        aiContext: { intent: '', clarifications: [], history: [] },
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt,
-      }));
+      const projects = response.result || [];
 
-      // Fetch first sheet for each draft
-      const sheetResults = await Promise.allSettled(
-        mapped.map(d => sheetService.getSheetsByProject(d.id))
+      // Fetch sheet counts for all drafts
+      const draftsWithSheets = await Promise.all(
+        projects.map(async (p: ProjectResponse) => {
+          try {
+            const sheetsRes = await sheetService.getSheetsByProject(p.id);
+            return {
+              id: p.id,
+              name: p.projectName,
+              category: p.description || 'draft',
+              updatedAt: p.updatedAt,
+              sheets: sheetsRes.result || []
+            };
+          } catch (e) {
+            return {
+              id: p.id,
+              name: p.projectName,
+              category: p.description || 'draft',
+              updatedAt: p.updatedAt,
+              sheets: []
+            };
+          }
+        })
       );
-      const withSheets = mapped.map((d, i) => {
-        const sheetsRes = sheetResults[i]
-        if (sheetsRes.status === 'fulfilled' && sheetsRes.value.result?.length > 0) {
-          const all = sheetsRes.value.result
-          const s: any = all.find((x: any) => x.diagramData && x.diagramData !== '{"nodes":[],"edges":[]}') || all[0]
-          d.sheets = [{
-            id: s.id,
-            name: s.name,
-            diagramType: s.diagramType,
-            canvasData: typeof s.diagramData === 'string' ? JSON.parse(s.diagramData) : (s.diagramData || { nodes: [], edges: [] }),
-          }]
-        }
-        return d
-      })
 
-      setDrafts(withSheets);
+      setDrafts(draftsWithSheets);
     } catch (error: any) {
       toast.error(error.message || 'Failed to load drafts');
       setDrafts([]);
@@ -1024,7 +1021,7 @@ const TemplateListRow = ({ template, index = 0 }: { template: TemplateMeta; inde
 
 const DraftCard = ({ draft, selectionMode, selected, onToggleSelect }: { draft: Workspace } & CardActions) => {
   const navigate = useNavigate()
-  const sheetId = draft.sheets[0]?.id
+  const sheetId = draft.sheets?.[0]?.id
   return (
     <motion.div
       whileHover={{ y: -4 }}
@@ -1033,7 +1030,7 @@ const DraftCard = ({ draft, selectionMode, selected, onToggleSelect }: { draft: 
         if (selectionMode) {
           onToggleSelect(draft.id)
         } else {
-          navigate(`/canvas?projectId=${draft.id}&sheetId=${sheetId}&draft=true`)
+          navigate(`/workspace/${draft.id}?draft=true`)
         }
       }}
       className={`bg-white border rounded flex flex-col group transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px] ${
@@ -1051,7 +1048,7 @@ const DraftCard = ({ draft, selectionMode, selected, onToggleSelect }: { draft: 
       <div className="p-5 flex-1 flex flex-col justify-between">
         <div>
           <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{draft.name}</h3>
-          <p className="text-[11px] text-admin-secondary font-bold uppercase tracking-widest">{draft.sheets.length} diagram</p>
+          <p className="text-[11px] text-admin-secondary font-bold uppercase tracking-widest">{(draft.sheets?.length || 0)} diagram</p>
         </div>
         <div className="flex items-center gap-2 text-[10px] text-gray-400">
           <Clock size={12} />
@@ -1078,14 +1075,13 @@ const DraftCard = ({ draft, selectionMode, selected, onToggleSelect }: { draft: 
 
 const DraftListRow = ({ draft, selectionMode, selected, onToggleSelect }: { draft: Workspace } & CardActions) => {
   const navigate = useNavigate()
-  const sheetId = draft.sheets[0]?.id
   return (
     <tr
       onClick={() => {
         if (selectionMode) {
           onToggleSelect(draft.id)
         } else {
-          navigate(`/canvas?projectId=${draft.id}&sheetId=${sheetId}&draft=true`)
+          navigate(`/workspace/${draft.id}?draft=true`)
         }
       }}
       className={`relative overflow-hidden border-b transition-colors group cursor-pointer ${
@@ -1116,7 +1112,7 @@ const DraftListRow = ({ draft, selectionMode, selected, onToggleSelect }: { draf
         </span>
       </td>
       <td className="py-4 px-6 text-admin-on-surface-variant font-bold text-[12px] uppercase">{formatRelativeTime(draft.updatedAt)}</td>
-      <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">{draft.sheets.length}</td>
+      <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">{(draft.sheets?.length || 0)}</td>
     </tr>
   )
 }
@@ -1155,7 +1151,7 @@ const UserWorkspaceCard = ({ workspace, selectionMode, selected, onToggleSelect 
       <div className="p-5 flex-1 flex flex-col justify-between">
         <div>
           <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{workspace.name}</h3>
-          <p className="text-[11px] text-admin-secondary font-bold uppercase tracking-widest">{workspace.sheets.length} diagrams</p>
+          <p className="text-[11px] text-admin-secondary font-bold uppercase tracking-widest">{(workspace.sheets?.length || 0)} diagrams</p>
         </div>
         <div className="flex items-center gap-2 text-[10px] text-gray-400">
           <Clock size={12} />
@@ -1221,7 +1217,7 @@ const WorkspaceListRow = ({ workspace, selectionMode, selected, onToggleSelect }
       </td>
       <td className="py-4 px-6 text-[12px] text-admin-secondary font-bold uppercase">{workspace.category}</td>
       <td className="py-4 px-6 text-admin-on-surface-variant font-bold text-[12px] uppercase">{formatRelativeTime(workspace.updatedAt)}</td>
-      <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">{workspace.sheets.length}</td>
+      <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">{(workspace.sheets?.length || 0)}</td>
     </tr>
   )
 }

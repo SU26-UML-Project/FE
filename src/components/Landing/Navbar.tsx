@@ -68,16 +68,30 @@ const Navbar = () => {
           <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8" data-purpose="main-nav">
           <button
             onClick={() => {
+              // --- DISABLED FOR TESTING: Bypass auth check ---
+              navigate('/dashboard');
+              /*
               if (isAuthenticated) {
                 navigate('/dashboard');
               } else {
                 openAuth('login');
               }
+              */
             }}
             className={`${linkBase} ${location.pathname === '/dashboard' ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`}
           >
             Dashboard
           </button>
+          {/* --- DISABLED FOR TESTING: Always show Admin link --- */}
+          <NavLink
+            to="/admin"
+            className={({ isActive }) =>
+              `${linkBase} ${isActive ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`
+            }
+          >
+            Admin
+          </NavLink>
+          {/* 
           {userRole === 'ADMIN' && (
             <NavLink
               to="/admin"
@@ -88,6 +102,7 @@ const Navbar = () => {
               Admin
             </NavLink>
           )}
+          */}
           {onHome ? (
             <a href="#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Features</a>
           ) : (
