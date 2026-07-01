@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Handle,
   Position,
@@ -51,7 +51,7 @@ function EditableText({
 }: {
   id: string;
   field: "label" | "attributes" | "methods" | "stereotype";
-  value: string;
+  value: any; // Allow any type temporarily to sanitize
   placeholder?: string;
   className?: string;
   inputClassName?: string;
@@ -60,15 +60,23 @@ function EditableText({
 }) {
   const { updateNodeData } = useEditor();
   const [editing, setEditing] = useState(false);
-  const [v, setV] = useState(value ?? "");
+  
+  // Chuyển đổi value sang string an toàn để tránh crash
+  const safeValue = useMemo(() => {
+    if (value === null || value === undefined) return "";
+    if (Array.isArray(value)) return value.join("\n");
+    return String(value);
+  }, [value]);
+
+  const [v, setV] = useState(safeValue);
 
   useEffect(() => {
-    if (!editing) setV(value ?? "");
-  }, [value, editing]);
+    if (!editing) setV(safeValue);
+  }, [safeValue, editing]);
 
   const commit = () => {
     setEditing(false);
-    if ((v ?? "") !== (value ?? "")) updateNodeData(id, { [field]: v });
+    if (v !== safeValue) updateNodeData(id, { [field]: v });
   };
 
   if (editing) {
@@ -76,7 +84,7 @@ function EditableText({
       "nodrag w-full resize-none outline-none bg-white/80 backdrop-blur rounded px-1 leading-relaxed " +
       (inputClassName ?? "");
     if (multiline) {
-      const rows = Math.max(2, (v ?? "").split("\n").length);
+      const rows = Math.max(2, v.split("\n").length);
       return (
         <textarea
           autoFocus value={v} rows={rows}
@@ -90,7 +98,7 @@ function EditableText({
           onBlur={commit}
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) commit();
-            if (e.key === "Escape") { setV(value ?? ""); setEditing(false); }
+            if (e.key === "Escape") { setV(safeValue); setEditing(false); }
           }}
           className={cx(common, mono && "font-mono")}
         />
@@ -105,7 +113,7 @@ function EditableText({
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === "Enter") commit();
-          if (e.key === "Escape") { setV(value ?? ""); setEditing(false); }
+          if (e.key === "Escape") { setV(safeValue); setEditing(false); }
         }}
         className={cx(common, mono && "font-mono")}
       />
@@ -114,10 +122,10 @@ function EditableText({
 
   return (
     <span
-      onDoubleClick={(e) => { e.stopPropagation(); setV(value ?? ""); setEditing(true); }}
+      onDoubleClick={(e) => { e.stopPropagation(); setV(safeValue); setEditing(true); }}
       className={cx(className, "cursor-text", multiline && "block whitespace-pre-wrap")}
     >
-      {value ? value : <span className="text-zinc-300">{placeholder}</span>}
+      {safeValue ? safeValue : <span className="text-zinc-300">{placeholder}</span>}
     </span>
   );
 }
@@ -159,42 +167,53 @@ function Resizer({ selected, minW = 60, minH = 40, keepAspectRatio = false }: {
 /* ---------------- Nodes ---------------- */
 
 export function ActionNode({ id, data, selected, height }: NodeProps) {
-  const d = data as FlowNodeData;
+  const d = (data as FlowNodeData) || {};
   const ink = inkColor(d);
   const contentRef = useRef<HTMLDivElement>(null);
   const minH = useContentHeight(contentRef, [d.label]);
   useAutoGrow(id, height as number | undefined, minH);
   return (
-    <div className="relative flex h-full w-full items-center justify-center rounded-[10px] px-4 text-center text-[13px] font-medium text-zinc-900"
-      style={{ border: `1.5px solid ${ink}`, background: fillColor(d) }}>
-      <Resizer selected={selected} minW={100} minH={minH || 40} />
+    <div className={cx(
+      "relative flex h-full w-full items-center justify-center rounded-[10px] px-4 text-center text-[13px] font-medium text-zinc-900 transition-shadow",
+      selected && "ring-2 ring-zinc-900 ring-offset-4"
+    )}
+      style={{ 
+        border: `1.5px solid ${ink}`, 
+        background: fillColor(d),
+        minWidth: 150,
+        minHeight: 54
+      }}>
+      <Resizer selected={selected} minW={150} minH={minH || 54} />
       <AllHandles />
       <div ref={contentRef} style={{ height: "max-content" }} className="max-w-full break-words px-1 py-0.5">
-        <EditableText id={id} field="label" value={d.label} placeholder="Action" />
+        <EditableText id={id} field="label" value={d.label || ""} placeholder="Action" />
       </div>
     </div>
   );
 }
 
 export function DecisionNode({ id, data, selected }: NodeProps) {
-  const d = data as FlowNodeData;
+  const d = (data as FlowNodeData) || {};
   const ink = inkColor(d);
   return (
-    <div className="relative h-full w-full">
-      <Resizer selected={selected} minW={90} minH={70} />
+    <div className={cx(
+      "relative h-full w-full transition-shadow",
+      selected && "ring-2 ring-zinc-900 ring-offset-4 rounded-sm"
+    )} style={{ minWidth: 150, minHeight: 104 }}>
+      <Resizer selected={selected} minW={150} minH={104} />
       <AllHandles />
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
         <polygon points="50,1.5 98.5,50 50,98.5 1.5,50" fill={fillColor(d)} stroke={ink} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center px-7 text-center text-[12px] font-medium text-zinc-900">
-        <EditableText id={id} field="label" value={d.label} placeholder="Condition?" />
+        <EditableText id={id} field="label" value={d.label || ""} placeholder="Condition?" />
       </div>
     </div>
   );
 }
 
 export function StartNode({ data, selected }: NodeProps) {
-  const d = data as FlowNodeData;
+  const d = (data as FlowNodeData) || {};
   return (
     <div className="relative h-full w-full">
       <Resizer selected={selected} minW={24} minH={24} keepAspectRatio />
@@ -207,7 +226,7 @@ export function StartNode({ data, selected }: NodeProps) {
 }
 
 export function FinalNode({ data, selected }: NodeProps) {
-  const d = data as FlowNodeData;
+  const d = (data as FlowNodeData) || {};
   const ink = inkColor(d);
   return (
     <div className="relative h-full w-full">
@@ -222,7 +241,7 @@ export function FinalNode({ data, selected }: NodeProps) {
 }
 
 export function ForkNode({ data, selected }: NodeProps) {
-  const d = data as FlowNodeData;
+  const d = (data as FlowNodeData) || {};
   return (
     <div className="relative h-full w-full">
       <Resizer selected={selected} minW={10} minH={10} />
@@ -244,15 +263,28 @@ function Compartment({ id, field, value, ink, placeholder, last }: {
 }
 
 export function ClassNode({ id, data, selected, height }: NodeProps) {
-  const d = data as FlowNodeData;
+  const d = (data as FlowNodeData) || {};
   const ink = inkColor(d);
   const contentRef = useRef<HTMLDivElement>(null);
   const minH = useContentHeight(contentRef, [d.label, d.stereotype, d.attributes, d.methods]);
   useAutoGrow(id, height as number | undefined, minH);
+  
+  const isInterface = d.stereotype?.includes('interface');
+  const minW = isInterface ? 200 : 210;
+  const baseMinH = isInterface ? 104 : 150;
+
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[8px]"
-      style={{ border: `1.5px solid ${ink}`, background: fillColor(d) }}>
-      <Resizer selected={selected} minW={170} minH={minH || 90} />
+    <div className={cx(
+      "relative flex h-full w-full flex-col overflow-hidden rounded-[8px] transition-shadow",
+      selected && "ring-2 ring-zinc-900 ring-offset-4"
+    )}
+      style={{ 
+        border: `1.5px solid ${ink}`, 
+        background: fillColor(d),
+        minWidth: minW,
+        minHeight: baseMinH
+      }}>
+      <Resizer selected={selected} minW={minW} minH={minH || baseMinH} />
       <AllHandles />
       <div ref={contentRef} style={{ height: "max-content" }} className="flex w-full flex-col">
         <div className="shrink-0 break-words px-3 pt-2 pb-2 text-center" style={{ borderBottom: `1.5px solid ${ink}` }}>
@@ -262,18 +294,18 @@ export function ClassNode({ id, data, selected, height }: NodeProps) {
             </div>
           )}
           <div className="text-[13px] font-semibold text-zinc-900">
-            <EditableText id={id} field="label" value={d.label} placeholder="ClassName" />
+            <EditableText id={id} field="label" value={d.label || ""} placeholder="ClassName" />
           </div>
         </div>
-        <Compartment id={id} field="attributes" value={d.attributes} ink={ink} placeholder={"- attribute: Type"} />
-        <Compartment id={id} field="methods" value={d.methods} ink={ink} placeholder={"+ method(): Type"} last />
+        <Compartment id={id} field="attributes" value={d.attributes || ""} ink={ink} placeholder={"- attribute: Type"} />
+        <Compartment id={id} field="methods" value={d.methods || ""} ink={ink} placeholder={"+ method(): Type"} last />
       </div>
     </div>
   );
 }
 
 export function ComponentNode({ id, data, selected, height }: NodeProps) {
-  const d = data as FlowNodeData;
+  const d = (data as FlowNodeData) || {};
   const ink = inkColor(d);
   const contentRef = useRef<HTMLDivElement>(null);
   const minH = useContentHeight(contentRef, [d.label, d.stereotype]);
@@ -294,7 +326,7 @@ export function ComponentNode({ id, data, selected, height }: NodeProps) {
               <EditableText id={id} field="stereotype" value={d.stereotype ?? ""} placeholder="«interface»" />
             </div>
           )}
-          <EditableText id={id} field="label" value={d.label} placeholder="Component" className="text-[13px] font-semibold text-zinc-900" />
+          <EditableText id={id} field="label" value={d.label || ""} placeholder="Component" className="text-[13px] font-semibold text-zinc-900" />
         </div>
       </div>
     </div>
@@ -302,21 +334,24 @@ export function ComponentNode({ id, data, selected, height }: NodeProps) {
 }
 
 export function UseCaseNode({ id, data, selected, height }: NodeProps) {
-  const d = data as FlowNodeData;
+  const d = (data as FlowNodeData) || {};
   const ink = inkColor(d);
   const contentRef = useRef<HTMLDivElement>(null);
   const minH = useContentHeight(contentRef, [d.label]);
   useAutoGrow(id, height as number | undefined, minH);
   return (
-    <div className="relative h-full w-full">
-      <Resizer selected={selected} minW={120} minH={minH || 64} />
+    <div className={cx(
+      "relative h-full w-full transition-shadow",
+      selected && "ring-2 ring-zinc-900 ring-offset-4 rounded-full"
+    )} style={{ minWidth: 170, minHeight: 82 }}>
+      <Resizer selected={selected} minW={170} minH={minH || 82} />
       <AllHandles />
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
         <ellipse cx="50" cy="50" rx="48.5" ry="48.5" fill={fillColor(d)} stroke={ink} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center px-7 py-4 text-center text-[12px] font-medium text-zinc-900">
         <div ref={contentRef} style={{ height: "max-content" }} className="max-w-full break-words">
-          <EditableText id={id} field="label" value={d.label} placeholder="Use case" />
+          <EditableText id={id} field="label" value={d.label || ""} placeholder="Use case" />
         </div>
       </div>
     </div>
@@ -324,11 +359,14 @@ export function UseCaseNode({ id, data, selected, height }: NodeProps) {
 }
 
 export function ActorNode({ id, data, selected }: NodeProps) {
-  const d = data as FlowNodeData;
+  const d = (data as FlowNodeData) || {};
   const ink = inkColor(d);
   return (
-    <div className="relative h-full w-full">
-      <Resizer selected={selected} minW={44} minH={70} keepAspectRatio />
+    <div className={cx(
+      "relative h-full w-full transition-shadow",
+      selected && "ring-2 ring-zinc-900 ring-offset-4 rounded-sm"
+    )} style={{ minWidth: 76, minHeight: 124 }}>
+      <Resizer selected={selected} minW={76} minH={124} keepAspectRatio />
       <AllHandles />
       <div className="flex h-full w-full flex-col items-center">
         <svg viewBox="0 0 60 92" className="min-h-0 w-full flex-1" preserveAspectRatio="xMidYMid meet">
@@ -339,7 +377,7 @@ export function ActorNode({ id, data, selected }: NodeProps) {
           <line x1="30" y1="54" x2="45" y2="80" stroke={ink} strokeWidth="1.6" strokeLinecap="round" />
         </svg>
         <div className="w-full shrink-0 pb-0.5 text-center text-[12px] font-medium text-zinc-900">
-          <EditableText id={id} field="label" value={d.label} placeholder="Actor" />
+          <EditableText id={id} field="label" value={d.label || ""} placeholder="Actor" />
         </div>
       </div>
     </div>
@@ -347,15 +385,18 @@ export function ActorNode({ id, data, selected }: NodeProps) {
 }
 
 export function LifelineNode({ id, data, selected }: NodeProps) {
-  const d = data as FlowNodeData;
+  const d = (data as FlowNodeData) || {};
   const ink = inkColor(d);
   return (
-    <div className="relative h-full w-full">
-      <Resizer selected={selected} minW={90} minH={160} />
+    <div className={cx(
+      "relative h-full w-full transition-shadow",
+      selected && "ring-2 ring-zinc-900 ring-offset-4 rounded-sm"
+    )} style={{ minWidth: 150, minHeight: 340 }}>
+      <Resizer selected={selected} minW={150} minH={340} />
       <AllHandles />
       <div className="absolute left-0 right-0 top-0 mx-auto rounded-[9px] px-4 py-2 text-center text-[13px] font-medium text-zinc-900"
         style={{ border: `1.5px solid ${ink}`, background: fillColor(d), width: "fit-content", maxWidth: "100%" }}>
-        <EditableText id={id} field="label" value={d.label} placeholder=": Participant" />
+        <EditableText id={id} field="label" value={d.label || ""} placeholder=": Participant" />
       </div>
       <div className="absolute left-1/2 top-[44px] bottom-0 -translate-x-1/2 border-l-[1.5px] border-dashed" style={{ borderColor: ink }} />
     </div>
@@ -363,14 +404,17 @@ export function LifelineNode({ id, data, selected }: NodeProps) {
 }
 
 export function NoteNode({ id, data, selected, height }: NodeProps) {
-  const d = data as FlowNodeData;
+  const d = (data as FlowNodeData) || {};
   const ink = inkColor(d);
   const contentRef = useRef<HTMLDivElement>(null);
   const minH = useContentHeight(contentRef, [d.label]);
   useAutoGrow(id, height as number | undefined, minH);
   return (
-    <div className="relative h-full w-full">
-      <Resizer selected={selected} minW={110} minH={minH || 60} />
+    <div className={cx(
+      "relative h-full w-full transition-shadow",
+      selected && "ring-2 ring-zinc-900 ring-offset-4 rounded-sm"
+    )} style={{ minWidth: 170, minHeight: 90 }}>
+      <Resizer selected={selected} minW={170} minH={minH || 90} />
       <AllHandles />
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
         <path d="M1.5 1.5 L84 1.5 L98.5 16 L98.5 98.5 L1.5 98.5 Z" fill={fillColor(d, "#f6f6f7")} stroke={ink} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
@@ -378,7 +422,7 @@ export function NoteNode({ id, data, selected, height }: NodeProps) {
       </svg>
       <div className="absolute inset-0 px-3.5 py-3 text-[12px] leading-snug text-zinc-700">
         <div ref={contentRef} style={{ height: "max-content" }} className="max-w-full break-words">
-          <EditableText id={id} field="label" value={d.label} placeholder="Note…" multiline />
+          <EditableText id={id} field="label" value={d.label || ""} placeholder="Note…" multiline />
         </div>
       </div>
     </div>
@@ -386,13 +430,13 @@ export function NoteNode({ id, data, selected, height }: NodeProps) {
 }
 
 export function TextNode({ id, data, selected }: NodeProps) {
-  const d = data as FlowNodeData;
+  const d = (data as FlowNodeData) || {};
   return (
     <div className="relative h-full w-full">
       <Resizer selected={selected} minW={60} minH={20} />
       <AllHandles />
       <div className="flex h-full w-full items-center justify-center px-2 text-center text-[13px] font-semibold text-zinc-900">
-        <EditableText id={id} field="label" value={d.label} placeholder="Label" />
+        <EditableText id={id} field="label" value={d.label || ""} placeholder="Label" />
       </div>
     </div>
   );
@@ -402,8 +446,11 @@ export function PackageNode({ id, data, selected }: NodeProps) {
   const d = data as FlowNodeData;
   const ink = inkColor(d);
   return (
-    <div className="relative h-full w-full">
-      <Resizer selected={selected} minW={160} minH={120} />
+    <div className={cx(
+      "relative h-full w-full transition-shadow",
+      selected && "ring-2 ring-zinc-900 ring-offset-4 rounded-sm"
+    )} style={{ minWidth: 360, minHeight: 240 }}>
+      <Resizer selected={selected} minW={360} minH={240} />
       <AllHandles />
       <div className="absolute left-0 top-0 h-[24px] rounded-t-[8px] px-3"
         style={{ width: 90, border: `1.5px solid ${ink}`, borderBottom: "none", background: fillColor(d) }}>
