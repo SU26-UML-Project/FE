@@ -34,6 +34,7 @@ export function Toolbar(props: {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onZoomReset: () => void;
+  onLayout: () => void;
   zoom: number;
   showGrid: boolean;
   onToggleGrid: () => void;
@@ -112,6 +113,9 @@ export function Toolbar(props: {
         </IconBtn>
         <IconBtn label="Fit to screen" onClick={props.onFit}>
           <I><path d="M4 9V4h5" /><path d="M20 9V4h-5" /><path d="M4 15v5h5" /><path d="M20 15v5h-5" /></I>
+        </IconBtn>
+        <IconBtn label="Magic Layout (Auto-arrange)" onClick={props.onLayout}>
+          <I><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3y-3z" /><path d="M3 3l1.5 1.5" /><path d="M14 3l1 1" /><path d="M3 14l1 1" /></I>
         </IconBtn>
 
         <Divider />

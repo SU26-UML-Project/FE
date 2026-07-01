@@ -25,6 +25,7 @@ import { projectService, sheetService, type SheetResponse } from "../services";
 
 import { nodeTypes } from "./canvas/Nodes";
 import { edgeTypes } from "./canvas/Edges";
+import { useAutoLayout } from "../hooks/useAutoLayout";
 import { MarkerDefs } from "./shared/MarkerDefs";
 import { computeSnap, nodeBox } from "../lib/snap";
 import { EditorContext } from "../lib/editorContext";
@@ -74,6 +75,7 @@ function download(filename: string, content: string) {
 
 export function Editor() {
   const rf = useReactFlow();
+  const { getLayoutedElements } = useAutoLayout();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -408,13 +410,19 @@ export function Editor() {
           x: window.innerWidth / 2,
           y: window.innerHeight / 2,
         });
-        position = { x: c.x - item.width / 2, y: c.y - item.height / 2 };
+        position = { x: c.x - (item.width || 120) / 2, y: c.y - (item.height || 40) / 2 };
       }
       const node: FlowNode = {
         id: nanoid(8),
         type: item.type,
         position,
-        data: { ...item.data },
+        data: { 
+          label: item.data?.label || "",
+          attributes: item.data?.attributes || "",
+          methods: item.data?.methods || "",
+          stereotype: item.data?.stereotype || "",
+          ...item.data 
+        },
         width: item.width,
         height: item.height,
         style: { width: item.width, height: item.height },
@@ -742,20 +750,43 @@ export function Editor() {
     []
   );
 
+  const layoutCanvas = useCallback(
+    (direction?: string) => {
+      beginMutation();
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+        nodesRef.current,
+        edgesRef.current,
+        diagramType,
+        direction
+      );
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
+    },
+    [beginMutation, getLayoutedElements, setNodes, setEdges, diagramType]
+  );
+
   /** Replace the whole canvas (used by the AI assistant / importers). */
   const importCanvas = useCallback(
     (inNodes: FlowNode[], inEdges: FlowEdge[], type?: DiagramType) => {
       beginMutation();
+      const finalType = type || diagramType;
       if (type) {
         setDiagramType(type);
         setActiveEdgeId(getDiagram(type).defaultEdge);
       }
-      setNodes(inNodes);
-      setEdges(inEdges);
+      
+      // Thực hiện layout tự động ngay khi import để bản vẽ đẹp mắt
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+        inNodes,
+        inEdges,
+        finalType
+      );
+
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
       setSel({ nodes: [], edges: [] });
-      // fitView disabled
     },
-    [beginMutation, setNodes, setEdges]
+    [beginMutation, setNodes, setEdges, getLayoutedElements]
   );
 
   /* ---------- load / persist (multi-sheet) ---------- */
@@ -774,19 +805,49 @@ export function Editor() {
         let all: Sheet[] = [];
         if (sheetsRes.result && sheetsRes.result.length > 0) {
           all = sheetsRes.result.map(s => {
-            let diagramData = { nodes: [], edges: [], diagramType: "activity" };
+            let diagramData: any = { nodes: [], edges: [], diagramType: "activity" };
             try {
-              diagramData = JSON.parse(s.diagramData);
+              const parsed = JSON.parse(s.diagramData);
+              if (parsed && typeof parsed === 'object') {
+                diagramData = parsed;
+              }
+              
+              // Sanitize nodes to prevent WSoD from previous corrupted data
+              if (Array.isArray(diagramData.nodes)) {
+                diagramData.nodes = diagramData.nodes.map((node: any) => {
+                  if (!node) return null;
+                  const rawData = node.data || node || {};
+                  const data = { 
+                    ...rawData,
+                    label: String(rawData.label || ""),
+                    attributes: Array.isArray(rawData.attributes) ? rawData.attributes.join("\n") : String(rawData.attributes || ""),
+                    methods: Array.isArray(rawData.methods) ? rawData.methods.join("\n") : String(rawData.methods || "")
+                  };
+                  return { 
+                    ...node, 
+                    id: String(node.id || `node-${Math.random()}`),
+                    type: node.type || 'action',
+                    position: node.position || { x: Number(node.x || 0), y: Number(node.y || 0) },
+                    data 
+                  };
+                }).filter(Boolean);
+              } else {
+                diagramData.nodes = [];
+              }
+
+              if (!Array.isArray(diagramData.edges)) {
+                diagramData.edges = [];
+              }
             } catch (e) {
               console.error("Failed to parse sheet data", e);
             }
             return {
               id: s.id,
               name: s.name,
-              diagramType: (diagramData as any).diagramType || "activity",
-              nodes: (diagramData as any).nodes || [],
-              edges: (diagramData as any).edges || [],
-              viewport: (diagramData as any).viewport || { x: 0, y: 0, zoom: 1 },
+              diagramType: diagramData.diagramType || "activity",
+              nodes: diagramData.nodes || [],
+              edges: diagramData.edges || [],
+              viewport: diagramData.viewport || { x: 0, y: 0, zoom: 1 },
               updatedAt: new Date(s.updatedAt).getTime()
             };
           });
@@ -1320,6 +1381,7 @@ export function Editor() {
           onZoomIn={() => rf.zoomIn({ duration: 200 })}
           onZoomOut={() => rf.zoomOut({ duration: 200 })}
           onZoomReset={() => rf.zoomTo(1, { duration: 200 })}
+          onLayout={() => layoutCanvas("TB")}
           zoom={zoom}
           showGrid={showGrid}
           onToggleGrid={() => setShowGrid((v) => !v)}
@@ -1480,6 +1542,7 @@ export function Editor() {
             open={aiOpen}
             onToggle={() => setAiOpen((v) => !v)}
             diagramType={diagramType}
+            activeSheetId={activeSheetId}
             onImport={importCanvas}
           />
         </div>

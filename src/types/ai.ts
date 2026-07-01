@@ -76,16 +76,25 @@ export interface ChatQuestion {
   options: string[];
 }
 
+export interface CanvasAction {
+  type: string;
+  data: any;
+}
+
 export interface ChatMessage {
-  role: 'ai' | 'user';
+  role: 'ASSISTANT' | 'USER';
   content: string;
-  timestamp: string;
+  createdAt: string;
+  modelName?: string;
   questions?: ChatQuestion[];
 }
 
 export interface ChatSession {
   id: string;
-  title?: string;
+  anythingSessionId: string;
+  userId: string;
+  title: string;
+  createdAt: string;
   updatedAt: string;
 }
 
@@ -99,6 +108,12 @@ export interface DiagramChatResponse {
   answer: string;
   sessionId: string;
   questions: ChatQuestion[];
-  actions?: any[];
-  newState?: string; // Backend trả về string JSON
+  actions: CanvasAction[];
+  newState: string; // JSON string của diagram data
+  sources?: any[];
+}
+
+export interface DiagramChatHistoryResponse {
+  sessionId: string;
+  messages: ChatMessage[];
 }
