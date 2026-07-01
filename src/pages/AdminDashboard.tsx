@@ -7,6 +7,7 @@ import ProjectsSection from "../components/admin/sections/Projects";
 import IntelligenceSection from "../components/admin/sections/Intelligence";
 import OperationSection from "../components/admin/sections/Operation";
 import SubscriptionsSection from "../components/admin/sections/Subscriptions";
+import AuditLogSection from "../components/admin/sections/AuditLog";
 import { useAuthStore } from "../stores/useAuthStore";
 import type { SectionId } from "../components/admin/data";
 
@@ -17,6 +18,7 @@ const meta: Record<SectionId, { title: string; subtitle: string }> = {
   intelligence: { title: "Intelligence", subtitle: "Cấu hình AI Engine · AnythingLLM" },
   operation: { title: "Operation", subtitle: "Mẫu Workspace & Knowledge" },
   subscription: { title: "Operation", subtitle: "Gói Subscription" },
+  audit: { title: "System", subtitle: "Nhật ký thao tác quản trị" },
 };
 
 function useCollapsed() {
@@ -71,6 +73,7 @@ export default function AdminDashboard() {
             {section === "intelligence" && <IntelligenceSection />}
             {section === "operation" && <OperationSection />}
             {section === "subscription" && <SubscriptionsSection />}
+            {section === "audit" && <AuditLogSection />}
           </div>
         </main>
       </div>
