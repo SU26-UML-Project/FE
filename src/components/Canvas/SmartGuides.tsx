@@ -21,14 +21,14 @@ export function SmartGuides({ guides }: { guides: GuidesState }) {
       {guides.guidesX.map((gx, i) => (
         <div
           key={`vx${i}`}
-          className="absolute bottom-0 top-0 border-l border-dashed border-zinc-900/45"
+          className="absolute bottom-0 top-0 border-l border-dashed border-admin-primary/45"
           style={{ left: `${gx * zoom + x}px` }}
         />
       ))}
       {guides.guidesY.map((gy, i) => (
         <div
           key={`hy${i}`}
-          className="absolute left-0 right-0 border-t border-dashed border-zinc-900/45"
+          className="absolute left-0 right-0 border-t border-dashed border-admin-primary/45"
           style={{ top: `${gy * zoom + y}px` }}
         />
       ))}

@@ -19,25 +19,19 @@ function EdgeView({
   path,
   data,
   label,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
+  labelX,
+  labelY,
 }: {
   id: string;
   path: string;
   data: unknown;
   label?: string;
-  sourceX: number;
-  sourceY: number;
-  targetX: number;
-  targetY: number;
+  labelX: number;
+  labelY: number;
 }) {
   const d = data as EdgeData;
   const marker = d?.marker || undefined;
   const markerStart = d?.markerStart || undefined;
-  const lx = (sourceX + targetX) / 2;
-  const ly = (sourceY + targetY) / 2;
 
   return (
     <>
@@ -56,10 +50,10 @@ function EdgeView({
           <div
             className="nodrag nopan absolute"
             style={{
-              transform: `translate(-50%, -50%) translate(${lx}px, ${ly}px)`,
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
             }}
           >
-            <span className="whitespace-nowrap rounded-md border border-[var(--line)] bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-600 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+            <span className="whitespace-nowrap rounded-md border border-admin-outline/30 bg-white px-1.5 py-0.5 text-[11px] font-bold text-admin-secondary shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
               {label}
             </span>
           </div>
@@ -70,7 +64,7 @@ function EdgeView({
 }
 
 export function SmoothStepEdge(props: EdgeProps) {
-  const [path] = getSmoothStepPath({
+  const [path, labelX, labelY] = getSmoothStepPath({
     sourceX: props.sourceX,
     sourceY: props.sourceY,
     sourcePosition: props.sourcePosition,
@@ -85,16 +79,14 @@ export function SmoothStepEdge(props: EdgeProps) {
       path={path}
       data={props.data}
       label={props.label as string | undefined}
-      sourceX={props.sourceX}
-      sourceY={props.sourceY}
-      targetX={props.targetX}
-      targetY={props.targetY}
+      labelX={labelX}
+      labelY={labelY}
     />
   );
 }
 
 export function BezierEdge(props: EdgeProps) {
-  const [path] = getBezierPath({
+  const [path, labelX, labelY] = getBezierPath({
     sourceX: props.sourceX,
     sourceY: props.sourceY,
     sourcePosition: props.sourcePosition,
@@ -108,16 +100,14 @@ export function BezierEdge(props: EdgeProps) {
       path={path}
       data={props.data}
       label={props.label as string | undefined}
-      sourceX={props.sourceX}
-      sourceY={props.sourceY}
-      targetX={props.targetX}
-      targetY={props.targetY}
+      labelX={labelX}
+      labelY={labelY}
     />
   );
 }
 
 export function StraightEdge(props: EdgeProps) {
-  const [path] = getStraightPath({
+  const [path, labelX, labelY] = getStraightPath({
     sourceX: props.sourceX,
     sourceY: props.sourceY,
     targetX: props.targetX,
@@ -129,10 +119,8 @@ export function StraightEdge(props: EdgeProps) {
       path={path}
       data={props.data}
       label={props.label as string | undefined}
-      sourceX={props.sourceX}
-      sourceY={props.sourceY}
-      targetX={props.targetX}
-      targetY={props.targetY}
+      labelX={labelX}
+      labelY={labelY}
     />
   );
 }

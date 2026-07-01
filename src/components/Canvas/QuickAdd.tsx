@@ -45,11 +45,11 @@ export function QuickAdd({
   return (
     <div
       ref={ref}
-      className="animate-pop fixed z-50 w-[188px] rounded-xl border border-[var(--line)] bg-white p-2 shadow-[0_8px_30px_rgba(0,0,0,0.16)]"
+      className="animate-pop fixed z-50 w-[188px] rounded-xl border border-admin-outline/30 bg-white p-2 shadow-[0_8px_30px_rgba(0,0,0,0.16)]"
       style={{ left: px, top: py }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
+      <p className="mb-1.5 px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-admin-secondary/40">
         Add shape
       </p>
       <div className="grid grid-cols-3 gap-1">
@@ -61,10 +61,10 @@ export function QuickAdd({
               onClose();
             }}
             title={item.label}
-            className="group flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-transparent text-zinc-500 transition-colors hover:border-[var(--line)] hover:bg-zinc-50 hover:text-zinc-900"
+            className="group flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-transparent text-admin-secondary transition-colors hover:border-admin-outline/30 hover:bg-admin-bg hover:text-admin-primary"
           >
             <ShapeGlyph type={item.type} />
-            <span className="text-[9.5px] font-medium leading-none">
+            <span className="text-[9.5px] font-bold leading-none">
               {item.label}
             </span>
           </button>
