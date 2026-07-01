@@ -64,9 +64,44 @@ export function AIChat({
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [view, setView] = useState<"chat" | "history">("chat");
+  const [sidebarWidth, setSidebarWidth] = useState(360);
+  const [isResizing, setIsResizing] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Resize handler
+  useEffect(() => {
+    if (!isResizing) return;
+
+    let animationFrameId: number;
+
+    const onMouseMove = (e: MouseEvent) => {
+      // Use requestAnimationFrame to sync with browser's refresh rate
+      animationFrameId = requestAnimationFrame(() => {
+        const newWidth = window.innerWidth - e.clientX;
+        if (newWidth > 280 && newWidth < 800) {
+          setSidebarWidth(newWidth);
+        }
+      });
+    };
+
+    const onMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = "default";
+    };
+
+    document.addEventListener("mousemove", onMouseMove, { passive: true });
+    document.addEventListener("mouseup", onMouseUp);
+    document.body.style.cursor = "col-resize";
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      document.body.style.cursor = "default";
+    };
+  }, [isResizing]);
 
   // Load sessions when switching to history view
   useEffect(() => {
@@ -94,7 +129,9 @@ export function AIChat({
     try {
       setBusy(true);
       const res = await chatService.createSession();
-      setCurrentSessionId(res.result.anythingSessionId);
+      // Đồng bộ ID: ưu tiên anythingSessionId, fallback về id hoặc sessionId
+      const sid = res.result.anythingSessionId || res.result.id || (res.result as any).sessionId;
+      setCurrentSessionId(sid);
       setMsgs([{ id: "greeting", role: "ASSISTANT", text: GREETING }]);
       setView("chat");
     } catch (err: any) {
@@ -107,8 +144,15 @@ export function AIChat({
   const selectSession = async (session: ChatSession) => {
     try {
       setBusy(true);
-      const res = await chatService.getHistory(session.anythingSessionId);
-      setCurrentSessionId(session.anythingSessionId);
+      // Lỗi undefined sessionId: Kiểm tra mọi khả năng của ID trường hợp backend trả về khác nhau
+      const sid = session.anythingSessionId || session.id || (session as any).sessionId;
+      
+      if (!sid) {
+        throw new Error("Không tìm thấy ID phiên chat hợp lệ");
+      }
+
+      const res = await chatService.getHistory(sid);
+      setCurrentSessionId(sid);
       
       const historyMsgs: Msg[] = res.result.messages.map((m, idx) => ({
         id: `hist-${idx}`,
@@ -120,6 +164,7 @@ export function AIChat({
       setMsgs(historyMsgs.length ? historyMsgs : [{ id: "greeting", role: "ASSISTANT", text: GREETING }]);
       setView("chat");
     } catch (err: any) {
+      console.error("Select Session Error:", err);
       toast.error(err.message || "Không thể tải lịch sử phiên chat");
     } finally {
       setBusy(false);
@@ -129,55 +174,50 @@ export function AIChat({
   const handleAiResponse = (res: DiagramChatResponse) => {
     let displayText = res.answer;
     let actions = res.actions;
+    let extractedQuestions = res.questions || [];
 
     // --- FALLBACK & CLEANUP LOGIC ---
     try {
-      // 1. Nếu answer là một JSON string thuần túy
-      if (displayText.trim().startsWith('{') && displayText.trim().endsWith('}')) {
-        const parsed = JSON.parse(displayText);
-        if (parsed.message) displayText = parsed.message;
-        if (!actions || actions.length === 0) actions = parsed.actions;
-        if (!res.questions || res.questions.length === 0) res.questions = parsed.questions;
-      } 
-      // 2. Nếu answer chứa block JSON (Markdown hoặc Raw)
-      else {
-        const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
-        let match;
-        let extractedMessage = "";
-        
-        while ((match = codeBlockRegex.exec(res.answer)) !== null) {
-          try {
-            const parsed = JSON.parse(match[1]);
-            if (parsed.actions && (!actions || actions.length === 0)) actions = parsed.actions;
-            if (parsed.questions && (!res.questions || res.questions.length === 0)) res.questions = parsed.questions;
-            if (parsed.message) extractedMessage = parsed.message;
-            
-            displayText = displayText.replace(match[0], "").trim();
-          } catch (e) {}
-        }
+      // 1. Trích xuất JSON từ Markdown code blocks (ưu tiên json block)
+      const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
+      let match;
+      let extractedData: any = null;
+      
+      while ((match = codeBlockRegex.exec(res.answer)) !== null) {
+        try {
+          const parsed = JSON.parse(match[1]);
+          extractedData = { ...extractedData, ...parsed };
+          displayText = displayText.replace(match[0], "").trim();
+        } catch (e) {}
+      }
 
-        // Nếu sau khi xóa block mà text trống, dùng message trích xuất được
-        if (!displayText && extractedMessage) {
-          displayText = extractedMessage;
-        }
+      // 2. Nếu không tìm thấy markdown, thử parse toàn bộ text nếu nó là JSON
+      if (!extractedData && displayText.trim().startsWith('{') && displayText.trim().endsWith('}')) {
+        try {
+          extractedData = JSON.parse(displayText);
+        } catch (e) {}
+      }
 
-        // Nếu vẫn còn JSON thô chưa bọc block
-        if (displayText.includes('{')) {
-          const rawMatches = displayText.match(/\{[\s\S]*\}/g);
-          if (rawMatches) {
-            rawMatches.forEach(m => {
-              try {
-                const parsed = JSON.parse(m);
-                if (parsed.actions && (!actions || actions.length === 0)) actions = parsed.actions;
-                if (parsed.questions && (!res.questions || res.questions.length === 0)) res.questions = parsed.questions;
-                if (!displayText.replace(m, "").trim() && parsed.message) {
-                  displayText = parsed.message;
-                } else {
-                  displayText = displayText.replace(m, "").trim();
-                }
-              } catch (e) {}
-            });
-          }
+      // 3. Nếu vẫn còn JSON thô chưa bọc block (dành cho các phần còn sót lại)
+      if (displayText.includes('{')) {
+        const rawMatches = displayText.match(/\{[\s\S]*\}/g);
+        if (rawMatches) {
+          rawMatches.forEach(m => {
+            try {
+              const parsed = JSON.parse(m);
+              extractedData = { ...extractedData, ...parsed };
+              displayText = displayText.replace(m, "").trim();
+            } catch (e) {}
+          });
+        }
+      }
+
+      // Áp dụng dữ liệu trích xuất được
+      if (extractedData) {
+        if (extractedData.message) displayText = extractedData.message;
+        if (extractedData.actions && (!actions || actions.length === 0)) actions = extractedData.actions;
+        if (extractedData.questions && (!extractedQuestions || extractedQuestions.length === 0)) {
+          extractedQuestions = extractedData.questions;
         }
       }
     } catch (e) {
@@ -185,7 +225,7 @@ export function AIChat({
     }
 
     // Đảm bảo displayText không bao giờ rỗng
-    if (!displayText.trim()) {
+    if (!displayText || !displayText.trim()) {
       displayText = "Bro xem thử sơ đồ tôi vừa cập nhật nhé!";
     }
 
@@ -303,6 +343,7 @@ export function AIChat({
             ...node,
             id,
             type,
+            parentId: node.parentId || node.parentNode || rawData.parentId || rawData.parentNode,
             position,
             data,
             width: finalW,
@@ -333,27 +374,27 @@ export function AIChat({
             label: edge.label ? String(edge.label) : undefined,
             type: edge.type || 'smoothstep',
             data: {
-              marker: rawData.marker,
+              marker: rawData.marker || rawData.markerEnd,
               markerStart: rawData.markerStart,
-              dashed: !!rawData.dashed,
-              color: rawData.color
+              dashed: !!(rawData.dashed || rawData.strokeDasharray),
+              color: rawData.color || rawData.stroke
             }
           } as FlowEdge;
         });
     };
 
     // 2. Xử lý các câu hỏi làm rõ (HITL)
-    if (res.questions && Array.isArray(res.questions) && res.questions.length > 0) {
+    if (extractedQuestions && Array.isArray(extractedQuestions) && extractedQuestions.length > 0) {
       // Map ChatQuestion sang ImportQuestion format mà QuestionBox hiểu
-      const importQuestions = res.questions.map((q: any, idx: number) => {
+      const importQuestions = extractedQuestions.map((q: any, idx: number) => {
         // Hỗ trợ cả trường hợp q là string hoặc object
-        const prompt = typeof q === 'string' ? q : (q.title || q.prompt || "AI cần bro xác nhận");
+        const prompt = typeof q === 'string' ? q : (q.title || q.prompt || q.question || "AI cần bro xác nhận");
         const options = Array.isArray(q.options) ? q.options.map((opt: any) => ({ label: typeof opt === 'string' ? opt : opt.label })) : [];
         
         return {
           id: `q-${idx}`,
           prompt: prompt,
-          multiple: q.type === "multi_select",
+          multiple: q.type === "multi_select" || q.multiple,
           options: options
         };
       });
@@ -477,6 +518,7 @@ export function AIChat({
         nodes.push({
           id,
           type,
+          parentId: nodeRaw.parentId || nodeRaw.parentNode,
           position: { 
             x: Number(nodeRaw.position?.x ?? nodeRaw.x ?? 0), 
             y: Number(nodeRaw.position?.y ?? nodeRaw.y ?? 0) 
@@ -500,10 +542,10 @@ export function AIChat({
             label: edgeRaw.label ? String(edgeRaw.label) : undefined,
             type: edgeRaw.type || 'smoothstep',
             data: {
-              marker: edgeRaw.marker || edgeRaw.data?.marker,
+              marker: edgeRaw.marker || edgeRaw.markerEnd || edgeRaw.data?.marker || edgeRaw.data?.markerEnd,
               markerStart: edgeRaw.markerStart || edgeRaw.data?.markerStart,
-              dashed: !!(edgeRaw.dashed || edgeRaw.data?.dashed),
-              color: edgeRaw.color || edgeRaw.data?.color
+              dashed: !!(edgeRaw.dashed || edgeRaw.data?.dashed || edgeRaw.strokeDasharray || edgeRaw.data?.strokeDasharray),
+              color: edgeRaw.color || edgeRaw.data?.color || edgeRaw.stroke || edgeRaw.data?.stroke
             }
           } as FlowEdge);
         }
@@ -511,17 +553,18 @@ export function AIChat({
     });
 
     if (nodes.length > 0 || edges.length > 0) {
-      // Lưu ý: Việc gọi onImport ở đây sẽ GHI ĐÈ sơ đồ hiện tại.
-      // Vì AI thường trả về TOÀN BỘ các node mới cần thêm, nên onImport là ổn cho fallback.
       onImport(nodes, edges, detectedType || diagramType);
     }
   };
 
-  const submit = async () => {
-    const text = input.trim();
+  const submit = async (overrideText?: string) => {
+    const text = (overrideText || input).trim();
     if (!text || busy) return;
 
-    setInput("");
+    if (!overrideText) setInput("");
+    
+    // Nếu là text tự động từ HITL, chúng ta có thể muốn hiển thị nó khác đi hoặc không hiển thị
+    // Nhưng để luồng chat tự nhiên, ta vẫn hiển thị như tin nhắn người dùng
     const userMsg: Msg = { id: `user-${Date.now()}`, role: "USER", text };
     setMsgs(prev => [...prev, userMsg]);
     setBusy(true);
@@ -531,8 +574,8 @@ export function AIChat({
       let activeSessionId = currentSessionId;
       if (!activeSessionId) {
         const sessionRes = await chatService.createSession();
-        // Backend trả về sessionId trong result (thường là uuid hoặc anythingSessionId)
-        activeSessionId = sessionRes.result.sessionId || (sessionRes.result as any).anythingSessionId;
+        // Đồng bộ ID: ưu tiên anythingSessionId, fallback về id hoặc sessionId
+        activeSessionId = sessionRes.result.anythingSessionId || sessionRes.result.id || (sessionRes.result as any).sessionId;
         setCurrentSessionId(activeSessionId);
       }
 
@@ -563,11 +606,11 @@ export function AIChat({
   if (!open) {
     return (
       <button onClick={onToggle} title="Open AI assistant"
-        className="flex w-12 shrink-0 flex-col items-center gap-3 border-l border-[var(--line)] bg-[var(--bg-soft)] py-3 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-white">
+        className="flex w-12 shrink-0 flex-col items-center gap-3 border-l border-admin-outline/30 bg-admin-bg/50 py-3 text-admin-secondary transition-colors hover:bg-admin-bg hover:text-admin-primary">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-admin-primary text-white shadow-sm">
           <Sparkle size={15} />
         </span>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500" style={{ writingMode: "vertical-rl" }}>AI Assistant</span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-admin-secondary" style={{ writingMode: "vertical-rl" }}>AI Assistant</span>
       </button>
     );
   }
@@ -575,27 +618,34 @@ export function AIChat({
   /* ---------- expanded sidebar ---------- */
   return (
     <aside
-      className={`relative flex w-[360px] max-w-[44vw] shrink-0 flex-col border-l border-[var(--line)] bg-white ${dragOver ? "ring-2 ring-inset ring-zinc-900" : ""}`}
+      className={`relative flex shrink-0 flex-col border-l border-admin-outline/30 bg-white ${isResizing ? "" : "transition-all"} ${open ? "translate-x-0" : "translate-x-full"} ${dragOver ? "ring-2 ring-inset ring-admin-primary/10" : ""}`}
+      style={{ width: open ? sidebarWidth : 0, minWidth: open ? 280 : 0 }}
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => { e.preventDefault(); setDragOver(false); }}
     >
+      {/* Resize handle */}
+      <div
+        onMouseDown={() => setIsResizing(true)}
+        className={`absolute left-0 top-0 z-50 h-full w-1.5 cursor-col-resize transition-colors hover:bg-admin-primary/30 active:bg-admin-primary/50 ${isResizing ? "bg-admin-primary/40" : ""}`}
+      />
+
       {/* Header */}
-      <div className="flex h-14 items-center justify-between border-b border-[var(--line)] px-4 shrink-0">
+      <div className="flex h-14 items-center justify-between border-b border-admin-outline/30 px-4 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-900 text-white">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-admin-primary text-white shadow-sm">
             <Sparkle size={14} />
           </div>
-          <span className="font-semibold text-zinc-900">AI Assistant</span>
+          <span className="font-bold text-admin-on-surface">AI Assistant</span>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setView(view === "chat" ? "history" : "chat")}
-            className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${view === "history" ? "bg-zinc-100 text-zinc-900" : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"}`}
+            className={`rounded-md px-2.5 py-1.5 text-xs font-bold transition-colors ${view === "history" ? "bg-admin-bg text-admin-primary" : "text-admin-secondary hover:bg-admin-bg hover:text-admin-primary"}`}
           >
             {view === "chat" ? "History" : "Back to Chat"}
           </button>
-          <button onClick={onToggle} className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900">
+          <button onClick={onToggle} className="rounded-md p-1.5 text-admin-secondary/50 hover:bg-admin-bg hover:text-admin-primary">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
@@ -611,18 +661,20 @@ export function AIChat({
                     <QuestionCard
                       result={m.card.result}
                       summary={m.card.summary}
-                      onApply={(res) => {
-                        onImport(res.nodes, res.edges, res.type);
-                        setMsgs(prev => prev.filter(x => x.id !== m.id));
-                        setMsgs(prev => [...prev, { id: `sys-${Date.now()}`, role: "ASSISTANT", text: "Đã cập nhật biểu đồ theo lựa chọn của bro!" }]);
+                      onApply={(resNodes, resEdges, resType) => {
+                        onImport(resNodes, resEdges, resType);
+                      }}
+                      onResolved={(resolvedText) => {
+                        // Tự động gửi tin nhắn phản hồi tới AI để tiếp tục luồng
+                        submit(resolvedText);
                       }}
                     />
                   </div>
                 ) : (
                   <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-[13.5px] leading-relaxed shadow-sm prose prose-sm prose-zinc ${
                     m.role === "USER" 
-                      ? "bg-zinc-900 text-white rounded-tr-none prose-invert" 
-                      : "bg-zinc-100 text-zinc-800 rounded-tl-none border border-zinc-200/50"
+                      ? "bg-admin-primary text-white rounded-tr-none prose-invert shadow-blue-500/20 shadow-md" 
+                      : "bg-admin-bg text-admin-on-surface rounded-tl-none border border-admin-outline/10"
                   }`}>
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm]}
@@ -633,14 +685,14 @@ export function AIChat({
                         li: ({children}) => <li className="mb-1">{children}</li>,
                         table: ({children}) => (
                           <div className="overflow-x-auto my-2">
-                            <table className="min-w-full border-collapse border border-zinc-300 text-xs">
+                            <table className="min-w-full border-collapse border border-admin-outline/30 text-xs">
                               {children}
                             </table>
                           </div>
                         ),
-                        th: ({children}) => <th className="border border-zinc-300 px-2 py-1 bg-zinc-200 font-bold">{children}</th>,
-                        td: ({children}) => <td className="border border-zinc-300 px-2 py-1">{children}</td>,
-                        code: ({children}) => <code className="bg-zinc-200 px-1 rounded font-mono text-xs text-zinc-900">{children}</code>,
+                        th: ({children}) => <th className="border border-admin-outline/30 px-2 py-1 bg-admin-surface font-bold text-admin-on-surface">{children}</th>,
+                        td: ({children}) => <td className="border border-admin-outline/30 px-2 py-1 text-admin-secondary">{children}</td>,
+                        code: ({children}) => <code className="bg-admin-surface px-1 rounded font-mono text-xs text-admin-primary">{children}</code>,
                         strong: ({children}) => <strong className="font-bold">{children}</strong>
                       }}
                     >
@@ -651,18 +703,18 @@ export function AIChat({
               </div>
             ))}
             {busy && (
-              <div className="flex items-center gap-2 text-zinc-400">
+              <div className="flex items-center gap-2 text-admin-secondary/50">
                 <div className="flex gap-1">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-300"></span>
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-300 [animation-delay:0.2s]"></span>
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-300 [animation-delay:0.4s]"></span>
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-admin-primary/30"></span>
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-admin-primary/30 [animation-delay:0.2s]"></span>
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-admin-primary/30 [animation-delay:0.4s]"></span>
                 </div>
-                <span className="text-xs font-medium italic">AI đang suy nghĩ...</span>
+                <span className="text-xs font-bold italic">AI đang suy nghĩ...</span>
               </div>
             )}
           </div>
 
-          <div className="border-t border-[var(--line)] bg-white p-4 shrink-0">
+          <div className="border-t border-admin-outline/30 bg-white p-4 shrink-0">
             <div className="relative flex items-center gap-2">
               <input
                 type="text"
@@ -671,17 +723,17 @@ export function AIChat({
                 onKeyDown={(e) => e.key === "Enter" && submit()}
                 placeholder="Hỏi AI hoặc yêu cầu vẽ..."
                 disabled={busy}
-                className="flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-[13.5px] transition-all focus:border-zinc-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-zinc-900/5 disabled:opacity-50"
+                className="flex-1 rounded-xl border border-admin-outline/30 bg-admin-bg px-4 py-2.5 text-[13.5px] font-medium transition-all focus:border-admin-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-admin-primary/5 disabled:opacity-50"
               />
               <button
                 onClick={submit}
                 disabled={!input.trim() || busy}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-admin-primary text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100 shadow-md shadow-blue-500/10"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
               </button>
             </div>
-            <p className="mt-2.5 text-center text-[10px] text-zinc-400">
+            <p className="mt-2.5 text-center text-[10px] text-admin-secondary/60">
               AI có thể nhầm lẫn. Bro nên kiểm tra lại kỹ trước khi dùng nhé.
             </p>
           </div>
@@ -689,16 +741,16 @@ export function AIChat({
       ) : (
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-zinc-900">Lịch sử trò chuyện</h3>
+            <h3 className="text-sm font-bold text-admin-on-surface">Lịch sử trò chuyện</h3>
             <button
               onClick={startNewChat}
-              className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-[11px] font-bold text-white transition-transform hover:scale-105"
+              className="flex items-center gap-1.5 rounded-lg bg-admin-primary px-3 py-1.5 text-[11px] font-bold text-white transition-transform hover:scale-105 shadow-md shadow-blue-500/10"
             >
               <span>+ New Chat</span>
             </button>
           </div>
           {sessions.length === 0 ? (
-            <div className="flex h-40 flex-col items-center justify-center text-zinc-400">
+            <div className="flex h-40 flex-col items-center justify-center text-admin-secondary/30">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-2 opacity-20"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               <p className="text-xs">Chưa có phiên chat nào</p>
             </div>
@@ -707,10 +759,10 @@ export function AIChat({
               <button
                 key={s.id}
                 onClick={() => selectSession(s)}
-                className={`group flex w-full flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all hover:border-zinc-900 hover:bg-zinc-50 ${currentSessionId === s.anythingSessionId ? "border-zinc-900 bg-zinc-50" : "border-zinc-100 bg-white"}`}
+                className={`group flex w-full flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all hover:border-admin-primary hover:bg-admin-bg/50 ${currentSessionId === s.anythingSessionId ? "border-admin-primary bg-admin-bg/50 ring-1 ring-admin-primary/10" : "border-admin-outline/10 bg-white"}`}
               >
-                <span className="text-[13px] font-semibold text-zinc-900 line-clamp-1">{s.title || "Untitled Session"}</span>
-                <span className="text-[10px] text-zinc-400">{new Date(s.updatedAt).toLocaleString()}</span>
+                <span className="text-[13px] font-bold text-admin-on-surface line-clamp-1 group-hover:text-admin-primary">{s.title || "Untitled Session"}</span>
+                <span className="text-[10px] text-admin-secondary/50">{new Date(s.updatedAt).toLocaleString()}</span>
               </button>
             ))
           )}

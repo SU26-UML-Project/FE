@@ -13,8 +13,8 @@ const NODE_NAMES: Record<string, string> = {
   actor: "Actor", lifeline: "Lifeline", note: "Note", text: "Label", package: "Container",
 };
 
-const inputCls = "w-full rounded-lg border border-[var(--line)] bg-white px-2.5 py-1.5 text-[13px] text-zinc-900 outline-none transition-shadow placeholder:text-zinc-300 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
-const labelCls = "mb-1 block text-[11px] font-semibold uppercase tracking-[0.07em] text-zinc-400";
+const inputCls = "w-full rounded-lg border border-admin-outline/30 bg-white px-2.5 py-1.5 text-[13px] text-admin-on-surface font-medium outline-none transition-shadow placeholder:text-admin-secondary/30 focus:border-admin-primary focus:ring-4 focus:ring-admin-primary/5";
+const labelCls = "mb-1 block text-[11px] font-bold uppercase tracking-[0.07em] text-admin-secondary/60";
 
 export type AlignMode = "left" | "centerH" | "right" | "top" | "centerV" | "bottom" | "distH" | "distV";
 
@@ -30,11 +30,11 @@ export function Inspector(props: {
   const multi = props.selNodes.length + props.selEdges.length > 1;
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-l border-[var(--line)] bg-[var(--bg-soft)]">
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-[var(--line)] pl-4 pr-2">
-        <span className="text-[13px] font-semibold text-zinc-900">Inspector</span>
+    <aside className="flex w-72 shrink-0 flex-col border-l border-admin-outline/30 bg-admin-bg/30">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-admin-outline/30 pl-4 pr-2">
+        <span className="text-[13px] font-bold text-admin-on-surface">Inspector</span>
         <button title="Hide panel" onClick={props.onClose}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-200/60 hover:text-zinc-900">
+          className="flex h-7 w-7 items-center justify-center rounded-md text-admin-secondary/50 transition-colors hover:bg-admin-surface hover:text-admin-on-surface">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
         </button>
       </div>
@@ -76,7 +76,7 @@ function AlignButton({ mode, title, onAlign, disabled }: {
 }) {
   return (
     <button title={title} disabled={disabled} onClick={() => onAlign(mode)}
-      className="flex h-8 items-center justify-center rounded-lg border border-[var(--line)] bg-white text-zinc-500 transition-colors enabled:hover:border-zinc-900 enabled:hover:bg-zinc-900 enabled:hover:text-white disabled:opacity-35">
+      className="flex h-8 items-center justify-center rounded-lg border border-admin-outline/30 bg-white text-admin-secondary transition-colors enabled:hover:border-admin-primary enabled:hover:bg-admin-primary enabled:hover:text-white disabled:opacity-35">
       <AlignIcon mode={mode} />
     </button>
   );
@@ -89,7 +89,7 @@ function MultiState({ count, nodeCount, onDelete, onDuplicate, onAlign }: {
   const canDistribute = nodeCount >= 3;
   return (
     <div className="animate-fade-in space-y-5">
-      <p className="text-[13px] text-zinc-600"><span className="font-semibold text-zinc-900">{count}</span> elements selected</p>
+      <p className="text-[13px] text-admin-secondary"><span className="font-bold text-admin-primary">{count}</span> elements selected</p>
       {canAlign && (
         <div className="space-y-2">
           <label className={labelCls}>Align</label>
@@ -128,7 +128,7 @@ function NodeEditor({ node, onChange, onDelete, onDuplicate }: {
   return (
     <div className="animate-fade-in space-y-4">
       <div className="flex items-center gap-2">
-        <span className="rounded-md bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">{NODE_NAMES[node.type] ?? node.type}</span>
+        <span className="rounded-md bg-admin-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">{NODE_NAMES[node.type] ?? node.type}</span>
       </div>
       <div>
         <label className={labelCls}>Label</label>
@@ -183,11 +183,19 @@ function EdgeEditor({ edge, diagramType, onChange, onDelete }: {
   const markerStart = data?.markerStart ?? "";
   const color = data?.color;
   const dashed = !!edge.data?.dashed;
-  const currentIdx = opts.findIndex((o) => o.markerEnd === marker && (o.markerStart ?? "") === markerStart && o.dashed === dashed && o.path === edge.type);
+  const edgeLabel = (edge.label as string) ?? "";
+  const currentIdx = opts.findIndex((o) => 
+    o.markerEnd === marker && 
+    (o.markerStart ?? "") === markerStart && 
+    o.dashed === dashed && 
+    o.path === edge.type &&
+    // For stereotype edges like «include», the label must match
+    (o.autoLabel ? edgeLabel === o.autoLabel : true)
+  );
 
   return (
     <div className="animate-fade-in space-y-4">
-      <span className="inline-block rounded-md bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">Connector</span>
+      <span className="inline-block rounded-md bg-admin-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Connector</span>
       <div>
         <label className={labelCls}>Label</label>
         <input className={inputCls} value={(edge.label as string) ?? ""} placeholder="guard / message…" onChange={(e) => onChange({ label: e.target.value })} />

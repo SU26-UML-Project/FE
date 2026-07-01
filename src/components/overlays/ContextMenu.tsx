@@ -50,13 +50,13 @@ export function ContextMenu({
   return (
     <div
       ref={ref}
-      className="animate-pop fixed z-50 min-w-[200px] overflow-hidden rounded-xl border border-[var(--line)] bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.16)]"
+      className="animate-pop fixed z-50 min-w-[200px] overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.16)]"
       style={{ left: px, top: py }}
       onContextMenu={(e) => e.preventDefault()}
     >
       {items.map((item, i) =>
         item.divider ? (
-          <div key={i} className="my-1 h-px bg-[var(--line)]" />
+          <div key={i} className="my-1 h-px bg-admin-outline/10" />
         ) : (
           <button
             key={i}
@@ -65,20 +65,20 @@ export function ContextMenu({
               item.onClick?.();
               onClose();
             }}
-            className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors disabled:opacity-35 ${
+            className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] font-bold transition-colors disabled:opacity-35 ${
               item.danger
-                ? "text-zinc-700 hover:bg-zinc-900 hover:text-white"
-                : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
+                ? "text-red-600 hover:bg-red-50"
+                : "text-admin-secondary hover:bg-admin-bg hover:text-admin-primary"
             }`}
           >
             {item.icon && (
-              <span className="flex h-4 w-4 items-center justify-center text-zinc-400">
+              <span className="flex h-4 w-4 items-center justify-center text-admin-secondary/40 group-hover:text-admin-primary">
                 {item.icon}
               </span>
             )}
             <span className="flex-1">{item.label}</span>
             {item.shortcut && (
-              <span className="font-mono text-[10.5px] text-zinc-400">
+              <span className="font-mono text-[10.5px] font-medium text-admin-secondary/30">
                 {item.shortcut}
               </span>
             )}

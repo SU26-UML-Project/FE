@@ -32,8 +32,8 @@ export interface QuestionOption {
 
 export interface ImportQuestion {
   id: string;
-  /** which edge id the answer will patch */
-  edgeId: string;
+  /** which edge id the answer will patch (optional for general HITL) */
+  edgeId?: string;
   prompt: string;
   detail?: string;
   /** single-select (pick 1) when false; multiple-select when true */
@@ -486,6 +486,8 @@ export function applyAnswers(
   answers: Record<string, Answer>
 ): ParseResult {
   const qs = result.questions ?? [];
+  
+  // 1. Patch edges if questions are linked to edges
   const edges = result.edges.map((e) => {
     const linked = qs.filter((q) => q.edgeId === e.id);
     if (!linked.length) return e;
@@ -496,6 +498,9 @@ export function applyAnswers(
     }
     return next;
   });
+
+  // 2. We could also patch nodes or diagram type here if needed
+  // For now, we just return the updated edges and the same nodes
   return { ...result, edges };
 }
 

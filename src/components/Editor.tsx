@@ -94,7 +94,8 @@ export function Editor() {
   const [hist, setHist] = useState({ undo: false, redo: false });
   const [saved, setSaved] = useState(true);
   const [loaded, setLoaded] = useState(false);
-  const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [inspectorManualOpen, setInspectorManualOpen] = useState(false);
   const [guides, setGuides] = useState<GuidesState>({ guidesX: [], guidesY: [] });
   const [ctxMenu, setCtxMenu] = useState<{
     x: number;
@@ -746,8 +747,15 @@ export function Editor() {
   const onSelectionChange = useCallback(
     ({ nodes: n, edges: edg }: { nodes: FlowNode[]; edges: FlowEdge[] }) => {
       setSel({ nodes: n, edges: edg });
+      
+      // Auto-open/close logic for Inspector
+      if (n.length > 0 || edg.length > 0) {
+        setInspectorOpen(true);
+      } else if (!inspectorManualOpen) {
+        setInspectorOpen(false);
+      }
     },
-    []
+    [inspectorManualOpen]
   );
 
   const layoutCanvas = useCallback(
@@ -1332,7 +1340,7 @@ export function Editor() {
         else if (k === "arrowright") nudge(step, 0);
         else if (k === "arrowup") nudge(0, -step);
         else if (k === "arrowdown") nudge(0, step);
-      } else if (k === "?" || (e.key === "F1" && !typing)) {
+      } else if ((k === "?" || e.key === "F1") && !typing) {
         e.preventDefault();
         setHelpOpen((v) => !v);
       } else if (k === "escape") {
@@ -1361,7 +1369,7 @@ export function Editor() {
 
   return (
     <EditorContext.Provider value={{ updateNodeData, growNode }}>
-      <div className="flex h-screen flex-col overflow-hidden bg-white text-zinc-900">
+      <div className="flex h-screen flex-col overflow-hidden bg-white text-admin-on-surface">
         <Toolbar
           diagramType={diagramType}
           sheetName={sheets.find((s) => s.id === activeSheetId)?.name ?? ""}
@@ -1390,7 +1398,11 @@ export function Editor() {
           snap={snap}
           onToggleSnap={() => setSnap((v) => !v)}
           inspectorOpen={inspectorOpen}
-          onToggleInspector={() => setInspectorOpen((v) => !v)}
+          onToggleInspector={() => {
+            const next = !inspectorOpen;
+            setInspectorOpen(next);
+            setInspectorManualOpen(next);
+          }}
           onPickTemplate={onPickTemplate}
           onClear={() => setConfirmClear(true)}
           onExportPng={exportPng}
@@ -1424,7 +1436,7 @@ export function Editor() {
             {nodes.length === 0 && (
               <div className="pointer-events-none absolute inset-0 z-[8] flex items-center justify-center">
                 <div className="flex flex-col items-center gap-3 text-center">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-zinc-300 text-zinc-300">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-admin-outline/30 text-admin-outline/50">
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="3" width="7" height="7" rx="1.5" />
                       <rect x="14" y="14" width="7" height="7" rx="1.5" />
@@ -1432,10 +1444,10 @@ export function Editor() {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-[14px] font-semibold text-zinc-700">
+                    <p className="text-[14px] font-bold text-admin-on-surface">
                       Your canvas is empty
                     </p>
-                    <p className="mt-0.5 text-[12.5px] text-zinc-400">
+                    <p className="mt-0.5 text-[12.5px] text-admin-secondary/60 font-medium">
                       Double-click anywhere to add a shape, or drag one from the
                       left.
                     </p>
@@ -1471,6 +1483,8 @@ export function Editor() {
               snapGrid={[16, 16]}
               defaultEdgeOptions={{ type: "smoothstep" }}
               proOptions={{ hideAttribution: true }}
+              onlyRenderVisibleElements={true}
+              nodeDragThreshold={1.5}
               className="bg-white"
             >
               {showGrid && (
@@ -1478,7 +1492,7 @@ export function Editor() {
                   variant={BackgroundVariant.Dots}
                   gap={18}
                   size={1.6}
-                  color="#e4e4e7"
+                  color="#c3c6d7"
                 />
               )}
               <Controls showInteractive={false} position="bottom-left" />
@@ -1488,20 +1502,20 @@ export function Editor() {
                   zoomable
                   position="bottom-right"
                   style={{ background: "#ffffff" }}
-                  nodeColor={() => "#d4d4d8"}
-                  nodeStrokeColor={() => "#a1a1aa"}
+                  nodeColor={() => "#eceef0"}
+                  nodeStrokeColor={() => "#c3c6d7"}
                   nodeBorderRadius={4}
-                  maskColor="rgba(15,23,42,0.05)"
+                  maskColor="rgba(0,74,198,0.03)"
                 />
               )}
               <Panel position="top-right" className="m-3">
-                <div className="pointer-events-none flex items-center gap-1.5 rounded-lg border border-[var(--line)] bg-white/90 px-2.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur">
+                <div className="pointer-events-none flex items-center gap-1.5 rounded-lg border border-admin-outline/30 bg-white/90 px-2.5 py-1.5 shadow-[0_1px_2px_rgba(0,74,198,0.04)] backdrop-blur">
                   <span
                     className={`h-1.5 w-1.5 rounded-full ${
-                      saved ? "bg-zinc-900" : "animate-pulse bg-zinc-300"
+                      saved ? "bg-admin-primary" : "animate-pulse bg-admin-outline/50"
                     }`}
                   />
-                  <span className="text-[11.5px] font-medium text-zinc-500">
+                  <span className="text-[11.5px] font-bold text-admin-secondary">
                     {saved ? "Saved" : "Saving…"}
                   </span>
                 </div>
@@ -1510,11 +1524,14 @@ export function Editor() {
 
             {!inspectorOpen && (
               <button
-                onClick={() => setInspectorOpen(true)}
+                onClick={() => {
+                  setInspectorOpen(true);
+                  setInspectorManualOpen(true);
+                }}
                 title="Show properties"
-                className="animate-fade-in absolute right-0 top-1/2 z-20 flex h-20 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-[var(--line)] bg-white text-zinc-400 shadow-[-4px_0_12px_rgba(0,0,0,0.06)] transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                className="animate-fade-in absolute right-0 top-1/2 z-20 flex h-20 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-admin-outline/30 bg-white text-admin-secondary/40 shadow-[-4px_0_12px_rgba(0,74,198,0.06)] transition-colors hover:bg-admin-bg hover:text-admin-primary"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M15 6l-6 6 6 6" />
                 </svg>
               </button>
@@ -1534,7 +1551,10 @@ export function Editor() {
               onDelete={deleteSelected}
               onDuplicate={duplicateSelected}
               onAlign={alignSelection}
-              onClose={() => setInspectorOpen(false)}
+              onClose={() => {
+                setInspectorOpen(false);
+                setInspectorManualOpen(false);
+              }}
             />
           )}
 

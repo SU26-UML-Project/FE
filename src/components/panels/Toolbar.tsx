@@ -7,7 +7,7 @@ function IconBtn({ label, onClick, active, disabled, children }: {
 }) {
   return (
     <button title={label} onClick={onClick} disabled={disabled}
-      className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${active ? "border-zinc-900 bg-zinc-900 text-white" : "border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"}`}>
+      className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${active ? "border-uml-blue bg-uml-blue text-white shadow-sm" : "border-transparent text-admin-secondary hover:bg-admin-bg hover:text-admin-primary"}`}>
       {children}
     </button>
   );
@@ -67,28 +67,28 @@ export function Toolbar(props: {
     <header className="z-20 flex h-14 shrink-0 items-center gap-3 border-b border-[var(--line)] bg-white px-3">
       {/* Brand */}
       <button onClick={props.onBackToDashboard} className="group flex items-center gap-2.5 pl-1 pr-2 hover:opacity-80 transition-opacity">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-white group-hover:bg-zinc-700">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-uml-blue text-white group-hover:bg-blue-700">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5" />
             <path d="m12 19-7-7 7-7" />
           </svg>
         </div>
         <div className="leading-tight text-left">
-          <div className="text-[14px] font-semibold tracking-tight text-zinc-900">Back to</div>
-          <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-400">Dashboard</div>
+          <div className="text-[14px] font-bold tracking-tight text-admin-on-surface">Back to</div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-admin-secondary">Dashboard</div>
         </div>
       </button>
 
       <Divider />
 
       {/* Active sheet name (what the user named their diagram) */}
-      <div className="flex min-w-0 items-center gap-2 rounded-lg bg-zinc-100 px-3 py-1.5">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-900" />
-        <span className="truncate text-[13px] font-semibold text-zinc-800">{props.sheetName || "Untitled"}</span>
+      <div className="flex min-w-0 items-center gap-2 rounded-lg bg-admin-bg px-3 py-1.5 border border-admin-outline/30">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-admin-primary" />
+        <span className="truncate text-[13px] font-bold text-admin-primary">{props.sheetName || "Untitled"}</span>
       </div>
 
       <button title="Keyboard shortcuts (?)" onClick={props.onHelp}
-        className="ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-[14px] font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900">
+        className="ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-[14px] font-bold text-admin-secondary transition-colors hover:bg-admin-bg hover:text-admin-primary">
         ?
       </button>
 
@@ -105,7 +105,7 @@ export function Toolbar(props: {
         <IconBtn label="Zoom out" onClick={props.onZoomOut}>
           <I><circle cx="11" cy="11" r="7" /><line x1="8" y1="11" x2="14" y2="11" /><line x1="16.5" y1="16.5" x2="21" y2="21" /></I>
         </IconBtn>
-        <button onClick={props.onZoomReset} className="min-w-[3rem] rounded-lg px-1 py-1 text-center text-[12px] font-medium tabular-nums text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900" title="Reset zoom to 100%">
+        <button onClick={props.onZoomReset} className="min-w-[3rem] rounded-lg px-1 py-1 text-center text-[12px] font-bold tabular-nums text-admin-secondary hover:bg-admin-bg hover:text-admin-primary" title="Reset zoom to 100%">
           {Math.round(props.zoom * 100)}%
         </button>
         <IconBtn label="Zoom in" onClick={props.onZoomIn}>
@@ -138,18 +138,18 @@ export function Toolbar(props: {
         {/* Templates popup */}
         <div className="relative" onClick={(e) => e.stopPropagation()}>
           <button onClick={() => setTpl((v) => !v)} title="Choose a diagram template"
-            className="flex h-8 items-center gap-1.5 rounded-lg border border-[var(--line)] px-3 text-[12.5px] font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900">
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-admin-outline/30 px-3 text-[12.5px] font-bold text-admin-secondary transition-colors hover:bg-admin-bg hover:text-admin-primary">
             <I size={15}><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1" /><rect x="14" y="3.5" width="6.5" height="6.5" rx="1" /><rect x="3.5" y="14" width="6.5" height="6.5" rx="1" /><rect x="14" y="14" width="6.5" height="6.5" rx="1" /></I>
             Templates
           </button>
           {tpl && (
-            <div className="animate-pop absolute right-0 top-9 w-56 overflow-hidden rounded-xl border border-[var(--line)] bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
-              <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400">Load a template</div>
+            <div className="animate-pop absolute right-0 top-9 w-56 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-admin-secondary/50">Load a template</div>
               {DIAGRAMS.map((d) => (
                 <button key={d.id} onClick={() => { props.onPickTemplate(d.id); setTpl(false); }}
-                  className="block w-full px-3 py-1.5 text-left transition-colors hover:bg-zinc-100">
-                  <span className="block text-[13px] font-medium text-zinc-800">{d.name}</span>
-                  <span className="block truncate text-[11px] text-zinc-400">{d.hint}</span>
+                  className="block w-full px-3 py-1.5 text-left transition-colors hover:bg-admin-bg">
+                  <span className="block text-[13px] font-bold text-admin-on-surface">{d.name}</span>
+                  <span className="block truncate text-[11px] text-admin-secondary">{d.hint}</span>
                 </button>
               ))}
             </div>
@@ -161,7 +161,7 @@ export function Toolbar(props: {
 
         {/* Import — down arrow into tray */}
         <button onClick={() => fileRef.current?.click()} title="Import (.json, .mmd, .puml, .md, .txt)"
-          className="flex h-8 items-center gap-1.5 rounded-lg border border-[var(--line)] px-3 text-[12.5px] font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900">
+          className="flex h-8 items-center gap-1.5 rounded-lg border border-admin-outline/30 px-3 text-[12.5px] font-bold text-admin-secondary transition-colors hover:bg-admin-bg hover:text-admin-primary">
           <I size={15}><path d="M12 4v11" /><path d="m8 11 4 4 4-4" /><path d="M5 19h14" /></I>
           Import
         </button>
@@ -171,12 +171,12 @@ export function Toolbar(props: {
         {/* Export menu */}
         <div className="relative" onClick={(e) => e.stopPropagation()}>
           <button onClick={() => setMenu((m) => !m)}
-            className="flex h-8 items-center gap-1.5 rounded-lg bg-zinc-900 px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-zinc-800">
+            className="flex h-8 items-center gap-1.5 rounded-lg bg-admin-primary px-3 text-[12.5px] font-bold text-white transition-colors hover:bg-blue-700 shadow-sm">
             <I size={15}><path d="M12 20V9" /><path d="m8 13 4-4 4 4" /><path d="M5 5h14" /></I>
             Export
           </button>
           {menu && (
-            <div className="animate-pop absolute right-0 top-9 w-44 overflow-hidden rounded-xl border border-[var(--line)] bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="animate-pop absolute right-0 top-9 w-44 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
               <MenuItem onClick={() => { props.onExportPng(); setMenu(false); }}>PNG image</MenuItem>
               <MenuItem onClick={() => { props.onExportJson(); setMenu(false); }}>JSON file</MenuItem>
             </div>
@@ -188,12 +188,12 @@ export function Toolbar(props: {
 }
 
 function Divider() {
-  return <div className="mx-1 h-6 w-px bg-[var(--line)]" />;
+  return <div className="mx-1 h-6 w-px bg-admin-outline/30" />;
 }
 
 function MenuItem({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="block w-full px-3.5 py-2 text-left text-[13px] text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900">
+    <button onClick={onClick} className="block w-full px-3.5 py-2 text-left text-[13px] text-admin-on-surface font-medium transition-colors hover:bg-admin-bg hover:text-admin-primary">
       {children}
     </button>
   );

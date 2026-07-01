@@ -1,10 +1,10 @@
 function Row({ keys, action }: { keys: string[]; action: string }) {
   return (
     <div className="flex items-center justify-between gap-4 py-1.5">
-      <span className="text-[13px] text-zinc-600">{action}</span>
+      <span className="text-[13px] text-admin-secondary">{action}</span>
       <span className="flex shrink-0 items-center gap-1">
         {keys.map((k, i) => (
-          <kbd key={i} className="rounded-md border border-[var(--line-strong)] bg-zinc-50 px-1.5 py-0.5 font-mono text-[11px] text-zinc-600 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+          <kbd key={i} className="rounded-md border border-admin-outline/30 bg-admin-bg px-1.5 py-0.5 font-mono text-[11px] text-admin-primary shadow-[0_1px_0_rgba(0,0,0,0.04)]">
             {k}
           </kbd>
         ))}
@@ -22,10 +22,10 @@ function Section({
 }) {
   return (
     <div>
-      <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
+      <p className="mb-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-admin-secondary/40">
         {title}
       </p>
-      <div className="divide-y divide-[var(--line)]">
+      <div className="divide-y divide-admin-outline/10">
         {rows.map((r, i) => (
           <Row key={i} {...r} />
         ))}
@@ -41,15 +41,15 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
-        className="animate-pop w-full max-w-2xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.25)]"
+        className="animate-pop w-full max-w-2xl overflow-hidden rounded-2xl border border-admin-outline/30 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.25)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3.5">
+        <div className="flex items-center justify-between border-b border-admin-outline/30 px-5 py-3.5">
           <div>
-            <h2 className="text-[15px] font-semibold text-zinc-900">Keyboard shortcuts</h2>
-            <p className="text-[12px] text-zinc-400">Move faster — everything is keyboard-driven.</p>
+            <h2 className="text-[15px] font-bold text-admin-on-surface">Keyboard shortcuts</h2>
+            <p className="text-[12px] text-admin-secondary/60">Move faster — everything is keyboard-driven.</p>
           </div>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-900">
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-admin-secondary/50 transition-colors hover:bg-admin-bg hover:text-admin-on-surface">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>

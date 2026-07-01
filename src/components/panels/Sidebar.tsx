@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { DIAGRAMS } from "../../lib/diagrams";
 import type { DiagramDef, DiagramType, PaletteItem } from "../../types";
 
-const GLYPH = "#3f3f46";
+const GLYPH = "#565e74"; // admin-secondary
 
 export function ShapeGlyph({ type }: { type: string }) {
   const common = {
@@ -77,8 +77,8 @@ function DiagramSwitcher({ diagramType, onDiagramChange }: {
   return (
     <div ref={ref} className="relative shrink-0 px-3 pt-3">
       <button onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 rounded-xl border border-[var(--line)] bg-white px-3 py-2.5 text-left transition-colors hover:border-zinc-300">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-white">
+        className="flex w-full items-center gap-3 rounded-xl border border-admin-outline/30 bg-white px-3 py-2.5 text-left transition-colors hover:border-admin-primary">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-admin-primary text-white">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="7" height="7" rx="1.5" />
             <rect x="14" y="14" width="7" height="7" rx="1.5" />
@@ -86,29 +86,29 @@ function DiagramSwitcher({ diagramType, onDiagramChange }: {
           </svg>
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-zinc-400">Diagram type</span>
-          <span className="block truncate text-[14px] font-semibold text-zinc-900">{current.name}</span>
+          <span className="block text-[10px] font-bold uppercase tracking-[0.1em] text-admin-secondary/60">Diagram type</span>
+          <span className="block truncate text-[14px] font-bold text-admin-on-surface">{current.name}</span>
         </span>
-        <svg className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`}
+        <svg className={`h-4 w-4 shrink-0 text-admin-secondary/50 transition-transform ${open ? "rotate-180" : ""}`}
           viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
 
       {open && (
-        <div className="animate-pop absolute left-3 right-3 top-[60px] z-30 overflow-hidden rounded-xl border border-[var(--line)] bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+        <div className="animate-pop absolute left-3 right-3 top-[60px] z-30 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
           {DIAGRAMS.map((d) => {
             const active = d.id === diagramType;
             return (
               <button key={d.id}
                 onClick={() => { onDiagramChange(d.id); setOpen(false); }}
-                className={`flex w-full items-center px-3 py-2 text-left transition-colors ${active ? "bg-zinc-100" : "hover:bg-zinc-50"}`}>
+                className={`flex w-full items-center px-3 py-2 text-left transition-colors ${active ? "bg-admin-bg text-admin-primary" : "hover:bg-admin-bg/50"}`}>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] font-medium text-zinc-900">{d.name}</span>
-                  <span className="block truncate text-[11px] text-zinc-400">{d.hint}</span>
+                  <span className="block text-[13px] font-bold text-admin-on-surface">{d.name}</span>
+                  <span className="block truncate text-[11px] text-admin-secondary/70">{d.hint}</span>
                 </span>
                 {active && (
-                  <svg className="ml-2 h-4 w-4 shrink-0 text-zinc-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="ml-2 h-4 w-4 shrink-0 text-admin-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
                 )}
@@ -137,8 +137,8 @@ export function Sidebar({
   if (!open) {
     return (
       <button onClick={onToggle} title="Show shapes & connectors"
-        className="flex w-12 shrink-0 flex-col items-center gap-3 border-r border-[var(--line)] bg-[var(--bg-soft)] py-3 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-white">
+        className="flex w-12 shrink-0 flex-col items-center gap-3 border-r border-admin-outline/30 bg-admin-bg/50 py-3 text-admin-secondary transition-colors hover:bg-admin-bg hover:text-admin-primary">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-admin-primary text-white">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="7" height="7" rx="1.5" />
             <rect x="3" y="14" width="7" height="7" rx="1.5" />
@@ -148,17 +148,17 @@ export function Sidebar({
             <line x1="14" y1="19" x2="21" y2="19" />
           </svg>
         </span>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500" style={{ writingMode: "vertical-rl" }}>Shapes</span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-admin-secondary" style={{ writingMode: "vertical-rl" }}>Shapes</span>
       </button>
     );
   }
 
   return (
-    <aside className="relative flex w-60 shrink-0 flex-col border-r border-[var(--line)] bg-[var(--bg-soft)]">
-      <div className="flex h-9 shrink-0 items-center justify-between border-b border-[var(--line)] px-3">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-400">Library</span>
+    <aside className="relative flex w-60 shrink-0 flex-col border-r border-admin-outline/30 bg-admin-bg/30">
+      <div className="flex h-9 shrink-0 items-center justify-between border-b border-admin-outline/30 px-3">
+        <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-admin-secondary/50">Library</span>
         <button onClick={onToggle} title="Collapse"
-          className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-200/70 hover:text-zinc-900">
+          className="flex h-6 w-6 items-center justify-center rounded-md text-admin-secondary/50 transition-colors hover:bg-admin-surface hover:text-admin-on-surface">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 6l-6 6 6 6" />
           </svg>
@@ -175,12 +175,12 @@ export function Sidebar({
                 e.dataTransfer.effectAllowed = "move";
               }}
               onClick={() => onAddNode(item)}
-              className="group flex aspect-[5/4] cursor-grab flex-col items-center justify-center gap-1.5 rounded-xl border border-[var(--line)] bg-white text-zinc-600 transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] active:cursor-grabbing active:translate-y-0"
+              className="group flex aspect-[5/4] cursor-grab flex-col items-center justify-center gap-1.5 rounded-xl border border-admin-outline/30 bg-white text-admin-secondary transition-all hover:-translate-y-0.5 hover:border-admin-primary hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] active:cursor-grabbing active:translate-y-0"
               title={`Add ${item.label} (drag onto canvas)`}>
               <span className="opacity-80 transition-opacity group-hover:opacity-100">
                 <ShapeGlyph type={item.type} />
               </span>
-              <span className="text-[11px] font-medium leading-none text-zinc-500">{item.label}</span>
+              <span className="text-[11px] font-bold leading-none text-admin-secondary/80 group-hover:text-admin-primary">{item.label}</span>
             </button>
           ))}
         </div>
@@ -191,12 +191,12 @@ export function Sidebar({
             const active = opt.id === activeEdgeId;
             return (
               <button key={opt.id} onClick={() => onPickEdge(opt.id)}
-                className={`flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors ${active ? "border-zinc-900 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]" : "border-transparent bg-white/60 hover:bg-white"}`}>
+                className={`flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors ${active ? "border-admin-primary bg-white shadow-[0_2px_8px_rgba(0,74,198,0.08)]" : "border-transparent bg-white/60 hover:bg-white"}`}>
                 <span className="flex h-4 w-14 shrink-0 items-center">
                   <ConnectorGlyph markerEnd={opt.markerEnd} markerStart={opt.markerStart} dashed={opt.dashed} />
                 </span>
-                <span className={`text-[12px] font-medium ${active ? "text-zinc-900" : "text-zinc-500"}`}>{opt.label}</span>
-                {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-zinc-900" />}
+                <span className={`text-[12px] font-bold ${active ? "text-admin-primary" : "text-admin-secondary/70"}`}>{opt.label}</span>
+                {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-admin-primary" />}
               </button>
             );
           })}

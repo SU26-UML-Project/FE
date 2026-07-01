@@ -15,8 +15,8 @@
   --bg-soft: #fafafa;
   --muted: #8a8f98;
   
-  --color-uml-blue: #2563eb;
-  --color-uml-dark: #000000;
+  --color-uml-blue: #004ac6;
+  --color-uml-dark: #191c1e;
   
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -95,9 +95,9 @@ button {
 .react-flow__node.selected {
   z-index: 10;
   /* Uniform bounding-box selection ring — clear for every shape (incl. Actor) */
-  outline: 1.5px solid #18181b;
+  outline: 2px solid var(--color-uml-blue);
   outline-offset: 4px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 /* Edges */
@@ -108,11 +108,11 @@ button {
 }
 .react-flow__edge.selected .react-flow__edge-path,
 .react-flow__edge:focus .react-flow__edge-path {
-  stroke: #000;
+  stroke: var(--color-uml-blue);
   stroke-width: 2.25;
 }
 .react-flow__edge:hover .react-flow__edge-path {
-  stroke: #000;
+  stroke: var(--color-uml-blue);
 }
 
 /* Edge labels */
@@ -194,11 +194,11 @@ button {
 
 /* Selection box — React Flow renders this as an SVG <rect>, so use fill/stroke */
 .react-flow__selection {
-  fill: rgba(24, 24, 27, 0.06) !important;
-  stroke: #18181b !important;
+  fill: rgba(37, 99, 235, 0.06) !important;
+  stroke: var(--color-uml-blue) !important;
   stroke-width: 1.5 !important;
-  background: rgba(24, 24, 27, 0.06) !important;
-  border: 1.5px solid #18181b !important;
+  background: rgba(37, 99, 235, 0.06) !important;
+  border: 1.5px solid var(--color-uml-blue) !important;
   border-radius: 4px;
 }
 
