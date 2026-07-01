@@ -3,8 +3,25 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Copy, ArrowLeft, Clock, Layers, FileText, Bot } from 'lucide-react'
 import { projectService } from '../services/projectService'
 import type { ProjectResponse } from '../types/project'
-import type { Workspace, PrebuiltMeta, WorkspaceSheet, PrebuiltProject } from '../types/workspace'
 import toast from 'react-hot-toast'
+
+// Minimal types to fix errors
+interface WorkspaceSheet {
+  id: string;
+  name: string;
+  diagramType: string;
+  canvasData?: any;
+}
+interface PrebuiltProject {
+  meta: any;
+  workspace: {
+    name: string;
+    category: string;
+    sheets: WorkspaceSheet[];
+    documents: any[];
+    aiContext: any;
+  };
+}
 
 export default function PrebuiltDetail() {
   const navigate = useNavigate()
