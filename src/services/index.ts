@@ -19,4 +19,6 @@ export type { DiagramTemplate } from "./templateService";
 export { projectService } from "./projectService";
 export { sheetService } from "./sheetService";
 export type { SheetRequest, SheetResponse } from "./sheetService";
+export { socketService } from "./socketService";
+export type { CursorData, SelectionData, CanvasChangeData } from "./socketService";
 export {} from "./templateService";

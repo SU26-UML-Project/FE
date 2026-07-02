@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "react-hot-toast";
 import { DIAGRAMS } from "../../lib/diagrams";
 import type { DiagramType } from "../../types";
 
@@ -54,6 +55,15 @@ export function Toolbar(props: {
   const [menu, setMenu] = useState(false);
   const [tpl, setTpl] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const onShare = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success("Share link copied to clipboard!");
+    }).catch(() => {
+      toast.error("Failed to copy link");
+    });
+  };
 
   useEffect(() => {
     const open = menu || tpl;
@@ -167,6 +177,16 @@ export function Toolbar(props: {
         </button>
         <input ref={fileRef} type="file" accept="application/json,.json,.mmd,.puml,.pu,.md,.txt" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) props.onImportFile(f); e.target.value = ""; }} />
+
+        {/* Share — link icon */}
+        <button onClick={onShare} title="Copy share link to clipboard"
+          className="flex h-8 items-center gap-1.5 rounded-lg border border-admin-outline/30 px-3 text-[12.5px] font-bold text-admin-secondary transition-colors hover:bg-admin-bg hover:text-admin-primary">
+          <I size={15}>
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+          </I>
+          Share
+        </button>
 
         {/* Export menu */}
         <div className="relative" onClick={(e) => e.stopPropagation()}>

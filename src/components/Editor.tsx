@@ -38,12 +38,15 @@ import { Inspector, type AlignMode } from "./panels/Inspector";
 import { ContextMenu, CtxIcons, type CtxItem } from "./overlays/ContextMenu";
 import { SmartGuides, type GuidesState } from "./canvas/SmartGuides";
 import { QuickAdd } from "./canvas/QuickAdd";
+import { RemoteCursors } from "./canvas/RemoteCursors";
 import { HelpOverlay } from "./overlays/HelpOverlay";
 import { AIChat } from "./panels/AIChat";
 import { SheetBar } from "./panels/SheetBar";
 import { ConfirmDialog } from "./overlays/ConfirmDialog";
 import { TypeMenu } from "./overlays/TypeMenu";
 import { loadSheets, saveSheets, saveActiveId, loadActiveId, createSheet } from "../store/sheetStore";
+import { useCollab } from "../hooks/useCollab";
+import type { CanvasChangeData } from "../services";
 
 type Snap = { nodes: FlowNode[]; edges: FlowEdge[] };
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -145,6 +148,31 @@ export function Editor() {
   const armed = useRef(false);
   const dragActiveRef = useRef(false);
   const clipboard = useRef<FlowNode[] | null>(null);
+  const skipCollabEmit = useRef(false);
+
+  /* ---------- collab ---------- */
+  const onRemoteCanvasChange = useCallback((data: CanvasChangeData) => {
+    skipCollabEmit.current = true;
+    if (data.nodes) {
+      setNodesState(data.nodes);
+      nodesRef.current = data.nodes;
+    }
+    if (data.edges) {
+      setEdgesState(data.edges);
+      edgesRef.current = data.edges;
+    }
+    setTimeout(() => {
+      skipCollabEmit.current = false;
+    }, 10);
+  }, []);
+
+  const { 
+    remoteCursors, 
+    emitCursorMove, 
+    emitSelectionChange, 
+    emitCanvasChange,
+    emitNodeMove
+  } = useCollab(activeSheetId, onRemoteCanvasChange);
 
   /* ---------- state setters that keep refs in sync ---------- */
   const setNodes = useCallback(
@@ -201,6 +229,9 @@ export function Editor() {
     skipRec.current = true;
     setNodes(prev.nodes);
     setEdges(prev.edges);
+    if (!skipCollabEmit.current) {
+      emitCanvasChange({ nodes: prev.nodes, edges: prev.edges, type: "update" });
+    }
     setSel({ nodes: [], edges: [] });
     skipRec.current = false;
     syncHist();
@@ -216,6 +247,9 @@ export function Editor() {
     skipRec.current = true;
     setNodes(next.nodes);
     setEdges(next.edges);
+    if (!skipCollabEmit.current) {
+      emitCanvasChange({ nodes: next.nodes, edges: next.edges, type: "update" });
+    }
     setSel({ nodes: [], edges: [] });
     skipRec.current = false;
     syncHist();
@@ -287,18 +321,36 @@ export function Editor() {
         setGuides({ guidesX: [], guidesY: [] });
       }
       if (anyEnd) dragActiveRef.current = false;
+      
+      setNodes((prev) => {
+        const nextNodesState = applyNodeChanges(nextChanges, prev);
+        
+        if (!skipCollabEmit.current) {
+        if (positionChanges.some(c => c.dragging)) {
+          emitNodeMove(nextNodesState);
+        } else if (changes.some(c => c.type === 'remove')) {
+          emitCanvasChange({ nodes: nextNodesState, type: "remove" });
+        }
+      }
 
-      setNodes((prev) => applyNodeChanges(nextChanges, prev));
+        return nextNodesState;
+      });
     },
-    [beginMutation, setNodes, snap]
+    [beginMutation, setNodes, snap, emitNodeMove]
   );
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange<FlowEdge>[]) => {
       if (changes.some((c) => c.type === "remove")) beginMutation();
-      setEdges((prev) => applyEdgeChanges(changes, prev));
+      setEdges((prev) => {
+        const next = applyEdgeChanges(changes, prev);
+        if (!skipCollabEmit.current && changes.some(c => c.type === 'remove')) {
+          emitCanvasChange({ edges: next, type: "remove" });
+        }
+        return next;
+      });
     },
-    [beginMutation, setEdges]
+    [beginMutation, setEdges, emitCanvasChange]
   );
 
   const onConnect = useCallback(
@@ -316,21 +368,31 @@ export function Editor() {
         label: p.label,
         data: { marker: p.marker, markerStart: p.markerStart, dashed: p.dashed },
       };
-      setEdges((prev) => addEdge(newEdge, prev));
+      setEdges((prev) => {
+        const next = addEdge(newEdge, prev);
+        if (!skipCollabEmit.current) {
+          emitCanvasChange({ edges: next, type: "add" });
+        }
+        return next;
+      });
     },
-    [beginMutation, diagramType, activeEdgeId, setEdges]
+    [beginMutation, diagramType, activeEdgeId, setEdges, emitCanvasChange]
   );
 
   const updateNodeData = useCallback(
     (id: string, patch: Partial<FlowNodeData>) => {
       beginMutation();
-      setNodes((prev) =>
-        prev.map((n) =>
-          n.id === id ? { ...n, data: { ...(n.data as FlowNodeData), ...patch } } : n
-        )
-      );
+      setNodes((prev) => {
+        const next = prev.map((n) =>
+          n.id === id ? { ...n, data: { ...(n.data as FlowNodeData) as FlowNodeData, ...patch } } : n
+        );
+        if (!skipCollabEmit.current) {
+          emitCanvasChange({ nodes: next, type: "update" });
+        }
+        return next;
+      });
     },
-    [beginMutation, setNodes]
+    [beginMutation, setNodes, emitCanvasChange]
   );
 
   /** Enlarge a node so it never clips its text. Not recorded in history. */
@@ -373,13 +435,13 @@ export function Editor() {
       }
     ) => {
       beginMutation();
-      setEdges((prev) =>
-        prev.map((e) => {
+      setEdges((prev) => {
+        const next = prev.map((e) => {
           if (e.id !== id) return e;
-          const next = { ...e };
+          const nextEdge = { ...e };
           const data: Record<string, unknown> = { ...(e.data as object) };
-          if (patch.label !== undefined) next.label = patch.label;
-          if (patch.type !== undefined) next.type = patch.type as FlowEdge["type"];
+          if (patch.label !== undefined) nextEdge.label = patch.label;
+          if (patch.type !== undefined) nextEdge.type = patch.type as FlowEdge["type"];
           if (patch.marker !== undefined) data.marker = patch.marker;
           if (patch.markerStart !== undefined) data.markerStart = patch.markerStart;
           if (patch.dashed !== undefined) data.dashed = patch.dashed;
@@ -394,12 +456,16 @@ export function Editor() {
             data.marker = b ? endpointEnd(b) : "";
             data.markerStart = a ? endpointStart(a) : "";
           }
-          next.data = data;
-          return next;
-        })
-      );
+          nextEdge.data = data;
+          return nextEdge;
+        });
+        if (!skipCollabEmit.current) {
+          emitCanvasChange({ edges: next, type: "update" });
+        }
+        return next;
+      });
     },
-    [beginMutation, setEdges]
+    [beginMutation, setEdges, emitCanvasChange]
   );
 
   const addNode = useCallback(
@@ -428,9 +494,15 @@ export function Editor() {
         height: item.height,
         style: { width: item.width, height: item.height },
       };
-      setNodes((prev) => prev.concat(node));
+      setNodes((prev) => {
+        const next = prev.concat(node);
+        if (!skipCollabEmit.current) {
+          emitCanvasChange({ nodes: next, type: "add" });
+        }
+        return next;
+      });
     },
-    [beginMutation, rf, setNodes]
+    [beginMutation, rf, setNodes, emitCanvasChange]
   );
 
   const onDrop = useCallback(
@@ -460,16 +532,26 @@ export function Editor() {
     if (!selNodes.length && !selEdges.length) return;
     beginMutation();
     const ids = new Set(selNodes.map((n) => n.id));
-    setNodes((prev) => prev.filter((n) => !n.selected));
-    setEdges((prev) =>
-      prev.filter((e) => {
+    setNodes((prev) => {
+      const next = prev.filter((n) => !n.selected);
+      if (!skipCollabEmit.current) {
+        emitCanvasChange({ nodes: next, type: "remove" });
+      }
+      return next;
+    });
+    setEdges((prev) => {
+      const next = prev.filter((e) => {
         if (e.selected) return false;
         if (ids.has(e.source) || ids.has(e.target)) return false;
         return true;
-      })
-    );
+      });
+      if (!skipCollabEmit.current) {
+        emitCanvasChange({ edges: next, type: "remove" });
+      }
+      return next;
+    });
     setSel({ nodes: [], edges: [] });
-  }, [beginMutation, setNodes, setEdges]);
+  }, [beginMutation, setNodes, setEdges, emitCanvasChange]);
 
   const duplicateSelected = useCallback(() => {
     const selNodes = nodesRef.current.filter((n) => n.selected);
@@ -482,10 +564,14 @@ export function Editor() {
       selected: true,
       data: { ...(n.data as FlowNodeData) },
     }));
-    setNodes((prev) =>
-      prev.map((n) => (n.selected ? { ...n, selected: false } : n)).concat(clones)
-    );
-  }, [beginMutation, setNodes]);
+    setNodes((prev) => {
+      const next = prev.map((n) => (n.selected ? { ...n, selected: false } : n)).concat(clones);
+      if (!skipCollabEmit.current) {
+        emitCanvasChange({ nodes: next, type: "add" });
+      }
+      return next;
+    });
+  }, [beginMutation, setNodes, emitCanvasChange]);
 
   /**
    * Snap nodes into place at the moment of release. React Flow commits a final
@@ -506,17 +592,21 @@ export function Editor() {
     const ref = nodeBox(dragged[0]);
     const r = computeSnap(ref, others);
     if (r.dx === 0 && r.dy === 0) return;
-    setNodes((prev) =>
-      prev.map((n) =>
+    setNodes((prev) => {
+      const next = prev.map((n) =>
         dragIds.has(n.id)
           ? {
               ...n,
               position: { x: n.position.x + r.dx, y: n.position.y + r.dy },
             }
           : n
-      )
-    );
-  }, [snap, setNodes]);
+      );
+      if (!skipCollabEmit.current) {
+        emitCanvasChange({ nodes: next, type: "move" });
+      }
+      return next;
+    });
+  }, [snap, setNodes, emitCanvasChange]);
 
   const bringToFront = useCallback(() => {
     if (!nodesRef.current.some((n) => n.selected)) return;
@@ -524,9 +614,13 @@ export function Editor() {
     setNodes((prev) => {
       const sel = prev.filter((n) => n.selected);
       const rest = prev.filter((n) => !n.selected);
-      return [...rest, ...sel];
+      const next = [...rest, ...sel];
+      if (!skipCollabEmit.current) {
+        emitCanvasChange({ nodes: next, type: "update" });
+      }
+      return next;
     });
-  }, [beginMutation, setNodes]);
+  }, [beginMutation, setNodes, emitCanvasChange]);
 
   const sendToBack = useCallback(() => {
     if (!nodesRef.current.some((n) => n.selected)) return;
@@ -534,28 +628,45 @@ export function Editor() {
     setNodes((prev) => {
       const sel = prev.filter((n) => n.selected);
       const rest = prev.filter((n) => !n.selected);
-      return [...sel, ...rest];
+      const next = [...sel, ...rest];
+      if (!skipCollabEmit.current) {
+        emitCanvasChange({ nodes: next, type: "update" });
+      }
+      return next;
     });
-  }, [beginMutation, setNodes]);
+  }, [beginMutation, setNodes, emitCanvasChange]);
 
   const selectAll = useCallback(() => {
-    setNodes((prev) => prev.map((n) => ({ ...n, selected: true })));
-    setEdges((prev) => prev.map((e) => ({ ...e, selected: true })));
+    setNodes((prev) => {
+      const next = prev.map((n) => ({ ...n, selected: true }));
+      // No emit for selection here? Actually we should emit selection change.
+      return next;
+    });
+    setEdges((prev) => {
+      const next = prev.map((e) => ({ ...e, selected: true }));
+      return next;
+    });
+    // Selection emit is handled by onSelectionChange if React Flow triggers it.
+    // If not, we should manually emit.
   }, [setNodes, setEdges]);
 
   const nudge = useCallback(
     (dx: number, dy: number) => {
       if (!nodesRef.current.some((n) => n.selected)) return;
       beginMutation();
-      setNodes((prev) =>
-        prev.map((n) =>
+      setNodes((prev) => {
+        const next = prev.map((n) =>
           n.selected
             ? { ...n, position: { x: n.position.x + dx, y: n.position.y + dy } }
             : n
-        )
-      );
+        );
+        if (!skipCollabEmit.current) {
+          emitCanvasChange({ nodes: next, type: "move" });
+        }
+        return next;
+      });
     },
-    [beginMutation, setNodes]
+    [beginMutation, setNodes, emitCanvasChange]
   );
 
   const alignSelection = useCallback(
@@ -621,12 +732,16 @@ export function Editor() {
             break;
           }
         }
-        return prev.map((n) =>
+        const next = prev.map((n) =>
           pos[n.id] ? { ...n, position: { ...n.position, ...pos[n.id] } } : n
         );
+        if (!skipCollabEmit.current) {
+          emitCanvasChange({ nodes: next, type: "move" });
+        }
+        return next;
       });
     },
-    [beginMutation, setNodes]
+    [beginMutation, setNodes, emitCanvasChange]
   );
 
   const copy = useCallback(() => {
@@ -747,6 +862,7 @@ export function Editor() {
   const onSelectionChange = useCallback(
     ({ nodes: n, edges: edg }: { nodes: FlowNode[]; edges: FlowEdge[] }) => {
       setSel({ nodes: n, edges: edg });
+      emitSelectionChange(n.map(x => x.id), edg.map(x => x.id));
       
       // Auto-open/close logic for Inspector
       if (n.length > 0 || edg.length > 0) {
@@ -769,8 +885,11 @@ export function Editor() {
       );
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
+      if (!skipCollabEmit.current) {
+        emitCanvasChange({ nodes: layoutedNodes, edges: layoutedEdges, type: "layout" });
+      }
     },
-    [beginMutation, getLayoutedElements, setNodes, setEdges, diagramType]
+    [beginMutation, getLayoutedElements, setNodes, setEdges, diagramType, emitCanvasChange]
   );
 
   /** Replace the whole canvas (used by the AI assistant / importers). */
@@ -793,8 +912,11 @@ export function Editor() {
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
       setSel({ nodes: [], edges: [] });
+      if (!skipCollabEmit.current) {
+        emitCanvasChange({ nodes: layoutedNodes, edges: layoutedEdges, type: "add" });
+      }
     },
-    [beginMutation, setNodes, setEdges, getLayoutedElements]
+    [beginMutation, setNodes, setEdges, getLayoutedElements, emitCanvasChange]
   );
 
   /* ---------- load / persist (multi-sheet) ---------- */
@@ -1191,6 +1313,9 @@ export function Editor() {
       const s = sampleFor(type);
       setNodes(s.nodes);
       setEdges(s.edges);
+      if (!skipCollabEmit.current) {
+        emitCanvasChange({ nodes: s.nodes, edges: s.edges, type: "add" });
+      }
       setSel({ nodes: [], edges: [] });
       // setTimeout(() => rf.fitView({ padding: 0.25, duration: 450 }), 60); // Disable auto-zoom
     },
@@ -1202,7 +1327,10 @@ export function Editor() {
     setNodes([]);
     setEdges([]);
     setSel({ nodes: [], edges: [] });
-  }, [beginMutation, setNodes, setEdges]);
+    if (!skipCollabEmit.current) {
+      emitCanvasChange({ nodes: [], edges: [], type: "remove" });
+    }
+  }, [beginMutation, setNodes, setEdges, emitCanvasChange]);
 
   const exportPng = useCallback(async () => {
     const el = canvasRef.current;
@@ -1261,6 +1389,9 @@ export function Editor() {
           setNodes(data.nodes);
           setEdges(data.edges ?? []);
           setSel({ nodes: [], edges: [] });
+          if (!skipCollabEmit.current) {
+            emitCanvasChange({ nodes: data.nodes, edges: data.edges ?? [], type: "add" });
+          }
           // setTimeout(() => rf.fitView({ padding: 0.25, duration: 400 }), 60); // Disable auto-zoom
         } catch {
           /* ignore */
@@ -1268,7 +1399,7 @@ export function Editor() {
       };
       reader.readAsText(file);
     },
-    [beginMutation, rf, setNodes, setEdges]
+    [beginMutation, rf, setNodes, setEdges, emitCanvasChange]
   );
 
   /** Import any supported file: Graphite JSON, or Mermaid / PlantUML source. */
@@ -1429,6 +1560,10 @@ export function Editor() {
             onDrop={onDrop}
             onDragOver={onDragOver}
             onDoubleClick={onCanvasDoubleClick}
+            onMouseMove={(e) => {
+              const flowPos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+              emitCursorMove(flowPos.x, flowPos.y);
+            }}
             onContextMenu={(e) => e.preventDefault()}
           >
             <MarkerDefs />
@@ -1487,6 +1622,7 @@ export function Editor() {
               nodeDragThreshold={1.5}
               className="bg-white"
             >
+              <RemoteCursors cursors={remoteCursors} />
               {showGrid && (
                 <Background
                   variant={BackgroundVariant.Dots}
