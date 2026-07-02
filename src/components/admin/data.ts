@@ -12,6 +12,7 @@ import {
   LayoutTemplate,
   type LucideIcon,
   MessagesSquare,
+  ScrollText,
   ShoppingBag,
   Users,
   Cloud,
@@ -25,7 +26,8 @@ export type SectionId =
   | "projects"
   | "intelligence"
   | "operation"
-  | "subscription";
+  | "subscription"
+  | "audit";
 
 export type NavSection = {
   id: string;
@@ -81,6 +83,18 @@ export const navSections: NavSection[] = [
         label: "Gói Subscription",
         sub: "Plans · Features",
         icon: CreditCard,
+      },
+    ],
+  },
+  {
+    id: "system",
+    hint: "System",
+    items: [
+      {
+        id: "audit",
+        label: "Nhật ký hệ thống",
+        sub: "Audit log",
+        icon: ScrollText,
       },
     ],
   },
