@@ -51,15 +51,25 @@ export function Toolbar(props: {
   onExportJson: () => void;
   onImportFile: (file: File) => void;
   saved?: boolean;
+  projectId?: string;
+  isPublic?: boolean;
+  onTogglePublic?: () => Promise<void>;
 }) {
   const [menu, setMenu] = useState(false);
   const [tpl, setTpl] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const onShare = () => {
+  const onShare = async () => {
+    if (props.onTogglePublic && !props.isPublic) {
+      setSharing(true);
+      await props.onTogglePublic();
+      setSharing(false);
+    }
+    
     const url = window.location.href;
     navigator.clipboard.writeText(url).then(() => {
-      toast.success("Share link copied to clipboard!");
+      toast.success("Public share link copied to clipboard!");
     }).catch(() => {
       toast.error("Failed to copy link");
     });
@@ -178,14 +188,34 @@ export function Toolbar(props: {
         <input ref={fileRef} type="file" accept="application/json,.json,.mmd,.puml,.pu,.md,.txt" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) props.onImportFile(f); e.target.value = ""; }} />
 
+        {/* Visibility indicator */}
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-admin-bg/50 border border-admin-outline/10">
+          <div className={`h-1.5 w-1.5 rounded-full ${props.isPublic ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-admin-secondary/40'}`} />
+          <span className="text-[11px] font-bold text-admin-secondary uppercase tracking-wider">
+            {props.isPublic ? 'Public' : 'Private'}
+          </span>
+        </div>
+
         {/* Share — link icon */}
-        <button onClick={onShare} title="Copy share link to clipboard"
-          className="flex h-8 items-center gap-1.5 rounded-lg border border-admin-outline/30 px-3 text-[12.5px] font-bold text-admin-secondary transition-colors hover:bg-admin-bg hover:text-admin-primary">
-          <I size={15}>
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-          </I>
-          Share
+        <button 
+          onClick={onShare} 
+          disabled={sharing}
+          title={props.isPublic ? "Copy public share link" : "Make public & copy share link"}
+          className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[12.5px] font-bold transition-all duration-300 ${
+            props.isPublic 
+              ? "border-green-500/30 bg-green-50 text-green-700 hover:bg-green-100" 
+              : "border-admin-outline/30 text-admin-secondary hover:bg-admin-bg hover:text-admin-primary"
+          }`}
+        >
+          {sharing ? (
+            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-admin-primary border-t-transparent" />
+          ) : (
+            <I size={15}>
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </I>
+          )}
+          {props.isPublic ? 'Shared' : 'Share'}
         </button>
 
         {/* Export menu */}

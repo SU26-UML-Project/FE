@@ -26,8 +26,25 @@ const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: string[] }) => {
   const { isAuthenticated, user, loading } = useAuthStore()
   const location = useLocation()
 
-  // For now, let's keep it simple or use the previous logic if needed.
-  // The user didn't ask to change auth logic, just to move code.
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-admin-bg">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-uml-blue border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    // Redirect to home with openLogin state so Navbar can trigger AuthModal
+    return <Navigate to="/?openLogin=true" state={{ from: location }} replace />
+  }
+
+  const userRole = user ? (typeof user.role === 'string' ? user.role : user.role.roleName) : null
+  
+  if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
+    return <Navigate to="/dashboard" replace />
+  }
+
   return <Outlet />
 }
 

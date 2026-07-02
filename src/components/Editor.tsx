@@ -125,6 +125,7 @@ export function Editor() {
   const [sheets, setSheets] = useState<Sheet[]>([]);
   const [activeSheetId, setActiveSheetId] = useState<string>("");
   const [projectName, setProjectName] = useState<string>("");
+  const [publicAccess, setPublicAccess] = useState<boolean>(false);
 
   const sheetsRef = useRef<Sheet[]>([]);
   const projectNameRef = useRef<string>("");
@@ -931,6 +932,7 @@ export function Editor() {
         ]);
 
         setProjectName(projectRes.result.projectName);
+        setPublicAccess(projectRes.result.publicAccess || false);
         
         let all: Sheet[] = [];
         if (sheetsRes.result && sheetsRes.result.length > 0) {
@@ -1539,8 +1541,24 @@ export function Editor() {
           onExportPng={exportPng}
           onExportJson={exportJson}
           onImportFile={importFile}
-          saved={saved}
-        />
+        saved={saved}
+        projectId={id}
+        isPublic={publicAccess}
+        onTogglePublic={async () => {
+          if (!id) return;
+          try {
+            const next = !publicAccess;
+            await projectService.updateProject(id, { 
+              publicAccess: next,
+              projectName: projectName 
+            });
+            setPublicAccess(next);
+            toast.success(next ? "Project is now public!" : "Project is now private.");
+          } catch (e: any) {
+            toast.error(e.message || "Failed to update project visibility");
+          }
+        }}
+      />
 
         <div className="flex min-h-0 flex-1">
           <Sidebar

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { LogIn } from 'lucide-react'
 import AuthModal from '../Auth/AuthModal'
 import UserMenu from '../ui/UserMenu'
@@ -14,12 +14,22 @@ const Navbar = () => {
   const { user, isAuthenticated } = useAuthStore()
   
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const isDashboardPage = location.pathname.startsWith('/dashboard')
 
   const openAuth = (mode: 'login' | 'register') => {
     setAuthMode(mode)
     setIsAuthModalOpen(true)
   }
+
+  useEffect(() => {
+    if (searchParams.get('openLogin') === 'true') {
+      openAuth('login')
+      // Clear the param after opening
+      searchParams.delete('openLogin')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -68,30 +78,17 @@ const Navbar = () => {
           <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8" data-purpose="main-nav">
           <button
             onClick={() => {
-              // --- DISABLED FOR TESTING: Bypass auth check ---
-              navigate('/dashboard');
-              /*
               if (isAuthenticated) {
                 navigate('/dashboard');
               } else {
                 openAuth('login');
               }
-              */
             }}
             className={`${linkBase} ${location.pathname === '/dashboard' ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`}
           >
             Dashboard
           </button>
-          {/* --- DISABLED FOR TESTING: Always show Admin link --- */}
-          <NavLink
-            to="/admin"
-            className={({ isActive }) =>
-              `${linkBase} ${isActive ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`
-            }
-          >
-            Admin
-          </NavLink>
-          {/* 
+          
           {userRole === 'ADMIN' && (
             <NavLink
               to="/admin"
@@ -102,7 +99,6 @@ const Navbar = () => {
               Admin
             </NavLink>
           )}
-          */}
           {onHome ? (
             <a href="#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Features</a>
           ) : (

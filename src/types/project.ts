@@ -3,6 +3,7 @@ export interface ProjectRequest {
   description?: string;
   projectData?: string;
   isDraft?: boolean;
+  publicAccess?: boolean;
 }
 
 export interface ProjectResponse {
@@ -14,6 +15,7 @@ export interface ProjectResponse {
   ownerEmail?: string;
   diagramCount?: number;
   isDraft?: boolean;
+  publicAccess?: boolean;
   createdAt: string;
   updatedAt: string;
 }
