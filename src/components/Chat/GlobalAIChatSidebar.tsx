@@ -19,7 +19,6 @@ import { useAuthStore } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import QuestionBox from './QuestionBox'
 import { useScrollToBottom } from '../../hooks/useScrollToBottom'
 
 interface GlobalAIChatSidebarProps {
@@ -75,12 +74,6 @@ const formatMessageTime = (timestamp?: string): string => {
   } catch {
     return ''
   }
-}
-
-const cleanAiAnswer = (answer?: string): string => {
-  return (answer || '')
-      .replace(/<think>[\s\S]*?<\/think>\n*/g, '')
-      .trim()
 }
 
 const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({
@@ -245,7 +238,7 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({
 
         const aiMsg: ChatMessageWithExtra = {
           role: 'ai',
-          content: cleanAiAnswer(answer) || 'Không có phản hồi từ AI.',
+          content: answer || 'Không có phản hồi từ AI.',
           timestamp: new Date().toISOString(),
           questions: Array.isArray(questions) ? questions : [],
         }
@@ -524,17 +517,6 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({
                                 >
                                   {formatMessageTime(msg.timestamp)}
                                 </p>
-
-                                {msg.role === 'ai' &&
-                                    msg.questions &&
-                                    msg.questions.length > 0 &&
-                                    !msg.isAnswered && (
-                                        <QuestionBox
-                                            questions={msg.questions}
-                                            onSubmit={answer => handleSend(answer, index)}
-                                            isSubmitting={isLoading}
-                                        />
-                                    )}
                               </div>
                             </div>
                         ))

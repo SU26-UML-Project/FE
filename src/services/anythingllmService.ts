@@ -1,38 +1,10 @@
 /**
  * anythingllmService — AI interaction layer (AnythingLLM / LLM backend).
- *
- * AI Interaction Flow (steps 2–4):
- *   1. User types in AIChatPanel → sendChat() forwards to the LLM.
- *   2. Response comes back as one of:
- *        - reply   (plain text)
- *        - diagram (Mermaid / PlantUML / raw nodes) → parsed → drawn on canvas
- *        - questions (HITL) → QuestionBox shown
- *
- * Until the backend exists, this is a STUB. The FE currently parses Mermaid/
- * PlantUML locally (lib/importers.ts) and keyword-matches prompts (panels/
- * AIChat.tsx). Replace `sendChat` with a real fetch when the API is ready.
- *
- * See docs/SYSTEM_PROMPT.md for the JSON contract the backend must return.
  */
-import type { ChatMsg, DiagramType, FlowEdge, FlowNode } from "../types";
-import type { ImportQuestion } from "../lib/importers";
+import type { ChatMsg, DiagramType } from "../types";
 import apiClient from './apiClient';
 import type { ApiResponse } from '../types/api';
 import type { DiagramChatRequest, DiagramChatResponse, ChatSession } from '../types/ai';
-
-/** Discriminated union the backend MUST return (matches docs/SYSTEM_PROMPT.md). */
-export type AIResponse =
-  | { kind: "reply"; text: string }
-  | {
-      kind: "diagram";
-      format: "mermaid" | "plantuml" | "raw";
-      code?: string;
-      nodes?: FlowNode[];
-      edges?: FlowEdge[];
-      type?: DiagramType;
-      summary: string;
-    }
-  | { kind: "questions"; summary: string; questions: ImportQuestion[] };
 
 export interface ChatRequest {
   message: string;
