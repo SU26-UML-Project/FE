@@ -3,6 +3,7 @@ import { Plus, X } from 'lucide-react'
 import { GraphCanvas } from '../Canvas/GraphCanvas'
 import { ShapePanel } from '../Canvas/ShapePanel'
 import { PropsPanel } from '../Canvas/PropsPanel'
+import { MermaidImportDialog } from '../Canvas/MermaidImportDialog'
 import { useCanvasStore } from '../../stores/canvasStore'
 import type { WorkspaceSheet } from '../../types/workspace'
 import { ReactFlowProvider } from '@xyflow/react'
@@ -27,7 +28,9 @@ function CanvasPanelInner({
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [showProps, setShowProps] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const clearCanvas = useCanvasStore(s => s.clearCanvas)
 
   useEffect(() => {
     if (editingSheetId && inputRef.current) {
@@ -148,6 +151,23 @@ function CanvasPanelInner({
             <Plus size={12} />
           </button>
           <button
+            onClick={() => setImportOpen(true)}
+            className="text-xs px-2.5 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors flex items-center gap-1 flex-shrink-0 shadow-sm"
+            title="Import Mermaid"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5 5 5 5-5m-5-5v12" />
+            </svg>
+            Mermaid
+          </button>
+          <button
+            onClick={clearCanvas}
+            className="text-xs px-2.5 py-1.5 text-gray-500 hover:text-red-500 border border-gray-200 hover:border-red-200 bg-white rounded-md transition-colors flex-shrink-0 shadow-sm"
+            title="Clear canvas"
+          >
+            Clear
+          </button>
+          <button
             onClick={() => setShowProps(p => !p)}
             className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all border shadow-sm flex-shrink-0 ${
               showProps
@@ -178,10 +198,11 @@ function CanvasPanelInner({
                 </div>
               )}
             </div>
-          {showProps && <PropsPanel />}
           </div>
+          {showProps && <PropsPanel />}
         </div>
       </div>
+      <MermaidImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
     </div>
   )
 }

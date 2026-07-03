@@ -1,19 +1,16 @@
-import { AssociationEdge } from './AssociationEdge'
-import { InheritanceEdge } from './InheritanceEdge'
-import { RealizationEdge } from './RealizationEdge'
-import { CompositionEdge } from './CompositionEdge'
-import { AggregationEdge } from './AggregationEdge'
-import { DependencyEdge } from './DependencyEdge'
-import { IncludeEdge } from './IncludeEdge'
-import { ExtendEdge } from './ExtendEdge'
-
-export const edgeTypes = {
-  associationEdge: AssociationEdge,
-  inheritanceEdge: InheritanceEdge,
-  realizationEdge: RealizationEdge,
-  compositionEdge: CompositionEdge,
-  aggregationEdge: AggregationEdge,
-  dependencyEdge: DependencyEdge,
-  includeEdge: IncludeEdge,
-  extendEdge: ExtendEdge,
-}
+import { BaseEdge } from './BaseEdge' 
+ import { UseCaseAssociationEdge } from './UseCaseAssociationEdge' 
+ 
+ export const edgeTypes = { 
+   associationEdge: BaseEdge, 
+   useCaseAssociationEdge: UseCaseAssociationEdge, 
+   inheritanceEdge: BaseEdge, 
+   realizationEdge: BaseEdge, 
+   compositionEdge: BaseEdge, 
+   aggregationEdge: BaseEdge, 
+   dependencyEdge: BaseEdge, 
+   includeEdge: BaseEdge, 
+   extendEdge: BaseEdge, 
+   controlFlowEdge: BaseEdge,
+   objectFlowEdge: BaseEdge,
+ } 

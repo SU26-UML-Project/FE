@@ -4,8 +4,8 @@ export function MarkerDefs() {
       <defs>
         <marker id="arrow" markerWidth="12" markerHeight="12"
                 viewBox="0 0 12 12" refX="11" refY="6" orient="auto">
-          <path d="M0,0 L12,6 L0,12" fill="none" stroke="currentColor"
-                strokeWidth="1.5" strokeLinejoin="round"/>
+          <path d="M0,2 L10,6 L0,10" fill="none" stroke="currentColor"
+                strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
         </marker>
 
         <marker id="inheritance" markerWidth="20" markerHeight="14"
