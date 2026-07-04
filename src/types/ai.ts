@@ -84,23 +84,49 @@ export interface AiTestConnection {
   latencyMs: number;
 }
 
-export interface ChatQuestion {
-  title: string;
-  type: 'single_select' | 'multi_select' | null;
-  options: string[];
+export interface AiOptionDto {
+  relation: string;
+  label: string;
 }
 
-export interface CanvasAction {
-  type: string;
-  data: any;
+export interface AiQuestionDto {
+  id: string;
+  edgeId?: string;
+  prompt: string;
+  detail?: string;
+  mode: 'single' | 'multiple';
+  options: AiOptionDto[];
 }
+
+export interface AiNodeDto {
+  id: string;
+  type: string;
+  label: string;
+  stereotype?: string;
+  attributes?: string[];
+  methods?: string[];
+}
+
+export interface AiEdgeDto {
+  id: string;
+  source: string;
+  target: string;
+  relation: string;
+  label?: string;
+}
+
+export type AiResponseKind = 'diagram' | 'questions' | 'reply';
 
 export interface ChatMessage {
   role: 'ASSISTANT' | 'USER';
   content: string;
   createdAt: string;
   modelName?: string;
-  questions?: ChatQuestion[];
+  kind?: AiResponseKind;
+  summary?: string;
+  nodes?: AiNodeDto[];
+  edges?: AiEdgeDto[];
+  questions?: AiQuestionDto[];
 }
 
 export interface ChatSession {
@@ -119,11 +145,13 @@ export interface DiagramChatRequest {
 }
 
 export interface DiagramChatResponse {
+  kind: AiResponseKind;
+  summary?: string;
   answer: string;
   sessionId: string;
-  questions: ChatQuestion[];
-  actions: CanvasAction[];
-  newState: string; // JSON string của diagram data
+  nodes?: AiNodeDto[];
+  edges?: AiEdgeDto[];
+  questions?: AiQuestionDto[];
   sources?: any[];
 }
 

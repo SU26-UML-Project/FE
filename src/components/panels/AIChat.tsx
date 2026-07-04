@@ -5,18 +5,22 @@ import type { DiagramType, FlowEdge, FlowNode } from "../../types";
 import type { 
   ChatSession, 
   ChatMessage, 
-  DiagramChatResponse, 
-  ChatQuestion 
+  DiagramChatResponse,
+  AiResponseKind
 } from "../../types/ai";
 import { chatService } from "../../services/chatService";
 import { toast } from "react-hot-toast";
-import { useParams } from "react-router-dom";
+import { QuestionCard } from "../overlays/QuestionBox";
+import { aiResponseToCanvas, type ParseResult } from "../../lib/importers";
 
 interface Msg {
   id: string;
   role: "USER" | "ASSISTANT";
   text?: string;
   timestamp?: string;
+  kind?: AiResponseKind;
+  result?: ParseResult;
+  summary?: string;
 }
 
 function Sparkle({ size = 16 }: { size?: number }) {
@@ -150,12 +154,27 @@ export function AIChat({
       const res = await chatService.getHistory(sid);
       setCurrentSessionId(sid);
       
-      const historyMsgs: Msg[] = res.result.messages.map((m, idx) => ({
-        id: `hist-${idx}`,
-        role: m.role,
-        text: m.content,
-        timestamp: m.createdAt
-      }));
+      const historyMsgs: Msg[] = res.result.messages.map((m, idx) => {
+        const parsed = aiResponseToCanvas({
+          kind: m.kind || 'reply',
+          answer: m.content,
+          summary: m.summary,
+          nodes: m.nodes,
+          edges: m.edges,
+          questions: m.questions,
+          sessionId: sid
+        });
+
+        return {
+          id: `hist-${idx}`,
+          role: m.role,
+          text: m.content,
+          timestamp: m.createdAt,
+          kind: m.kind,
+          summary: m.summary,
+          result: parsed
+        };
+      });
       
       setMsgs(historyMsgs.length ? historyMsgs : [{ id: "greeting", role: "ASSISTANT", text: GREETING }]);
       setView("chat");
@@ -168,15 +187,31 @@ export function AIChat({
   };
 
   const handleAiResponse = (res: DiagramChatResponse) => {
-    const displayText = res.answer || "Bro xem thử phản hồi từ AI nhé!";
+    const parsed = aiResponseToCanvas({
+      kind: res.kind || 'reply',
+      answer: res.answer,
+      summary: res.summary,
+      nodes: res.nodes,
+      edges: res.edges,
+      questions: res.questions,
+      sessionId: currentSessionId || ""
+    });
 
-    // Cập nhật tin nhắn hiển thị cho người dùng
     const aiMsg: Msg = {
       id: `ai-${Date.now()}`,
       role: "ASSISTANT",
-      text: displayText
+      text: res.answer || (res.kind === 'diagram' ? "Bro xem thử sơ đồ tôi vừa vẽ nhé!" : "Tôi có một vài câu hỏi cần làm rõ:"),
+      kind: res.kind,
+      summary: res.summary,
+      result: parsed
     };
+
     setMsgs(prev => [...prev, aiMsg]);
+
+    // Nếu là diagram, có thể tự động apply hoặc để người dùng bấm nút
+    if (res.kind === 'diagram' && parsed.nodes.length > 0) {
+      onImport(parsed.nodes, parsed.edges, parsed.type);
+    }
   };
 
   const submit = async (overrideText?: string) => {
@@ -283,28 +318,55 @@ export function AIChat({
                     ? "bg-admin-primary text-white rounded-tr-none prose-invert shadow-blue-500/20 shadow-md" 
                     : "bg-admin-bg text-admin-on-surface rounded-tl-none border border-admin-outline/10"
                 }`}>
-                  <ReactMarkdown 
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
-                      ul: ({children}) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-                      ol: ({children}) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-                      li: ({children}) => <li className="mb-1">{children}</li>,
-                      table: ({children}) => (
-                        <div className="overflow-x-auto my-2">
-                          <table className="min-w-full border-collapse border border-admin-outline/30 text-xs">
-                            {children}
-                          </table>
-                        </div>
-                      ),
-                      th: ({children}) => <th className="border border-admin-outline/30 px-2 py-1 bg-admin-surface font-bold text-admin-on-surface">{children}</th>,
-                      td: ({children}) => <td className="border border-admin-outline/30 px-2 py-1 text-admin-secondary">{children}</td>,
-                      code: ({children}) => <code className="bg-admin-surface px-1 rounded font-mono text-xs text-admin-primary">{children}</code>,
-                      strong: ({children}) => <strong className="font-bold">{children}</strong>
-                    }}
-                  >
-                    {m.text || ""}
-                  </ReactMarkdown>
+                  {m.text && (
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                        ul: ({children}) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                        ol: ({children}) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                        li: ({children}) => <li className="mb-1">{children}</li>,
+                        table: ({children}) => (
+                          <div className="overflow-x-auto my-2">
+                            <table className="min-w-full border-collapse border border-admin-outline/30 text-xs">
+                              {children}
+                            </table>
+                          </div>
+                        ),
+                        th: ({children}) => <th className="border border-admin-outline/30 px-2 py-1 bg-admin-surface font-bold text-admin-on-surface">{children}</th>,
+                        td: ({children}) => <td className="border border-admin-outline/30 px-2 py-1 text-admin-secondary">{children}</td>,
+                        code: ({children}) => <code className="bg-admin-surface px-1 rounded font-mono text-xs text-admin-primary">{children}</code>,
+                        strong: ({children}) => <strong className="font-bold">{children}</strong>
+                      }}
+                    >
+                      {m.text}
+                    </ReactMarkdown>
+                  )}
+
+                  {/* Render QuestionCard if kind is questions */}
+                  {m.role === "ASSISTANT" && m.kind === "questions" && m.result && (
+                    <div className="mt-3">
+                      <QuestionCard 
+                        result={m.result}
+                        summary={m.summary || ""}
+                        onApply={onImport}
+                        onResolved={(answerText) => submit(answerText)}
+                      />
+                    </div>
+                  )}
+
+                  {/* Render Diagram Summary if kind is diagram */}
+                  {m.role === "ASSISTANT" && m.kind === "diagram" && m.result && (
+                    <div className="mt-3 rounded-lg border border-admin-primary/20 bg-admin-primary/5 p-2 text-[11px] text-admin-primary">
+                      <div className="flex items-center gap-2 font-bold">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        Diagram Generated
+                      </div>
+                      <p className="mt-1 opacity-70">
+                        {m.result.nodes.length} nodes, {m.result.edges.length} edges. Applied to canvas.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

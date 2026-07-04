@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import type { DiagramType, FlowEdge, FlowNode, FlowNodeData } from "../types";
 import { classMinSize } from "./sizing";
+import type { DiagramChatResponse, AiQuestionDto } from "../types/ai";
 
 /* Marker URL constants (must match src/lib/markers.tsx ids). */
 const MARK = {
@@ -67,7 +68,8 @@ function mkNode(
   y: number,
   data: FlowNodeData,
   w: number,
-  h: number
+  h: number,
+  parentId?: string
 ): FlowNode {
   return {
     id: nanoid(8),
@@ -77,6 +79,8 @@ function mkNode(
     width: w,
     height: h,
     style: { width: w, height: h },
+    parentId,
+    extent: parentId ? "parent" : undefined,
   };
 }
 
@@ -801,6 +805,93 @@ export function detectAndParse(text: string): ParseResult & { format: string } {
   const format = isPuml ? "PlantUML" : "Mermaid";
   const questions = buildQuestions(base);
   return { ...base, format, questions };
+}
+
+/* ============================================================
+   AI RESPONSE CONVERSION
+   ============================================================ */
+export function aiResponseToCanvas(res: DiagramChatResponse): ParseResult {
+  const nodes: FlowNode[] = (res.nodes ?? []).map((n) => {
+    const data: FlowNodeData = {
+      label: n.label,
+      stereotype: n.stereotype,
+      attributes: Array.isArray(n.attributes) ? n.attributes.join("\n") : "",
+      methods: Array.isArray(n.methods) ? n.methods.join("\n") : "",
+    };
+    
+    // Default sizes based on type
+    let w = 150;
+    let h = 60;
+    if (n.type === 'actor') { w = 76; h = 124; }
+    else if (n.type === 'package') { w = 300; h = 300; } // Will be auto-resized
+    else if (n.type === 'usecase') { w = 140; h = 70; }
+    else if (n.type === 'decision') { w = 60; h = 60; }
+    
+    return mkNode(n.type, 0, 0, data, w, h, n.parentId);
+  });
+
+  const edges: FlowEdge[] = (res.edges ?? []).map((e) => {
+    const relation = (e.relation || "").toLowerCase();
+    let marker = MARK.none;
+    let markerStart = MARK.none;
+    let dashed = false;
+
+    // Map relation keyword to marker
+    if (relation === "inheritance") marker = MARK.triangle;
+    else if (relation === "realization") { marker = MARK.triangle; dashed = true; }
+    else if (relation === "composition") markerStart = MARK.diamondFilledStart;
+    else if (relation === "aggregation") markerStart = MARK.diamondOpenStart;
+    else if (relation === "association" || relation === "include" || relation === "extend") marker = MARK.openArrow;
+    else if (relation === "dependency") { marker = MARK.openArrow; dashed = true; }
+    else if (relation === "control-flow" || relation === "transition") marker = MARK.arrow;
+
+    if (relation === "include" || relation === "extend") dashed = true;
+
+    return mkEdge(e.source, e.target, {
+      marker,
+      markerStart,
+      dashed,
+      label: e.label || (relation === "include" ? "«include»" : relation === "extend" ? "«extend»" : ""),
+    });
+  });
+
+  const questions = res.questions ? aiQuestionsToImportQuestions(res.questions) : undefined;
+  
+  // Use diagramType from AI if provided, else fallback to summary detection
+  const detectedType = res.diagramType || (res.summary?.toLowerCase().includes("use case") ? "usecase" : undefined);
+
+  return { nodes, edges, questions, type: detectedType as DiagramType };
+}
+
+export function aiQuestionsToImportQuestions(questions: AiQuestionDto[]): ImportQuestion[] {
+  return questions.map((q) => ({
+    id: q.id,
+    edgeId: q.edgeId,
+    prompt: q.prompt,
+    detail: q.detail,
+    multiple: q.mode === "multiple",
+    options: q.options.map((o) => {
+      // Map relation to markers for QuestionCard logic
+      const relation = (o.relation || "").toLowerCase();
+      let marker = MARK.none;
+      let markerStart = MARK.none;
+      let dashed = false;
+      
+      if (relation === "inheritance") marker = MARK.triangle;
+      else if (relation === "realization") { marker = MARK.triangle; dashed = true; }
+      else if (relation === "composition") markerStart = MARK.diamondFilledStart;
+      else if (relation === "aggregation") markerStart = MARK.diamondOpenStart;
+      else if (relation === "association") marker = MARK.openArrow;
+      else if (relation === "dependency") { marker = MARK.openArrow; dashed = true; }
+
+      return {
+        label: o.label,
+        marker,
+        markerStart,
+        dashed
+      };
+    })
+  }));
 }
 
 /* ============================================================

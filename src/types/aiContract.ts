@@ -36,5 +36,11 @@ export interface AIQuestion {
   detail?: string;
   edgeId?: string | null;
   mode: "single" | "multiple";
-  options: Array<{ relation: RelationKind; label: string }>;
+  options: Array<{
+    relation: RelationKind;
+    label: string;
+    marker?: string;
+    markerStart?: string;
+    dashed?: boolean;
+  }>;
 }

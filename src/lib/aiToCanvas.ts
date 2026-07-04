@@ -45,8 +45,8 @@ export function aiResponseToCanvas(
   res: Extract<AIResponse, { kind: "diagram" }>
 ): { nodes: FlowNode[]; edges: FlowEdge[]; diagramType: DiagramType } {
   return {
-    nodes: res.nodes.map(aiNodeToFlow),
-    edges: res.edges.map(aiEdgeToFlow),
+    nodes: (res.nodes || []).map(aiNodeToFlow),
+    edges: (res.edges || []).map(aiEdgeToFlow),
     diagramType: res.diagramType as DiagramType,
   };
 }
