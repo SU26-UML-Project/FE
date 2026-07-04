@@ -6,6 +6,19 @@
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
+/* Edges rendered BEHIND nodes */
+.react-flow__edges {
+  z-index: 0 !important;
+}
+
+/* Layout fade-in transition */
+.react-flow__node {
+  transition: opacity 0.35s ease-out;
+}
+.react-flow__edge {
+  transition: opacity 0.35s ease-out;
+}
+
 :root {
   --ink: #18181b;
   --ink-soft: #3f3f46;

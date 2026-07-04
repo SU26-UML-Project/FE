@@ -25,7 +25,7 @@ import { projectService, sheetService, type SheetResponse } from "../services";
 
 import { nodeTypes } from "./canvas/Nodes";
 import { edgeTypes } from "./canvas/Edges";
-import { useAutoLayout } from "../hooks/useAutoLayout";
+import { layoutElements } from "../lib/elkLayout";
 import { MarkerDefs } from "./shared/MarkerDefs";
 import { computeSnap, nodeBox } from "../lib/snap";
 import { EditorContext } from "../lib/editorContext";
@@ -78,7 +78,6 @@ function download(filename: string, content: string) {
 
 export function Editor() {
   const rf = useReactFlow();
-  const { getLayoutedElements } = useAutoLayout();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -876,26 +875,49 @@ export function Editor() {
   );
 
   const layoutCanvas = useCallback(
-    (direction?: string) => {
+    async (direction?: string) => {
       beginMutation();
-      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+      
+      // Initial fade-out for smoother transition
+      setNodes((prev) => prev.map((n) => ({ ...n, style: { ...n.style, opacity: 0 } })));
+      setEdges((prev) => prev.map((e) => ({ ...e, style: { ...e.style, opacity: 0 } })));
+
+      // PASS 1: layout with estimated sizes
+      const { nodes: l1, edges: e1 } = await layoutElements(
         nodesRef.current,
         edgesRef.current,
-        diagramType,
-        direction
+        { diagramType }
       );
-      setNodes(layoutedNodes);
-      setEdges(layoutedEdges);
+      setNodes(l1);
+      setEdges(e1);
+
+      // Wait for RF to measure real sizes
+      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+      // PASS 2: re-layout with correct sizes
+      const { nodes: finalNodes, edges: finalEdges } = await layoutElements(
+        nodesRef.current,
+        edgesRef.current,
+        { diagramType }
+      );
+      
+      // Final nodes with fade-in
+      setNodes(finalNodes.map(n => ({ ...n, style: { ...n.style, opacity: 1 } })));
+      setEdges(finalEdges.map(e => ({ ...e, style: { ...e.style, opacity: 1 } })));
+
+      setTimeout(() => rf.fitView({ padding: 0.25, duration: 450 }), 60);
+
       if (!skipCollabEmit.current) {
-        emitCanvasChange({ nodes: layoutedNodes, edges: layoutedEdges, type: "layout" });
+        emitCanvasChange({ nodes: finalNodes, edges: finalEdges, type: "layout" });
       }
     },
-    [beginMutation, getLayoutedElements, setNodes, setEdges, diagramType, emitCanvasChange]
+    [beginMutation, setNodes, setEdges, diagramType, emitCanvasChange, rf]
   );
 
   /** Replace the whole canvas (used by the AI assistant / importers). */
   const importCanvas = useCallback(
-    (inNodes: FlowNode[], inEdges: FlowEdge[], type?: DiagramType) => {
+    async (inNodes: FlowNode[], inEdges: FlowEdge[], type?: DiagramType) => {
       beginMutation();
       const finalType = type || diagramType;
       if (type) {
@@ -903,21 +925,42 @@ export function Editor() {
         setActiveEdgeId(getDiagram(type).defaultEdge);
       }
       
-      // Thực hiện layout tự động ngay khi import để bản vẽ đẹp mắt
-      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-        inNodes,
-        inEdges,
-        finalType
+      // Ensure opacity 0 for import
+      const hiddenNodes = inNodes.map(n => ({ ...n, style: { ...n.style, opacity: 0 } }));
+      const hiddenEdges = inEdges.map(e => ({ ...e, style: { ...e.style, opacity: 0 } }));
+
+      // PASS 1: layout with estimated sizes
+      const { nodes: l1, edges: e1 } = await layoutElements(
+        hiddenNodes,
+        hiddenEdges,
+        { diagramType: finalType }
       );
 
-      setNodes(layoutedNodes);
-      setEdges(layoutedEdges);
+      setNodes(l1);
+      setEdges(e1);
+
+      // Wait for RF to measure real sizes
+      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+      // PASS 2: re-layout with correct sizes
+      const { nodes: finalNodes, edges: finalEdges } = await layoutElements(
+        nodesRef.current,
+        edgesRef.current,
+        { diagramType: finalType }
+      );
+
+      setNodes(finalNodes.map(n => ({ ...n, style: { ...n.style, opacity: 1 } })));
+      setEdges(finalEdges.map(e => ({ ...e, style: { ...e.style, opacity: 1 } })));
       setSel({ nodes: [], edges: [] });
+      
+      setTimeout(() => rf.fitView({ padding: 0.25, duration: 450 }), 60);
+
       if (!skipCollabEmit.current) {
-        emitCanvasChange({ nodes: layoutedNodes, edges: layoutedEdges, type: "add" });
+        emitCanvasChange({ nodes: finalNodes, edges: finalEdges, type: "add" });
       }
     },
-    [beginMutation, setNodes, setEdges, getLayoutedElements, emitCanvasChange]
+    [beginMutation, setNodes, setEdges, emitCanvasChange, diagramType, rf]
   );
 
   /* ---------- load / persist (multi-sheet) ---------- */
