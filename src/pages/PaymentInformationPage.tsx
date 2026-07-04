@@ -59,20 +59,26 @@ const PaymentInformationPage = () => {
     }
   }, [paymentState, orderCode])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async () => {
     setLoading(true)
     try {
-      const planId = planName.toLowerCase().includes('education') ? 2 : planName.toLowerCase().includes('enterprise') ? 4 : 3;
+      const planId = planName.toLowerCase().includes('education') ? '22222222-2222-2222-2222-222222222222'
+        : planName.toLowerCase().includes('enterprise') ? '44444444-4444-4444-4444-444444444444'
+          : '33333333-3333-3333-3333-333333333333';
 
       const response = await apiClient.post('/payments/create', { planId });
-      if (response.result && response.result.qrCode) {
-        setQrCodeData(response.result.qrCode);
-        setOrderCode(response.result.orderCode);
-        setPaymentState('qr_shown')
-        toast.success('Mã thanh toán đã được tạo thành công!')
+      console.log('[Payment] API response:', response);
+
+      const checkoutUrl = response?.result?.checkoutUrl ?? response?.checkoutUrl;
+      console.log('[Payment] checkoutUrl:', checkoutUrl);
+
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
+      } else {
+        toast.error('Không lấy được link thanh toán, vui lòng thử lại.')
       }
     } catch (error: any) {
+      console.error('[Payment] Error:', error);
       toast.error(error.message || 'Lỗi khi tạo mã thanh toán')
     } finally {
       setLoading(false)
@@ -247,11 +253,10 @@ const PaymentInformationPage = () => {
                   <div className="grid grid-cols-1 gap-4">
                     {/* PayOS (VietQR) */}
                     <label
-                      className={`relative flex items-center p-4 border cursor-pointer transition-colors ${
-                        selectedMethod === 'payos'
+                      className={`relative flex items-center p-4 border cursor-pointer transition-colors ${selectedMethod === 'payos'
                           ? 'border-[#004ac6] bg-blue-50/30'
                           : 'border-[#c3c6d7] bg-white hover:border-blue-300'
-                      }`}
+                        }`}
                       onClick={() => setSelectedMethod('payos')}
                     >
                       <input
@@ -269,9 +274,8 @@ const PaymentInformationPage = () => {
                         qr_code_scanner
                       </span>
                       <span
-                        className={`text-[16px] font-medium ${
-                          selectedMethod === 'payos' ? 'text-[#0b1c30]' : 'text-[#434655]'
-                        }`}
+                        className={`text-[16px] font-medium ${selectedMethod === 'payos' ? 'text-[#0b1c30]' : 'text-[#434655]'
+                          }`}
                       >
                         PayOS (VietQR)
                       </span>
