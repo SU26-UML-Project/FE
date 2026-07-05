@@ -69,10 +69,11 @@ function mkNode(
   data: FlowNodeData,
   w: number,
   h: number,
-  parentId?: string
+  parentId?: string,
+  id?: string
 ): FlowNode {
   return {
-    id: nanoid(8),
+    id: id || nanoid(8),
     type,
     position: { x, y },
     data,
@@ -827,7 +828,7 @@ export function aiResponseToCanvas(res: DiagramChatResponse): ParseResult {
     else if (n.type === 'usecase') { w = 140; h = 70; }
     else if (n.type === 'decision') { w = 60; h = 60; }
     
-    return mkNode(n.type, 0, 0, data, w, h, n.parentId);
+    return mkNode(n.type, 0, 0, data, w, h, n.parentId, n.id);
   });
 
   const edges: FlowEdge[] = (res.edges ?? []).map((e) => {
@@ -870,7 +871,7 @@ export function aiQuestionsToImportQuestions(questions: AiQuestionDto[]): Import
     prompt: q.prompt,
     detail: q.detail,
     multiple: q.mode === "multiple",
-    options: q.options.map((o) => {
+    options: (q.options || []).map((o) => {
       // Map relation to markers for QuestionCard logic
       const relation = (o.relation || "").toLowerCase();
       let marker = MARK.none;

@@ -950,14 +950,17 @@ export function Editor() {
         { diagramType: finalType }
       );
 
-      setNodes(finalNodes.map(n => ({ ...n, style: { ...n.style, opacity: 1 } })));
-      setEdges(finalEdges.map(e => ({ ...e, style: { ...e.style, opacity: 1 } })));
+      const visibleNodes = finalNodes.map(n => ({ ...n, style: { ...n.style, opacity: 1 } }));
+      const visibleEdges = finalEdges.map(e => ({ ...e, style: { ...e.style, opacity: 1 } }));
+
+      setNodes(visibleNodes);
+      setEdges(visibleEdges);
       setSel({ nodes: [], edges: [] });
       
       setTimeout(() => rf.fitView({ padding: 0.25, duration: 450 }), 60);
 
       if (!skipCollabEmit.current) {
-        emitCanvasChange({ nodes: finalNodes, edges: finalEdges, type: "add" });
+        emitCanvasChange({ nodes: visibleNodes, edges: visibleEdges, type: "add" });
       }
     },
     [beginMutation, setNodes, setEdges, emitCanvasChange, diagramType, rf]
@@ -1679,7 +1682,7 @@ export function Editor() {
               snapGrid={[16, 16]}
               defaultEdgeOptions={{ type: "smoothstep" }}
               proOptions={{ hideAttribution: true }}
-              onlyRenderVisibleElements={true}
+              onlyRenderVisibleElements={false}
               nodeDragThreshold={1.5}
               className="bg-white"
             >

@@ -130,22 +130,22 @@ function AllHandles() {
   // Top
   points.forEach((i) => {
     handles.push(<Handle key={`t-${i}`} id={`t-${i}`} type="source" position={Position.Top} style={{ left: `${i}%` }} />);
-    handles.push(<Handle key={`t-${i}-t`} id={`t-${i}`} type="target" position={Position.Top} style={{ left: `${i}%` }} />);
+    handles.push(<Handle key={`t-${i}-t`} id={`t-${i}-t`} type="target" position={Position.Top} style={{ left: `${i}%` }} />);
   });
   // Right
   points.forEach((i) => {
     handles.push(<Handle key={`r-${i}`} id={`r-${i}`} type="source" position={Position.Right} style={{ top: `${i}%` }} />);
-    handles.push(<Handle key={`r-${i}-t`} id={`r-${i}`} type="target" position={Position.Right} style={{ top: `${i}%` }} />);
+    handles.push(<Handle key={`r-${i}-t`} id={`r-${i}-t`} type="target" position={Position.Right} style={{ top: `${i}%` }} />);
   });
   // Bottom
   points.forEach((i) => {
     handles.push(<Handle key={`b-${i}`} id={`b-${i}`} type="source" position={Position.Bottom} style={{ left: `${i}%` }} />);
-    handles.push(<Handle key={`b-${i}-t`} id={`b-${i}`} type="target" position={Position.Bottom} style={{ left: `${i}%` }} />);
+    handles.push(<Handle key={`b-${i}-t`} id={`b-${i}-t`} type="target" position={Position.Bottom} style={{ left: `${i}%` }} />);
   });
   // Left
   points.forEach((i) => {
     handles.push(<Handle key={`l-${i}`} id={`l-${i}`} type="source" position={Position.Left} style={{ top: `${i}%` }} />);
-    handles.push(<Handle key={`l-${i}-t`} id={`l-${i}`} type="target" position={Position.Left} style={{ top: `${i}%` }} />);
+    handles.push(<Handle key={`l-${i}-t`} id={`l-${i}-t`} type="target" position={Position.Left} style={{ top: `${i}%` }} />);
   });
 
   return <>{handles}</>;
@@ -400,7 +400,7 @@ export function TextNode({ id, data, selected }: NodeProps) {
   );
 }
 
-export function PackageNode({ id, data, selected }: NodeProps) {
+export function PackageNode({ id, data, selected, width, height }: NodeProps) {
   const d = data as FlowNodeData;
   const ink = inkColor(d);
   return (
@@ -412,7 +412,7 @@ export function PackageNode({ id, data, selected }: NodeProps) {
         style={{ width: 90, border: `1.5px solid ${ink}`, borderBottom: "none", background: fillColor(d), pointerEvents: "auto" }}
       >
         <div className="h-full w-full overflow-hidden text-[11px] font-semibold leading-[21px] text-zinc-700">
-          <EditableText id={id} field="label" value={d.label} placeholder="Package" />
+          <EditableText id={id} field="label" value={d.label} placeholder="Package" className="inline-block min-w-[60px]" />
         </div>
       </div>
       {/* Body — pointer-events-none so clicks pass THROUGH to nodes inside */}
@@ -420,16 +420,20 @@ export function PackageNode({ id, data, selected }: NodeProps) {
         className="absolute left-0 right-0 bottom-0 top-[24px] rounded-[8px] rounded-tl-none"
         style={{
           border: `1.5px solid ${ink}`,
-          background: (d.fill as string) ? fillColor(d, "transparent") : "transparent",
+          background: (d.fill as string) || "transparent",
           pointerEvents: "none",
         }}
       />
       {/* Handles — only on hover/selected, and auto pointer-events */}
       <div className="react-flow__handle-wrap pointer-events-none">
         <Handle id="t" type="source" position={Position.Top} />
+        <Handle id="t-t" type="target" position={Position.Top} />
         <Handle id="r" type="source" position={Position.Right} />
+        <Handle id="r-t" type="target" position={Position.Right} />
         <Handle id="b" type="source" position={Position.Bottom} />
+        <Handle id="b-t" type="target" position={Position.Bottom} />
         <Handle id="l" type="source" position={Position.Left} />
+        <Handle id="l-t" type="target" position={Position.Left} />
       </div>
     </div>
   );

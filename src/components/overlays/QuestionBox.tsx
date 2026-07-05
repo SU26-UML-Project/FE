@@ -40,22 +40,28 @@ export function QuestionCard({
   summary,
   onApply,
   onResolved,
+  initialAnswers,
+  initialDone,
+  initialNotes,
 }: {
   result: ParseResult;
   summary: string;
   onApply: (nodes: FlowNode[], edges: FlowEdge[], type?: DiagramType) => void;
   onResolved: (text: string) => void;
+  initialAnswers?: Record<string, Answer>;
+  initialDone?: boolean;
+  initialNotes?: string;
 }) {
   const questions: ImportQuestion[] = result.questions ?? [];
   const realTotal = questions.length;
   const total = realTotal + 1; // + notes page
 
   const [page, setPage] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, Answer>>({});
-  const [notes, setNotes] = useState("");
-  const [done, setDone] = useState(false);
+  const [answers, setAnswers] = useState<Record<string, Answer>>(initialAnswers || {});
+  const [notes, setNotes] = useState(initialNotes || "");
+  const [done, setDone] = useState(initialDone || false);
   const [reviewing, setReviewing] = useState(false);
-  const appliedOnce = useRef(false);
+  const appliedOnce = useRef(initialDone || false);
 
   const isNotesPage = page === total - 1;
   const q = !isNotesPage && questions ? questions[page] : undefined;

@@ -11,9 +11,10 @@ interface EdgeData {
   color?: string;
 }
 
-function EdgeView({ id, path, data, label, sourceX, sourceY, targetX, targetY }: {
+function EdgeView({ id, path, data, label, sourceX, sourceY, targetX, targetY, style }: {
   id: string; path: string; data: unknown; label?: string;
   sourceX: number; sourceY: number; targetX: number; targetY: number;
+  style?: React.CSSProperties;
 }) {
   const d = data as EdgeData;
   const marker = d?.marker || undefined;
@@ -23,8 +24,12 @@ function EdgeView({ id, path, data, label, sourceX, sourceY, targetX, targetY }:
 
   return (
     <>
-      <BaseEdge id={id} path={path} markerEnd={marker} markerStart={markerStart}
-        style={{ stroke: d?.color || undefined, strokeDasharray: d?.dashed ? "6 4" : undefined }}
+     <BaseEdge 
+        id={id} 
+        path={path} 
+        markerEnd={marker} 
+        markerStart={markerStart}
+        style={{ ...style, stroke: d?.color || undefined, strokeDasharray: d?.dashed ? "6 4" : undefined }}
       />
       {label ? (
         <EdgeLabelRenderer>
@@ -69,8 +74,10 @@ export function OrthogonalEdge(props: EdgeProps) {
   }
 
   return (
-    <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
-      sourceX={sourceX} sourceY={sourceY} targetX={targetX} targetY={targetY} />
+   <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
+      sourceX={sourceX} sourceY={sourceY} targetX={targetX} targetY={targetY} 
+      style={props.style} 
+    />
   );
 }
 
@@ -80,8 +87,10 @@ export function BezierEdge(props: EdgeProps) {
     targetX: props.targetX, targetY: props.targetY, targetPosition: props.targetPosition,
   });
   return (
-    <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
-      sourceX={props.sourceX} sourceY={props.sourceY} targetX={props.targetX} targetY={props.targetY} />
+   <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
+      sourceX={props.sourceX} sourceY={props.sourceY} targetX={props.targetX} targetY={props.targetY} 
+      style={props.style} 
+    />
   );
 }
 
@@ -89,7 +98,9 @@ export function StraightEdge(props: EdgeProps) {
   const [path] = getStraightPath({ sourceX: props.sourceX, sourceY: props.sourceY, targetX: props.targetX, targetY: props.targetY });
   return (
     <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
-      sourceX={props.sourceX} sourceY={props.sourceY} targetX={props.targetX} targetY={props.targetY} />
+      sourceX={props.sourceX} sourceY={props.sourceY} targetX={props.targetX} targetY={props.targetY} 
+      style={props.style} 
+    />
   );
 }
 

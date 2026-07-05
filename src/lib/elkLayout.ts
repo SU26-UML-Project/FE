@@ -51,7 +51,7 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
   const handleUsage = new Map<string, Set<number>>();
   const POINTS = [25, 50, 75];
 
-  const pickPercent = (nodeId: string, side: string, ideal: number): string => {
+  const pickPercent = (nodeId: string, side: string, ideal: number, isTarget = false): string => {
     const key = `${nodeId}-${side}`;
     const used = handleUsage.get(key) ?? new Set<number>();
     const available = POINTS.filter((p) => !used.has(p));
@@ -59,7 +59,7 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
     const best = pool.reduce((b, p) => (Math.abs(p - ideal) < Math.abs(b - ideal) ? p : b), pool[0]);
     used.add(best);
     handleUsage.set(key, used);
-    return `${side}-${best}`;
+    return `${side}-${best}${isTarget ? "-t" : ""}`;
   };
 
   const clamp = (v: number) => Math.max(0, Math.min(100, v));
@@ -82,9 +82,17 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
     const isPackage = nodes.find(n => n.id === e.source)?.type === "package" || nodes.find(n => n.id === e.target)?.type === "package";
     if (isPackage) {
       if (horizontalRatio > 0.6 || isIncludeExtend) {
-        return { ...e, sourceHandle: dx >= 0 ? "r" : "l", targetHandle: dx >= 0 ? "l" : "r" };
+        return { 
+          ...e, 
+          sourceHandle: dx >= 0 ? "r" : "l", 
+          targetHandle: dx >= 0 ? "l-t" : "r-t" 
+        };
       }
-      return { ...e, sourceHandle: dy >= 0 ? "b" : "t", targetHandle: dy >= 0 ? "t" : "b" };
+      return { 
+        ...e, 
+        sourceHandle: dy >= 0 ? "b" : "t", 
+        targetHandle: dy >= 0 ? "t-t" : "b-t" 
+      };
     }
 
     if (horizontalRatio > 0.6 || isIncludeExtend) {
@@ -95,7 +103,7 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
       return {
         ...e,
         sourceHandle: pickPercent(e.source, ss, sIdeal),
-        targetHandle: pickPercent(e.target, ts, tIdeal),
+        targetHandle: pickPercent(e.target, ts, tIdeal, true),
       };
     }
     const ss = dy >= 0 ? "b" : "t";
@@ -105,7 +113,7 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
     return {
       ...e,
       sourceHandle: pickPercent(e.source, ss, sIdeal),
-      targetHandle: pickPercent(e.target, ts, tIdeal),
+      targetHandle: pickPercent(e.target, ts, tIdeal, true),
     };
   });
 }
@@ -405,26 +413,31 @@ function layoutUseCase(
 
   const allUCNodes = [...posLeftUCs, ...posCenterUCs, ...posRightUCs];
 
-  // Boundary
+  // Boundary - Recalculate based on ACTUAL positions after resolveOverlaps
   let ucMinX = Infinity, ucMaxX = -Infinity;
+  let ucMinY = Infinity, ucMaxY = -Infinity;
   for (const uc of allUCNodes) {
     ucMinX = Math.min(ucMinX, uc.position.x);
     ucMaxX = Math.max(ucMaxX, uc.position.x + UC_W);
+    ucMinY = Math.min(ucMinY, uc.position.y);
+    ucMaxY = Math.max(ucMaxY, uc.position.y + UC_H);
   }
 
   const boundaryX = (isFinite(ucMinX) ? ucMinX : 0) - BOUNDARY_PAD;
+  const boundaryY = (isFinite(ucMinY) ? ucMinY : 0) - BOUNDARY_PAD;
   const boundaryW = (isFinite(ucMaxX) ? ucMaxX - ucMinX : 200) + BOUNDARY_PAD * 2;
+  const boundaryHeight = (isFinite(ucMaxY) ? ucMaxY - ucMinY : 200) + BOUNDARY_PAD * 2;
 
   const positionedPkgs = packages.map((p) => ({
     ...p,
-    position: { x: boundaryX, y: 0 },
-    width: boundaryW, height: boundaryH, zIndex: 0,
-    style: { ...(p.style as object), width: boundaryW, height: boundaryH },
+    position: { x: boundaryX, y: boundaryY },
+    width: boundaryW, height: boundaryHeight, zIndex: 0,
+    style: { ...(p.style as object), width: boundaryW, height: boundaryHeight },
   }));
 
   const positionedOthers = others.map((o, i) => {
     const sz = estimateSize(o);
-    return { ...o, position: { x: boundaryX + 20 + i * 180, y: boundaryH + BOUNDARY_PAD },
+    return { ...o, position: { x: boundaryX + 20 + i * 180, y: boundaryY + boundaryHeight + BOUNDARY_PAD },
       width: sz.width, height: sz.height, zIndex: 5 };
   });
 

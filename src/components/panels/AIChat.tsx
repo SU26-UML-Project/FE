@@ -11,7 +11,7 @@ import type {
 import { chatService } from "../../services/chatService";
 import { toast } from "react-hot-toast";
 import { QuestionCard } from "../overlays/QuestionBox";
-import { aiResponseToCanvas, type ParseResult } from "../../lib/importers";
+import { aiResponseToCanvas, type ParseResult, type Answer, type ImportQuestion } from "../../lib/importers";
 
 interface Msg {
   id: string;
@@ -21,6 +21,9 @@ interface Msg {
   kind?: AiResponseKind;
   result?: ParseResult;
   summary?: string;
+  initialAnswers?: Record<string, Answer>;
+  initialDone?: boolean;
+  initialNotes?: string;
 }
 
 function Sparkle({ size = 16 }: { size?: number }) {
@@ -103,6 +106,31 @@ export function AIChat({
     };
   }, [isResizing]);
 
+  const getDisplayMarkdown = (m: ChatMessage | DiagramChatResponse): string => {
+    // If it's a user message, return content as is
+    if ('role' in m && m.role === 'USER') return m.content;
+
+    // For assistant, try to parse JSON if content looks like it
+    let content = 'content' in m ? m.content : m.answer;
+    const kind = m.kind;
+    const summary = m.summary;
+
+    if (content?.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(content);
+        if (parsed.answer) return parsed.answer;
+        if (parsed.summary) return parsed.summary;
+      } catch (e) {
+        // Not JSON or invalid, continue to fallback
+      }
+    }
+
+    if (kind === 'diagram') return summary || "Bro xem thử sơ đồ tôi vừa vẽ nhé!";
+    if (kind === 'questions') return summary || "Tôi có một vài câu hỏi cần làm rõ:";
+    
+    return content || "";
+  };
+
   // Load sessions when switching to history view
   useEffect(() => {
     if (view === "history") {
@@ -141,6 +169,53 @@ export function AIChat({
     }
   };
 
+  const parseConfirmedAnswers = (text: string, questions: ImportQuestion[]): { 
+    answers: Record<string, Answer>, 
+    notes: string 
+  } => {
+    const result: Record<string, Answer> = {};
+    let notes = "";
+  
+    if (!text.startsWith("Đã xác nhận thông tin:")) return { answers: {}, notes: "" };
+
+    const parts = text.split("Ghi chú thêm:");
+    const mainPart = parts[0].replace("Đã xác nhận thông tin:", "").trim();
+    if (parts.length > 1) {
+      notes = parts[1].trim().replace(/^"|"$/g, "");
+    }
+  
+    const pairs = mainPart.split(";");
+    for (const pair of pairs) {
+      const match = pair.trim().match(/Q: (.*) -> A: (.*)/);
+      if (match && match[1] && match[2]) {
+        const prompt = match[1].trim();
+        const answerLabel = match[2].trim();
+        
+        const q = questions.find(qq => qq.prompt === prompt);
+        if (q) {
+          if (q.multiple) {
+            const labels = answerLabel.split(",").map(l => l.trim());
+            const matchedOptions = q.options.filter(o => labels.includes(o.label));
+            const otherLabel = labels.find(l => !q.options.some(o => o.label === l));
+            result[q.id] = { 
+              kind: "multiple", 
+              options: matchedOptions, 
+              other: (otherLabel && otherLabel !== "—") ? otherLabel : undefined 
+            };
+          } else {
+            const matchedOption = q.options.find(o => o.label === answerLabel);
+            if (matchedOption) {
+              result[q.id] = { kind: "option", option: matchedOption };
+            } else if (answerLabel !== "—") {
+              result[q.id] = { kind: "other", text: answerLabel };
+            }
+          }
+        }
+      }
+    }
+    return { answers: result, notes };
+  };
+
   const selectSession = async (session: ChatSession) => {
     try {
       setBusy(true);
@@ -165,14 +240,31 @@ export function AIChat({
           sessionId: sid
         });
 
+        let initialAnswers: Record<string, Answer> = {};
+        let initialNotes = "";
+        let initialDone = false;
+
+        if (m.kind === "questions" && parsed.questions) {
+          const nextMsg = res.result.messages[idx + 1];
+          if (nextMsg && nextMsg.role === "USER" && nextMsg.content.startsWith("Đã xác nhận thông tin:")) {
+            const resolved = parseConfirmedAnswers(nextMsg.content, parsed.questions);
+            initialAnswers = resolved.answers;
+            initialNotes = resolved.notes;
+            initialDone = true;
+          }
+        }
+
         return {
           id: `hist-${idx}`,
           role: m.role,
-          text: m.content,
+          text: getDisplayMarkdown(m),
           timestamp: m.createdAt,
           kind: m.kind,
           summary: m.summary,
-          result: parsed
+          result: parsed,
+          initialAnswers,
+          initialDone,
+          initialNotes
         };
       });
       
@@ -200,7 +292,7 @@ export function AIChat({
     const aiMsg: Msg = {
       id: `ai-${Date.now()}`,
       role: "ASSISTANT",
-      text: res.answer || (res.kind === 'diagram' ? "Bro xem thử sơ đồ tôi vừa vẽ nhé!" : "Tôi có một vài câu hỏi cần làm rõ:"),
+      text: getDisplayMarkdown(res),
       kind: res.kind,
       summary: res.summary,
       result: parsed
@@ -214,11 +306,14 @@ export function AIChat({
     }
   };
 
-  const submit = async (overrideText?: string) => {
-    const text = (overrideText || input).trim();
+  const submit = async (overrideText?: string | any) => {
+    // If overrideText is a MouseEvent (from onClick={submit}), ignore it
+    const actualText = (typeof overrideText === 'string') ? overrideText : undefined;
+    const rawInput = actualText || input || "";
+    const text = rawInput.trim();
     if (!text || busy) return;
 
-    if (!overrideText) setInput("");
+    if (typeof overrideText !== 'string') setInput("");
     
     // Nếu là text tự động từ HITL, chúng ta có thể muốn hiển thị nó khác đi hoặc không hiển thị
     // Nhưng để luồng chat tự nhiên, ta vẫn hiển thị như tin nhắn người dùng
@@ -351,6 +446,9 @@ export function AIChat({
                         summary={m.summary || ""}
                         onApply={onImport}
                         onResolved={(answerText) => submit(answerText)}
+                        initialAnswers={m.initialAnswers}
+                        initialDone={m.initialDone}
+                        initialNotes={m.initialNotes}
                       />
                     </div>
                   )}
@@ -394,7 +492,7 @@ export function AIChat({
                 className="flex-1 rounded-xl border border-admin-outline/30 bg-admin-bg px-4 py-2.5 text-[13.5px] font-medium transition-all focus:border-admin-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-admin-primary/5 disabled:opacity-50"
               />
               <button
-                onClick={submit}
+                onClick={() => submit()}
                 disabled={!input.trim() || busy}
                 className="flex h-10 w-10 items-center justify-center rounded-xl bg-admin-primary text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100 shadow-md shadow-blue-500/10"
               >
