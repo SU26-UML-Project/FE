@@ -341,13 +341,47 @@ function Hint({ k, v }: { k: string; v: string }) {
   );
 }
 
-function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
-  return (
-    <button onClick={(e) => { e.preventDefault(); onClick(); }}
-      className={`relative h-5 w-9 rounded-full transition-colors ${on ? "bg-zinc-900" : "bg-zinc-200"}`}>
-      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`} />
-    </button>
-  );
+function Toggle({
+                    on,
+                    onClick,
+                }: {
+    on: boolean;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClick();
+            }}
+            className={`
+                relative
+                h-6
+                w-11
+                shrink-0
+                rounded-full
+                transition-colors
+                ${on ? "bg-zinc-900" : "bg-zinc-200"}
+            `}
+        >
+            <span
+                className={`
+                    absolute
+                    top-[2px]
+                    left-[2px]
+                    h-5
+                    w-5
+                    rounded-full
+                    bg-white
+                    shadow
+                    transition-transform
+                    ${on ? "translate-x-5" : ""}
+                `}
+            />
+        </button>
+    );
 }
 
 function DangerBtn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {

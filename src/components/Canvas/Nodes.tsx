@@ -409,10 +409,18 @@ export function PackageNode({ id, data, selected, width, height }: NodeProps) {
       {/* Tab header — the ONLY clickable part (selects the package) */}
       <div
         className="absolute left-0 top-0 z-10 h-[24px] cursor-pointer rounded-t-[8px] px-3"
-        style={{ width: 90, border: `1.5px solid ${ink}`, borderBottom: "none", background: fillColor(d), pointerEvents: "auto" }}
+        style={{
+            width: "fit-content",
+            minWidth: 90,
+            maxWidth: "100%",
+            border: `1.5px solid ${ink}`,
+            borderBottom: "none",
+            background: fillColor(d),
+            pointerEvents: "auto",
+        }}
       >
-        <div className="h-full w-full overflow-hidden text-[11px] font-semibold leading-[21px] text-zinc-700">
-          <EditableText id={id} field="label" value={d.label} placeholder="Package" className="inline-block min-w-[60px]" />
+          <div className="flex h-full items-center whitespace-nowrap px-1 text-[11px] font-semibold text-zinc-700">
+          <EditableText id={id} field="label" value={d.label} placeholder="Package" className="inline-block whitespace-nowrap" />
         </div>
       </div>
       {/* Body — pointer-events-none so clicks pass THROUGH to nodes inside */}
