@@ -191,7 +191,14 @@ export function QuestionCard({
   const doApply = () => {
     if (!allAnswered) return;
     const applied = applyAnswers(result, answers);
-    onApply(applied.nodes, applied.edges, applied.type);
+    
+    // Only apply to canvas if the AI actually provided a diagram to patch.
+    // In HITL (clarification before generation), nodes/edges are often empty.
+    // Applying empty arrays would wipe out the user's existing work.
+    if (applied.nodes.length > 0) {
+      onApply(applied.nodes, applied.edges, applied.type);
+    }
+    
     setDone(true);
     if (!appliedOnce.current) {
       appliedOnce.current = true;

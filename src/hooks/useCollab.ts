@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useRef, useState } from "react";
+import { toast } from "react-hot-toast";
 import { socketService, CursorData, SelectionData, CanvasChangeData } from "../services";
 import { useAuthStore } from "../stores/useAuthStore";
 import { FlowNode, FlowEdge } from "../types";
@@ -11,7 +12,9 @@ const COLORS = [
 
 export function useCollab(
   sheetId: string | undefined,
-  onRemoteCanvasChange: (data: CanvasChangeData) => void
+  isPublic: boolean | undefined,
+  onRemoteCanvasChange: (data: CanvasChangeData) => void,
+  onCollabDisabled?: () => void
 ) {
   const { user } = useAuthStore();
   const rf = useReactFlow();
@@ -22,13 +25,33 @@ export function useCollab(
   const lastEmit = useRef<number>(0);
 
   useEffect(() => {
-    if (!sheetId) return;
+    if (!sheetId || !isPublic) {
+      if (socketService.socket?.connected) {
+        socketService.leaveRoom(sheetId || "");
+      }
+      setRemoteCursors({});
+      setRemoteSelections({});
+      return;
+    }
 
     socketService.connect();
     socketService.joinRoom(sheetId);
 
     const socket = socketService.socket;
     if (!socket) return;
+
+    socket.on("collab:disabled", (message) => {
+      toast.error(message || "The owner has disabled collaboration for this project.");
+      // Force disconnect and clear
+      socketService.leaveRoom(sheetId);
+      setRemoteCursors({});
+      setRemoteSelections({});
+      
+      // Trigger callback for Editor to handle redirect/kick
+      if (onCollabDisabled) {
+        onCollabDisabled();
+      }
+    });
 
     socket.on("cursor:update", (data) => {
       setRemoteCursors((prev) => ({ ...prev, [data.userId]: data }));

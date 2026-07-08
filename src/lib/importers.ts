@@ -314,6 +314,17 @@ function parseClassLike(lines: string[], _plant: boolean): ParseResult {
 function pushMember(c: { attrs: string[]; methods: string[] }, raw: string) {
   let line = raw.trim();
   if (!line) return;
+
+  // Handle {static} and {abstract}
+  if (line.includes("{static}")) {
+    line = line.replace("{static}", "").trim();
+    line = "static " + line; // Or we could use a special marker if we had one
+  }
+  if (line.includes("{abstract}")) {
+    line = line.replace("{abstract}", "").trim();
+    line = "abstract " + line;
+  }
+
   // normalise visibility prefix spacing: "+name" -> "+ name"
   line = line.replace(/^([+\-#~])\s*/, "$1 ");
   if (/\(.*\)/.test(line)) c.methods.push(line);
@@ -321,16 +332,26 @@ function pushMember(c: { attrs: string[]; methods: string[] }, raw: string) {
 }
 
 /* Parse a relationship line into from/to/edge-opts.
-   Handles mermaid & plantuml arrow tokens. */
+   Handles mermaid & plantuml arrow tokens.
+   Supports multiplicity: ClassA "1" *-- "many" ClassB */
 function parseRelLine(line: string):
   | { from: string; to: string; opts: Parameters<typeof mkEdge>[2] }
   | null {
+  // Regex to support optional multiplicity in quotes: ClassA "1" *-- "many" ClassB
   const m = line.match(
-    /^\s*([A-Za-z0-9_]+)\s*(<\|--|\.\.\|>|<\|\.\.|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.|---|<==|==>|--|<\|)\s*([A-Za-z0-9_]+)(?:\s*:\s*(.*))?$/
+    /^\s*([A-Za-z0-9_]+)(?:\s+"([^"]+)")?\s*(<\|--|\.\.\|>|<\|\.\.|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.|---|<==|==>|--|<\|)\s*(?:"([^"]+)"\s+)?([A-Za-z0-9_]+)(?:\s*:\s*(.*))?$/
   );
   if (!m) return null;
-  const [, left, token, right, labelRaw] = m;
+  const [, leftId, leftMulti, token, rightMulti, rightId, labelRaw] = m;
   const label = labelRaw?.trim() ?? "";
+  
+  // Combine multiplicity into the label if present
+  let finalLabel = label;
+  if (leftMulti || rightMulti) {
+    const multiStr = `${leftMulti ? leftMulti + " " : ""}${rightMulti ? " " + rightMulti : ""}`.trim();
+    finalLabel = label ? `${multiStr} : ${label}` : multiStr;
+  }
+
   let leftFirst = true;
   let opts: Parameters<typeof mkEdge>[2] = {};
   switch (token) {
@@ -389,9 +410,11 @@ function parseRelLine(line: string):
     default:
       opts = { ambiguous: true };
   }
-  if (label) opts.label = label;
-  const from = leftFirst ? left : right;
-  const to = leftFirst ? right : left;
+  
+  if (finalLabel) opts.label = finalLabel;
+  const from = leftFirst ? leftId : rightId;
+  const to = leftFirst ? rightId : leftId;
+  
   if (opts.ambiguous) {
     opts.fromName = from;
     opts.toName = to;
@@ -742,51 +765,418 @@ export function parsePlantUml(code: string): ParseResult {
   else if (start >= 0) inner = inner.slice(start + 9);
 
   const hasComponent = /^\s*component\s/m.test(inner);
+  const hasUseCase = /^\s*usecase\b|^\s*actor\b/m.test(inner);
+  const hasActivity = /^\s*:(.+);|^\s*start\b|^\s*stop\b/m.test(inner);
+  
   const lines = inner
     .split("\n")
     .map((l) => l.replace(/'.*$/, "").trim())
     .filter(Boolean);
 
+  if (hasActivity) return parsePlantActivity(lines);
+  if (hasUseCase) return parsePlantUseCase(lines);
   if (hasComponent) return parsePlantComponent(lines);
-  // treat as class diagram (also handles sequence-ish if it has ->)
-  if (/^\s*actor\b|^\s*participant\b|->>/.test(inner) && !/class\s|<\|--|\*--/.test(inner)) {
-    return parseSequence(lines);
-  }
+  
+  // Default to class diagram
   return parseClassLike(lines, true);
 }
 
-function parsePlantComponent(lines: string[]): ParseResult {
-  const comps = new Map<string, { label: string }>();
-  const rawEdges: { from: string; to: string; opts: Parameters<typeof mkEdge>[2] }[] =
-    [];
-  for (const ln of lines) {
-    const c = ln.match(/^(?:component|interface)\s+([A-Za-z0-9_]+)(?:\s+as\s+(.+))?/);
-    if (c) {
-      comps.set(c[1], { label: c[2]?.trim() ?? c[1] });
+function parsePlantUseCase(lines: string[]): ParseResult {
+  const nodes: FlowNode[] = [];
+  const rawEdges: { from: string; to: string; label?: string; dashed?: boolean; marker?: string }[] = [];
+  const nodeMap = new Map<string, string>();
+  const parentStack: string[] = [];
+
+  const ensureNode = (id: string, label: string, type: string, parentId?: string) => {
+    if (!nodeMap.has(id)) {
+      const uid = nanoid(8);
+      nodeMap.set(id, uid);
+      let w = 140, h = 70;
+      if (type === "actor") { w = 76; h = 124; }
+      else if (type === "package" || type === "package") { w = 300; h = 300; }
+      else if (type === "note") { w = 150; h = 60; }
+      
+      const cleanLabel = label.replace(/\\n/g, "\n");
+      nodes.push(mkNode(type, 0, 0, { label: cleanLabel }, w, h, parentId, uid));
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i].trim();
+    if (!ln || ln.startsWith("'") || ln.startsWith("skinparam") || ln.startsWith("left to right")) continue;
+
+    // Notes: note "Label" as N1 OR note right of UC1 : Label
+    const noteMatch = ln.match(/^note\s+(?:"([^"]+)"|([A-Za-z0-9_]+))(?:\s+as\s+([A-Za-z0-9_]+))?$/);
+    if (noteMatch) {
+      const label = noteMatch[1] || noteMatch[2];
+      const id = noteMatch[3] || nanoid(6);
+      ensureNode(id, label, "note");
       continue;
     }
-    const r = parseRelLine(ln);
+
+    // note right of UC1 : Label
+    const notePosMatch = ln.match(/^note\s+(right|left|top|bottom)\s+of\s+([A-Za-z0-9_]+)\s*:\s*(.+)$/);
+    if (notePosMatch) {
+      const targetId = notePosMatch[2];
+      const content = notePosMatch[3];
+      const noteId = nanoid(6);
+      ensureNode(noteId, content, "note");
+      const targetUid = nodeMap.get(targetId);
+      if (targetUid) {
+        rawEdges.push({ from: noteId, to: targetId, dashed: true });
+      }
+      continue;
+    }
+
+    // Boundary: rectangle "Label" as ID { ... }
+    const b = ln.match(/^(rectangle|package)\s+(?:"([^"]+)"|([A-Za-z0-9_]+))(?:\s+as\s+([A-Za-z0-9_]+))?\s*\{/);
+    if (b) {
+      const label = b[2] || b[3];
+      const id = b[4] || b[3];
+      const parentId = parentStack.length > 0 ? nodeMap.get(parentStack[parentStack.length - 1]) : undefined;
+      ensureNode(id, label, "package", parentId);
+      parentStack.push(id);
+      continue;
+    }
+
+    if (ln === "}") {
+      parentStack.pop();
+      continue;
+    }
+
+    // Node definitions: usecase "Label" as UC1, actor "Label" as A1
+    const n = ln.match(/^(usecase|actor)\s+(?:"([^"]+)"|([A-Za-z0-9_]+))(?:\s+as\s+([A-Za-z0-9_]+))?/);
+    if (n) {
+      const type = n[1];
+      const label = n[2] || n[3];
+      const id = n[4] || n[3];
+      const parentId = parentStack.length > 0 ? nodeMap.get(parentStack[parentStack.length - 1]) : undefined;
+      ensureNode(id, label, type, parentId);
+      continue;
+    }
+
+    // Relationships: A1 --> UC1 : label, UC1 ..> UC2 : <<include>>
+    // Supports: -->, ..>, <-->, <.., etc.
+    const r = ln.match(/^([A-Za-z0-9_]+)\s*([-.]+)(?:up|down|left|right)*([-.]*)>\s*([A-Za-z0-9_]+)(?:\s*:\s*(.+))?/);
+    const rRev = ln.match(/^([A-Za-z0-9_]+)\s*<([-.]+)(?:up|down|left|right)*([-.]*)\s*([A-Za-z0-9_]+)(?:\s*:\s*(.+))?/);
+    
+    if (r || rRev) {
+      const from = r ? r[1] : rRev![4];
+      const to = r ? r[4] : rRev![1];
+      const arrow = r ? r[2] + r[3] : rRev![2] + rRev![3];
+      let label = (r ? r[5] : rRev![5])?.trim() || "";
+      
+      // Auto-label for include/extend if found in line but not as explicit label
+      if (!label && ln.includes("<<include>>")) label = "<<include>>";
+      if (!label && ln.includes("<<extend>>")) label = "<<extend>>";
+
+      ensureNode(from, from, "actor"); 
+      ensureNode(to, to, "usecase");
+      
+      const dashed = arrow.includes(".") || label.includes("include") || label.includes("extend");
+      rawEdges.push({ 
+        from, 
+        to, 
+        label, 
+        dashed, 
+        marker: MARK.openArrow 
+      });
+    }
+  }
+
+  // Layout
+  const pos = gridLayout(nodes.length);
+  nodes.forEach((n, i) => {
+    if (!n.position.x && !n.position.y) {
+      n.position = pos(i);
+    }
+  });
+
+  const edges = rawEdges.map(e => {
+    const s = nodeMap.get(e.from);
+    const t = nodeMap.get(e.to);
+    if (!s || !t) return null;
+    return mkEdge(s, t, { 
+      marker: e.marker, 
+      dashed: e.dashed, 
+      label: e.label 
+    });
+  }).filter(Boolean) as FlowEdge[];
+
+  return { nodes, edges, type: "usecase" };
+}
+
+function parsePlantActivity(lines: string[]): ParseResult {
+  const nodes: FlowNode[] = [];
+  const rawEdges: { from: string; to: string; label?: string }[] = [];
+  const nodeMap = new Map<string, string>();
+
+  const ensureNode = (id: string, label: string, type: string) => {
+    if (!nodeMap.has(id)) {
+      const uid = nanoid(8);
+      nodeMap.set(id, uid);
+      let w = 150, h = 54;
+      if (type === "start" || type === "final") { w = 40; h = 40; }
+      else if (type === "decision") { w = 60; h = 60; }
+      else if (type === "fork") { w = 100; h = 8; }
+      else if (type === "note") { w = 150; h = 60; }
+      nodes.push(mkNode(type, 0, 0, { label }, w, h, undefined, uid));
+    }
+    return nodeMap.get(id)!;
+  };
+
+  let lastId: string | null = null;
+  let currentLane: string | null = null;
+  const forkStack: string[] = [];
+  const decisionStack: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i].trim();
+    if (!ln || ln.startsWith("'")) continue;
+
+    // Swimlane: |Lane Name|
+    const laneMatch = ln.match(/^\|([^|]+)\|$/);
+    if (laneMatch) {
+      currentLane = laneMatch[1].trim();
+      continue;
+    }
+
+    // Start / Stop
+    if (ln === "start") {
+      lastId = ensureNode("start", "", "start");
+      continue;
+    } 
+    if (ln === "stop" || ln === "end") {
+      const id = ensureNode("final-" + nanoid(4), "", "final");
+      if (lastId) rawEdges.push({ from: lastId, to: id });
+      lastId = null;
+      continue;
+    }
+
+    // Action: :label;
+    if (ln.startsWith(":")) {
+      let label = ln.slice(1);
+      if (label.endsWith(";")) label = label.slice(0, -1);
+      label = label.trim();
+      if (currentLane) label = `[${currentLane}] ${label}`;
+      
+      const id = nanoid(6);
+      ensureNode(id, label, "action");
+      if (lastId) rawEdges.push({ from: lastId, to: id });
+      lastId = id;
+      continue;
+    }
+
+    // If / Else / Endif
+    if (ln.startsWith("if")) {
+      const m = ln.match(/if\s*\((.+)\)(?:\s+then\s*\((.+)\))?/i);
+      const cond = m ? m[1] : "";
+      const label = m ? m[2] : "Yes";
+      const id = ensureNode(nanoid(6), cond, "decision");
+      if (lastId) rawEdges.push({ from: lastId, to: id });
+      decisionStack.push(id);
+      lastId = id;
+      // Note: we'll use 'label' for the NEXT edge
+      continue;
+    }
+    if (ln.startsWith("else") || ln.startsWith("elseif")) {
+      const parentDecision = decisionStack[decisionStack.length - 1];
+      if (parentDecision) {
+        const m = ln.match(/(?:else|elseif)\s*\((.+)\)(?:\s+then\s*\((.+)\))?/i);
+        const label = m ? m[2] || m[1] : "No";
+        const id = ln.startsWith("elseif") ? ensureNode(nanoid(6), m ? m[1] : "", "decision") : lastId;
+        rawEdges.push({ from: parentDecision, to: id || "", label });
+        if (ln.startsWith("elseif")) lastId = id;
+      }
+      continue;
+    }
+    if (ln === "endif") {
+      decisionStack.pop();
+      continue;
+    }
+
+    // Fork / Join
+    if (ln === "fork") {
+      const id = ensureNode(nanoid(6), "", "fork");
+      if (lastId) rawEdges.push({ from: lastId, to: id });
+      forkStack.push(id);
+      lastId = id;
+      continue;
+    }
+    if (ln === "fork again") {
+      lastId = forkStack[forkStack.length - 1];
+      continue;
+    }
+    if (ln === "end fork") {
+      const joinId = ensureNode(nanoid(6), "", "fork");
+      const currentFork = forkStack.pop();
+      if (currentFork && lastId) rawEdges.push({ from: lastId, to: joinId });
+      lastId = joinId;
+      continue;
+    }
+
+    // Repeat / While
+    if (ln === "repeat") {
+      const id = ensureNode(nanoid(6), "Repeat", "action");
+      if (lastId) rawEdges.push({ from: lastId, to: id });
+      lastId = id;
+      continue;
+    }
+    if (ln.startsWith("repeat while")) {
+      const cond = ln.match(/\((.+)\)/)?.[1] || "";
+      const id = ensureNode(nanoid(6), cond, "decision");
+      if (lastId) rawEdges.push({ from: lastId, to: id, label: "Loop" });
+      lastId = id;
+      continue;
+    }
+
+    // Notes
+    if (ln.startsWith("note")) {
+      const content = ln.match(/note\s+(?:right|left|top|bottom)?\s*:\s*(.+)$/)?.[1] || 
+                      ln.match(/note\s+(?:right|left|top|bottom)?\s*(.+)$/)?.[1] || "Note";
+      const id = ensureNode(nanoid(6), content, "note");
+      if (lastId) rawEdges.push({ from: lastId, to: id, label: "note" });
+      continue;
+    }
+  }
+
+  // Layout: Use layeredLayout for activity diagrams
+  const ids = nodes.map(n => n.id);
+  const posMap = layeredLayout(ids, rawEdges.map(e => ({ source: e.from, target: e.to })));
+  
+  nodes.forEach(n => {
+    const p = posMap.get(n.id);
+    if (p) {
+      n.position = p;
+    }
+  });
+
+  const edges = rawEdges.map(e => {
+    const s = nodeMap.get(e.from) || e.from;
+    const t = nodeMap.get(e.to) || e.to;
+    return mkEdge(s, t, { marker: MARK.arrow, label: e.label });
+  });
+
+  return { nodes, edges, type: "activity" };
+}
+
+function parsePlantComponent(lines: string[]): ParseResult {
+  const comps = new Map<string, { label: string; stereotype?: string; type: string; parentId?: string }>();
+  const rawEdges: { from: string; to: string; opts: Parameters<typeof mkEdge>[2] }[] = [];
+  const parentStack: string[] = [];
+  const nodeMap = new Map<string, string>();
+
+  const ensureComp = (id: string, label?: string, type: string = "component", stereo?: string) => {
+    if (!comps.has(id)) {
+      const parentId = parentStack.length > 0 ? nodeMap.get(parentStack[parentStack.length - 1]) : undefined;
+      const uid = nodeMap.get(id) || nanoid(8);
+      nodeMap.set(id, uid);
+      comps.set(id, { label: label ?? id, stereotype: stereo, type, parentId });
+    } else if (label) {
+      comps.get(id)!.label = label;
+    }
+    return comps.get(id)!;
+  };
+
+  for (const ln of lines) {
+    const clean = ln.trim();
+    if (!clean || clean.startsWith("'")) continue;
+
+    // Boundaries
+    const b = clean.match(/^(package|node|cloud|database|frame|storage|rectangle)\s+(?:"([^"]+)"|([A-Za-z0-9_]+))(?:\s+as\s+([A-Za-z0-9_]+))?\s*\{/);
+    if (b) {
+      const type = b[1];
+      const label = b[2] || b[3];
+      const id = b[4] || b[3];
+      const uid = nanoid(8);
+      nodeMap.set(id, uid);
+      ensureComp(id, label, "package", `«${type}»`);
+      parentStack.push(id);
+      continue;
+    }
+    if (clean === "}") {
+      parentStack.pop();
+      continue;
+    }
+
+    // Explicit definitions
+    const def = clean.match(/^(component|interface|node|database|cloud|storage)\s+(?:"([^"]+)"|([A-Za-z0-9_]+))(?:\s+as\s+([A-Za-z0-9_]+))?/);
+    if (def) {
+      const type = def[1] === "interface" ? "action" : "component";
+      const stereo = def[1] === "interface" ? "«interface»" : `«${def[1]}»`;
+      const label = def[2] || def[3];
+      const id = def[4] || def[3];
+      ensureComp(id, label, type, stereo);
+      continue;
+    }
+
+    // Shorthands: [Comp] or () Inter
+    const compShorthand = clean.match(/^\[([^\]]+)\](?:\s+as\s+([A-Za-z0-9_]+))?/);
+    if (compShorthand) {
+      const label = compShorthand[1];
+      const id = compShorthand[2] || label;
+      ensureComp(id, label, "component");
+      continue;
+    }
+    const interShorthand = clean.match(/^\(\)\s+(?:"([^"]+)"|([A-Za-z0-9_]+))(?:\s+as\s+([A-Za-z0-9_]+))?/);
+    if (interShorthand) {
+      const label = interShorthand[1] || interShorthand[2];
+      const id = interShorthand[3] || label;
+      ensureComp(id, label, "action", "«interface»");
+      continue;
+    }
+
+    // Relationships
+    // Support shorthands in relationships: [A] -> () B
+    const relMatch = clean.match(/^\s*(?:\[([^\]]+)\]|([A-Za-z0-9_]+))\s*([-.]+>)\s*(?:\[([^\]]+)\]|([A-Za-z0-9_]+)|(?:\(\)\s*(?:"([^"]+)"|([A-Za-z0-9_]+))))(?:\s*:\s*(.*))?$/);
+    if (relMatch) {
+      const fromRaw = relMatch[1] || relMatch[2];
+      const arrow = relMatch[3];
+      const toRaw = relMatch[4] || relMatch[5] || relMatch[6] || relMatch[7];
+      const label = relMatch[8]?.trim();
+      
+      ensureComp(fromRaw);
+      ensureComp(toRaw);
+      rawEdges.push({ 
+        from: fromRaw, 
+        to: toRaw, 
+        opts: { 
+          marker: MARK.openArrow, 
+          dashed: arrow.includes("."),
+          label 
+        } 
+      });
+      continue;
+    }
+
+    const r = parseRelLine(clean);
     if (r) {
-      comps.set(r.from, comps.get(r.from) ?? { label: r.from });
-      comps.set(r.to, comps.get(r.to) ?? { label: r.to });
+      ensureComp(r.from);
+      ensureComp(r.to);
       rawEdges.push({ from: r.from, to: r.to, opts: r.opts });
     }
   }
+
   const ids = [...comps.keys()];
   const pos = gridLayout(ids.length);
   const nodes: FlowNode[] = ids.map((id, i) => {
     const c = comps.get(id)!;
-    return mkNode("component", pos(i).x, pos(i).y, { label: c.label }, 180, 92);
+    const uid = nodeMap.get(id) || nanoid(8);
+    let w = 180, h = 92;
+    if (c.type === "package") { w = 300; h = 300; }
+    return mkNode(c.type, pos(i).x, pos(i).y, { label: c.label, stereotype: c.stereotype }, w, h, c.parentId, uid);
   });
+
   const idToUid = new Map(nodes.map((n, i) => [ids[i], n.id]));
   const edges: FlowEdge[] = rawEdges
     .map((e) => {
       const s = idToUid.get(e.from);
       const t = idToUid.get(e.to);
       if (!s || !t || s === t) return null;
-      return mkEdge(s, t, e.opts.marker || e.opts.markerStart ? e.opts : { marker: MARK.openArrow, ...e.opts });
+      return mkEdge(s, t, e.opts);
     })
     .filter(Boolean) as FlowEdge[];
+
   return { nodes, edges, type: "component" };
 }
 
@@ -794,16 +1184,11 @@ function parsePlantComponent(lines: string[]): ParseResult {
    DISPATCHER
    ============================================================ */
 export function detectAndParse(text: string): ParseResult & { format: string } {
-  const fence = text.match(/```(?:mermaid|plantuml|mmd|pu|puml)?\n([\s\S]*?)```/i);
+  const fence = text.match(/```(?:plantuml|pu|puml)?\n([\s\S]*?)```/i);
   const code = fence ? fence[1] : text;
-  const lower = (fence?.[1]?.toLowerCase() ?? "") + " " + text.toLowerCase();
-  const isPuml =
-    /@startuml/.test(lower) ||
-    /\.(puml|pu)\b/.test(lower) ||
-    (fence && /plantuml|puml/.test(fence[0].toLowerCase()));
-
-  const base = isPuml ? parsePlantUml(code) : parseMermaid(code);
-  const format = isPuml ? "PlantUML" : "Mermaid";
+  
+  const base = parsePlantUml(code);
+  const format = "PlantUML";
   const questions = buildQuestions(base);
   return { ...base, format, questions };
 }
@@ -823,10 +1208,12 @@ export function aiResponseToCanvas(res: DiagramChatResponse): ParseResult {
     // Default sizes based on type
     let w = 150;
     let h = 60;
-    if (n.type === 'actor') { w = 76; h = 124; }
-    else if (n.type === 'package') { w = 300; h = 300; } // Will be auto-resized
-    else if (n.type === 'usecase') { w = 140; h = 70; }
-    else if (n.type === 'decision') { w = 60; h = 60; }
+    const type = (n.type || 'cls').toLowerCase();
+    if (type === 'actor') { w = 76; h = 124; }
+    else if (type === 'package' || type === 'rectangle') { w = 300; h = 300; }
+    else if (type === 'usecase') { w = 140; h = 70; }
+    else if (type === 'decision') { w = 150; h = 104; }
+    else if (type === 'start' || type === 'final') { w = 40; h = 40; }
     
     return mkNode(n.type, 0, 0, data, w, h, n.parentId, n.id);
   });
@@ -837,16 +1224,28 @@ export function aiResponseToCanvas(res: DiagramChatResponse): ParseResult {
     let markerStart = MARK.none;
     let dashed = false;
 
-    // Map relation keyword to marker
-    if (relation === "inheritance") marker = MARK.triangle;
-    else if (relation === "realization") { marker = MARK.triangle; dashed = true; }
-    else if (relation === "composition") markerStart = MARK.diamondFilledStart;
-    else if (relation === "aggregation") markerStart = MARK.diamondOpenStart;
-    else if (relation === "association" || relation === "include" || relation === "extend") marker = MARK.openArrow;
-    else if (relation === "dependency") { marker = MARK.openArrow; dashed = true; }
-    else if (relation === "control-flow" || relation === "transition") marker = MARK.arrow;
+    // Robust mapping for various relation keywords
+    if (/inherit|extend|general|is-a/.test(relation)) {
+      marker = MARK.triangle;
+    } else if (/realiz|implement/.test(relation)) {
+      marker = MARK.triangle;
+      dashed = true;
+    } else if (/compos/.test(relation)) {
+      markerStart = MARK.diamondFilledStart;
+    } else if (/aggreg/.test(relation)) {
+      markerStart = MARK.diamondOpenStart;
+    } else if (/associat|use|has|include|link/.test(relation)) {
+      marker = MARK.openArrow;
+    } else if (/depend/.test(relation)) {
+      marker = MARK.openArrow;
+      dashed = true;
+    } else if (/flow|transition|step|next/.test(relation)) {
+      marker = MARK.arrow;
+    }
 
-    if (relation === "include" || relation === "extend") dashed = true;
+    if (relation === "include" || relation === "extend" || /include|extend/.test(e.label || "")) {
+      dashed = true;
+    }
 
     return mkEdge(e.source, e.target, {
       marker,

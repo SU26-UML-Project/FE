@@ -404,8 +404,10 @@ export function PackageNode({ id, data, selected, width, height }: NodeProps) {
   const d = data as FlowNodeData;
   const ink = inkColor(d);
   return (
-    <div className="relative h-full w-full">
-      <Resizer selected={selected} minW={160} minH={120} />
+    <div className="relative h-full w-full" style={{ pointerEvents: "none" }}>
+      <div style={{ pointerEvents: "auto" }}>
+        <Resizer selected={selected} minW={160} minH={120} />
+      </div>
       {/* Tab header — the ONLY clickable part (selects the package) */}
       <div
         className="absolute left-0 top-0 z-10 h-[24px] cursor-pointer rounded-t-[8px] px-3"
@@ -433,7 +435,7 @@ export function PackageNode({ id, data, selected, width, height }: NodeProps) {
         }}
       />
       {/* Handles — only on hover/selected, and auto pointer-events */}
-      <div className="react-flow__handle-wrap pointer-events-none">
+      <div className="react-flow__handle-wrap" style={{ pointerEvents: "auto" }}>
         <Handle id="t" type="source" position={Position.Top} />
         <Handle id="t-t" type="target" position={Position.Top} />
         <Handle id="r" type="source" position={Position.Right} />

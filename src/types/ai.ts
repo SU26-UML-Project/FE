@@ -142,6 +142,8 @@ export interface DiagramChatRequest {
   message: string;
   sessionId?: string;
   sheetId?: string;
+  currentNodes?: AiNodeDto[];
+  currentEdges?: AiEdgeDto[];
 }
 
 export interface DiagramChatResponse {

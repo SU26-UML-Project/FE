@@ -46,12 +46,16 @@ export function AIChat({
   onToggle,
   diagramType,
   activeSheetId,
+  currentNodes,
+  currentEdges,
   onImport,
 }: {
   open: boolean;
   onToggle: () => void;
   diagramType: DiagramType;
   activeSheetId: string;
+  currentNodes: FlowNode[];
+  currentEdges: FlowEdge[];
   onImport: (
     nodes: FlowNode[],
     edges: FlowEdge[],
@@ -300,8 +304,8 @@ export function AIChat({
 
     setMsgs(prev => [...prev, aiMsg]);
 
-    // Nếu là diagram, có thể tự động apply hoặc để người dùng bấm nút
-    if (res.kind === 'diagram' && parsed.nodes.length > 0) {
+    // Nếu là diagram, apply kết quả (kể cả rỗng - ví dụ lệnh "xóa hết")
+    if (res.kind === 'diagram') {
       onImport(parsed.nodes, parsed.edges, parsed.type);
     }
   };
@@ -334,10 +338,30 @@ export function AIChat({
       // 2. Sử dụng activeSheetId từ props (UUID chuẩn từ Backend)
       const currentSheetId = activeSheetId;
 
+      // Map current nodes and edges to DTO format
+      const mappedNodes = currentNodes.map(n => ({
+        id: n.id,
+        type: n.type || 'cls',
+        label: n.data.label || '',
+        stereotype: n.data.stereotype,
+        attributes: n.data.attributes?.split('\n').filter(Boolean),
+        methods: n.data.methods?.split('\n').filter(Boolean),
+      }));
+
+      const mappedEdges = currentEdges.map(e => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        relation: (e.data as any)?.relation || '',
+        label: e.label as string || '',
+      }));
+
       const res = await chatService.sendChat({
         message: text,
         sessionId: activeSessionId,
-        sheetId: currentSheetId
+        sheetId: currentSheetId,
+        currentNodes: mappedNodes,
+        currentEdges: mappedEdges,
       });
 
       handleAiResponse(res.result);

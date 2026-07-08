@@ -39,6 +39,7 @@ import { ContextMenu, CtxIcons, type CtxItem } from "./overlays/ContextMenu";
 import { SmartGuides, type GuidesState } from "./canvas/SmartGuides";
 import { QuickAdd } from "./canvas/QuickAdd";
 import { RemoteCursors } from "./canvas/RemoteCursors";
+import { ImportModal } from "./overlays/ImportModal";
 import { HelpOverlay } from "./overlays/HelpOverlay";
 import { AIChat } from "./panels/AIChat";
 import { SheetBar } from "./panels/SheetBar";
@@ -47,6 +48,7 @@ import { TypeMenu } from "./overlays/TypeMenu";
 import { loadSheets, saveSheets, saveActiveId, loadActiveId, createSheet } from "../store/sheetStore";
 import { useCollab } from "../hooks/useCollab";
 import type { CanvasChangeData } from "../services";
+import { useAuthStore } from "../stores/useAuthStore";
 
 type Snap = { nodes: FlowNode[]; edges: FlowEdge[] };
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -80,6 +82,7 @@ export function Editor() {
   const rf = useReactFlow();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
 
   const [diagramType, setDiagramType] = useState<DiagramType>("activity");
   const [nodes, setNodesState] = useState<FlowNode[]>([]);
@@ -116,6 +119,7 @@ export function Editor() {
     value: string;
   } | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -124,6 +128,7 @@ export function Editor() {
   const [sheets, setSheets] = useState<Sheet[]>([]);
   const [activeSheetId, setActiveSheetId] = useState<string>("");
   const [projectName, setProjectName] = useState<string>("");
+  const [projectOwner, setProjectOwner] = useState<string>("");
   const [publicAccess, setPublicAccess] = useState<boolean>(false);
 
   const sheetsRef = useRef<Sheet[]>([]);
@@ -166,13 +171,22 @@ export function Editor() {
     }, 10);
   }, []);
 
-  const { 
-    remoteCursors, 
-    emitCursorMove, 
-    emitSelectionChange, 
+  const onCollabDisabled = useCallback(() => {
+    // Only kick if not the owner
+    if (user?.email !== projectOwner) {
+      toast.error("Collaboration disabled by owner. Redirecting...");
+      navigate("/dashboard");
+    }
+  }, [user?.email, projectOwner, navigate]);
+
+  const {
+    remoteCursors,
+    remoteSelections,
+    emitCursorMove,
+    emitSelectionChange,
     emitCanvasChange,
-    emitNodeMove
-  } = useCollab(activeSheetId, onRemoteCanvasChange);
+    emitNodeMove,
+  } = useCollab(activeSheetId, publicAccess, onRemoteCanvasChange, onCollabDisabled);
 
   /* ---------- state setters that keep refs in sync ---------- */
   const setNodes = useCallback(
@@ -925,9 +939,33 @@ export function Editor() {
         setActiveEdgeId(getDiagram(type).defaultEdge);
       }
       
-      // Ensure opacity 0 for import
+      // If the incoming state is empty, just clear everything and stop.
+      if (inNodes.length === 0) {
+        setNodes([]);
+        setEdges([]);
+        setSel({ nodes: [], edges: [] });
+        if (!skipCollabEmit.current) {
+          emitCanvasChange({ nodes: [], edges: [], type: "add" });
+        }
+        return;
+      }
+
+      // Map existing nodes by ID for position stability
+      const existingNodesMap = new Map(nodesRef.current.map(n => [n.id, n.position]));
+      // Map existing edges by ID for handle stability
+      const existingEdgesMap = new Map(edgesRef.current.map(e => [e.id, { sh: e.sourceHandle, th: e.targetHandle }]));
+
+      // Ensure opacity 0 for import (visual transition)
       const hiddenNodes = inNodes.map(n => ({ ...n, style: { ...n.style, opacity: 0 } }));
-      const hiddenEdges = inEdges.map(e => ({ ...e, style: { ...e.style, opacity: 0 } }));
+      const hiddenEdges = inEdges.map(e => {
+        const old = existingEdgesMap.get(e.id);
+        return { 
+          ...e, 
+          sourceHandle: old?.sh || e.sourceHandle, 
+          targetHandle: old?.th || e.targetHandle,
+          style: { ...e.style, opacity: 0 } 
+        };
+      });
 
       // PASS 1: layout with estimated sizes
       const { nodes: l1, edges: e1 } = await layoutElements(
@@ -936,7 +974,16 @@ export function Editor() {
         { diagramType: finalType }
       );
 
-      setNodes(l1);
+      // Restore positions for existing nodes to maintain stability
+      const stabilizedL1 = l1.map(n => {
+        const oldPos = existingNodesMap.get(n.id);
+        if (oldPos) {
+          return { ...n, position: oldPos };
+        }
+        return n;
+      });
+
+      setNodes(stabilizedL1);
       setEdges(e1);
 
       // Wait for RF to measure real sizes
@@ -950,8 +997,27 @@ export function Editor() {
         { diagramType: finalType }
       );
 
-      const visibleNodes = finalNodes.map(n => ({ ...n, style: { ...n.style, opacity: 1 } }));
-      const visibleEdges = finalEdges.map(e => ({ ...e, style: { ...e.style, opacity: 1 } }));
+      // Restore positions and handles again for the final layout pass
+      const stabilizedFinalNodes = finalNodes.map(n => {
+        const oldPos = existingNodesMap.get(n.id);
+        if (oldPos) {
+          return { ...n, position: oldPos };
+        }
+        return n;
+      });
+
+      const stabilizedFinalEdges = finalEdges.map(e => {
+        const old = existingEdgesMap.get(e.id);
+        // Only restore handles if source and target are the same as before
+        if (old && e.source === edgesRef.current.find(oe => oe.id === e.id)?.source && 
+            e.target === edgesRef.current.find(oe => oe.id === e.id)?.target) {
+          return { ...e, sourceHandle: old.sh, targetHandle: old.th };
+        }
+        return e;
+      });
+
+      const visibleNodes = stabilizedFinalNodes.map(n => ({ ...n, style: { ...n.style, opacity: 1 } }));
+      const visibleEdges = stabilizedFinalEdges.map(e => ({ ...e, style: { ...e.style, opacity: 1 } }));
 
       setNodes(visibleNodes);
       setEdges(visibleEdges);
@@ -978,6 +1044,7 @@ export function Editor() {
         ]);
 
         setProjectName(projectRes.result.projectName);
+        setProjectOwner(projectRes.result.ownerEmail || "");
         setPublicAccess(projectRes.result.publicAccess || false);
         
         let all: Sheet[] = [];
@@ -1584,12 +1651,14 @@ export function Editor() {
           }}
           onPickTemplate={onPickTemplate}
           onClear={() => setConfirmClear(true)}
+          onImportCode={() => setImportOpen(true)}
           onExportPng={exportPng}
           onExportJson={exportJson}
           onImportFile={importFile}
         saved={saved}
         projectId={id}
         isPublic={publicAccess}
+        isOwner={user?.email === projectOwner}
         onTogglePublic={async () => {
           if (!id) return;
           try {
@@ -1599,7 +1668,7 @@ export function Editor() {
               projectName: projectName 
             });
             setPublicAccess(next);
-            toast.success(next ? "Project is now public!" : "Project is now private.");
+            toast.success(next ? "Collaboration enabled & link copied!" : "Collaboration disabled.");
           } catch (e: any) {
             toast.error(e.message || "Failed to update project visibility");
           }
@@ -1680,7 +1749,10 @@ export function Editor() {
               maxZoom={3}
               snapToGrid={snap}
               snapGrid={[16, 16]}
-              defaultEdgeOptions={{ type: "smoothstep" }}
+              defaultEdgeOptions={{ 
+                type: "smoothstep",
+                zIndex: 10 // Ensure new edges are above packages
+              }}
               proOptions={{ hideAttribution: true }}
               onlyRenderVisibleElements={false}
               nodeDragThreshold={1.5}
@@ -1763,6 +1835,8 @@ export function Editor() {
             onToggle={() => setAiOpen((v) => !v)}
             diagramType={diagramType}
             activeSheetId={activeSheetId}
+            currentNodes={nodes}
+            currentEdges={edges}
             onImport={importCanvas}
           />
         </div>
@@ -1844,6 +1918,13 @@ export function Editor() {
             setConfirmExit(false);
             navigate("/dashboard");
           }}
+        />
+      )}
+
+      {importOpen && (
+        <ImportModal
+          onClose={() => setImportOpen(false)}
+          onImport={(nodes, edges, type) => importCanvas(nodes, edges, type)}
         />
       )}
 

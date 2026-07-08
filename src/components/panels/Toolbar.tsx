@@ -49,30 +49,38 @@ export function Toolbar(props: {
   onClear: () => void;
   onExportPng: () => void;
   onExportJson: () => void;
+  onImportCode: () => void;
   onImportFile: (file: File) => void;
   saved?: boolean;
   projectId?: string;
   isPublic?: boolean;
+  isOwner?: boolean;
   onTogglePublic?: () => Promise<void>;
 }) {
   const [menu, setMenu] = useState(false);
   const [tpl, setTpl] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [importMenu, setImportMenu] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const onShare = async () => {
-    if (props.onTogglePublic && !props.isPublic) {
+    if (props.onTogglePublic) {
       setSharing(true);
       await props.onTogglePublic();
       setSharing(false);
+      
+      // Chỉ copy link khi bật lên Online
+      if (!props.isPublic) {
+        const url = window.location.href;
+        navigator.clipboard.writeText(url).then(() => {
+          toast.success("Collaboration enabled! Link copied to clipboard.");
+        }).catch(() => {
+          toast.error("Failed to copy link");
+        });
+      } else {
+        toast.success("Collaboration disabled. Project is now private.");
+      }
     }
-    
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      toast.success("Public share link copied to clipboard!");
-    }).catch(() => {
-      toast.error("Failed to copy link");
-    });
   };
 
   useEffect(() => {
@@ -179,43 +187,55 @@ export function Toolbar(props: {
           <I><path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="M6.5 7l1 13h9l1-13" /><path d="M10 11v5M14 11v5" /></I>
         </IconBtn>
 
-        {/* Import — down arrow into tray */}
-        <button onClick={() => fileRef.current?.click()} title="Import (.json, .mmd, .puml, .md, .txt)"
-          className="flex h-8 items-center gap-1.5 rounded-lg border border-admin-outline/30 px-3 text-[12.5px] font-bold text-admin-secondary transition-colors hover:bg-admin-bg hover:text-admin-primary">
-          <I size={15}><path d="M12 4v11" /><path d="m8 11 4 4 4-4" /><path d="M5 19h14" /></I>
-          Import
-        </button>
+        {/* Import menu */}
+        <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <button onClick={() => setImportMenu((v) => !v)} title="Import from file or code"
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-admin-outline/30 px-3 text-[12.5px] font-bold text-admin-secondary transition-colors hover:bg-admin-bg hover:text-admin-primary">
+            <I size={15}><path d="M12 4v11" /><path d="m8 11 4 4 4-4" /><path d="M5 19h14" /></I>
+            Import
+          </button>
+          {importMenu && (
+            <div className="animate-pop absolute right-0 top-9 w-44 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <MenuItem onClick={() => { fileRef.current?.click(); setImportMenu(false); }}>From file</MenuItem>
+              <MenuItem onClick={() => { props.onImportCode(); setImportMenu(false); }}>From code</MenuItem>
+            </div>
+          )}
+        </div>
         <input ref={fileRef} type="file" accept="application/json,.json,.mmd,.puml,.pu,.md,.txt" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) props.onImportFile(f); e.target.value = ""; }} />
 
-        {/* Visibility indicator */}
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-admin-bg/50 border border-admin-outline/10">
-          <div className={`h-1.5 w-1.5 rounded-full ${props.isPublic ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-admin-secondary/40'}`} />
-          <span className="text-[11px] font-bold text-admin-secondary uppercase tracking-wider">
-            {props.isPublic ? 'Public' : 'Private'}
-          </span>
-        </div>
-
-        {/* Share — link icon */}
+        {/* Collaboration Toggle (reusing publicAccess) */}
         <button 
           onClick={onShare} 
-          disabled={sharing}
-          title={props.isPublic ? "Copy public share link" : "Make public & copy share link"}
-          className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[12.5px] font-bold transition-all duration-300 ${
+          disabled={sharing || !props.isOwner}
+          title={!props.isOwner ? "Only project owner can toggle collaboration" : props.isPublic ? "Disable collaboration & copy link" : "Enable collaboration (Max 4 members) & copy link"}
+          className={`flex h-8 items-center gap-2 rounded-lg border px-3 text-[12.5px] font-bold transition-all duration-300 ${
             props.isPublic 
-              ? "border-green-500/30 bg-green-50 text-green-700 hover:bg-green-100" 
+              ? "border-emerald-500/30 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 shadow-[0_0_10px_rgba(16,185,129,0.1)]" 
               : "border-admin-outline/30 text-admin-secondary hover:bg-admin-bg hover:text-admin-primary"
-          }`}
+          } ${!props.isOwner ? "opacity-50 cursor-not-allowed" : ""}`}
         >
           {sharing ? (
             <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-admin-primary border-t-transparent" />
           ) : (
-            <I size={15}>
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-            </I>
+            <div className="flex items-center gap-1.5">
+              <div className={`h-1.5 w-1.5 rounded-full ${props.isPublic ? 'bg-emerald-500 animate-pulse' : 'bg-admin-secondary/40'}`} />
+              <I size={15}>
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </I>
+            </div>
           )}
-          {props.isPublic ? 'Shared' : 'Share'}
+          <span className="flex items-center gap-1">
+            {props.isPublic ? 'Online' : 'Offline'}
+            <span className={`ml-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] ${
+              props.isPublic ? 'bg-emerald-200/50 text-emerald-800' : 'bg-admin-bg text-admin-secondary'
+            }`}>
+              4
+            </span>
+          </span>
         </button>
 
         {/* Export menu */}

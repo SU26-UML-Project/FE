@@ -11,10 +11,11 @@ interface EdgeData {
   color?: string;
 }
 
-function EdgeView({ id, path, data, label, sourceX, sourceY, targetX, targetY, style }: {
+function EdgeView({ id, path, data, label, sourceX, sourceY, targetX, targetY, style, selected }: {
   id: string; path: string; data: unknown; label?: string;
   sourceX: number; sourceY: number; targetX: number; targetY: number;
   style?: React.CSSProperties;
+  selected?: boolean;
 }) {
   const d = data as EdgeData;
   const marker = d?.marker || undefined;
@@ -22,14 +23,34 @@ function EdgeView({ id, path, data, label, sourceX, sourceY, targetX, targetY, s
   const lx = (sourceX + targetX) / 2;
   const ly = (sourceY + targetY) / 2;
 
+  // Visual feedback: blue highlight when selected or hovered
+  const strokeColor = selected ? "#2563eb" : (d?.color || "#565e74");
+  const strokeWidth = selected ? 3 : 1.5;
+
   return (
     <>
-     <BaseEdge 
+      {/* Invisible thicker path to make it easier to click */}
+      <path
+        d={path}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={25}
+        className="react-flow__edge-interaction"
+        style={{ cursor: "pointer" }}
+      />
+      <BaseEdge 
         id={id} 
         path={path} 
         markerEnd={marker} 
         markerStart={markerStart}
-        style={{ ...style, stroke: d?.color || undefined, strokeDasharray: d?.dashed ? "6 4" : undefined }}
+        style={{ 
+          ...style, 
+          stroke: strokeColor, 
+          strokeWidth,
+          strokeDasharray: d?.dashed ? "6 4" : undefined,
+          transition: "stroke 0.2s, stroke-width 0.3s",
+          filter: selected ? "drop-shadow(0 0 2px rgba(37, 99, 235, 0.4))" : undefined
+        }}
       />
       {label ? (
         <EdgeLabelRenderer>
@@ -77,6 +98,7 @@ export function OrthogonalEdge(props: EdgeProps) {
    <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
       sourceX={sourceX} sourceY={sourceY} targetX={targetX} targetY={targetY} 
       style={props.style} 
+      selected={props.selected}
     />
   );
 }
@@ -90,6 +112,7 @@ export function BezierEdge(props: EdgeProps) {
    <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
       sourceX={props.sourceX} sourceY={props.sourceY} targetX={props.targetX} targetY={props.targetY} 
       style={props.style} 
+      selected={props.selected}
     />
   );
 }
@@ -100,6 +123,7 @@ export function StraightEdge(props: EdgeProps) {
     <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
       sourceX={props.sourceX} sourceY={props.sourceY} targetX={props.targetX} targetY={props.targetY} 
       style={props.style} 
+      selected={props.selected}
     />
   );
 }

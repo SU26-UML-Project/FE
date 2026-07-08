@@ -431,8 +431,13 @@ function layoutUseCase(
   const positionedPkgs = packages.map((p) => ({
     ...p,
     position: { x: boundaryX, y: boundaryY },
-    width: boundaryW, height: boundaryHeight, zIndex: 0,
-    style: { ...(p.style as object), width: boundaryW, height: boundaryHeight },
+    width: boundaryW, height: boundaryHeight, zIndex: -1,
+    style: { 
+      ...(p.style as object), 
+      width: boundaryW, 
+      height: boundaryHeight,
+      pointerEvents: "none" // Crucial: allow clicks to pass through node wrapper
+    },
   }));
 
   const positionedOthers = others.map((o, i) => {
@@ -442,16 +447,17 @@ function layoutUseCase(
   });
 
   const allNodes = [
+    ...positionedPkgs,
     ...posLeftActors.map((n) => ({ ...n, zIndex: 5 })),
     ...posRightActors.map((n) => ({ ...n, zIndex: 5 })),
     ...allUCNodes.map((n) => ({ ...n, zIndex: 5 })),
-    ...positionedPkgs,
     ...positionedOthers,
   ];
 
   const layoutedEdges = assignHandles(allNodes, edges).map((e) => ({
     ...e,
     type: "bezier",
+    zIndex: 10,
   }));
 
   return { nodes: allNodes, edges: layoutedEdges as FlowEdge[] };
