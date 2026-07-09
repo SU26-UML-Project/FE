@@ -307,6 +307,7 @@ const BillingToggle = ({
 const PriceCounter = ({ value }: { value: number }) => {
   const count = useMotionValue(0)
   const rounded = useTransform(count, latest => Math.round(latest))
+  const formatted = useTransform(rounded, latest => latest.toLocaleString('en-US'))
 
   useEffect(() => {
     const controls = animate(count, value, {
@@ -316,7 +317,7 @@ const PriceCounter = ({ value }: { value: number }) => {
     return () => controls.stop()
   }, [value, count])
 
-  return <motion.span className="tabular-nums">{rounded}</motion.span>
+  return <motion.span className="tabular-nums">{formatted}</motion.span>
 }
 
 const PlanCard = ({
@@ -427,12 +428,12 @@ const PlanCard = ({
             <>
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl md:text-4xl font-priego-extrabold text-black inline-flex items-baseline">
-                  $<PriceCounter value={price} />
+                  <span className="text-2xl mr-1">$</span><PriceCounter value={price} />
                 </span>
                 <span className="text-sm text-gray-500">/user/mo</span>
                 {billing === 'yearly' && monthlySaving > 0 && (
                   <span className="ml-2 text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                    Save ${yearlySaving}/yr
+                    Save ${yearlySaving} a year
                   </span>
                 )}
               </div>
