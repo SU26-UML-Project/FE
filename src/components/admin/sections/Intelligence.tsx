@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
+  AlertTriangle,
   BrainCircuit,
   Briefcase,
   Check,
@@ -113,9 +114,10 @@ export default function Intelligence() {
   // ---- Version & Config ----
   const [versionInfo, setVersionInfo] = useState<AiVersionInfo | null>(null);
   const [sysConfig, setSysConfig] = useState<AiSystemConfig | null>(null);
+  const [configLoadError, setConfigLoadError] = useState(false);
 
   // ---- Providers ----
-  const [providers, setProviders] = useState<string[]>(["Ollama", "LM Studio", "LocalAI", "OpenAI", "Anthropic", "Groq"]);
+  const [providers, setProviders] = useState<string[]>(["ollama", "lm studio", "localai", "openai", "anthropic", "groq"]);
 
   // ---- Workspaces ----
   const [workspaces, setWorkspaces] = useState<AiWorkspaceInfo[]>([]);
@@ -135,6 +137,7 @@ export default function Intelligence() {
   const [llmProvider, setLlmProvider] = useState("");
   const [llmUrl, setLlmUrl] = useState("");
   const [model, setModel] = useState("");
+  const [llmApiKey, setLlmApiKey] = useState("");
   const [detectedLlm, setDetectedLlm] = useState<string[]>([]);
   const [detectingLlm, setDetectingLlm] = useState(false);
   const [llmSearch, setLlmSearch] = useState("");
@@ -204,14 +207,27 @@ export default function Intelligence() {
         const cfg = cfgRes?.result;
         if (cfg) {
           setSysConfig(cfg);
-          if (cfg.llmProvider) setLlmProvider(cfg.llmProvider);
-          if (cfg.model) { setModel(cfg.model); }
+          setConfigLoadError(false);
+          if (cfg.llmProvider) {
+            const match = llmProviderCatalog.find(p => p.name.toLowerCase() === cfg.llmProvider!.toLowerCase());
+            setLlmProvider(match?.name || cfg.llmProvider);
+          }
+          if (cfg.model) setModel(cfg.model);
+          if (cfg.baseUrl) setLlmUrl(cfg.baseUrl);
+          if (cfg.embeddingProvider) {
+            const match = llmProviderCatalog.find(p => p.name.toLowerCase() === cfg.embeddingProvider!.toLowerCase());
+            setEmbProvider(match?.name || cfg.embeddingProvider);
+          }
+          if (cfg.embeddingModel) setEmb(cfg.embeddingModel);
+          if (cfg.hasApiKey) setLlmApiKey("••••••••");
           if (cfg.documentChunkSize != null) setChunkSize(cfg.documentChunkSize);
           if (cfg.documentChunkOverlap != null) setChunkOverlap(cfg.documentChunkOverlap);
           if (cfg.vectorDb) {
             setVdb(cfg.vectorDb);
             setActiveVdbs([{ providerId: cfg.vectorDb, fields: { url: cfg.vectorDbEndpoint || "" } }]);
           }
+        } else {
+          setConfigLoadError(true);
         }
         if (verRes?.result) setVersionInfo(verRes.result);
         if (provRes?.result && provRes.result.length > 0) setProviders(provRes.result);
@@ -221,23 +237,19 @@ export default function Intelligence() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Auto-detect when local provider or base URL changes (debounced)
+  // Auto-detect when provider, base URL or API Key changes (debounced)
   useEffect(() => {
-    if (!canDetectLlm || !llmUrl.trim()) return;
     const timer = setTimeout(autoDetectLlm, 800);
     return () => clearTimeout(timer);
-  }, [llmProvider, llmUrl]);
+  }, [llmProvider, llmUrl, llmApiKey]);
 
   useEffect(() => {
-    if (!canDetectEmb || !llmUrl.trim()) return;
     const timer = setTimeout(autoDetectEmb, 800);
     return () => clearTimeout(timer);
-  }, [embProvider, llmUrl]);
+  }, [embProvider, llmUrl, llmApiKey]);
 
   const wsSlugs = workspaces.map((w) => w.slug);
   const filteredWs = wsSearch ? workspaces.filter((w) => w.name.toLowerCase().includes(wsSearch.toLowerCase()) || w.slug.toLowerCase().includes(wsSearch.toLowerCase())) : workspaces;
-  const canDetectLlm = localProviders.includes(llmProvider);
-  const canDetectEmb = localProviders.includes(embProvider);
   const llmOptions = detectedLlm.length ? detectedLlm : (model ? [model] : []);
   const embOptions = detectedEmb.length ? detectedEmb : (emb ? [emb] : []);
   const filteredLlmProviders = llmSearch ? llmProviderCatalog.filter((p) => p.name.toLowerCase().includes(llmSearch.toLowerCase())) : llmProviderCatalog;
@@ -276,8 +288,8 @@ export default function Intelligence() {
   async function refreshSysConfig() {
     try {
       const res = await aiAdminService.getSystemConfig();
-      if (res?.result) { setSysConfig(res.result); }
-    } catch {}
+      if (res?.result) { setSysConfig(res.result); setConfigLoadError(false); }
+    } catch { setConfigLoadError(true); }
   }
 
   const latencyStr = testLatency || "—";
@@ -347,6 +359,10 @@ export default function Intelligence() {
       if (res?.result) {
         setWsTabDetail(res.result);
         setWsTabDirty(null);
+        const provider = res.result.chatProvider;
+        if (provider && !res.result.chatModel) {
+          detectWsModels();
+        }
       }
     } catch { toast.error("Không thể tải thông tin workspace"); }
     finally { setWsTabLoading(false); }
@@ -380,9 +396,9 @@ export default function Intelligence() {
 
   function detectWsModels() {
     const provider = (wsTabDirty?.chatProvider ?? wsTabDetail?.chatProvider ?? "");
-    if (!localProviders.includes(provider)) { setDetectedWsModels([]); return; }
+    if (!provider) { setDetectedWsModels([]); return; }
     setDetectingWsModels(true);
-    aiAdminService.getProviderModels(provider, llmUrl || undefined)
+    aiAdminService.getProviderModels(provider, llmUrl || undefined, llmApiKey || undefined)
       .then((res) => {
         const list = res.result || [];
         setDetectedWsModels(list);
@@ -394,9 +410,8 @@ export default function Intelligence() {
 
   // ---- LLM handlers ----
   function autoDetectLlm() {
-    if (!canDetectLlm) { setDetectedLlm([]); return; }
     setDetectingLlm(true);
-    aiAdminService.getProviderModels(llmProvider, llmUrl || undefined)
+    aiAdminService.getProviderModels(llmProvider, llmUrl || undefined, llmApiKey || undefined)
       .then((res) => {
         const models = res.result || [];
         setDetectedLlm(models);
@@ -406,19 +421,35 @@ export default function Intelligence() {
       .finally(() => setDetectingLlm(false));
   }
 
+  function syncWorkspacesWithLlm() {
+    workspaces.forEach((ws) => {
+      aiAdminService.updateWorkspace({ chatProvider: llmProvider?.toLowerCase(), model }, ws.slug)
+        .then(() => {
+          if (wsTab === ws.slug) { loadWsTabDetail(ws.slug); }
+        })
+        .catch(() => {});
+    });
+  }
+
   function saveLlm() {
     triggerSave("llm", async () => {
-      const r = await aiAdminService.updateSystemConfig({ llmProvider, baseUrl: llmUrl, model });
+      const r = await aiAdminService.updateSystemConfig({
+        llmProvider, baseUrl: llmUrl, model, apiKey: llmApiKey || undefined,
+        embeddingProvider: sysConfig?.embeddingProvider ?? undefined,
+        embeddingModel: sysConfig?.embeddingModel ?? undefined,
+        documentChunkSize: chunkSize,
+        documentChunkOverlap: chunkOverlap,
+      });
       await refreshSysConfig();
+      syncWorkspacesWithLlm();
       return r;
     });
   }
 
   // ---- Embedding handlers ----
   function autoDetectEmb() {
-    if (!canDetectEmb) { setDetectedEmb([]); return; }
     setDetectingEmb(true);
-    aiAdminService.getProviderModels(embProvider, llmUrl || undefined)
+    aiAdminService.getProviderModels(embProvider, llmUrl || undefined, llmApiKey || undefined)
       .then((res) => {
         const models = res.result || [];
         setDetectedEmb(models);
@@ -438,6 +469,9 @@ export default function Intelligence() {
         embeddingModel: emb,
         documentChunkSize: chunkSize,
         documentChunkOverlap: chunkOverlap,
+        llmProvider: sysConfig?.llmProvider ?? undefined,
+        baseUrl: sysConfig?.baseUrl ?? undefined,
+        model: sysConfig?.model ?? undefined,
       });
       await refreshSysConfig();
       return r;
@@ -470,6 +504,14 @@ export default function Intelligence() {
       const r = await aiAdminService.updateSystemConfig({
         vectorDb: vdb,
         vectorDbEndpoint: active?.fields?.url || "",
+        vectorDbApiKey: active?.fields?.key || undefined,
+        llmProvider: sysConfig?.llmProvider ?? undefined,
+        baseUrl: sysConfig?.baseUrl ?? undefined,
+        model: sysConfig?.model ?? undefined,
+        embeddingProvider: sysConfig?.embeddingProvider ?? undefined,
+        embeddingModel: sysConfig?.embeddingModel ?? undefined,
+        documentChunkSize: chunkSize,
+        documentChunkOverlap: chunkOverlap,
       });
       await refreshSysConfig();
       return r;
@@ -738,6 +780,16 @@ export default function Intelligence() {
         </div>
       </Card>
 
+      {configLoadError && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <div className="min-w-0">
+            <p className="text-[13px] font-medium text-amber-800">Không thể tải cấu hình từ AnythingLLM</p>
+            <p className="mt-0.5 text-[12px] text-amber-700">Vui lòng nhập thủ công các thông số bên dưới và nhấn <b>Đồng bộ cấu hình</b>.</p>
+          </div>
+        </div>
+      )}
+
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[220px_1fr]">
         {/* category nav */}
         <Card className="h-fit p-2">
@@ -851,17 +903,32 @@ export default function Intelligence() {
                   ) : (
                     <div className="space-y-1.5">
                       {filteredWs.map((w) => (
-                        <div key={w.slug} className="group flex items-center gap-3 rounded-lg border border-slate-200 px-4 py-3 transition hover:bg-slate-50">
-                          <button onClick={() => switchWsTab(w.slug)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><Layers className="h-4 w-4" /></span>
+                        <div key={w.slug} className="group flex items-start gap-3 rounded-lg border border-slate-200 px-4 py-3 transition hover:bg-slate-50">
+                          <button onClick={() => switchWsTab(w.slug)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><Layers className="h-4 w-4" /></span>
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-[13px] font-medium text-slate-900" title={w.name}>{w.name}</p>
                               <p className="truncate font-mono text-[11px] text-slate-400">/{w.slug}</p>
+                              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                {(w.llmProvider ?? sysConfig?.llmProvider) && (
+                                  <span className="inline-flex items-center gap-1 font-mono text-[10px] text-slate-400">
+                                    <Cpu className="h-3 w-3" />{w.llmProvider ?? sysConfig?.llmProvider}
+                                  </span>
+                                )}
+                                {(w.baseUrl ?? sysConfig?.baseUrl) && (
+                                  <span className="max-w-[180px] truncate font-mono text-[10px] text-slate-400" title={w.baseUrl ?? sysConfig?.baseUrl ?? ""}>
+                                    {w.baseUrl ?? sysConfig?.baseUrl}
+                                  </span>
+                                )}
+                                {(w.model ?? sysConfig?.model) && (
+                                  <span className="font-mono text-[10px] text-slate-400">{w.model ?? sysConfig?.model}</span>
+                                )}
+                              </div>
                             </div>
                           </button>
                           <button
                             onClick={() => setWsConfirmDel(w.slug)}
-                            className="shrink-0 rounded-md p-1.5 text-slate-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
+                            className="mt-1 shrink-0 rounded-md p-1.5 text-slate-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
                             title="Xoá workspace"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -904,94 +971,132 @@ export default function Intelligence() {
                           <p className="truncate font-mono text-[11px] text-slate-400">/{wsTab}</p>
                         </div>
                       </div>
-                      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
-                        <div className="min-w-0">
-                          <Field label="Chat Model">
-                            <div className="flex items-stretch gap-2">
-                              <div className="min-w-0 flex-1">
-                                <SmartSelect
-                                  value={wsTabDirty?.model ?? wsTabDetail.chatModel ?? ""}
-                                  onChange={(v) => updateWsTabField("model", v || null)}
-                                  options={[
-                                    { value: "", label: "— Mặc định —" },
-                                    ...(detectedWsModels.length > 0
-                                      ? detectedWsModels.map((m) => ({ value: m, label: m }))
-                                      : wsTabDetail.chatModel
-                                        ? [{ value: wsTabDetail.chatModel, label: wsTabDetail.chatModel }]
-                                        : []),
-                                  ]}
-                                  searchable
-                                  placeholder="— Mặc định —"
-                                />
+
+                      {/* System config debug banner */}
+                      {(wsTabDetail.baseUrl ?? wsTabDetail.llmProvider ?? wsTabDetail.model) && (
+                        <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2.5">
+                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-slate-600">
+                            <span className="font-medium text-slate-700">🔧 System:</span>
+                            <span className="inline-flex items-center gap-1">
+                              <Cpu className="h-3.5 w-3.5" />
+                              {wsTabDetail.llmProvider ?? "—"}
+                            </span>
+                            <span className="text-slate-300">→</span>
+                            <span className="max-w-[240px] truncate font-mono text-slate-500" title={wsTabDetail.baseUrl ?? ""}>
+                              {wsTabDetail.baseUrl ?? "—"}
+                            </span>
+                            <span className="text-slate-300">|</span>
+                            <span className="font-mono">{wsTabDetail.model ?? "—"}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Section: Model */}
+                      <div>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Mô hình</p>
+                        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
+                          <div className="min-w-0">
+                            <Field label="Chat Model">
+                              <div className="flex items-stretch gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <SmartSelect
+                                    value={wsTabDirty?.model ?? wsTabDetail.chatModel ?? ""}
+                                    onChange={(v) => updateWsTabField("model", v || null)}
+                                    options={[
+                                      { value: "", label: "— Mặc định —" },
+                                      ...(detectedWsModels.length > 0
+                                        ? detectedWsModels.map((m) => ({ value: m, label: m }))
+                                        : wsTabDetail.chatModel
+                                          ? [{ value: wsTabDetail.chatModel, label: wsTabDetail.chatModel }]
+                                          : []),
+                                    ]}
+                                    searchable
+                                    placeholder="— Mặc định —"
+                                  />
+                                </div>
+                                <button
+                                  onClick={detectWsModels}
+                                  disabled={detectingWsModels}
+                                  className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40"
+                                  title="Quét mô hình"
+                                >
+                                  {detectingWsModels ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                </button>
                               </div>
-                              <button
-                                onClick={detectWsModels}
-                                disabled={detectingWsModels || !llmUrl.trim()}
-                                className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40"
-                                title="Quét mô hình"
-                              >
-                                {detectingWsModels ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                              </button>
-                            </div>
-                          </Field>
+                            </Field>
+                          </div>
+                          <div className="min-w-0">
+                            <Field label="Chat Provider">
+                              <SmartSelect
+                                value={wsTabDirty?.chatProvider ?? wsTabDetail.chatProvider ?? ""}
+                                onChange={(v) => updateWsTabField("chatProvider", v || null)}
+                                options={[{ value: "", label: "— Mặc định —" }, ...providers]}
+                                placeholder="— Mặc định —"
+                              />
+                            </Field>
+                          </div>
+                          <div className="min-w-0">
+                            <Field label="Chat Mode">
+                              <SmartSelect
+                                value={wsTabDirty?.chatMode ?? wsTabDetail.chatMode ?? ""}
+                                onChange={(v) => updateWsTabField("chatMode", v || null)}
+                                options={[
+                                  { value: "", label: "— Mặc định —" },
+                                  { value: "chat", label: "Chat" },
+                                  { value: "query", label: "Query" },
+                                ]}
+                                placeholder="— Mặc định —"
+                              />
+                            </Field>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <Field label="Chat Provider">
-                            <SmartSelect
-                              value={wsTabDirty?.chatProvider ?? wsTabDetail.chatProvider ?? ""}
-                              onChange={(v) => updateWsTabField("chatProvider", v || null)}
-                              options={[{ value: "", label: "— Mặc định —" }, ...providers]}
-                              placeholder="— Mặc định —"
-                            />
-                          </Field>
+                      </div>
+
+                      {/* Section: Parameters */}
+                      <div>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Tham số</p>
+                        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
+                          <div className="min-w-0">
+                            <Field label="Temperature">
+                              <div className="flex items-center gap-3">
+                                <input type="range" min={0} max={1} step={0.05} value={wsTabDirty?.temperature ?? wsTabDetail.temperature ?? 0.7} onChange={(e) => updateWsTabField("temperature", parseFloat(e.target.value))} className="w-full accent-indigo-600" />
+                                <span className="w-10 text-right font-mono text-[12px] text-slate-600">{(wsTabDirty?.temperature ?? wsTabDetail.temperature ?? 0.7).toFixed(2)}</span>
+                              </div>
+                            </Field>
+                          </div>
+                          <div className="min-w-0">
+                            <Field label="Top N (số kết quả)">
+                              <input type="text" inputMode="numeric" value={wsTabDirty?.topN ?? wsTabDetail.topN ?? ""} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); updateWsTabField("topN", v ? parseInt(v) : null); }} placeholder="4" className={inputCls} />
+                            </Field>
+                          </div>
+                          <div className="min-w-0">
+                            <Field label="Similarity Threshold">
+                              <div className="flex items-center gap-3">
+                                <input type="range" min={0} max={1} step={0.05} value={wsTabDirty?.similarityThreshold ?? wsTabDetail.similarityThreshold ?? 0.5} onChange={(e) => updateWsTabField("similarityThreshold", parseFloat(e.target.value))} className="w-full accent-indigo-600" />
+                                <span className="w-10 text-right font-mono text-[12px] text-slate-600">{(wsTabDirty?.similarityThreshold ?? wsTabDetail.similarityThreshold ?? 0.5).toFixed(2)}</span>
+                              </div>
+                            </Field>
+                          </div>
+                          <div className="min-w-0">
+                            <Field label="Lịch sử hội thoại">
+                              <input type="text" inputMode="numeric" value={wsTabDirty?.openAiHistory ?? wsTabDetail.openAiHistory ?? ""} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); updateWsTabField("openAiHistory", v ? parseInt(v) : null); }} placeholder="20" className={inputCls} />
+                            </Field>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <Field label="Chat Mode">
-                            <SmartSelect
-                              value={wsTabDirty?.chatMode ?? wsTabDetail.chatMode ?? ""}
-                              onChange={(v) => updateWsTabField("chatMode", v || null)}
-                              options={[
-                                { value: "", label: "— Mặc định —" },
-                                { value: "chat", label: "Chat" },
-                                { value: "query", label: "Query" },
-                              ]}
-                              placeholder="— Mặc định —"
-                            />
+                      </div>
+
+                      {/* Section: Customization */}
+                      <div>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Tuỳ chỉnh</p>
+                        <div className="space-y-3">
+                          <Field label="System Prompt">
+                            <textarea rows={3} value={wsTabDirty?.openAiPrompt ?? wsTabDetail.openAiPrompt ?? ""} onChange={(e) => updateWsTabField("openAiPrompt", e.target.value)} placeholder="Để trống = dùng mặc định của system" className={cn(inputCls, "resize-y font-mono text-[12px] leading-relaxed")} />
                           </Field>
-                        </div>
-                        <div className="min-w-0">
-                          <Field label="Temperature">
-                            <div className="flex items-center gap-3">
-                              <input type="range" min={0} max={1} step={0.05} value={wsTabDirty?.temperature ?? wsTabDetail.temperature ?? 0.7} onChange={(e) => updateWsTabField("temperature", parseFloat(e.target.value))} className="w-full accent-indigo-600" />
-                              <span className="w-10 text-right font-mono text-[12px] text-slate-600">{(wsTabDirty?.temperature ?? wsTabDetail.temperature ?? 0.7).toFixed(2)}</span>
-                            </div>
-                          </Field>
-                        </div>
-                        <div className="min-w-0">
-                          <Field label="Top N (số kết quả)">
-                            <input type="text" inputMode="numeric" value={wsTabDirty?.topN ?? wsTabDetail.topN ?? ""} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); updateWsTabField("topN", v ? parseInt(v) : null); }} placeholder="4" className={inputCls} />
-                          </Field>
-                        </div>
-                        <div className="min-w-0">
-                          <Field label="Similarity Threshold">
-                            <div className="flex items-center gap-3">
-                              <input type="range" min={0} max={1} step={0.05} value={wsTabDirty?.similarityThreshold ?? wsTabDetail.similarityThreshold ?? 0.5} onChange={(e) => updateWsTabField("similarityThreshold", parseFloat(e.target.value))} className="w-full accent-indigo-600" />
-                              <span className="w-10 text-right font-mono text-[12px] text-slate-600">{(wsTabDirty?.similarityThreshold ?? wsTabDetail.similarityThreshold ?? 0.5).toFixed(2)}</span>
-                            </div>
-                          </Field>
-                        </div>
-                        <div className="min-w-0">
-                          <Field label="Lịch sử hội thoại">
-                            <input type="text" inputMode="numeric" value={wsTabDirty?.openAiHistory ?? wsTabDetail.openAiHistory ?? ""} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); updateWsTabField("openAiHistory", v ? parseInt(v) : null); }} placeholder="20" className={inputCls} />
+                          <Field label="Query Refusal Response">
+                            <textarea rows={2} value={wsTabDirty?.queryRefusalResponse ?? wsTabDetail.queryRefusalResponse ?? ""} onChange={(e) => updateWsTabField("queryRefusalResponse", e.target.value)} placeholder="Phản hồi từ chối truy vấn (nếu có)" className={cn(inputCls, "resize-y font-mono text-[12px] leading-relaxed")} />
                           </Field>
                         </div>
                       </div>
-                      <Field label="System Prompt">
-                        <textarea rows={3} value={wsTabDirty?.openAiPrompt ?? wsTabDetail.openAiPrompt ?? ""} onChange={(e) => updateWsTabField("openAiPrompt", e.target.value)} placeholder="Để trống = dùng mặc định của system" className={cn(inputCls, "resize-y font-mono text-[12px] leading-relaxed")} />
-                      </Field>
-                      <Field label="Query Refusal Response">
-                        <textarea rows={2} value={wsTabDirty?.queryRefusalResponse ?? wsTabDetail.queryRefusalResponse ?? ""} onChange={(e) => updateWsTabField("queryRefusalResponse", e.target.value)} placeholder="Phản hồi từ chối truy vấn (nếu có)" className={cn(inputCls, "resize-y font-mono text-[12px] leading-relaxed")} />
-                      </Field>
                       <div className="flex items-center justify-between border-t border-slate-100 pt-3">
                         <button onClick={() => setWsConfirmDel(wsTab)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-medium text-rose-600 transition hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5" /> Xoá</button>
                         <button
@@ -1080,14 +1185,21 @@ export default function Intelligence() {
                                 <Field label="Chat Model">
                                   <div className="flex items-stretch gap-2">
                                     <div className="min-w-0 flex-1"><SmartSelect value={model} onChange={setModel} options={llmOptions} searchable /></div>
-                                    <button onClick={autoDetectLlm} disabled={detectingLlm || !llmUrl.trim()} className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40" title="Quét lại mô hình">
+                                    <button onClick={autoDetectLlm} disabled={detectingLlm} className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40" title="Quét lại mô hình">
                                       {detectingLlm ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                                     </button>
                                   </div>
                                 </Field>
                               </div>
+                              {!localProviders.includes(llmProvider) && (
+                                <div className="min-w-0">
+                                  <Field label="API Key">
+                                    <input type="password" value={llmApiKey} onChange={(e) => setLlmApiKey(e.target.value)} placeholder="sk-••••••••" className={cn(inputCls, "font-mono")} />
+                                  </Field>
+                                </div>
+                              )}
                             </div>
-                            {canDetectLlm && detectedLlm.length > 0 && (
+                            {detectedLlm.length > 0 && (
                               <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
                                 <div className="flex items-center gap-2">
                                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -1180,14 +1292,14 @@ export default function Intelligence() {
                             <Field label="Embedding Model">
                             <div className="flex items-stretch gap-2">
                               <div className="min-w-0 flex-1"><SmartSelect value={emb} onChange={setEmb} options={embOptions} searchable /></div>
-                              <button onClick={autoDetectEmb} disabled={detectingEmb || !llmUrl.trim()} className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40" title="Quét lại mô hình">
+                              <button onClick={autoDetectEmb} disabled={detectingEmb} className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40" title="Quét lại mô hình">
                                 {detectingEmb ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                               </button>
                             </div>
                           </Field>
                           </div>
                         </div>
-                      {canDetectEmb && detectedEmb.length > 0 && (
+                      {detectedEmb.length > 0 && (
                         <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -1469,8 +1581,8 @@ export default function Intelligence() {
           </>
         }
       >
-        <p className="text-[13px] leading-relaxed text-slate-600">
-          Workspace <b className="inline-block max-w-[240px] truncate align-bottom text-slate-900" title={wsConfirmDel}>{wsConfirmDel}</b> sẽ bị xoá vĩnh viễn. Tài liệu trong workspace này cũng sẽ bị gỡ khỏi vector DB. Hành động này không thể hoàn tác.
+          <p className="text-[13px] leading-relaxed text-slate-600">
+           Workspace <b className="inline-block max-w-[240px] truncate align-bottom text-slate-900" title={wsConfirmDel ?? undefined}>{wsConfirmDel}</b> sẽ bị xoá vĩnh viễn. Tài liệu trong workspace này cũng sẽ bị gỡ khỏi vector DB. Hành động này không thể hoàn tác.
         </p>
       </Modal>
 

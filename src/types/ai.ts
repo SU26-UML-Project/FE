@@ -1,6 +1,7 @@
 export interface AiSystemConfig {
   llmProvider: string | null;
   model: string | null;
+  baseUrl?: string | null;
   embeddingProvider: string | null;
   embeddingModel: string | null;
   vectorDb: string | null;
@@ -44,11 +45,17 @@ export interface AiWorkspace {
   queryRefusalResponse: string | null;
   documentCount: number;
   documents: AiDocument[];
+  baseUrl?: string | null;
+  llmProvider?: string | null;
+  model?: string | null;
 }
 
 export interface AiWorkspaceInfo {
   slug: string;
   name: string;
+  baseUrl?: string | null;
+  llmProvider?: string | null;
+  model?: string | null;
 }
 
 export interface AiWorkspaceUpdateRequest {
