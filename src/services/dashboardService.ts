@@ -21,6 +21,24 @@ export interface RevenueTrendData {
   mrr: number;
 }
 
+export interface TopCostDriver {
+  userId: string;
+  fullName: string;
+  email: string;
+  /** AI local: tiền không còn ý nghĩa, dùng để tham khảo — FE hiển thị theo requestCount. */
+  totalCostUsd: number;
+  requestCount: number;
+  /** BE sẽ bổ sung sau (Task đổi ranking) — optional cho tới khi có. */
+  totalTokens?: number;
+}
+
+export interface TopProject {
+  projectId: string;
+  projectName: string;
+  ownerEmail: string;
+  diagramCount: number;
+}
+
 export const getDashboardUserStats = (range: RangeKey, from?: string, to?: string) =>
   apiClient
     .get<any, ApiResponse<StatCardData>>("/admin/dashboard/users", {
@@ -52,4 +70,18 @@ export const getDashboardOverview = (range: RangeKey, from?: string, to?: string
 export const getRevenueTrend = () =>
   apiClient
     .get<any, ApiResponse<RevenueTrendData[]>>("/admin/dashboard/revenue-trend")
+    .then((r) => r.result);
+
+export const getTopCostDrivers = (limit?: number) =>
+  apiClient
+    .get<any, ApiResponse<TopCostDriver[]>>("/admin/dashboard/top-cost-drivers", {
+      params: limit ? { limit } : undefined,
+    })
+    .then((r) => r.result);
+
+export const getTopProjects = (limit?: number) =>
+  apiClient
+    .get<any, ApiResponse<TopProject[]>>("/admin/dashboard/top-projects", {
+      params: limit ? { limit } : undefined,
+    })
     .then((r) => r.result);

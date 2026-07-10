@@ -12,8 +12,8 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import { Sparkline } from "../charts";
-import { Badge, Card, Skeleton } from "../ui";
+import { Sparkline, AreaChart } from "../charts";
+import { Avatar, Badge, Card, Skeleton } from "../ui";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import {
   getDashboardUserStats,
@@ -21,14 +21,25 @@ import {
   getDashboardDiagramStats,
   getDashboardOverview,
   getRevenueTrend,
+  getTopCostDrivers,
+  getTopProjects,
   type StatCardData,
   type OverviewData,
   type RevenueTrendData,
+  type TopCostDriver,
+  type TopProject,
   type RangeKey,
 } from "../../../services/dashboardService";
 import { cn } from "../../../utils/cn";
 
 const statColors = ["#6366f1", "#0ea5e9", "#8b5cf6", "#f43f5e"];
+
+function initialsOf(name: string) {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 const rangeOptions: { key: RangeKey; label: string }[] = [
   { key: "24h", label: "24h" },
@@ -104,6 +115,9 @@ export default function Dashboard() {
   const [projectStat, setProjectStat] = useState<StatCardData | null>(null);
   const [diagramStat, setDiagramStat] = useState<StatCardData | null>(null);
   const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [topUsers, setTopUsers] = useState<TopCostDriver[]>([]);
+  const [topProjects, setTopProjects] = useState<TopProject[]>([]);
+  const [revenueTrend, setRevenueTrend] = useState<RevenueTrendData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -125,6 +139,13 @@ export default function Dashboard() {
       })
       .finally(() => setLoading(false));
   }, [range, from, to]);
+
+  // Top tables + revenue trend: all-time (BE chưa nhận range/limit) → fetch 1 lần.
+  useEffect(() => {
+    getTopCostDrivers(5).then(setTopUsers).catch(() => setTopUsers([]));
+    getTopProjects(5).then(setTopProjects).catch(() => setTopProjects([]));
+    getRevenueTrend().then((d) => setRevenueTrend(d ?? [])).catch(() => setRevenueTrend([]));
+  }, []);
 
   const fmtToday = () => new Date().toISOString().slice(0, 10);
 
@@ -307,10 +328,84 @@ export default function Dashboard() {
             <OverviewStat icon={DollarSign} label="MRR" value={`${overview.revenue.mrr.toLocaleString("vi-VN", { minimumFractionDigits: 2 })} ₫`} color="#f59e0b" />
             <OverviewStat icon={TrendingUp} label="ARPU" value={`${overview.revenue.arpu.toLocaleString("vi-VN", { minimumFractionDigits: 2 })} ₫`} color="#06b6d4" />
             <OverviewStat icon={Activity} label="Churn rate" value={`${overview.revenue.churnRate}%`} color="#f43f5e" />
-            <OverviewStat icon={DollarSign} label="SaaS Margin" value={`${overview.revenue.margin.toLocaleString("vi-VN", { minimumFractionDigits: 2 })} ₫`} color="#6366f1" />
           </div>
         </Card>
       )}
+
+      {/* Revenue trend (MRR theo ngày) */}
+      {revenueTrend.length > 1 && (
+        <Card className="p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-slate-400" />
+            <h3 className="text-[14px] font-semibold text-slate-900">Xu hướng doanh thu (MRR)</h3>
+          </div>
+          <AreaChart
+            data={revenueTrend.map((r) => ({ m: r.date.slice(5).replace("-", "/"), v: r.mrr }))}
+            color="#6366f1"
+          />
+        </Card>
+      )}
+
+      {/* Row 3: Power-user tables */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Zap className="h-4 w-4 text-slate-400" />
+            <h3 className="text-[14px] font-semibold text-slate-900">Top người dùng AI</h3>
+            <span className="text-[12px] text-slate-400">· theo lượt truy vấn</span>
+          </div>
+          {topUsers.length === 0 ? (
+            <p className="py-6 text-center text-[13px] text-slate-400">Chưa có dữ liệu.</p>
+          ) : (
+            <div className="space-y-1">
+              {topUsers.map((u, i) => (
+                <div key={u.userId} className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-50">
+                  <span className="w-4 shrink-0 text-center text-[12px] font-semibold text-slate-400">{i + 1}</span>
+                  <Avatar initials={initialsOf(u.fullName)} size="h-8 w-8" color={statColors[i % statColors.length]} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-medium text-slate-900">{u.fullName || "—"}</p>
+                    <p className="truncate text-[11.5px] text-slate-400">{u.email}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-[13px] font-semibold text-slate-900">{u.requestCount.toLocaleString("vi-VN")}</p>
+                    <p className="text-[10.5px] text-slate-400">lượt AI</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card className="p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Network className="h-4 w-4 text-slate-400" />
+            <h3 className="text-[14px] font-semibold text-slate-900">Top dự án</h3>
+            <span className="text-[12px] text-slate-400">· theo số sơ đồ</span>
+          </div>
+          {topProjects.length === 0 ? (
+            <p className="py-6 text-center text-[13px] text-slate-400">Chưa có dữ liệu.</p>
+          ) : (
+            <div className="space-y-1">
+              {topProjects.map((p, i) => (
+                <div key={p.projectId} className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-50">
+                  <span className="w-4 shrink-0 text-center text-[12px] font-semibold text-slate-400">{i + 1}</span>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                    <FolderKanban className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-medium text-slate-900">{p.projectName || "—"}</p>
+                    <p className="truncate text-[11.5px] text-slate-400">{p.ownerEmail}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-[13px] font-semibold text-slate-900">{p.diagramCount.toLocaleString("vi-VN")}</p>
+                    <p className="text-[10.5px] text-slate-400">sơ đồ</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
 
       </>
       )}
