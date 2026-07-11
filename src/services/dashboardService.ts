@@ -32,6 +32,16 @@ export interface TopCostDriver {
   totalTokens?: number;
 }
 
+export interface AiModelStats {
+  provider: string;
+  modelName: string;
+  totalRequests: number;
+  errorCount: number;
+  /** Error rate (%) = errorCount / totalRequests × 100 */
+  errorRate: number;
+  totalCostUsd: number;
+}
+
 export interface TopProject {
   projectId: string;
   projectName: string;
@@ -83,5 +93,12 @@ export const getTopProjects = (limit?: number) =>
   apiClient
     .get<any, ApiResponse<TopProject[]>>("/admin/dashboard/top-projects", {
       params: limit ? { limit } : undefined,
+    })
+    .then((r) => r.result);
+
+export const getAiModelStats = (range: RangeKey, from?: string, to?: string) =>
+  apiClient
+    .get<any, ApiResponse<AiModelStats[]>>("/admin/dashboard/ai-model-stats", {
+      params: { range, from, to },
     })
     .then((r) => r.result);

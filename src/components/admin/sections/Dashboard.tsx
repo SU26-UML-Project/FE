@@ -23,11 +23,13 @@ import {
   getRevenueTrend,
   getTopCostDrivers,
   getTopProjects,
+  getAiModelStats,
   type StatCardData,
   type OverviewData,
   type RevenueTrendData,
   type TopCostDriver,
   type TopProject,
+  type AiModelStats,
   type RangeKey,
 } from "../../../services/dashboardService";
 import { cn } from "../../../utils/cn";
@@ -117,6 +119,7 @@ export default function Dashboard() {
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [topUsers, setTopUsers] = useState<TopCostDriver[]>([]);
   const [topProjects, setTopProjects] = useState<TopProject[]>([]);
+  const [aiModelStats, setAiModelStats] = useState<AiModelStats[]>([]);
   const [revenueTrend, setRevenueTrend] = useState<RevenueTrendData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -129,18 +132,20 @@ export default function Dashboard() {
       getDashboardProjectStats(range, from || undefined, to || undefined).catch(() => null),
       getDashboardDiagramStats(range, from || undefined, to || undefined).catch(() => null),
       getDashboardOverview(range, from || undefined, to || undefined).catch(() => null),
+      getAiModelStats(range, from || undefined, to || undefined).catch(() => null),
     ])
-      .then(([u, p, d, o]) => {
+      .then(([u, p, d, o, ai]) => {
         setUserStat(u);
         setProjectStat(p);
         setDiagramStat(d);
         setOverview(o);
+        setAiModelStats(ai ?? []);
         if (!u && !p && !d && !o) setError(true);
       })
       .finally(() => setLoading(false));
   }, [range, from, to]);
 
-  // Top tables + revenue trend: all-time (BE chưa nhận range/limit) → fetch 1 lần.
+  // Top tables + revenue trend + AI model stats: all-time (BE chưa nhận range/limit) → fetch 1 lần.
   useEffect(() => {
     getTopCostDrivers(5).then(setTopUsers).catch(() => setTopUsers([]));
     getTopProjects(5).then(setTopProjects).catch(() => setTopProjects([]));
@@ -343,6 +348,51 @@ export default function Dashboard() {
             data={revenueTrend.map((r) => ({ m: r.date.slice(5).replace("-", "/"), v: r.mrr }))}
             color="#6366f1"
           />
+        </Card>
+      )}
+
+      {/* AI Model Stats table */}
+      {aiModelStats.length > 0 && (
+        <Card className="p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Zap className="h-4 w-4 text-slate-400" />
+            <h3 className="text-[14px] font-semibold text-slate-900">Thống kê AI theo Provider / Model</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-[11.5px] font-semibold uppercase tracking-wider text-slate-400">
+                  <th className="pb-2 pr-4">Provider</th>
+                  <th className="pb-2 pr-4">Model</th>
+                  <th className="pb-2 pr-4 text-right">Requests</th>
+                  <th className="pb-2 pr-4 text-right">Errors</th>
+                  <th className="pb-2 pr-4 text-right">Error Rate</th>
+                  <th className="pb-2 text-right">Cost (USD)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {aiModelStats.map((m, i) => (
+                  <tr key={`${m.provider}-${m.modelName}`} className="border-b border-slate-100 last:border-0">
+                    <td className="py-2.5 pr-4 font-medium text-slate-900">{m.provider}</td>
+                    <td className="py-2.5 pr-4 text-slate-700">{m.modelName}</td>
+                    <td className="py-2.5 pr-4 text-right text-slate-900">{m.totalRequests.toLocaleString("vi-VN")}</td>
+                    <td className="py-2.5 pr-4 text-right">
+                      <span className={m.errorCount > 0 ? "text-rose-600 font-medium" : "text-slate-500"}>
+                        {m.errorCount.toLocaleString("vi-VN")}
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-4 text-right">
+                      <span className={m.errorRate > 0 ? "text-rose-600 font-medium" : "text-slate-500"}>
+                        {m.errorRate}%
+                      </span>
+                      <div className="text-[10px] text-slate-400">= errors / requests × 100</div>
+                    </td>
+                    <td className="py-2.5 text-right text-slate-900">${m.totalCostUsd.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Card>
       )}
 
