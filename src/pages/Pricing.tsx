@@ -1,75 +1,34 @@
 import { useState, useEffect } from 'react'
 import { motion, animate, useMotionValue, useTransform } from 'framer-motion'
-import { Check, ArrowRight, ArrowDown, Activity, RefreshCw, HardDrive, Globe, X, ChevronDown, LogIn } from 'lucide-react'
+import { Check, ArrowRight, ArrowDown, Activity, RefreshCw, HardDrive, Globe, X, ChevronDown } from 'lucide-react'
 import AuthModal from '../components/Auth/AuthModal'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/useAuthStore'
-import type { BillingCycle, Plan, ComparisonRow } from '../types/pricing'
+import type { BillingCycle } from '../types/pricing'
+import { planService, type PlanResponse } from '../services/planService'
 
-const plans: Plan[] = [
-  {
-    name: 'Free',
-    monthlyPrice: 0,
-    yearlyPrice: 0,
-    description: 'For individuals exploring UML diagrams and basic architecture design.',
-    features: [
-      'Up to 3 active diagrams',
-      'All UML diagram types',
-      'Real-time collaboration up to 4 members',
-      'PNG export',
-      'Community forum support',
-    ],
-    cta: 'Get started free',
-  },
-  {
-    name: 'Education',
-    monthlyPrice: 3,
-    yearlyPrice: 3,
-    description: 'For students and accredited educators around the world.',
-    features: [
-      'Unlimited diagrams',
-      'All UML diagram types',
-      'Real-time collaboration up to 4 members',
-      'PNG, SVG and PDF export',
-      'Priority email support',
-    ],
-    cta: 'Apply with .edu',
-  },
-  {
-    name: 'Pro',
-    monthlyPrice: 12,
-    yearlyPrice: 9,
-    description: 'For professional engineers, freelancers, and small product teams.',
-    features: [
-      'Everything in Education',
-      'Real-time collaboration',
-      'Version history & branches',
-      'Custom shape libraries',
-      'Priority support',
-      'Advanced team permissions',
-      'PNG, SVG, PDF and VDX export',
-      'Priority chat support',
-    ],
-    cta: 'Start 14-day free trial',
-    highlight: true,
-  },
-  {
-    name: 'Enterprise',
-    monthlyPrice: null,
-    yearlyPrice: null,
-    description: 'For organizations that need security, scale, and custom workflows.',
-    features: [
-      'Everything in Pro',
-      'SSO & SAML authentication',
-      'Dedicated success manager',
-      'Custom API & integrations',
-      'On-premise deployment',
-      '24/7 premium support',
-      'Enterprise SLA guarantee',
-    ],
-    cta: 'Contact sales',
-  },
-]
+/* ---------- helpers ---------- */
+const fmtVnd = (n: number) => n.toLocaleString('vi-VN')
+const fmtLimit = (v: number | null | undefined) =>
+  v == null ? '—' : v === -1 ? '∞' : fmtVnd(v)
+
+/** Giá quy đổi/tháng khi trả theo năm (chỉ khi gói bật yearlyBilling). */
+const yearlyPerMonth = (p: PlanResponse): number | null =>
+  p.yearlyBilling ? Math.round(p.price * (1 - (p.yearlyDiscount ?? 0) / 100)) : null
+
+/** Bullet hiển thị trên card: hạn mức đã đặt + các tính năng được bật. */
+function planBullets(p: PlanResponse): string[] {
+  const b: string[] = []
+  const L = p.limits
+  if (L) {
+    if (L.projects != null) b.push(L.projects === -1 ? 'Dự án không giới hạn' : `${fmtVnd(L.projects)} dự án`)
+    if (L.diagrams != null) b.push(L.diagrams === -1 ? 'Sơ đồ không giới hạn' : `${fmtVnd(L.diagrams)} sơ đồ`)
+    if (L.aiQueries != null) b.push(L.aiQueries === -1 ? 'AI không giới hạn' : `${fmtVnd(L.aiQueries)} lượt AI`)
+    if (L.collaborators != null) b.push(L.collaborators === -1 ? 'Cộng tác viên không giới hạn' : `${fmtVnd(L.collaborators)} cộng tác viên`)
+  }
+  ;(p.features ?? []).filter(f => f.included).forEach(f => b.push(f.label))
+  return b
+}
 
 const includes = [
   {
@@ -92,21 +51,6 @@ const includes = [
     title: 'Desktop apps',
     description: 'Native apps for macOS, Windows, and Linux. Browser version runs in Chrome, Firefox, Safari, Edge.',
   },
-]
-
-const comparisonData: ComparisonRow[] = [
-  { feature: 'Active diagrams', free: 'Up to 3', education: 'Unlimited', pro: 'Unlimited', enterprise: 'Unlimited' },
-  { feature: 'UML diagram types', free: 'All', education: 'All', pro: 'All', enterprise: 'All' },
-  { feature: 'Export formats', free: 'PNG', education: 'PNG, SVG, PDF', pro: 'PNG, SVG, PDF, VDX', enterprise: 'All formats' },
-  { feature: 'Real-time collaboration', free: 'Up to 4 members', education: 'Up to 4 members', pro: 'Unlimited', enterprise: 'Unlimited' },
-  { feature: 'Version history & branches', free: false, education: false, pro: true, enterprise: true },
-  { feature: 'Custom shape libraries', free: false, education: false, pro: true, enterprise: true },
-  { feature: 'Priority support', free: false, education: 'Email', pro: 'Chat & email', enterprise: '24/7 premium' },
-  { feature: 'Team permissions', free: false, education: false, pro: 'Advanced', enterprise: 'Advanced' },
-  { feature: 'SSO & SAML', free: false, education: false, pro: false, enterprise: true },
-  { feature: 'Dedicated success manager', free: false, education: false, pro: false, enterprise: true },
-  { feature: 'Custom API & integrations', free: false, education: false, pro: false, enterprise: true },
-  { feature: 'On-premise deployment', free: false, education: false, pro: false, enterprise: true },
 ]
 
 const faqData = [
@@ -137,6 +81,19 @@ const Pricing = () => {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
+  const [plans, setPlans] = useState<PlanResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    planService
+      .getPublicPlans()
+      .then(list => { if (alive) setPlans(list ?? []) })
+      .catch(() => { if (alive) setError(true) })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [])
 
   useEffect(() => {
     const collapse = () => setExpandedIndex(null)
@@ -149,11 +106,13 @@ const Pricing = () => {
     setIsAuthModalOpen(true)
   }
 
+  const hasYearly = plans.some(p => p.yearlyBilling)
+
   return (
     <>
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
         initialMode={authMode}
       />
       <section className="relative pt-32 pb-16 px-4 md:px-8 min-h-[100dvh] bg-white/30">
@@ -167,34 +126,55 @@ const Pricing = () => {
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-priego-extrabold uppercase tracking-tight text-black mb-4">
               PRICING
             </h1>
-            <p className="text-base md:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed whitespace-nowrap">
+            <p className="text-base md:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
               Simple, transparent pricing — choose the plan that fits your team and scale as you grow.
             </p>
           </motion.div>
 
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="flex justify-center mb-12"
-          >
-            <BillingToggle billing={billing} setBilling={setBilling} />
-          </motion.div>
+          {hasYearly && (
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="flex justify-center mb-12"
+            >
+              <BillingToggle billing={billing} setBilling={setBilling} />
+            </motion.div>
+          )}
 
-          <div className="flex flex-col md:flex-row gap-4 md:gap-5 items-stretch">
+          {loading ? (
+            <div className="flex flex-col md:flex-row gap-4 md:gap-5 items-stretch">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className="flex-1 rounded-[2rem] border-[1.5px] border-gray-200 bg-white p-6 animate-pulse">
+                  <div className="h-5 w-24 bg-gray-200 rounded mb-4" />
+                  <div className="h-9 w-32 bg-gray-200 rounded mb-4" />
+                  <div className="h-4 w-full bg-gray-100 rounded mb-2" />
+                  <div className="h-4 w-5/6 bg-gray-100 rounded mb-6" />
+                  <div className="space-y-2">
+                    {[0, 1, 2].map(j => <div key={j} className="h-3.5 w-full bg-gray-100 rounded" />)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center py-20 text-gray-500">Không tải được bảng giá. Vui lòng thử lại sau.</div>
+          ) : plans.length === 0 ? (
+            <div className="text-center py-20 text-gray-500">Chưa có gói nào được mở bán.</div>
+          ) : (
+            <div className="flex flex-col md:flex-row gap-4 md:gap-5 items-stretch">
               {plans.map((plan, idx) => (
-              <PlanCard
-                key={plan.name}
-                plan={plan}
-                index={idx}
-                billing={billing}
-                isExpanded={expandedIndex === idx}
-                isAnyExpanded={expandedIndex !== null}
-                onToggle={() => setExpandedIndex(prev => (prev === idx ? null : idx))}
-                openAuth={openAuth}
-              />
-            ))}
-          </div>
+                <PlanCard
+                  key={plan.id}
+                  plan={plan}
+                  billing={billing}
+                  isExpanded={expandedIndex === idx}
+                  isAnyExpanded={expandedIndex !== null}
+                  onToggle={() => setExpandedIndex(prev => (prev === idx ? null : idx))}
+                  openAuth={openAuth}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -246,7 +226,7 @@ const Pricing = () => {
 
       <div className="bg-gradient-to-b from-transparent via-white/20 to-white/40">
         <EveryPlanIncludes />
-        <FeatureComparison />
+        {plans.length > 0 && <FeatureComparison plans={plans} />}
         <FAQSection />
       </div>
     </>
@@ -288,12 +268,12 @@ const BillingToggle = ({
               />
             )}
             <span className="relative z-10 flex items-center gap-1">
-              {option}
+              {option === 'monthly' ? 'Hàng tháng' : 'Hàng năm'}
               {option === 'yearly' && (
                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
                   isActive ? 'bg-white/20 text-white' : 'bg-green-100 text-green-700'
                 }`}>
-                  -25%
+                  Tiết kiệm
                 </span>
               )}
             </span>
@@ -307,7 +287,7 @@ const BillingToggle = ({
 const PriceCounter = ({ value }: { value: number }) => {
   const count = useMotionValue(0)
   const rounded = useTransform(count, latest => Math.round(latest))
-  const formatted = useTransform(rounded, latest => latest.toLocaleString('en-US'))
+  const formatted = useTransform(rounded, latest => latest.toLocaleString('vi-VN'))
 
   useEffect(() => {
     const controls = animate(count, value, {
@@ -322,15 +302,13 @@ const PriceCounter = ({ value }: { value: number }) => {
 
 const PlanCard = ({
   plan,
-  index,
   billing,
   isExpanded,
   isAnyExpanded,
   onToggle,
   openAuth,
 }: {
-  plan: Plan
-  index: number
+  plan: PlanResponse
   billing: BillingCycle
   isExpanded: boolean
   isAnyExpanded: boolean
@@ -340,13 +318,31 @@ const PlanCard = ({
   const navigate = useNavigate()
   const { isAuthenticated } = useAuthStore()
   const [isHovered, setIsHovered] = useState(false)
-  const price = billing === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice
-  const monthlyPrice = plan.monthlyPrice
-  const yearlyPrice = plan.yearlyPrice
-  const monthlySaving = monthlyPrice !== null && yearlyPrice !== null && billing === 'yearly' ? monthlyPrice - yearlyPrice : 0
-  const yearlySaving = monthlySaving * 12
+
+  const bullets = planBullets(plan)
+  const perMonthYearly = yearlyPerMonth(plan)
+  const activePrice = billing === 'yearly' && perMonthYearly != null ? perMonthYearly : plan.price
+  const yearlySaving = perMonthYearly != null ? (plan.price - perMonthYearly) * 12 : 0
+  const isFree = !plan.contactSales && plan.price === 0
   const isBlurred = isAnyExpanded && !isExpanded
   const canBounce = isHovered && !isExpanded && !isBlurred
+
+  const goCheckout = () => {
+    if (plan.contactSales) { openAuth('login'); return }
+    if (isFree) { openAuth('register'); return }
+    if (isAuthenticated) {
+      navigate('/payment-information', {
+        state: {
+          planName: plan.name,
+          price: activePrice,
+          billingCycle: billing,
+          description: plan.description,
+        },
+      })
+    } else {
+      openAuth('login')
+    }
+  }
 
   return (
     <motion.div
@@ -359,7 +355,7 @@ const PlanCard = ({
         scale: canBounce ? 1.025 : 1,
         y: canBounce ? -6 : 0,
         zIndex: isExpanded ? 10 : 1,
-        borderColor: isHovered && !plan.highlight ? '#2563eb' : (plan.highlight ? '#2563eb' : '#e5e7eb'),
+        borderColor: isHovered && !plan.popular ? '#2563eb' : (plan.popular ? '#2563eb' : '#e5e7eb'),
       }}
       whileHover={!isExpanded && !isAnyExpanded ? { scale: 1.025, y: -6 } : undefined}
       onHoverStart={() => setIsHovered(true)}
@@ -380,10 +376,10 @@ const PlanCard = ({
       }}
       className="group relative cursor-pointer min-w-0 flex-1 rounded-[2rem] border-[1.5px] flex flex-col overflow-hidden bg-white"
       style={{
-        boxShadow: plan.highlight
+        boxShadow: plan.popular
           ? '0 8px 30px -8px rgba(37,99,235,0.25), 0 1px 3px rgba(0,0,0,0.04)'
           : '0 4px 16px -6px rgba(0,0,0,0.08), 0 2px 6px -3px rgba(0,0,0,0.04)',
-        background: plan.highlight ? 'linear-gradient(to bottom, #f0f7ff, #ffffff)' : '#ffffff',
+        background: plan.popular ? 'linear-gradient(to bottom, #f0f7ff, #ffffff)' : '#ffffff',
         willChange: 'transform, filter',
       }}
       data-purpose={`plan-card-${plan.name.toLowerCase()}`}
@@ -402,7 +398,7 @@ const PlanCard = ({
           <h3 className="text-lg md:text-xl font-bold uppercase tracking-tight text-black">
             {plan.name}
           </h3>
-          {plan.highlight && (
+          {plan.popular && (
             <span className="text-[10px] font-bold uppercase bg-uml-blue text-white px-2 py-1 rounded tracking-wider">
               Popular
             </span>
@@ -410,35 +406,33 @@ const PlanCard = ({
         </div>
 
         <div className="mb-4">
-          {price === null ? (
+          {plan.contactSales ? (
             <>
-              <div className="text-3xl md:text-4xl font-priego-extrabold text-black">Custom</div>
-              <p className="text-xs text-gray-500 mt-1">Tailored to your team</p>
+              <div className="text-3xl md:text-4xl font-priego-extrabold text-black">Liên hệ</div>
+              <p className="text-xs text-gray-500 mt-1">Báo giá riêng theo nhu cầu</p>
             </>
-          ) : price === 0 ? (
+          ) : isFree ? (
             <>
-              <div className="text-3xl md:text-4xl font-priego-extrabold text-black">Free</div>
-              <p className="text-xs text-gray-500 mt-1">
-                {plan.name === 'Education'
-                  ? 'For accredited students & teachers'
-                  : 'No credit card required'}
-              </p>
+              <div className="text-3xl md:text-4xl font-priego-extrabold text-black">Miễn phí</div>
+              <p className="text-xs text-gray-500 mt-1">Không cần thẻ tín dụng</p>
             </>
           ) : (
             <>
-              <div className="flex items-baseline gap-1">
+              <div className="flex items-baseline gap-1 flex-wrap">
                 <span className="text-3xl md:text-4xl font-priego-extrabold text-black inline-flex items-baseline">
-                  <span className="text-2xl mr-1">$</span><PriceCounter value={price} />
+                  <PriceCounter value={activePrice} /><span className="text-2xl ml-1">đ</span>
                 </span>
-                <span className="text-sm text-gray-500">/user/mo</span>
-                {billing === 'yearly' && monthlySaving > 0 && (
+                <span className="text-sm text-gray-500">/tháng</span>
+                {billing === 'yearly' && yearlySaving > 0 && (
                   <span className="ml-2 text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                    Save ${yearlySaving} a year
+                    Tiết kiệm {fmtVnd(yearlySaving)}đ/năm
                   </span>
                 )}
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                {billing === 'yearly' ? `Billed annually — $${yearlyPrice}/user/mo` : 'Billed monthly'}
+                {billing === 'yearly' && perMonthYearly != null
+                  ? `Thanh toán theo năm — ${fmtVnd(activePrice)}đ/tháng`
+                  : 'Thanh toán theo tháng'}
               </p>
             </>
           )}
@@ -447,17 +441,20 @@ const PlanCard = ({
         <p className="text-sm text-gray-600 mb-4 leading-relaxed">{plan.description}</p>
 
         <ul className="space-y-2.5 mb-4 flex-grow">
-          {plan.features.slice(0, isExpanded ? plan.features.length : 3).map(feature => (
-            <li key={feature} className="flex items-start gap-2.5 text-sm text-gray-700">
+          {bullets.length === 0 && (
+            <li className="text-xs text-gray-400">Chưa cấu hình tính năng.</li>
+          )}
+          {bullets.slice(0, isExpanded ? bullets.length : 3).map((feature, i) => (
+            <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700">
               <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-blue-50 flex items-center justify-center">
                 <Check size={10} className="text-uml-blue" strokeWidth={3} />
               </span>
               <span>{feature}</span>
             </li>
           ))}
-          {!isExpanded && plan.features.length > 3 && (
+          {!isExpanded && bullets.length > 3 && (
             <li className="text-xs text-gray-400 pl-6 font-medium">
-              +{plan.features.length - 3} more {plan.features.length - 3 === 1 ? 'feature' : 'features'}
+              +{bullets.length - 3} tính năng khác
             </li>
           )}
         </ul>
@@ -465,33 +462,14 @@ const PlanCard = ({
         <div className="pt-4 border-t border-gray-100">
           {isExpanded ? (
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                const activePrice = billing === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
-                if (activePrice !== null && activePrice > 0) {
-                  if (isAuthenticated) {
-                    navigate('/payment-information', {
-                      state: {
-                        planName: plan.name,
-                        price: activePrice,
-                        billingCycle: billing,
-                        description: plan.description
-                      }
-                    });
-                  } else {
-                    openAuth(plan.name === 'Education' ? 'register' : 'login')
-                  }
-                } else {
-                  openAuth(plan.name === 'Education' ? 'register' : 'login')
-                }
-              }}
+              onClick={(e) => { e.stopPropagation(); goCheckout() }}
               className={`w-full py-3 rounded-xl font-bold uppercase text-sm tracking-wider transition-colors duration-200 ${
-                plan.highlight
+                plan.popular
                   ? 'bg-uml-blue text-white hover:bg-blue-700'
                   : 'bg-black text-white hover:bg-gray-800'
               }`}
             >
-              {plan.cta}
+              {plan.contactSales ? 'Liên hệ' : isFree ? 'Bắt đầu miễn phí' : 'Chọn gói'}
             </button>
           ) : (
             <button
@@ -500,13 +478,13 @@ const PlanCard = ({
                 onToggle()
               }}
               className={`w-full py-3 rounded-xl font-bold uppercase text-sm tracking-wider transition-colors duration-300 ${
-                plan.highlight
+                plan.popular
                   ? 'border-2 border-uml-blue text-uml-blue hover:bg-blue-50'
                   : 'border-2 border-gray-300 text-gray-600 hover:border-uml-blue hover:text-uml-blue'
               }`}
             >
               <span className="flex items-center justify-center gap-2">
-                <span>View details</span>
+                <span>Xem chi tiết</span>
                 <ArrowRight size={14} strokeWidth={2.5} />
               </span>
             </button>
@@ -576,9 +554,29 @@ const EveryPlanIncludes = () => {
   )
 }
 
-const FeatureComparison = () => {
-  const tiers = ['free', 'education', 'pro', 'enterprise'] as const
-  const planNames = ['Free', 'Education', 'Pro', 'Enterprise']
+type ComparisonRow = { feature: string; values: (string | boolean)[] }
+
+/** Dựng ma trận so sánh động: 4 hạn mức + toàn bộ catalog tính năng (✓/✗ theo từng gói). */
+function buildComparison(plans: PlanResponse[]): ComparisonRow[] {
+  const rows: ComparisonRow[] = [
+    { feature: 'Số dự án', values: plans.map(p => fmtLimit(p.limits?.projects)) },
+    { feature: 'Số sơ đồ', values: plans.map(p => fmtLimit(p.limits?.diagrams)) },
+    { feature: 'Lượt AI / kỳ', values: plans.map(p => fmtLimit(p.limits?.aiQueries)) },
+    { feature: 'Cộng tác viên', values: plans.map(p => fmtLimit(p.limits?.collaborators)) },
+  ]
+  // Catalog features: mọi gói cùng thứ tự catalog → lấy danh mục từ gói đầu, tra included theo id.
+  const catalog = plans[0]?.features ?? []
+  catalog.forEach(cell => {
+    rows.push({
+      feature: cell.label,
+      values: plans.map(p => p.features?.find(f => f.id === cell.id)?.included ?? false),
+    })
+  })
+  return rows
+}
+
+const FeatureComparison = ({ plans }: { plans: PlanResponse[] }) => {
+  const rows = buildComparison(plans)
 
   const renderCell = (value: string | boolean) => {
     if (typeof value === 'boolean') {
@@ -622,20 +620,20 @@ const FeatureComparison = () => {
                 <th className="text-left px-6 py-4 text-xs font-bold uppercase tracking-widest text-gray-400 border-b border-gray-200 w-[28%] sticky left-0 bg-gray-50/80 z-10">
                   Feature
                 </th>
-                {planNames.map(name => (
+                {plans.map(p => (
                   <th
-                    key={name}
+                    key={p.id}
                     className={`px-6 py-4 text-xs font-bold uppercase tracking-widest text-center border-b border-gray-200 ${
-                      name === 'Pro' ? 'text-uml-blue' : 'text-gray-400'
+                      p.popular ? 'text-uml-blue' : 'text-gray-400'
                     }`}
                   >
-                    {name}
+                    {p.name}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {comparisonData.map((row, idx) => (
+              {rows.map((row, idx) => (
                 <motion.tr
                   key={row.feature}
                   initial={{ opacity: 0, y: 8 }}
@@ -649,12 +647,12 @@ const FeatureComparison = () => {
                   <td className={`px-6 py-3.5 text-sm font-semibold text-gray-800 border-b border-gray-100/80 sticky left-0 z-10 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}>
                     {row.feature}
                   </td>
-                  {tiers.map(tier => (
+                  {row.values.map((value, i) => (
                     <td
-                      key={tier}
+                      key={i}
                       className="px-6 py-3.5 text-center align-middle border-b border-gray-100/80"
                     >
-                      {renderCell(row[tier])}
+                      {renderCell(value)}
                     </td>
                   ))}
                 </motion.tr>
