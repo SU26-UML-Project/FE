@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Ban,
   MoreHorizontal,
   Pencil,
   Plus,
   Search,
-  Trash2,
   UserCheck,
   UserPlus,
   Users as UsersIcon,
@@ -92,6 +92,7 @@ export default function Users() {
 
   const [modal, setModal] = useState<"create" | "detail" | null>(null);
   const [selectedUser, setSelectedUser] = useState<AdminUserListItem | null>(null);
+  const [lockTarget, setLockTarget] = useState<AdminUserListItem | null>(null);
   const [form, setForm] = useState({ fullName: "", email: "", password: "" });
 
   const fetchUsers = async () => {
@@ -126,6 +127,7 @@ export default function Users() {
     const r = typeof u.role === "string" ? u.role : u.role.roleName;
     return r === "ADMIN";
   }).length;
+  const userCount = users.length - adminCount; // "Tổng người dùng" = chỉ USER, không tính admin
 
   const handleCreate = async () => {
     try {
@@ -145,6 +147,13 @@ export default function Users() {
     } catch {
       // toast handled by interceptor
     }
+  };
+
+  const confirmLock = async () => {
+    if (!lockTarget) return;
+    const id = lockTarget.id;
+    setLockTarget(null);
+    await handleToggleStatus(id);
   };
 
   const handleEdit = async (userId: string) => {
@@ -198,7 +207,7 @@ export default function Users() {
       ) : (
         <div className="flex-1 min-h-0 space-y-5 overflow-y-auto">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <MiniStat icon={UsersIcon} label="Tổng người dùng" value={users.length.toLocaleString("vi-VN")} />
+        <MiniStat icon={UsersIcon} label="Tổng người dùng" value={userCount.toLocaleString("vi-VN")} />
         <MiniStat icon={UserCheck} label="Đang hoạt động" value={activeCount.toLocaleString("vi-VN")} />
         <MiniStat icon={UserPlus} label="Chờ xoá" value={pendingCount.toLocaleString("vi-VN")} />
         <MiniStat icon={UsersIcon} label="Quản trị viên" value={adminCount.toLocaleString("vi-VN")} />
@@ -310,8 +319,12 @@ export default function Users() {
                         <button onClick={() => handleEdit(u.id)} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
                           <Pencil className="h-4 w-4" />
                         </button>
-                        <button onClick={() => handleToggleStatus(u.id)} className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
-                          <Trash2 className="h-4 w-4" />
+                        <button
+                          onClick={() => setLockTarget(u)}
+                          title={u.status === "LOCKED" ? "Mở khoá tài khoản" : "Khoá tài khoản"}
+                          className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                        >
+                          <Ban className="h-4 w-4" />
                         </button>
                         <button className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100">
                           <MoreHorizontal className="h-4 w-4" />
@@ -398,6 +411,40 @@ export default function Users() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Lock / unlock confirm modal */}
+      <Modal
+        open={!!lockTarget}
+        onClose={() => setLockTarget(null)}
+        title={lockTarget?.status === "LOCKED" ? "Mở khoá tài khoản?" : "Khoá tài khoản?"}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-[13px] leading-relaxed text-slate-600">
+            Bạn có muốn {lockTarget?.status === "LOCKED" ? "mở khoá" : "khoá"} tài khoản{" "}
+            <b className="text-slate-900">{lockTarget?.fullName ?? lockTarget?.email}</b> không?
+            {lockTarget?.status !== "LOCKED" && " Người dùng sẽ không thể đăng nhập cho tới khi được mở khoá lại."}
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              onClick={() => setLockTarget(null)}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-[13px] font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Huỷ
+            </button>
+            <button
+              onClick={confirmLock}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[13px] font-medium text-white transition",
+                lockTarget?.status === "LOCKED" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"
+              )}
+            >
+              <Ban className="h-4 w-4" />
+              {lockTarget?.status === "LOCKED" ? "Mở khoá" : "Khoá tài khoản"}
+            </button>
+          </div>
+        </div>
       </Modal>
       </div>
       )}
