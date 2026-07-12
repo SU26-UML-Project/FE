@@ -27,6 +27,7 @@ import {
   intelConfig,
   vectorDbCatalog,
   llmProviderCatalog,
+  embProviderCatalog,
 } from "../data";
 import { Badge, Button, Card, SearchInput, Skeleton } from "../ui";
 import SmartSelect from "../../ui/SmartSelect";
@@ -60,13 +61,9 @@ type DocEditorState = {
 const inputCls =
   "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-800 outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100";
 
-const localProviders = ["Ollama", "LM Studio", "LocalAI"];
 const providerDefaultBaseUrl: Record<string, string> = {
-  Ollama: "http://localhost:11434",
-  "LM Studio": "http://localhost:1234",
-  LocalAI: "http://localhost:8080",
-  OpenAI: "https://api.openai.com",
-  Anthropic: "https://api.anthropic.com",
+  ollama: "http://localhost:11434",
+  groq: "https://api.groq.com/openai/v1",
 };
 const kindLabel: Record<string, string> = {
   embedded: "Nhúng sẵn",
@@ -140,14 +137,14 @@ export default function Intelligence() {
   const [llmApiKey, setLlmApiKey] = useState("");
   const [detectedLlm, setDetectedLlm] = useState<string[]>([]);
   const [detectingLlm, setDetectingLlm] = useState(false);
-  const [llmSearch, setLlmSearch] = useState("");
+
 
   // ---- Embedding ----
   const [embProvider, setEmbProvider] = useState("");
   const [emb, setEmb] = useState("");
   const [detectedEmb, setDetectedEmb] = useState<string[]>([]);
   const [detectingEmb, setDetectingEmb] = useState(false);
-  const [embSearch, setEmbSearch] = useState("");
+
 
   // ---- Vector DB ----
   const [activeVdbs, setActiveVdbs] = useState<VdbInstance[]>([{ providerId: "lancedb", fields: {} }]);
@@ -209,14 +206,21 @@ export default function Intelligence() {
           setSysConfig(cfg);
           setConfigLoadError(false);
           if (cfg.llmProvider) {
-            const match = llmProviderCatalog.find(p => p.name.toLowerCase() === cfg.llmProvider!.toLowerCase());
-            setLlmProvider(match?.name || cfg.llmProvider);
+            const match = llmProviderCatalog.find(p => p.id === cfg.llmProvider!.toLowerCase());
+            setLlmProvider(match?.id || cfg.llmProvider);
           }
           if (cfg.model) setModel(cfg.model);
-          if (cfg.baseUrl) setLlmUrl(cfg.baseUrl);
+          if (cfg.baseUrl) {
+            const pId = cfg.llmProvider?.toLowerCase() || "";
+            if (pId === "ollama" && providerDefaultBaseUrl.ollama) {
+              setLlmUrl(providerDefaultBaseUrl.ollama);
+            } else {
+              setLlmUrl(cfg.baseUrl);
+            }
+          }
           if (cfg.embeddingProvider) {
-            const match = llmProviderCatalog.find(p => p.name.toLowerCase() === cfg.embeddingProvider!.toLowerCase());
-            setEmbProvider(match?.name || cfg.embeddingProvider);
+            const match = embProviderCatalog.find(p => p.id === cfg.embeddingProvider!.toLowerCase());
+            setEmbProvider(match?.id || cfg.embeddingProvider);
           }
           if (cfg.embeddingModel) setEmb(cfg.embeddingModel);
           if (cfg.hasApiKey) setLlmApiKey("••••••••");
@@ -252,8 +256,7 @@ export default function Intelligence() {
   const filteredWs = wsSearch ? workspaces.filter((w) => w.name.toLowerCase().includes(wsSearch.toLowerCase()) || w.slug.toLowerCase().includes(wsSearch.toLowerCase())) : workspaces;
   const llmOptions = detectedLlm.length ? detectedLlm : (model ? [model] : []);
   const embOptions = detectedEmb.length ? detectedEmb : (emb ? [emb] : []);
-  const filteredLlmProviders = llmSearch ? llmProviderCatalog.filter((p) => p.name.toLowerCase().includes(llmSearch.toLowerCase())) : llmProviderCatalog;
-  const filteredEmbProviders = embSearch ? llmProviderCatalog.filter((p) => p.name.toLowerCase().includes(embSearch.toLowerCase())) : llmProviderCatalog;
+
   const filteredVdbProviders = vdbSearch ? vectorDbCatalog.filter((p) => p.name.toLowerCase().includes(vdbSearch.toLowerCase())) : vectorDbCatalog;
 
   const allDocs: DisplayDoc[] = docs.map((d) => {
@@ -288,7 +291,25 @@ export default function Intelligence() {
   async function refreshSysConfig() {
     try {
       const res = await aiAdminService.getSystemConfig();
-      if (res?.result) { setSysConfig(res.result); setConfigLoadError(false); }
+      const cfg = res?.result;
+      if (cfg) {
+        setSysConfig(cfg);
+        setConfigLoadError(false);
+        if (cfg.llmProvider) {
+          const match = llmProviderCatalog.find(p => p.id === cfg.llmProvider!.toLowerCase());
+          setLlmProvider(match?.id || cfg.llmProvider);
+        }
+        if (cfg.model) setModel(cfg.model);
+        if (cfg.baseUrl) setLlmUrl(cfg.baseUrl);
+        if (cfg.embeddingProvider) {
+          const match = embProviderCatalog.find(p => p.id === cfg.embeddingProvider!.toLowerCase());
+          setEmbProvider(match?.id || cfg.embeddingProvider);
+        }
+        if (cfg.embeddingModel) setEmb(cfg.embeddingModel);
+        if (cfg.documentChunkSize != null) setChunkSize(cfg.documentChunkSize);
+        if (cfg.documentChunkOverlap != null) setChunkOverlap(cfg.documentChunkOverlap);
+        if (cfg.vectorDb) setVdb(cfg.vectorDb);
+      }
     } catch { setConfigLoadError(true); }
   }
 
@@ -398,31 +419,34 @@ export default function Intelligence() {
     const provider = (wsTabDirty?.chatProvider ?? wsTabDetail?.chatProvider ?? "");
     if (!provider) { setDetectedWsModels([]); return; }
     setDetectingWsModels(true);
-    aiAdminService.getProviderModels(provider, llmUrl || undefined, llmApiKey || undefined)
+    aiAdminService.getProviderModels(provider, llmUrl || undefined)
       .then((res) => {
         const list = res.result || [];
         setDetectedWsModels(list);
         if (list.length > 0 && !(wsTabDirty?.model ?? wsTabDetail?.chatModel)) updateWsTabField("model", list[0]);
       })
-      .catch(() => setDetectedWsModels([]))
+      .catch((err: any) => { setDetectedWsModels([]); toast.error(err?.response?.data?.message || "Không thể quét model workspace"); })
       .finally(() => setDetectingWsModels(false));
   }
 
   // ---- LLM handlers ----
+  const MASKED_KEY = "••••••••";
+
   function autoDetectLlm() {
     setDetectingLlm(true);
-    aiAdminService.getProviderModels(llmProvider, llmUrl || undefined, llmApiKey || undefined)
+    const sendKey = llmApiKey && llmApiKey !== MASKED_KEY ? llmApiKey : undefined;
+    aiAdminService.getProviderModels(llmProvider, llmUrl || undefined, sendKey)
       .then((res) => {
         const models = res.result || [];
         setDetectedLlm(models);
         if (models.length > 0 && !model) setModel(models[0]);
       })
-      .catch(() => { setDetectedLlm([]); })
+      .catch((err: any) => { setDetectedLlm([]); toast.error(err?.response?.data?.message || "Không thể quét model"); })
       .finally(() => setDetectingLlm(false));
   }
 
   function syncWorkspacesWithLlm() {
-    workspaces.forEach((ws) => {
+    workspaces.filter(ws => ws.slug !== "_all").forEach((ws) => {
       aiAdminService.updateWorkspace({ chatProvider: llmProvider?.toLowerCase(), model }, ws.slug)
         .then(() => {
           if (wsTab === ws.slug) { loadWsTabDetail(ws.slug); }
@@ -432,16 +456,25 @@ export default function Intelligence() {
   }
 
   function saveLlm() {
+    const saveKey = llmApiKey && llmApiKey !== MASKED_KEY ? llmApiKey : undefined;
+    // Snapshot user's selections before refreshSysConfig may overwrite them
+    const savedProvider = llmProvider;
+    const savedModel = model;
+    const savedUrl = llmUrl;
     triggerSave("llm", async () => {
       const r = await aiAdminService.updateSystemConfig({
-        llmProvider, baseUrl: llmUrl, model, apiKey: llmApiKey || undefined,
+        llmProvider: savedProvider, baseUrl: savedUrl || undefined, model: savedModel, apiKey: saveKey,
         embeddingProvider: sysConfig?.embeddingProvider ?? undefined,
         embeddingModel: sysConfig?.embeddingModel ?? undefined,
         documentChunkSize: chunkSize,
         documentChunkOverlap: chunkOverlap,
       });
       await refreshSysConfig();
+      setLlmProvider(savedProvider);
+      setModel(savedModel);
+      setLlmUrl(savedUrl || "");
       syncWorkspacesWithLlm();
+      autoDetectLlm();
       return r;
     });
   }
@@ -449,13 +482,13 @@ export default function Intelligence() {
   // ---- Embedding handlers ----
   function autoDetectEmb() {
     setDetectingEmb(true);
-    aiAdminService.getProviderModels(embProvider, llmUrl || undefined, llmApiKey || undefined)
+    aiAdminService.getProviderModels(embProvider, llmUrl || undefined)
       .then((res) => {
         const models = res.result || [];
         setDetectedEmb(models);
         if (models.length > 0 && !emb) setEmb(models[0]);
       })
-      .catch(() => { setDetectedEmb([]); })
+      .catch((err: any) => { setDetectedEmb([]); toast.error(err?.response?.data?.message || "Không thể quét embedding model"); })
       .finally(() => setDetectingEmb(false));
   }
 
@@ -1125,30 +1158,15 @@ export default function Intelligence() {
               <div className="flex-1 min-h-0 grid gap-4 lg:grid-cols-[220px_1fr]">
                 {/* provider list */}
                 <div className="scroll-slim min-h-0 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
-                  <SearchInput value={llmSearch} onChange={setLlmSearch} placeholder="Tìm provider…" className="mb-1.5 px-1" />
-                  <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Local</p>
-                  {filteredLlmProviders.filter((p) => p.kind === "local").map((p) => {
-                    const sel = llmProvider === p.name;
+                  {llmProviderCatalog.map((p) => {
+                    const sel = llmProvider === p.id;
+                    const isLocal = p.kind === "local";
                     return (
-                      <button key={p.id} onClick={() => { setLlmProvider(p.name); if (providerDefaultBaseUrl[p.name] && !llmUrl) setLlmUrl(providerDefaultBaseUrl[p.name]); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><Cpu className="h-3.5 w-3.5" /></span>
+                      <button key={p.id} onClick={() => { setLlmProvider(p.id); setLlmUrl(providerDefaultBaseUrl[p.id] || ""); setModel(""); setDetectedLlm([]); if (p.id !== llmProvider) setLlmApiKey(""); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}>{isLocal ? <Cpu className="h-3.5 w-3.5" /> : <Cloud className="h-3.5 w-3.5" />}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[12.5px] font-medium text-slate-800">{p.name}</span>
-                          <span className="block text-[10.5px] text-slate-400">Tự quản</span>
-                        </span>
-                        {sel && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
-                      </button>
-                    );
-                  })}
-                  <p className="mb-1.5 mt-3 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Cloud</p>
-                  {filteredLlmProviders.filter((p) => p.kind === "cloud").map((p) => {
-                    const sel = llmProvider === p.name;
-                    return (
-                      <button key={p.id} onClick={() => { setLlmProvider(p.name); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><Cloud className="h-3.5 w-3.5" /></span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[12.5px] font-medium text-slate-800">{p.name}</span>
-                          <span className="block text-[10.5px] text-slate-400">API</span>
+                          <span className="block text-[10.5px] text-slate-400">{isLocal ? "Tự quản" : "API"}</span>
                         </span>
                         {sel && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
                       </button>
@@ -1161,7 +1179,7 @@ export default function Intelligence() {
                   {llmProvider ? (
                     <>
                       {(() => {
-                        const prov = llmProviderCatalog.find((p) => p.name === llmProvider);
+                        const prov = llmProviderCatalog.find((p) => p.id === llmProvider);
                         return (
                           <>
                             {prov && (
@@ -1174,13 +1192,15 @@ export default function Intelligence() {
                               </div>
                             )}
                             <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
-                              <div className="min-w-0">
-                                <Field label="Base URL" hint={localProviders.includes(llmProvider) ? "bắt buộc" : "không bắt buộc"}>
-                                  <div className="flex items-stretch gap-2">
-                                    <input value={llmUrl} onChange={(e) => setLlmUrl(e.target.value)} className={cn(inputCls, "font-mono", detectingLlm && "animate-pulse")} />
-                                  </div>
-                                </Field>
-                              </div>
+                              {llmProvider === "ollama" && (
+                                <div className="min-w-0">
+                                  <Field label="Base URL" hint="bắt buộc">
+                                    <div className="flex items-stretch gap-2">
+                                      <input value={llmUrl} onChange={(e) => setLlmUrl(e.target.value)} className={cn(inputCls, "font-mono", detectingLlm && "animate-pulse")} />
+                                    </div>
+                                  </Field>
+                                </div>
+                              )}
                               <div className="min-w-0">
                                 <Field label="Chat Model">
                                   <div className="flex items-stretch gap-2">
@@ -1191,13 +1211,16 @@ export default function Intelligence() {
                                   </div>
                                 </Field>
                               </div>
-                              {!localProviders.includes(llmProvider) && (
-                                <div className="min-w-0">
-                                  <Field label="API Key">
-                                    <input type="password" value={llmApiKey} onChange={(e) => setLlmApiKey(e.target.value)} placeholder="sk-••••••••" className={cn(inputCls, "font-mono")} />
-                                  </Field>
-                                </div>
-                              )}
+                              {(() => {
+                        const prov = llmProviderCatalog.find((p) => p.id === llmProvider);
+                                return prov?.kind === "cloud" ? (
+                                  <div className="min-w-0">
+                                    <Field label="API Key">
+                                      <input type="password" value={llmApiKey} onChange={(e) => setLlmApiKey(e.target.value)} placeholder="sk-••••••••" className={cn(inputCls, "font-mono")} />
+                                    </Field>
+                                  </div>
+                                ) : null;
+                              })()}
                             </div>
                             {detectedLlm.length > 0 && (
                               <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
@@ -1236,32 +1259,16 @@ export default function Intelligence() {
               <p className="mb-4 shrink-0 text-[13px] text-slate-500">Chọn nhà cung cấp embedding, sau đó cấu hình model cụ thể.</p>
 
               <div className="flex-1 min-h-0 grid gap-4 lg:grid-cols-[220px_1fr]">
-                {/* provider list */}
+                {/* provider list — only Ollama supported */}
                 <div className="scroll-slim min-h-0 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
-                  <SearchInput value={embSearch} onChange={setEmbSearch} placeholder="Tìm provider…" className="mb-1.5 px-1" />
-                  <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Local</p>
-                  {filteredEmbProviders.filter((p) => p.kind === "local").map((p) => {
+                  {embProviderCatalog.map((p) => {
                     const sel = embProvider === p.name;
                     return (
-                      <button key={p.id} onClick={() => { setEmbProvider(p.name); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
+                      <button key={p.id} onClick={() => { setEmbProvider(p.id); setEmb(""); setDetectedEmb([]); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><Cpu className="h-3.5 w-3.5" /></span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[12.5px] font-medium text-slate-800">{p.name}</span>
                           <span className="block text-[10.5px] text-slate-400">Tự quản</span>
-                        </span>
-                        {sel && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
-                      </button>
-                    );
-                  })}
-                  <p className="mb-1.5 mt-3 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Cloud</p>
-                  {filteredEmbProviders.filter((p) => p.kind === "cloud").map((p) => {
-                    const sel = embProvider === p.name;
-                    return (
-                      <button key={p.id} onClick={() => { setEmbProvider(p.name); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><Cloud className="h-3.5 w-3.5" /></span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[12.5px] font-medium text-slate-800">{p.name}</span>
-                          <span className="block text-[10.5px] text-slate-400">API</span>
                         </span>
                         {sel && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
                       </button>
@@ -1274,11 +1281,11 @@ export default function Intelligence() {
                   {embProvider ? (
                     <>
                       {(() => {
-                        const prov = llmProviderCatalog.find((p) => p.name === embProvider);
+                        const prov = embProviderCatalog.find((p) => p.id === embProvider);
                         return (
                           prov && (
                             <div className="mb-4 flex items-center gap-3">
-                              <span className="flex h-9 w-9 items-center justify-center rounded-lg text-white" style={{ backgroundColor: prov.color }}>{prov.kind === "local" ? <Cpu className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}</span>
+                              <span className="flex h-9 w-9 items-center justify-center rounded-lg text-white" style={{ backgroundColor: prov.color }}><Cpu className="h-4 w-4" /></span>
                             <div className="min-w-0">
                                   <p className="truncate text-[14px] font-semibold text-slate-900" title={prov.name}>{prov.name}</p>
                                   <p className="truncate text-[11px] text-slate-400" title={prov.desc}>{prov.desc}</p>

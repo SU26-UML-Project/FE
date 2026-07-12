@@ -32,6 +32,11 @@ export interface TopCostDriver {
   totalTokens?: number;
 }
 
+export interface AiErrorLogEntry {
+  createdAt: string;
+  errorMessage: string;
+}
+
 export interface AiModelStats {
   provider: string;
   modelName: string;
@@ -100,5 +105,12 @@ export const getAiModelStats = (range: RangeKey, from?: string, to?: string) =>
   apiClient
     .get<any, ApiResponse<AiModelStats[]>>("/admin/dashboard/ai-model-stats", {
       params: { range, from, to },
+    })
+    .then((r) => r.result);
+
+export const getAiErrorLogs = (provider: string, modelName: string, limit?: number) =>
+  apiClient
+    .get<any, ApiResponse<AiErrorLogEntry[]>>("/admin/dashboard/ai-error-logs", {
+      params: { provider, modelName, ...(limit ? { limit } : {}) },
     })
     .then((r) => r.result);

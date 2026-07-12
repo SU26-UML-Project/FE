@@ -12,6 +12,8 @@ import {
 import { authService } from "../../../services/authService";
 import type { AdminUserListItem } from "../../../types/auth";
 import { Avatar, Badge, Card, Skeleton } from "../ui";
+import { ConfirmModal } from "../ConfirmModal";
+import { Pagination } from "../Pagination";
 import { Modal } from "../Modal";
 import { cn } from "../../../utils/cn";
 
@@ -93,13 +95,15 @@ export default function Users() {
   const [modal, setModal] = useState<"create" | "detail" | null>(null);
   const [selectedUser, setSelectedUser] = useState<AdminUserListItem | null>(null);
   const [lockTarget, setLockTarget] = useState<AdminUserListItem | null>(null);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
   const [form, setForm] = useState({ fullName: "", email: "", password: "" });
 
   const fetchUsers = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await authService.getAllUsers({ page: 0, size: 999 });
+      const res = await authService.getAllUsers({ page: 0, size: 200 });
       setUsers(res.result.content);
     } catch {
       setError("Không thể tải danh sách người dùng");
@@ -120,6 +124,11 @@ export default function Users() {
       ),
     [q, role, users]
   );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // Reset to first page when filters change
+  useEffect(() => { setPage(0); }, [q, role]);
+  const safePage = Math.min(page, totalPages - 1);
+  const pageUsers = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   const activeCount = users.filter((u) => u.status === "ACTIVE").length;
   const pendingCount = users.filter((u) => u.status === "PENDING_DELETE").length;
@@ -276,7 +285,7 @@ export default function Users() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((u) => (
+                {pageUsers.map((u) => (
                   <tr key={u.id} className="group transition hover:bg-slate-50">
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-3">
@@ -335,6 +344,9 @@ export default function Users() {
                 ))}
               </tbody>
             </table>
+            {filtered.length > PAGE_SIZE && (
+              <Pagination page={safePage} totalPages={totalPages} totalElements={filtered.length} onChange={setPage} />
+            )}
             {filtered.length === 0 && (
               <p className="py-10 text-center text-[13px] text-slate-400">Không tìm thấy người dùng phù hợp.</p>
             )}
@@ -414,38 +426,15 @@ export default function Users() {
       </Modal>
 
       {/* Lock / unlock confirm modal */}
-      <Modal
+      <ConfirmModal
         open={!!lockTarget}
         onClose={() => setLockTarget(null)}
         title={lockTarget?.status === "LOCKED" ? "Mở khoá tài khoản?" : "Khoá tài khoản?"}
-        size="sm"
-      >
-        <div className="space-y-4">
-          <p className="text-[13px] leading-relaxed text-slate-600">
-            Bạn có muốn {lockTarget?.status === "LOCKED" ? "mở khoá" : "khoá"} tài khoản{" "}
-            <b className="text-slate-900">{lockTarget?.fullName ?? lockTarget?.email}</b> không?
-            {lockTarget?.status !== "LOCKED" && " Người dùng sẽ không thể đăng nhập cho tới khi được mở khoá lại."}
-          </p>
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              onClick={() => setLockTarget(null)}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-[13px] font-medium text-slate-600 hover:bg-slate-50"
-            >
-              Huỷ
-            </button>
-            <button
-              onClick={confirmLock}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[13px] font-medium text-white transition",
-                lockTarget?.status === "LOCKED" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"
-              )}
-            >
-              <Ban className="h-4 w-4" />
-              {lockTarget?.status === "LOCKED" ? "Mở khoá" : "Khoá tài khoản"}
-            </button>
-          </div>
-        </div>
-      </Modal>
+        message={`Bạn có muốn ${lockTarget?.status === "LOCKED" ? "mở khoá" : "khoá"} tài khoản ${lockTarget?.fullName ?? lockTarget?.email} không?${lockTarget?.status !== "LOCKED" ? " Người dùng sẽ không thể đăng nhập cho tới khi được mở khoá lại." : ""}`}
+        confirmLabel={lockTarget?.status === "LOCKED" ? "Mở khoá" : "Khoá tài khoản"}
+        confirmTone={lockTarget?.status === "LOCKED" ? "slate" : "red"}
+        onConfirm={confirmLock}
+      />
       </div>
       )}
     </div>

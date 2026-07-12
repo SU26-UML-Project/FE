@@ -24,17 +24,17 @@ import {
   getTopCostDrivers,
   getTopProjects,
   getAiModelStats,
+  getAiErrorLogs,
   type StatCardData,
   type OverviewData,
   type RevenueTrendData,
   type TopCostDriver,
   type TopProject,
   type AiModelStats,
+  type AiErrorLogEntry,
   type RangeKey,
 } from "../../../services/dashboardService";
 import { cn } from "../../../utils/cn";
-
-const statColors = ["#6366f1", "#0ea5e9", "#8b5cf6", "#f43f5e"];
 
 function initialsOf(name: string) {
   const parts = (name || "").trim().split(/\s+/).filter(Boolean);
@@ -108,6 +108,8 @@ function OverviewStat({ label, value, icon: Icon, color }: { label: string; valu
   );
 }
 
+const statColors = ["#1E40AF", "#3B82F6", "#D97706", "#DC2626"];
+
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user);
   const [range, setRange] = useState<RangeKey>("30d");
@@ -123,6 +125,9 @@ export default function Dashboard() {
   const [revenueTrend, setRevenueTrend] = useState<RevenueTrendData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [errorModal, setErrorModal] = useState<{ provider: string; modelName: string } | null>(null);
+  const [errorLogs, setErrorLogs] = useState<AiErrorLogEntry[]>([]);
+  const [loadingErrors, setLoadingErrors] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -151,6 +156,20 @@ export default function Dashboard() {
     getTopProjects(5).then(setTopProjects).catch(() => setTopProjects([]));
     getRevenueTrend().then((d) => setRevenueTrend(d ?? [])).catch(() => setRevenueTrend([]));
   }, []);
+
+  const handleErrorModalOpen = async (provider: string, modelName: string) => {
+    setErrorModal({ provider, modelName });
+    setLoadingErrors(true);
+    getAiErrorLogs(provider, modelName, 20)
+      .then((d) => setErrorLogs(d ?? []))
+      .catch(() => setErrorLogs([]))
+      .finally(() => setLoadingErrors(false));
+  };
+
+  const handleErrorModalClose = () => {
+    setErrorModal(null);
+    setErrorLogs([]);
+  };
 
   const fmtToday = () => new Date().toISOString().slice(0, 10);
 
@@ -221,10 +240,11 @@ export default function Dashboard() {
               </Card>
             ))}
           </div>
-        </div>
       </div>
-    );
-  }
+
+    </div>
+  );
+}
 
   return (
     <div className="flex h-full flex-col gap-5 overflow-hidden">
@@ -301,7 +321,8 @@ export default function Dashboard() {
         </Card>
       ) : (
         <>
-      {/* Stat cards */}
+
+      {/* === SECTION 1: Stat Cards (KPI cards) === */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {statCards.map((s, i) => (
           <StatCard
@@ -318,85 +339,88 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* System Health + Revenue overview */}
+      {/* === SECTION 2: System Health (compact metrics) === */}
       {overview && (
         <Card className="p-5">
           <div className="mb-3 flex items-center gap-2">
             <Gauge className="h-4 w-4 text-slate-400" />
             <h3 className="text-[14px] font-semibold text-slate-900">Sức khoẻ hệ thống</h3>
+            <span className="text-[12px] text-slate-400">· DAU/MAU · Doanh thu</span>
           </div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
-            <OverviewStat icon={Users} label="Tổng người dùng" value={overview.users.total.toLocaleString("vi-VN")} color="#6366f1" />
-            <OverviewStat icon={Activity} label="DAU (24h)" value={overview.users.dau.toLocaleString("vi-VN")} color="#0ea5e9" />
-            <OverviewStat icon={Users} label="MAU (30d)" value={overview.users.mau.toLocaleString("vi-VN")} color="#8b5cf6" />
+            <OverviewStat icon={Users} label="Tổng người dùng" value={overview.users.total.toLocaleString("vi-VN")} color="#1E40AF" />
+            <OverviewStat icon={Activity} label="DAU (24h)" value={overview.users.dau.toLocaleString("vi-VN")} color="#3B82F6" />
+            <OverviewStat icon={Users} label="MAU (30d)" value={overview.users.mau.toLocaleString("vi-VN")} color="#D97706" />
             <OverviewStat icon={Zap} label={`Tỷ lệ DAU/MAU`} value={`${overview.users.mau > 0 ? ((overview.users.dau / overview.users.mau) * 100).toFixed(1) : 0}%`} color="#10b981" />
-            <OverviewStat icon={DollarSign} label="MRR" value={`${overview.revenue.mrr.toLocaleString("vi-VN", { minimumFractionDigits: 2 })} ₫`} color="#f59e0b" />
-            <OverviewStat icon={TrendingUp} label="ARPU" value={`${overview.revenue.arpu.toLocaleString("vi-VN", { minimumFractionDigits: 2 })} ₫`} color="#06b6d4" />
-            <OverviewStat icon={Activity} label="Churn rate" value={`${overview.revenue.churnRate}%`} color="#f43f5e" />
+            <OverviewStat icon={DollarSign} label="MRR" value={`${overview.revenue.mrr.toLocaleString("vi-VN", { minimumFractionDigits: 2 })} ₫`} color="#1E40AF" />
+            <OverviewStat icon={TrendingUp} label="ARPU" value={`${overview.revenue.arpu.toLocaleString("vi-VN", { minimumFractionDigits: 2 })} ₫`} color="#D97706" />
+            <OverviewStat icon={Activity} label="Churn rate" value={`${overview.revenue.churnRate}%`} color="#DC2626" />
           </div>
         </Card>
       )}
 
-      {/* Revenue trend (MRR theo ngày) */}
-      {revenueTrend.length > 1 && (
-        <Card className="p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-slate-400" />
-            <h3 className="text-[14px] font-semibold text-slate-900">Xu hướng doanh thu (MRR)</h3>
-          </div>
-          <AreaChart
-            data={revenueTrend.map((r) => ({ m: r.date.slice(5).replace("-", "/"), v: r.mrr }))}
-            color="#6366f1"
-          />
-        </Card>
-      )}
+      {/* === SECTION 3: Revenue Trend (MRR Chart) + AI Model Stats (comparative grid) === */}
+      <div className="grid gap-4 xl:grid-cols-2">
+        {revenueTrend.length > 1 && (
+          <Card className="p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-slate-400" />
+              <h3 className="text-[14px] font-semibold text-slate-900">Xu hướng doanh thu</h3>
+              <span className="text-[12px] text-slate-400">· MRR theo ngày</span>
+            </div>
+            <AreaChart
+              data={revenueTrend.map((r) => ({ m: r.date.slice(5).replace("-", "/"), v: r.mrr }))}
+              color="#1E40AF"
+            />
+          </Card>
+        )}
 
-      {/* AI Model Stats table */}
-      {aiModelStats.length > 0 && (
-        <Card className="p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <Zap className="h-4 w-4 text-slate-400" />
-            <h3 className="text-[14px] font-semibold text-slate-900">Thống kê AI theo Provider / Model</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-[11.5px] font-semibold uppercase tracking-wider text-slate-400">
-                  <th className="pb-2 pr-4">Provider</th>
-                  <th className="pb-2 pr-4">Model</th>
-                  <th className="pb-2 pr-4 text-right">Requests</th>
-                  <th className="pb-2 pr-4 text-right">Errors</th>
-                  <th className="pb-2 pr-4 text-right">Error Rate</th>
-                  <th className="pb-2 text-right">Cost (USD)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {aiModelStats.map((m, i) => (
-                  <tr key={`${m.provider}-${m.modelName}`} className="border-b border-slate-100 last:border-0">
-                    <td className="py-2.5 pr-4 font-medium text-slate-900">{m.provider}</td>
-                    <td className="py-2.5 pr-4 text-slate-700">{m.modelName}</td>
-                    <td className="py-2.5 pr-4 text-right text-slate-900">{m.totalRequests.toLocaleString("vi-VN")}</td>
-                    <td className="py-2.5 pr-4 text-right">
-                      <span className={m.errorCount > 0 ? "text-rose-600 font-medium" : "text-slate-500"}>
-                        {m.errorCount.toLocaleString("vi-VN")}
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-4 text-right">
-                      <span className={m.errorRate > 0 ? "text-rose-600 font-medium" : "text-slate-500"}>
-                        {m.errorRate}%
-                      </span>
-                      <div className="text-[10px] text-slate-400">= errors / requests × 100</div>
-                    </td>
-                    <td className="py-2.5 text-right text-slate-900">${m.totalCostUsd.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        {aiModelStats.length > 0 && (
+          <Card className="p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <Zap className="h-4 w-4 text-slate-400" />
+              <h3 className="text-[14px] font-semibold text-slate-900">AI Model Stats</h3>
+              <span className="text-[12px] text-slate-400">· Provider / Model</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-[11.5px] font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="pb-2 pr-4">Provider</th>
+                    <th className="pb-2 pr-4">Model</th>
+                    <th className="pb-2 pr-4 text-right">Req</th>
+                    <th className="pb-2 pr-4 text-right">Err</th>
+                    <th className="pb-2 pr-4 text-right">Rate</th>
+                    <th className="pb-2 text-right">Cost</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
+                </thead>
+                <tbody>
+                  {aiModelStats.map((m) => (
+                    <tr key={`${m.provider}-${m.modelName}`} className="cursor-pointer border-b border-slate-100 last:border-0 transition hover:bg-blue-50" onClick={() => handleErrorModalOpen(m.provider, m.modelName)}>
+                      <td className="py-2.5 pr-4 font-medium text-slate-900">{m.provider}</td>
+                      <td className="py-2.5 pr-4 text-slate-700">{m.modelName}</td>
+                      <td className="py-2.5 pr-4 text-right text-slate-900">{m.totalRequests.toLocaleString("vi-VN")}</td>
+                      <td className="py-2.5 pr-4 text-right">
+                        <span className={m.errorCount > 0 ? "text-rose-600 font-medium" : "text-slate-500"}>
+                          {m.errorCount.toLocaleString("vi-VN")}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pr-4 text-right">
+                        <span className={m.errorRate > 0 ? "text-rose-600 font-medium" : "text-slate-500"}>
+                          {m.errorRate}%
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right text-slate-900">${m.totalCostUsd.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+      </div>
 
-      {/* Row 3: Power-user tables */}
+      {/* === SECTION 4: Power-User Tables (2-column) === */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
           <div className="mb-3 flex items-center gap-2">
@@ -409,7 +433,7 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-1">
               {topUsers.map((u, i) => (
-                <div key={u.userId} className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-50">
+                <div key={u.userId} className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-blue-50 hover:shadow-sm">
                   <span className="w-4 shrink-0 text-center text-[12px] font-semibold text-slate-400">{i + 1}</span>
                   <Avatar initials={initialsOf(u.fullName)} size="h-8 w-8" color={statColors[i % statColors.length]} />
                   <div className="min-w-0 flex-1">
@@ -437,7 +461,7 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-1">
               {topProjects.map((p, i) => (
-                <div key={p.projectId} className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-50">
+                <div key={p.projectId} className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-blue-50 hover:shadow-sm">
                   <span className="w-4 shrink-0 text-center text-[12px] font-semibold text-slate-400">{i + 1}</span>
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
                     <FolderKanban className="h-4 w-4" />
@@ -459,6 +483,44 @@ export default function Dashboard() {
 
       </>
       )}
+
+      {/* Error log modal */}
+      {errorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={handleErrorModalClose}>
+          <div className="mx-4 w-full max-w-2xl rounded-xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <h3 className="text-[15px] font-semibold text-slate-900">
+                Lỗi AI — {errorModal.provider} / {errorModal.modelName}
+              </h3>
+              <button onClick={handleErrorModalClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="max-h-[60vh] min-h-[200px] overflow-y-auto p-5">
+              {loadingErrors ? (
+                <div className="flex items-center justify-center py-10">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                </div>
+              ) : errorLogs.length === 0 ? (
+                <p className="py-10 text-center text-[14px] text-slate-400">Không có lỗi nào.</p>
+              ) : (
+                <div className="space-y-2">
+                  {errorLogs.map((log, i) => (
+                    <div key={i} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+                      <p className="text-[12px] text-slate-400">{new Date(log.createdAt).toLocaleString("vi-VN")}</p>
+                      <p className="mt-1 text-[13px] text-slate-700">{log.errorMessage}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="border-t border-slate-200 px-5 py-3 text-right text-[12px] text-slate-400">
+              Hiện {errorLogs.length} bản ghi
+            </div>
+          </div>
+        </div>
+      )}
+
       </div>
     </div>
   );

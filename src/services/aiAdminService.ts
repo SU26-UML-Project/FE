@@ -52,10 +52,7 @@ export const aiAdminService = {
   },
 
   getProviderModels: async (provider: string, basePath?: string, apiKey?: string): Promise<ApiResponse<string[]>> => {
-    const params: any = {};
-    if (basePath) params.basePath = basePath;
-    if (apiKey) params.apiKey = apiKey;
-    return apiClient.get<any, ApiResponse<string[]>>(`/ai/providers/${provider}/models`, { params });
+    return apiClient.post<any, ApiResponse<string[]>>(`/ai/providers/${provider}/models`, { basePath, apiKey });
   },
 
   getDocuments: async (workspaceSlug?: string): Promise<ApiResponse<AiDocument[]>> => {

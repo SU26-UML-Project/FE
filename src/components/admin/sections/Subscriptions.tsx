@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useClickOutside } from "../../../hooks/useClickOutside";
 import { BadgePercent, Calculator, CalendarDays, Check, ChevronDown, CircleDollarSign, Crown, LayoutGrid, List, Palette, Pencil, Plus, Sparkles, Trash2, TrendingUp, Users, X, Zap } from "lucide-react";
 import { Badge, Card, Segmented, Skeleton } from "../ui";
+import { ConfirmModal } from "../ConfirmModal";
 import { Modal } from "../Modal";
 import { cn } from "../../../utils/cn";
 import toast from "react-hot-toast";
@@ -741,10 +742,15 @@ export default function SubscriptionsSection() {
         {draft && <PlanEditor draft={draft} setDraft={setDraft} catalog={catalog} onSave={save} onClose={() => setDraft(null)} tab={editorTab} onTabChange={setEditorTab} />}
       </Modal>
 
-      <Modal open={!!confirmDel} onClose={() => setConfirmDel(null)} title="Xoá gói subscription?" size="sm"
-        footer={<><button onClick={() => setConfirmDel(null)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50">Huỷ</button><button onClick={doDelete} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-rose-700"><Trash2 className="h-4 w-4" /> Xoá gói</button></>}>
-        <p className="text-[13px] leading-relaxed text-slate-600">Gói <b className="text-slate-900">{confirmDel?.name}</b> đang có <b className="text-slate-900">{fmtVnd(confirmDel?.subscribers ?? 0)}</b> thuê bao sẽ bị xoá. Người dùng đang sử dụng gói này sẽ cần được chuyển sang gói khác. Hành động không thể hoàn tác.</p>
-      </Modal>
+      <ConfirmModal
+        open={!!confirmDel}
+        onClose={() => setConfirmDel(null)}
+        title="Xoá gói subscription?"
+        message={`Gói ${confirmDel?.name} đang có ${fmtVnd(confirmDel?.subscribers ?? 0)} thuê bao sẽ bị xoá. Người dùng đang sử dụng gói này sẽ cần được chuyển sang gói khác. Hành động không thể hoàn tác.`}
+        confirmLabel="Xoá gói"
+        confirmTone="red"
+        onConfirm={doDelete}
+      />
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { ChevronRight, FolderKanban, LayoutGrid, List, Plus } from "lucide-react
 import { projectService } from "../../../services/projectService";
 import type { ProjectResponse } from "../../../types/project";
 import { Avatar, Badge, Card, Segmented, Skeleton } from "../ui";
+import { Pagination } from "../Pagination";
 import { cn } from "../../../utils/cn";
 
 function getInitials(name?: string) {
@@ -276,39 +277,7 @@ export default function Projects() {
           </div>
 
           {pageCount > 1 && (
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <span className="text-[12px] text-slate-400">
-                Trang {page + 1}/{pageCount} · {groups.length} chủ sở hữu
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  disabled={page === 0}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-[12.5px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
-                >
-                  Trước
-                </button>
-                {Array.from({ length: pageCount }).map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setPage(i)}
-                    className={cn(
-                      "min-w-[32px] rounded-lg px-2 py-1.5 text-[12.5px] font-medium transition",
-                      i === page ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
-                    )}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                  disabled={page >= pageCount - 1}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-[12.5px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
-                >
-                  Sau
-                </button>
-              </div>
-            </div>
+            <Pagination page={page} totalPages={pageCount} totalElements={groups.length} onChange={setPage} />
           )}
           </>
         )}
