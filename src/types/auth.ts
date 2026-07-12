@@ -43,6 +43,7 @@ export interface User {
   status?: string;       // ACTIVE | LOCKED | PENDING_DELETE
   createdAt?: string;
   profileCompleted?: boolean; // false for Google users who haven't finished onboarding
+  currentPlanId?: string;     // UUID of the active subscription plan (null = free/no subscription)
   role: string | {
     id: string;
     roleName: string;

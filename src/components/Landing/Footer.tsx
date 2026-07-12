@@ -1,95 +1,90 @@
-import { motion } from 'framer-motion'
-import { FaFacebook, FaInstagram, FaXTwitter } from 'react-icons/fa6'
+import { Link } from 'react-router-dom'
 
-const socialLinks = [
-  { icon: FaFacebook, label: 'Facebook', url: '#' },
-  { icon: FaInstagram, label: 'Instagram', url: '#' },
-  { icon: FaXTwitter, label: 'X (Twitter)', url: '#' }
-]
+interface FooterLink {
+  title: string
+  links: { label: string; to: string }[]
+}
 
-const footerLinks = [
+const footerLinks: FooterLink[] = [
   {
-    title: 'Product',
-    links: ['A Diagram', 'B Diagram', 'C Diagram']
+    title: 'Sản phẩm',
+    links: [
+      { label: 'Sơ đồ lớp', to: '/dashboard' },
+      { label: 'Sơ đồ tuần tự', to: '/dashboard' },
+      { label: 'Sơ đồ ca sử dụng', to: '/dashboard' },
+    ]
   },
   {
-    title: 'Resources',
-    links: ['Documentation', 'Templates', 'Pricing']
+    title: 'Tài nguyên',
+    links: [
+      { label: 'Tài liệu', to: '/dashboard' },
+      { label: 'Mẫu có sẵn', to: '/dashboard' },
+      { label: 'Bảng giá', to: '/pricing' },
+    ]
   },
   {
-    title: 'Company',
-    links: ['About Us', 'Blog', 'Contact']
+    title: 'Công ty',
+    links: [
+      { label: 'Về chúng tôi', to: '#' },
+      { label: 'Blog', to: '#' },
+      { label: 'Liên hệ', to: '#' },
+    ]
   },
   {
-    title: 'Legal',
-    links: ['Privacy Policy', 'Terms of Service', 'Cookie Settings']
+    title: 'Pháp lý',
+    links: [
+      { label: 'Chính sách bảo mật', to: '#' },
+      { label: 'Điều khoản dịch vụ', to: '#' },
+    ]
   }
 ]
 
 const Footer = () => {
   return (
-    <footer className="footer-bg w-full py-20 px-6 md:px-12 lg:px-24">
-      <motion.section 
-        initial={{ y: 30, opacity: 0 }}
-        whileInView={{ y: 0, opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="flex flex-col items-center text-center mb-24" 
-        data-purpose="cta-section"
-      >
-        <h2 className="font-priego-extrabold text-3xl md:text-4xl lg:text-[2.75rem] text-black mb-10 uppercase tracking-tight">
-          Accelerate your engineering workflow.
-        </h2>
-        <a className="bg-[#2b63d1] hover:bg-[#1e4bb8] text-white px-10 py-3 rounded-md font-bold text-sm tracking-widest transition-colors duration-200 uppercase" data-purpose="signup-button" href="#">
-          SIGN UP FOR FREE
-        </a>
-      </motion.section>
-
-      <motion.section 
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 1, delay: 0.3 }}
-        className="max-w-7xl mx-auto pt-16" 
-        data-purpose="footer-navigation"
-      >
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
-          {footerLinks.map((column, index) => (
-            <div key={index} data-purpose="footer-column">
-              <h3 className="font-bold text-[1.1rem] mb-5 text-black tracking-tight">{column.title}</h3>
-              <ul className="space-y-2">
-                {column.links.map((link, lIndex) => (
-                  <li key={lIndex}>
-                    <a className="text-gray-900 font-medium hover:text-uml-blue transition-colors text-[0.95rem]" href="#">{link}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-          <div className="col-span-2 md:col-span-1 flex md:justify-end md:items-end md:flex-col items-center" data-purpose="copyright-area">
-            <div className="flex gap-4 mb-3 md:mb-2">
-              {socialLinks.map((social, index) => {
-                const Icon = social.icon
-                return (
-                  <motion.a
-                    key={index}
-                    href={social.url}
-                    whileHover={{ scale: 1.2 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="text-gray-600 hover:text-uml-blue transition-colors"
-                    aria-label={social.label}
-                  >
-                    <Icon size={20} style={{ fontSize: '20px' }} />
-                  </motion.a>
-                )
-              })}
-            </div>
-            <p className="text-gray-400 text-[0.8rem] font-normal whitespace-nowrap opacity-80">
-              © 2026 DiaUML Studio
+    <footer className="bg-[#f1f5f9] border-t border-[#c3c6d7] pt-[60px] px-12 pb-8 mt-[60px]">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-12 mb-10">
+          <div className="footer-brand">
+            <Link to="/" className="font-extrabold text-[24px] tracking-tight text-[#0b1c30] block mb-3">
+              DiaUML Studio
+            </Link>
+            <p className="text-[14px] text-[#434655] leading-relaxed max-w-[320px]">
+              Nền tảng vẽ UML hiện đại dành cho đội ngũ kỹ thuật. Thiết kế hệ thống phức tạp với độ chính xác tuyệt đối.
             </p>
           </div>
+          <div className="flex flex-wrap gap-10 justify-end">
+            {footerLinks.map((column, index) => (
+              <div key={index} className="footer-col">
+                <h4 className="text-[12px] font-bold uppercase text-[#0b1c30] mb-4 tracking-[0.06em]">{column.title}</h4>
+                <ul className="space-y-2.5">
+                  {column.links.map((link, lIndex) => (
+                    <li key={lIndex}>
+                      {link.to.startsWith('#') ? (
+                        <a
+                          href={link.to}
+                          className="text-[14px] text-[#434655] no-underline hover:text-[#2563eb] transition-colors"
+                        >
+                          {link.label}
+                        </a>
+                      ) : (
+                        <Link
+                          to={link.to}
+                          className="text-[14px] text-[#434655] no-underline hover:text-[#2563eb] transition-colors"
+                        >
+                          {link.label}
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
-      </motion.section>
+        <div className="border-t border-[rgba(195,198,215,0.4)] pt-6 text-[14px] text-[#737686]">
+          © 2026 DiaUML Studio. Mọi quyền được bảo lưu bởi DiaTeam.
+        </div>
+      </div>
     </footer>
   )
 }

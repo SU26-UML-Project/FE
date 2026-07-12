@@ -70,7 +70,7 @@ const Navbar = () => {
             data-purpose="logo-container"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           >
-            <span className={`font-extrabold tracking-tight text-black font-priego-extrabold transition-all duration-500 ${isScrolled ? 'text-lg' : 'text-xl'}`}>
+            <span className={`font-extrabold tracking-tight text-black transition-all duration-500 ${isScrolled ? 'text-lg' : 'text-xl'}`}>
               DiaUML Studio
             </span>
           </Link>
@@ -86,7 +86,7 @@ const Navbar = () => {
             }}
             className={`${linkBase} ${location.pathname === '/dashboard' ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`}
           >
-            Dashboard
+            Bảng điều khiển
           </button>
           
           {userRole === 'ADMIN' && (
@@ -96,18 +96,18 @@ const Navbar = () => {
                 `${linkBase} ${isActive ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`
               }
             >
-              Admin
+              Quản trị
             </NavLink>
           )}
           {onHome ? (
-            <a href="#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Features</a>
+            <a href="#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Tính năng</a>
           ) : (
-            <Link to="/#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Features</Link>
+            <Link to="/#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Tính năng</Link>
           )}
           {onHome ? (
-            <a href="#popular-templates" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Templates</a>
+            <a href="#popular-templates" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Mẫu</a>
           ) : (
-            <Link to="/#popular-templates" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Templates</Link>
+            <Link to="/#popular-templates" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Mẫu</Link>
           )}
           <NavLink
             to="/pricing"
@@ -115,13 +115,8 @@ const Navbar = () => {
               `${linkBase} ${isActive ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`
             }
           >
-            Pricing
+            Bảng giá
           </NavLink>
-          {onHome ? (
-            <a href="#docs" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Documentation</a>
-          ) : (
-            <Link to="/#docs" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Documentation</Link>
-          )}
         </nav>
 
           <div className="flex items-center gap-2 lg:gap-3" data-purpose="header-buttons">
@@ -135,21 +130,21 @@ const Navbar = () => {
                     <div className="sign">
                       <LogIn size={18} strokeWidth={2.5} />
                     </div>
-                    <div className="btn-text">Login</div>
+                    <div className="btn-text">Đăng nhập</div>
                   </button>
                 ) : (
                   <button 
                     onClick={() => openAuth('login')}
                     className="px-6 py-2 text-[16px] font-semibold border border-black rounded-md hover:bg-gray-100 transition-all duration-500"
                   >
-                    Login
+                    Đăng nhập
                   </button>
                 )}
                 <button 
                   onClick={() => openAuth('register')}
                   className={`font-semibold bg-uml-blue text-white rounded-md hover:bg-blue-700 transition-all duration-500 ${isScrolled ? 'px-4 py-1.5 text-[14px]' : 'px-6 py-2 text-[16px]'}`}
                 >
-                  Get started free
+                  Dùng thử miễn phí
                 </button>
               </>
             ) : (

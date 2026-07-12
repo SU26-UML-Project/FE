@@ -1,4 +1,9 @@
+import { useAuthStore } from '../../stores/useAuthStore'
+
 const CTA = () => {
+  const { isAuthenticated } = useAuthStore()
+  if (isAuthenticated) return null
+
   return (
     <section className="py-32 px-16 bg-grid-blue">
       <div className="max-w-5xl mx-auto text-center">

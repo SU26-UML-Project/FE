@@ -85,6 +85,7 @@ const Pricing = () => {
   const [plans, setPlans] = useState<PlanResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const { user } = useAuthStore()
 
   useEffect(() => {
     let alive = true
@@ -172,6 +173,7 @@ const Pricing = () => {
                   isAnyExpanded={expandedIndex !== null}
                   onToggle={() => setExpandedIndex(prev => (prev === idx ? null : idx))}
                   openAuth={openAuth}
+                  currentPlanId={user?.currentPlanId}
                 />
               ))}
             </div>
@@ -308,6 +310,7 @@ const PlanCard = ({
   isAnyExpanded,
   onToggle,
   openAuth,
+  currentPlanId,
 }: {
   plan: PlanResponse
   billing: BillingCycle
@@ -315,6 +318,7 @@ const PlanCard = ({
   isAnyExpanded: boolean
   onToggle: () => void
   openAuth: (mode: 'login' | 'register') => void
+  currentPlanId?: string
 }) => {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuthStore()
@@ -325,6 +329,7 @@ const PlanCard = ({
   const activePrice = billing === 'yearly' && perMonthYearly != null ? perMonthYearly : plan.price
   const yearlySaving = perMonthYearly != null ? (plan.price - perMonthYearly) * 12 : 0
   const isFree = !plan.contactSales && plan.price === 0
+  const isCurrentPlan = currentPlanId === plan.id
   const isBlurred = isAnyExpanded && !isExpanded
   const canBounce = isHovered && !isExpanded && !isBlurred
 
@@ -334,10 +339,8 @@ const PlanCard = ({
     if (isAuthenticated) {
       navigate('/payment-information', {
         state: {
-          planName: plan.name,
-          price: activePrice,
-          billingCycle: billing,
-          description: plan.description,
+          plan,
+          billing,
         },
       })
     } else {
@@ -399,11 +402,18 @@ const PlanCard = ({
           <h3 className="text-lg md:text-xl font-bold uppercase tracking-tight text-black">
             {plan.name}
           </h3>
-          {plan.popular && (
-            <span className="text-[10px] font-bold uppercase bg-uml-blue text-white px-2 py-1 rounded tracking-wider">
-              Popular
-            </span>
-          )}
+          <div className="flex items-center gap-1.5">
+            {isCurrentPlan && (
+              <span className="text-[10px] font-bold uppercase bg-green-600 text-white px-2 py-1 rounded tracking-wider">
+                Hiện tại
+              </span>
+            )}
+            {plan.popular && (
+              <span className="text-[10px] font-bold uppercase bg-uml-blue text-white px-2 py-1 rounded tracking-wider">
+                Popular
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="mb-4">
@@ -462,16 +472,18 @@ const PlanCard = ({
 
         <div className="pt-4 border-t border-gray-100">
           {isExpanded ? (
-            <button
-              onClick={(e) => { e.stopPropagation(); goCheckout() }}
-              className={`w-full py-3 rounded-xl font-bold uppercase text-sm tracking-wider transition-colors duration-200 ${
-                plan.popular
-                  ? 'bg-uml-blue text-white hover:bg-blue-700'
-                  : 'bg-black text-white hover:bg-gray-800'
-              }`}
-            >
-              {plan.contactSales ? 'Liên hệ' : isFree ? 'Bắt đầu miễn phí' : 'Chọn gói'}
-            </button>
+            !isFree && (
+              <button
+                onClick={(e) => { e.stopPropagation(); goCheckout() }}
+                className={`w-full py-3 rounded-xl font-bold uppercase text-sm tracking-wider transition-colors duration-200 ${
+                  plan.popular
+                    ? 'bg-uml-blue text-white hover:bg-blue-700'
+                    : 'bg-black text-white hover:bg-gray-800'
+                }`}
+              >
+                {plan.contactSales ? 'Liên hệ' : 'Chọn gói'}
+              </button>
+            )
           ) : (
             <button
               onClick={(e) => {
