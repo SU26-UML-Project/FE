@@ -8,6 +8,7 @@ export interface PlanLimits {
   projects: number | null;
   diagrams: number | null;
   aiQueries: number | null;
+  exportPdf: number | null;
   collaborators: number | null;
 }
 
@@ -32,6 +33,8 @@ export interface PlanResponse {
   durationDays: number;
   subscribers: number; // COUNT subscription ACTIVE (read-only)
   contactSales: boolean; // true → "Liên hệ báo giá", bỏ qua price khi hiển thị
+  rateLimitPer10s: number | null; // chỉ có ở /admin/plans; null ở public
+  rateLimitPerMin: number | null;
   limits: PlanLimits;
   features: PlanFeatureFlag[]; // đủ catalog, included=true/false
 }
@@ -48,6 +51,8 @@ export interface PlanRequest {
   yearlyDiscount?: number;
   durationDays?: number;
   contactSales?: boolean;
+  rateLimitPer10s?: number | null;
+  rateLimitPerMin?: number | null;
   limits?: PlanLimits;
   enabledFeatureIds?: string[]; // chỉ id feature được bật
 }

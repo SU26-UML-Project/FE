@@ -24,6 +24,7 @@ function planBullets(p: PlanResponse): string[] {
     if (L.projects != null) b.push(L.projects === -1 ? 'Dự án không giới hạn' : `${fmtVnd(L.projects)} dự án`)
     if (L.diagrams != null) b.push(L.diagrams === -1 ? 'Sơ đồ không giới hạn' : `${fmtVnd(L.diagrams)} sơ đồ`)
     if (L.aiQueries != null) b.push(L.aiQueries === -1 ? 'AI không giới hạn' : `${fmtVnd(L.aiQueries)} lượt AI`)
+    if (L.exportPdf != null) b.push(L.exportPdf === -1 ? 'Export PDF không giới hạn' : `${fmtVnd(L.exportPdf)} lần export PDF`)
     if (L.collaborators != null) b.push(L.collaborators === -1 ? 'Cộng tác viên không giới hạn' : `${fmtVnd(L.collaborators)} cộng tác viên`)
   }
   ;(p.features ?? []).filter(f => f.included).forEach(f => b.push(f.label))
@@ -562,6 +563,7 @@ function buildComparison(plans: PlanResponse[]): ComparisonRow[] {
     { feature: 'Số dự án', values: plans.map(p => fmtLimit(p.limits?.projects)) },
     { feature: 'Số sơ đồ', values: plans.map(p => fmtLimit(p.limits?.diagrams)) },
     { feature: 'Lượt AI / kỳ', values: plans.map(p => fmtLimit(p.limits?.aiQueries)) },
+    { feature: 'Export PDF / kỳ', values: plans.map(p => fmtLimit(p.limits?.exportPdf)) },
     { feature: 'Cộng tác viên', values: plans.map(p => fmtLimit(p.limits?.collaborators)) },
   ]
   // Catalog features: mọi gói cùng thứ tự catalog → lấy danh mục từ gói đầu, tra included theo id.

@@ -9,8 +9,8 @@ import { planService, type PlanResponse, type PlanRequest, type PlanStatus } fro
 import { featureService, type FeatureCatalogItem } from "../../../services/featureService";
 
 type PlanFeature = { id: string; label: string; included: boolean };
-type PlanLimits = { projects: number | null; diagrams: number | null; aiQueries: number | null; collaborators: number | null };
-type SubscriptionPlan = { id: string; name: string; description: string; price: number; currency: string; contactOnly: boolean; status: PlanStatus; popular: boolean; subscribers: number; color: string; features: PlanFeature[]; limits: PlanLimits; yearlyBilling: boolean; yearlyDiscount: number; durationDays: number; };
+type PlanLimits = { projects: number | null; diagrams: number | null; aiQueries: number | null; exportPdf: number | null; collaborators: number | null };
+type SubscriptionPlan = { id: string; name: string; description: string; price: number; currency: string; contactOnly: boolean; status: PlanStatus; popular: boolean; subscribers: number; color: string; features: PlanFeature[]; limits: PlanLimits; yearlyBilling: boolean; yearlyDiscount: number; durationDays: number; rateLimitPer10s: number | null; rateLimitPerMin: number | null; };
 
 const statusLabel: Record<PlanStatus, { tone: "emerald" | "amber" | "slate"; label: string }> = {
   ACTIVE: { tone: "emerald", label: "Đang hoạt động" },
@@ -20,7 +20,7 @@ const statusLabel: Record<PlanStatus, { tone: "emerald" | "amber" | "slate"; lab
 
 const accentColors = ["#e4a11b", "#0ea5e9", "#10b981", "#6366f1", "#ec4899", "#0f172a", "#8b5cf6", "#14b8a6"];
 
-type Draft = { id: string; mode: "create" | "edit"; name: string; description: string; price: number; contactOnly: boolean; currency: string; durationDays: number; yearlyBilling: boolean; yearlyDiscount: number; status: PlanStatus; popular: boolean; subscribers: number; color: string; features: Record<string, boolean>; limits: PlanLimits; };
+type Draft = { id: string; mode: "create" | "edit"; name: string; description: string; price: number; contactOnly: boolean; currency: string; durationDays: number; yearlyBilling: boolean; yearlyDiscount: number; status: PlanStatus; popular: boolean; subscribers: number; color: string; features: Record<string, boolean>; limits: PlanLimits; rateLimitPer10s: number | null; rateLimitPerMin: number | null; };
 type Billing = "monthly" | "yearly";
 
 const fmtVnd = (n: number) => new Intl.NumberFormat("vi-VN").format(n);
@@ -133,7 +133,8 @@ function PlanCard({ plan, billing, onEdit, onDelete, onStatusChange }: { plan: S
       <div className="mt-4 grid grid-cols-2 gap-2">
         {limit("Dự án", plan.limits.projects)}
         {limit("Sơ đồ", plan.limits.diagrams)}
-        {limit("AI query", plan.limits.aiQueries)}
+        {limit("Lượt AI", plan.limits.aiQueries)}
+        {limit("Export PDF", plan.limits.exportPdf)}
         {limit("Cộng tác viên", plan.limits.collaborators)}
       </div>
       <div className="mt-4 space-y-1.5 border-t border-slate-100 pt-3">
@@ -320,12 +321,27 @@ function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChang
       </div>
 
       <div>
-        <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Giới hạn sử dụng</p>
+        <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Giới hạn sử dụng (theo kỳ)</p>
         <div className="grid gap-2.5 sm:grid-cols-2">
           <LimitField label="Số dự án" value={draft.limits.projects} onChange={(v) => setLimit({ projects: v })} />
           <LimitField label="Số sơ đồ UML" value={draft.limits.diagrams} onChange={(v) => setLimit({ diagrams: v })} />
-          <LimitField label="Lượt AI query" value={draft.limits.aiQueries} onChange={(v) => setLimit({ aiQueries: v })} />
+          <LimitField label="Lượt AI / kỳ" value={draft.limits.aiQueries} onChange={(v) => setLimit({ aiQueries: v })} />
+          <LimitField label="Export PDF / kỳ" value={draft.limits.exportPdf} onChange={(v) => setLimit({ exportPdf: v })} />
           <LimitField label="Cộng tác viên" value={draft.limits.collaborators} onChange={(v) => setLimit({ collaborators: v })} />
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Rate limit <span className="font-normal normal-case text-slate-400">— kỹ thuật, ẩn với người dùng</span></p>
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-[12.5px] font-medium text-slate-700">Request / 10 giây</span>
+            <input type="text" inputMode="numeric" value={draft.rateLimitPer10s ?? ""} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); set({ rateLimitPer10s: v ? parseInt(v, 10) : null }); }} placeholder="Không giới hạn" className={inputCls} />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[12.5px] font-medium text-slate-700">Request / phút</span>
+            <input type="text" inputMode="numeric" value={draft.rateLimitPerMin ?? ""} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); set({ rateLimitPerMin: v ? parseInt(v, 10) : null }); }} placeholder="Không giới hạn" className={inputCls} />
+          </label>
         </div>
       </div>
     </div>}
@@ -381,7 +397,7 @@ function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChang
       <div>
         <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Giới hạn</p>
         <div className="grid grid-cols-2 gap-2">
-          {[{ label: "Dự án", v: draft.limits.projects }, { label: "Sơ đồ UML", v: draft.limits.diagrams }, { label: "AI query", v: draft.limits.aiQueries }, { label: "Cộng tác viên", v: draft.limits.collaborators }].map((x) => (
+          {[{ label: "Dự án", v: draft.limits.projects }, { label: "Sơ đồ UML", v: draft.limits.diagrams }, { label: "Lượt AI", v: draft.limits.aiQueries }, { label: "Export PDF", v: draft.limits.exportPdf }, { label: "Cộng tác viên", v: draft.limits.collaborators }].map((x) => (
             <div key={x.label} className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-center">
               <p className="text-[13px] font-bold text-slate-900">{fmtLimit(x.v)}</p>
               <p className="text-[10.5px] text-slate-400">{x.label}</p>
@@ -433,13 +449,13 @@ function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChang
 function toDraft(plan: SubscriptionPlan): Draft {
   const features: Record<string, boolean> = {};
   plan.features.forEach((f) => (features[f.id] = f.included));
-  return { id: plan.id, mode: "edit", name: plan.name, description: plan.description, price: plan.price, contactOnly: plan.contactOnly, currency: plan.currency, durationDays: plan.durationDays, yearlyBilling: plan.yearlyBilling, yearlyDiscount: plan.yearlyDiscount, status: plan.status, popular: plan.popular, subscribers: plan.subscribers, color: plan.color, features, limits: { ...plan.limits } };
+  return { id: plan.id, mode: "edit", name: plan.name, description: plan.description, price: plan.price, contactOnly: plan.contactOnly, currency: plan.currency, durationDays: plan.durationDays, yearlyBilling: plan.yearlyBilling, yearlyDiscount: plan.yearlyDiscount, status: plan.status, popular: plan.popular, subscribers: plan.subscribers, color: plan.color, features, limits: { ...plan.limits }, rateLimitPer10s: plan.rateLimitPer10s, rateLimitPerMin: plan.rateLimitPerMin };
 }
 
 function blankDraft(catalog: FeatureCatalogItem[]): Draft {
   const features: Record<string, boolean> = {};
   catalog.forEach((f) => (features[f.id] = false));
-  return { id: "", mode: "create", name: "", description: "", price: 0, contactOnly: false, currency: "VND", durationDays: 30, yearlyBilling: false, yearlyDiscount: 20, status: "DRAFT", popular: false, subscribers: 0, color: accentColors[0], features, limits: { projects: 5, diagrams: 50, aiQueries: 100, collaborators: 1 } };
+  return { id: "", mode: "create", name: "", description: "", price: 0, contactOnly: false, currency: "VND", durationDays: 30, yearlyBilling: false, yearlyDiscount: 20, status: "DRAFT", popular: false, subscribers: 0, color: accentColors[0], features, limits: { projects: 5, diagrams: 50, aiQueries: 100, exportPdf: 10, collaborators: 1 }, rateLimitPer10s: null, rateLimitPerMin: null };
 }
 
 function fromApi(be: PlanResponse): SubscriptionPlan {
@@ -459,11 +475,14 @@ function fromApi(be: PlanResponse): SubscriptionPlan {
       projects: be.limits?.projects ?? null,
       diagrams: be.limits?.diagrams ?? null,
       aiQueries: be.limits?.aiQueries ?? null,
+      exportPdf: be.limits?.exportPdf ?? null,
       collaborators: be.limits?.collaborators ?? null,
     },
     yearlyBilling: be.yearlyBilling,
     yearlyDiscount: be.yearlyDiscount,
     durationDays: be.durationDays ?? 30,
+    rateLimitPer10s: be.rateLimitPer10s ?? null,
+    rateLimitPerMin: be.rateLimitPerMin ?? null,
   };
 }
 
@@ -480,6 +499,8 @@ function draftToRequest(d: Draft): PlanRequest {
     yearlyBilling: d.yearlyBilling,
     yearlyDiscount: d.yearlyDiscount,
     durationDays: d.durationDays,
+    rateLimitPer10s: d.rateLimitPer10s,
+    rateLimitPerMin: d.rateLimitPerMin,
     limits: d.limits,
     enabledFeatureIds: Object.entries(d.features).filter(([, on]) => on).map(([id]) => id),
   };
@@ -498,6 +519,8 @@ function planToRequest(p: SubscriptionPlan, patch?: Partial<PlanRequest>): PlanR
     yearlyBilling: p.yearlyBilling,
     yearlyDiscount: p.yearlyDiscount,
     durationDays: p.durationDays,
+    rateLimitPer10s: p.rateLimitPer10s,
+    rateLimitPerMin: p.rateLimitPerMin,
     limits: p.limits,
     enabledFeatureIds: p.features.filter((f) => f.included).map((f) => f.id),
     ...patch,
