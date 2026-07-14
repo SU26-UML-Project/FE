@@ -24,7 +24,9 @@ export function aiNodeToFlow(ai: AINode): FlowNode {
     data,
     width: w,
     height: h,
-    style: { width: w, height: h, opacity: 0 },
+    style: { width: w, height: h },
+    parentId: ai.parentId,
+    extent: ai.parentId ? "parent" : undefined,
   } as FlowNode;
 }
 
@@ -37,7 +39,6 @@ export function aiEdgeToFlow(ai: AIEdge): FlowEdge {
     type: r.pathType,
     label: ai.label ?? r.autoLabel ?? "",
     data: { marker: r.marker, markerStart: r.markerStart, dashed: r.dashed },
-    style: { opacity: 0 },
   } as FlowEdge;
 }
 

@@ -223,13 +223,20 @@ export function FinalNode({ data, selected }: NodeProps) {
   );
 }
 
-export function ForkNode({ data, selected }: NodeProps) {
+export function ForkNode({ data, selected, width, height }: NodeProps) {
   const d = data as FlowNodeData;
+  const isHorizontal = (width ?? 0) > (height ?? 0);
   return (
     <div className="relative h-full w-full">
-      <Resizer selected={selected} minW={10} minH={10} />
+      <Resizer selected={selected} minW={8} minH={8} />
       <AllHandles />
-      <div className="absolute inset-0" style={{ background: fillColor(d, "#18181b"), borderRadius: 6 }} />
+      <div 
+        className="absolute inset-0 bg-zinc-900" 
+        style={{ 
+          background: fillColor(d, "#18181b"), 
+          borderRadius: isHorizontal ? "4px" : "4px" 
+        }} 
+      />
     </div>
   );
 }
