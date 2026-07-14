@@ -25,7 +25,13 @@ function estimateSize(node: FlowNode): { width: number; height: number } {
     case "actor": return { width: 76, height: 124 };
     case "start":
     case "final": return { width: 40, height: 40 };
-    case "decision": return { width: 150, height: 104 };
+    case "decision": {
+      const label = d.label || "";
+      const lines = label.split("\n");
+      const maxLen = Math.max(8, ...lines.map(l => l.length));
+      // Decisions are diamonds, they need more width to accommodate text in the center
+      return { width: Math.max(150, maxLen * 10 + 40), height: Math.max(104, lines.length * 20 + 40) };
+    }
     case "fork": return { width: 130, height: 14 };
     case "package": return { width: 400, height: 300 };
     case "lifeline": return { width: 150, height: 340 };
@@ -134,60 +140,220 @@ function elkOptions(type?: DiagramType): Record<string, string> {
     "elk.layered.spacing.edgeNodeBetweenLayers": "40",
     "elk.layered.spacing.edgeEdge": "20",
     "elk.spacing.edgeEdge": "20",
+    "elk.layered.spacing.labelNode": "30",
+    "elk.layered.spacing.labelLabel": "20",
+    "elk.edgeLabels.placement": "CENTER",
+    "elk.layered.edgeLabels.sideSelection": "ALWAYS_UP",
+    "elk.layered.compaction.postCompaction.strategy": "EDGE_LENGTH",
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+    "elk.layered.hierarchyHandling": "INCLUDE_CHILDREN",
+    "elk.padding": "[top=40,left=40,bottom=40,right=40]",
+    "elk.spacing.componentComponent": "40",
   };
 
   switch (type) {
     case "activity":
     case "state":
       return { ...base, "elk.direction": "DOWN",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "80", "elk.spacing.nodeNode": "50" };
+        "elk.layered.spacing.nodeNodeBetweenLayers": "80", "elk.spacing.nodeNode": "60" };
     case "class":
       return { ...base, "elk.direction": "RIGHT",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "100", "elk.spacing.nodeNode": "55" };
+        "elk.layered.spacing.nodeNodeBetweenLayers": "60", "elk.spacing.nodeNode": "40" };
     case "component":
       return { ...base, "elk.direction": "RIGHT",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "90", "elk.spacing.nodeNode": "50" };
+        "elk.layered.spacing.nodeNodeBetweenLayers": "60", "elk.spacing.nodeNode": "40" };
     default:
       return { ...base, "elk.direction": "DOWN",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "80", "elk.spacing.nodeNode": "50" };
+        "elk.layered.spacing.nodeNodeBetweenLayers": "60", "elk.spacing.nodeNode": "40" };
   }
+}
+
+/**
+ * Finalize layout by calculating bounding boxes for packages/subgraphs,
+ * converting child coordinates to relative, and determining smart edge types.
+ */
+export function finalizeLayout(nodes: FlowNode[], edges: FlowEdge[] = []): FlowNode[] {
+  const PADDING = 30;
+  const packages = nodes.filter((n) => n.type === "package");
+  
+  // 1. Calculate depth for each package to process from inside-out
+  const getDepth = (id: string | undefined): number => {
+    if (!id) return 0;
+    const parent = nodes.find(n => n.id === id);
+    return 1 + getDepth(parent?.parentId);
+  };
+
+  const packagesWithDepth = packages.map(pkg => ({
+    pkg,
+    depth: getDepth(pkg.id)
+  }));
+
+  // Sort by depth descending (deepest first) to handle nested packages correctly
+  packagesWithDepth.sort((a, b) => b.depth - a.depth);
+
+  // 2. Pass 1: Calculate absolute sizes for all packages
+  for (const { pkg } of packagesWithDepth) {
+    const children = nodes.filter((n) => n.parentId === pkg.id);
+    if (children.length > 0) {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      
+      for (const child of children) {
+        const w = child.width || 150;
+        const h = child.height || 100;
+        minX = Math.min(minX, child.position.x);
+        minY = Math.min(minY, child.position.y);
+        maxX = Math.max(maxX, child.position.x + w);
+        maxY = Math.max(maxY, child.position.y + h);
+      }
+
+      const pkgX = minX - PADDING;
+      const pkgY = minY - PADDING;
+      const pkgW = maxX - minX + PADDING * 2;
+      const pkgH = maxY - minY + PADDING * 2;
+
+      // Update package position and size to wrap children
+      pkg.position = { x: pkgX, y: pkgY };
+      pkg.width = pkgW;
+      pkg.height = pkgH;
+      pkg.style = { ...pkg.style, width: pkgW, height: pkgH };
+      pkg.zIndex = -1;
+    }
+  }
+
+  // 3. Pass 2: Determine Smart Edge Types BEFORE making coordinates relative
+  edges.forEach(edge => {
+    const s = nodes.find(n => n.id === edge.source);
+    const t = nodes.find(n => n.id === edge.target);
+    if (s && t) {
+      const dx = Math.abs(s.position.x - t.position.x);
+      const dy = Math.abs(s.position.y - t.position.y);
+      
+      // Smart Routing Logic:
+      if (s.parentId !== t.parentId) {
+        edge.type = "smart"; // Use smart for cross-package to né node tốt hơn
+        edge.zIndex = 200; 
+      } else if (dx < 20 || dy < 20) {
+        edge.type = "straight"; 
+        edge.zIndex = 5;
+      } else {
+        edge.type = "smart"; 
+        edge.zIndex = 5;
+      }
+    }
+  });
+
+  // 4. Pass 3: Convert children to relative coordinates
+  for (const node of nodes) {
+    node.zIndex = 10; // Nodes stay on top
+    if (node.parentId) {
+      const parent = nodes.find(p => p.id === node.parentId);
+      if (parent) {
+        node.position.x -= parent.position.x;
+        node.position.y -= parent.position.y;
+      }
+    }
+  }
+
+  return nodes;
 }
 
 async function elkLayout(
   nodes: FlowNode[], edges: FlowEdge[], type?: DiagramType
 ): Promise<{ nodes: FlowNode[]; edges: FlowEdge[] }> {
   if (!nodes.length) return { nodes, edges };
-  const layoutNodes = nodes.filter((n) => n.type !== "package");
-  const pkgNodes = nodes.filter((n) => n.type === "package");
+
+  // Helper to build ELK hierarchy
+  const buildElkGraph = (parentId?: string) => {
+    const children = nodes.filter(n => n.parentId === parentId);
+    const elkChildren: any[] = children.map(n => {
+      const sz = estimateSize(n);
+      if (n.type === "package") {
+        return {
+          id: n.id,
+          width: sz.width,
+          height: sz.height,
+          children: buildElkGraph(n.id).children,
+          edges: buildElkGraph(n.id).edges,
+          layoutOptions: { "elk.padding": "[top=40,left=40,bottom=40,right=40]" }
+        };
+      }
+      return { id: n.id, width: sz.width, height: sz.height };
+    });
+
+    const elkEdges = edges.filter(e => {
+      const s = nodes.find(n => n.id === e.source);
+      const t = nodes.find(n => n.id === e.target);
+      return s?.parentId === parentId && t?.parentId === parentId;
+    }).map(e => {
+      const label = e.label as string;
+      const labels = label ? [{
+        id: `${e.id}-label`,
+        text: label,
+        width: label.length * 8 + 20, // Estimate label width
+        height: 20
+      }] : [];
+      return { id: e.id, sources: [e.source], targets: [e.target], labels };
+    });
+
+    return { children: elkChildren, edges: elkEdges };
+  };
+
+  const rootGraph = buildElkGraph(undefined);
+  
+  // Cross-hierarchy edges (edges between nodes in different packages)
+  const crossEdges = edges.filter(e => {
+    const s = nodes.find(n => n.id === e.source);
+    const t = nodes.find(n => n.id === e.target);
+    return s?.parentId !== t?.parentId;
+  }).map(e => {
+    const label = e.label as string;
+    const labels = label ? [{
+      id: `${e.id}-label`,
+      text: label,
+      width: label.length * 8 + 20,
+      height: 20
+    }] : [];
+    return { id: e.id, sources: [e.source], targets: [e.target], labels };
+  });
 
   const graph = {
     id: "root",
     layoutOptions: elkOptions(type),
-    children: layoutNodes.map((n) => {
-      const sz = estimateSize(n);
-      return { id: n.id, width: sz.width, height: sz.height };
-    }),
-    edges: edges.map((e) => ({ id: e.id, sources: [e.source], targets: [e.target] })),
+    children: rootGraph.children,
+    edges: [...rootGraph.edges, ...crossEdges],
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await elk.layout(graph as any);
-  const posMap = new Map<string, { x: number; y: number }>();
-  for (const c of result.children ?? []) {
-    posMap.set(c.id, { x: c.x ?? 0, y: c.y ?? 0 });
-  }
+  
+  const posMap = new Map<string, { x: number; y: number; width?: number; height?: number }>();
+  const flattenResult = (parent: any, offsetX = 0, offsetY = 0) => {
+    for (const c of parent.children ?? []) {
+      posMap.set(c.id, { x: c.x + offsetX, y: c.y + offsetY, width: c.width, height: c.height });
+      if (c.children) {
+        flattenResult(c, c.x + offsetX, c.y + offsetY);
+      }
+    }
+  };
+  flattenResult(result);
 
-  const layoutedNodes = layoutNodes.map((n) => {
+  const layoutedNodes = nodes.map((n) => {
     const pos = posMap.get(n.id);
     if (!pos) return n;
-    const sz = estimateSize(n);
-    return { ...n, position: { x: pos.x, y: pos.y }, width: sz.width, height: sz.height,
-      style: { ...(n.style as object), width: sz.width, height: sz.height } };
+    return { 
+      ...n, 
+      position: { x: pos.x, y: pos.y }, 
+      width: pos.width ?? n.width, 
+      height: pos.height ?? n.height,
+      style: { ...(n.style as object), width: pos.width ?? n.width, height: pos.height ?? n.height } 
+    };
   });
 
-  const allNodes = [...layoutedNodes, ...pkgNodes];
-  const layoutedEdges = assignHandles(allNodes, edges);
-  return { nodes: allNodes, edges: layoutedEdges };
+  // Re-run finalizeLayout to fix package sizes and relative positions
+  const finalNodes = finalizeLayout(layoutedNodes, edges);
+  const layoutedEdges = assignHandles(finalNodes, edges);
+  
+  return { nodes: finalNodes, edges: layoutedEdges };
 }
 
 /* ============================================================
@@ -428,18 +594,6 @@ function layoutUseCase(
   const boundaryW = (isFinite(ucMaxX) ? ucMaxX - ucMinX : 200) + BOUNDARY_PAD * 2;
   const boundaryHeight = (isFinite(ucMaxY) ? ucMaxY - ucMinY : 200) + BOUNDARY_PAD * 2;
 
-  const positionedPkgs = packages.map((p) => ({
-    ...p,
-    position: { x: boundaryX, y: boundaryY },
-    width: boundaryW, height: boundaryHeight, zIndex: -1,
-    style: { 
-      ...(p.style as object), 
-      width: boundaryW, 
-      height: boundaryHeight,
-      pointerEvents: "none" // Crucial: allow clicks to pass through node wrapper
-    },
-  }));
-
   const positionedOthers = others.map((o, i) => {
     const sz = estimateSize(o);
     return { ...o, position: { x: boundaryX + 20 + i * 180, y: boundaryY + boundaryHeight + BOUNDARY_PAD },
@@ -447,20 +601,23 @@ function layoutUseCase(
   });
 
   const allNodes = [
-    ...positionedPkgs,
     ...posLeftActors.map((n) => ({ ...n, zIndex: 5 })),
     ...posRightActors.map((n) => ({ ...n, zIndex: 5 })),
     ...allUCNodes.map((n) => ({ ...n, zIndex: 5 })),
     ...positionedOthers,
+    ...packages.map(p => ({ ...p, zIndex: -1 })) // Include packages for finalizeLayout
   ];
 
-  const layoutedEdges = assignHandles(allNodes, edges).map((e) => ({
+  // Use finalizeLayout to wrap packages around their children
+  const finalNodes = finalizeLayout(allNodes);
+
+  const layoutedEdges = assignHandles(finalNodes, edges).map((e) => ({
     ...e,
     type: "bezier",
     zIndex: 10,
   }));
 
-  return { nodes: allNodes, edges: layoutedEdges as FlowEdge[] };
+  return { nodes: finalNodes, edges: layoutedEdges as FlowEdge[] };
 }
 
 /* ============================================================

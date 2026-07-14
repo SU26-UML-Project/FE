@@ -14,5 +14,18 @@ export interface FlowNodeData {
   [key: string]: unknown;
 }
 
+export interface FlowEdgeData {
+  marker: string;
+  markerStart?: string;
+  dashed: boolean;
+  color?: string;
+  /** Human-in-the-Loop: flag for ambiguous relations */
+  ambiguous?: boolean;
+  /** Metadata for ambiguous relation resolution */
+  fromName?: string;
+  toName?: string;
+  [key: string]: unknown;
+}
+
 export type FlowNode = Node<FlowNodeData, string>;
-export type FlowEdge = Edge;
+export type FlowEdge = Edge<FlowEdgeData>;

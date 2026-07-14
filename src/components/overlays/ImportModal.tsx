@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { detectAndParse, parseMermaid, parsePlantUml } from "../../lib/importers";
+import { detectAndParse, parseMermaid, parsePlantUml, type ParseResult } from "../../lib/importers";
 import type { FlowNode, FlowEdge, DiagramType } from "../../types";
 
 interface ImportModalProps {
   onClose: () => void;
-  onImport: (nodes: FlowNode[], edges: FlowEdge[], type?: DiagramType) => void;
+  onImport: (result: ParseResult) => void;
 }
 
 type ImportFormat = "auto" | "mermaid" | "plantuml";
@@ -30,14 +30,14 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
         result = detectAndParse(code);
       }
 
-      if (result.nodes.length === 0) {
+      if (result.nodes.length === 0 && (!result.questions || result.questions.length === 0)) {
         setError(
             "Could not find any nodes in the provided code. Please check your syntax."
         );
         return;
       }
 
-      onImport(result.nodes, result.edges, result.type);
+      onImport(result);
       onClose();
     } catch (err) {
       setError(

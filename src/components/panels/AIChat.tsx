@@ -59,7 +59,8 @@ export function AIChat({
   onImport: (
     nodes: FlowNode[],
     edges: FlowEdge[],
-    type?: DiagramType
+    type?: DiagramType,
+    preLayouted?: boolean
   ) => void;
 }) {
   const [msgs, setMsgs] = useState<Msg[]>([

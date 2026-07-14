@@ -19,8 +19,12 @@ export function classMinSize(d: FlowNodeData): { w: number; h: number } {
 }
 
 export function actionMinSize(label: string): { w: number; h: number } {
-  const len = Math.max(4, (label || "").length);
-  return { w: Math.max(90, Math.ceil(len * SANS_CHAR_W) + 48), h: 40 };
+  const lines = (label || "").split("\n");
+  const maxLen = Math.max(4, ...lines.map((l) => (l || "").length));
+  return { 
+    w: Math.max(90, Math.ceil(maxLen * SANS_CHAR_W) + 48), 
+    h: Math.max(40, lines.length * 18 + 20) 
+  };
 }
 
 export function noteMinSize(d: FlowNodeData): { w: number; h: number } {

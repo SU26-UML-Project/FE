@@ -44,6 +44,7 @@ import { HelpOverlay } from "./overlays/HelpOverlay";
 import { AIChat } from "./panels/AIChat";
 import { SheetBar } from "./panels/SheetBar";
 import { ConfirmDialog } from "./overlays/ConfirmDialog";
+import { QuestionCard } from "./overlays/QuestionBox";
 import { TypeMenu } from "./overlays/TypeMenu";
 import { loadSheets, saveSheets, saveActiveId, loadActiveId, createSheet } from "../store/sheetStore";
 import { useCollab } from "../hooks/useCollab";
@@ -120,6 +121,7 @@ export function Editor() {
   } | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [importResult, setImportResult] = useState<any | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -931,7 +933,7 @@ export function Editor() {
 
   /** Replace the whole canvas (used by the AI assistant / importers). */
   const importCanvas = useCallback(
-    async (inNodes: FlowNode[], inEdges: FlowEdge[], type?: DiagramType) => {
+    async (inNodes: FlowNode[], inEdges: FlowEdge[], type?: DiagramType, preLayouted?: boolean) => {
       beginMutation();
       const finalType = type || diagramType;
       if (type) {
@@ -947,6 +949,37 @@ export function Editor() {
         if (!skipCollabEmit.current) {
           emitCanvasChange({ nodes: [], edges: [], type: "add" });
         }
+        return;
+      }
+
+      // If pre-layouted by parser (Dagre), skip ELK PASS 1 and use provided coordinates.
+      // This preserves the semantic layout from Mermaid/PlantUML.
+      if (preLayouted) {
+        const visibleNodes = inNodes.map(n => ({ ...n, style: { ...n.style, opacity: 1 } }));
+        const visibleEdges = inEdges.map(e => ({ ...e, style: { ...e.style, opacity: 1 } }));
+        setNodes(visibleNodes);
+        setEdges(visibleEdges);
+        setSel({ nodes: [], edges: [] });
+        setTimeout(() => rf.fitView({ padding: 0.25, duration: 450 }), 60);
+        
+        if (!skipCollabEmit.current) {
+          emitCanvasChange({ nodes: visibleNodes, edges: visibleEdges, type: "add" });
+        }
+
+        // Hybrid: Show fast with Dagre, then auto-refine with ELK for production-grade spacing
+        setTimeout(async () => {
+          const { nodes: refinedNodes, edges: refinedEdges } = await layoutElements(
+            nodesRef.current,
+            edgesRef.current,
+            { diagramType: finalType }
+          );
+          setNodes(refinedNodes);
+          setEdges(refinedEdges);
+          if (!skipCollabEmit.current) {
+            emitCanvasChange({ nodes: refinedNodes, edges: refinedEdges, type: "update" });
+          }
+        }, 800);
+
         return;
       }
 
@@ -1530,11 +1563,16 @@ export function Editor() {
         const content = String(reader.result ?? "");
         try {
           const res = detectAndParse(content);
-          if (res.nodes.length) {
-            importCanvas(res.nodes, res.edges, res.type);
+          if (res.questions && res.questions.length > 0) {
+            setImportResult(res);
+            return;
           }
-        } catch {
-          /* ignore */
+          if (res.nodes.length) {
+            importCanvas(res.nodes, res.edges, res.type, res.preLayouted);
+          }
+        } catch (err) {
+          toast.error("Failed to parse diagram code.");
+          console.error("Import error:", err);
         }
       };
       reader.readAsText(file);
@@ -1878,6 +1916,34 @@ export function Editor() {
 
       {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
 
+      {importResult && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md animate-pop">
+            <div className="flex justify-between items-center mb-2 px-1">
+              <h3 className="text-white font-bold text-sm">Clarification Required</h3>
+              <button 
+                onClick={() => setImportResult(null)}
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <QuestionCard 
+              result={importResult}
+              summary="Please clarify the following relationships to proceed with the import."
+              onApply={(n, e, t) => {
+                importCanvas(n, e, t, importResult.preLayouted);
+                setImportResult(null);
+              }}
+              onResolved={() => {
+                // For file import, we don't need to send the text back to AI
+                // The QuestionCard will call onApply once all is resolved.
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {typeMenu && (
         <TypeMenu
           current={diagramType}
@@ -1924,7 +1990,13 @@ export function Editor() {
       {importOpen && (
         <ImportModal
           onClose={() => setImportOpen(false)}
-          onImport={(nodes, edges, type) => importCanvas(nodes, edges, type)}
+          onImport={(res) => {
+            if (res.questions && res.questions.length > 0) {
+              setImportResult(res);
+            } else {
+              importCanvas(res.nodes, res.edges, res.type, res.preLayouted);
+            }
+          }}
         />
       )}
 

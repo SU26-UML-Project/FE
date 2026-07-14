@@ -13,6 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",
+    "@tisoap/react-flow-smart-edge": "^4.13.0",
     "@vitejs/plugin-react": "^6.0.2",
     "@xyflow/react": "^12.11.1",
     "autoprefixer": "^10.5.0",

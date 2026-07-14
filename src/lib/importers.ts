@@ -1,7 +1,9 @@
 import { nanoid } from "nanoid";
+import dagre from "dagre";
 import type { DiagramType, FlowEdge, FlowNode, FlowNodeData } from "../types";
 import { classMinSize } from "./sizing";
 import type { DiagramChatResponse, AiQuestionDto } from "../types/ai";
+import { finalizeLayout } from "./elkLayout";
 
 /* Marker URL constants (must match src/lib/markers.tsx ids). */
 const MARK = {
@@ -13,6 +15,19 @@ const MARK = {
   none: "",
 };
 
+const DEFAULT_SIZES: Record<string, [number, number]> = {
+  action: [150, 54],
+  decision: [150, 104],
+  start: [38, 38],
+  final: [40, 40],
+  fork: [100, 8],
+  actor: [76, 124],
+  usecase: [170, 76],
+  package: [300, 300],
+  cls: [180, 120],
+  interface: [180, 120],
+};
+
 export interface ParseResult {
   nodes: FlowNode[];
   edges: FlowEdge[];
@@ -22,6 +37,8 @@ export interface ParseResult {
   questions?: ImportQuestion[];
   /** detected source format */
   format?: string;
+  /** if true, the nodes already have a valid layout (skip PASS 1 ELK) */
+  preLayouted?: boolean;
 }
 
 export interface QuestionOption {
@@ -62,6 +79,18 @@ const RELATION_OPTIONS: QuestionOption[] = [
 ];
 
 /* ---------------- node / edge builders ---------------- */
+export interface RelOpts {
+  marker?: string;
+  markerStart?: string;
+  dashed?: boolean;
+  label?: string;
+  type?: FlowEdge["type"];
+  ambiguous?: boolean;
+  fromName?: string;
+  toName?: string;
+  color?: string;
+}
+
 function mkNode(
     type: string, x: number, y: number,
     data: FlowNodeData, w: number, h: number,
@@ -76,17 +105,11 @@ function mkNode(
     height: h,
     style: { width: w, height: h },
     parentId,
-    extent: parentId ? "parent" : undefined,
+    // extent: parentId ? "parent" : undefined, 
   };
 }
 
-function mkEdge(
-    s: string, t: string,
-    o: {
-      marker?: string; markerStart?: string; dashed?: boolean;
-      label?: string; type?: FlowEdge["type"];
-    }
-): FlowEdge {
+function mkEdge(s: string, t: string, o: RelOpts): FlowEdge {
   return {
     id: nanoid(8),
     source: s,
@@ -97,6 +120,10 @@ function mkEdge(
       marker: o.marker ?? "",
       markerStart: o.markerStart ?? "",
       dashed: !!o.dashed,
+      ambiguous: o.ambiguous,
+      fromName: o.fromName,
+      toName: o.toName,
+      color: o.color,
     },
   };
 }
@@ -122,97 +149,66 @@ function gridLayout(n: number) {
 
 function layeredLayout(
     ids: string[],
-    edges: { source: string; target: string }[]
+    edges: { source: string; target: string; label?: string }[],
+    direction: "TB" | "LR" = "TB",
+    nodeSizes?: Map<string, { width: number; height: number }>,
+    parents?: Map<string, string>
 ): Map<string, { x: number; y: number }> {
-  const level = new Map<string, number>();
-  const incoming = new Map<string, number>();
-  ids.forEach((id) => {
-    incoming.set(id, 0);
-    level.set(id, 0);
-  });
-  edges.forEach((e) => incoming.set(e.target, (incoming.get(e.target) ?? 0) + 1));
+  const g = new dagre.graphlib.Graph({ compound: true });
   
-  // Find components using BFS/DFS to handle fragmented graphs
-  const visited = new Set<string>();
-  const components: string[][] = [];
+  // Mermaid-like compact spacing
+  const nodesep = 50; 
+  const ranksep = 50;
 
-  for (const id of ids) {
-    if (!visited.has(id)) {
-      const component: string[] = [];
-      const q = [id];
-      visited.add(id);
-      while (q.length) {
-        const curr = q.shift()!;
-        component.push(curr);
-        // Find neighbors (both source and target)
-        const neighbors = [
-          ...edges.filter(e => e.source === curr).map(e => e.target),
-          ...edges.filter(e => e.target === curr).map(e => e.source)
-        ];
-        for (const n of neighbors) {
-          if (!visited.has(n) && ids.includes(n)) {
-            visited.add(n);
-            q.push(n);
-          }
-        }
+  g.setGraph({ 
+    rankdir: direction, 
+    nodesep, 
+    ranksep,
+    marginx: 20,
+    marginy: 20
+  });
+  g.setDefaultEdgeLabel(() => ({}));
+
+  ids.forEach((id) => {
+    const size = nodeSizes?.get(id) ?? { width: 150, height: 100 };
+    g.setNode(id, { width: size.width, height: size.height });
+  });
+
+  // Set hierarchy for true cluster layout
+  if (parents) {
+    parents.forEach((parentId, childId) => {
+      if (ids.includes(childId) && ids.includes(parentId)) {
+        g.setParent(childId, parentId);
       }
-      components.push(component);
-    }
+    });
   }
 
-  // Layout each component
-  const pos = new Map<string, { x: number; y: number }>();
-  let currentYOffset = 0;
-  const colW = 280;
-  const rowH = 160;
-
-  for (const compIds of components) {
-    const compEdges = edges.filter(e => compIds.includes(e.source) && compIds.includes(e.target));
-    const compIncoming = new Map<string, number>();
-    compIds.forEach(id => compIncoming.set(id, 0));
-    compEdges.forEach(e => compIncoming.set(e.target, (compIncoming.get(e.target) ?? 0) + 1));
-    
-    const roots = compIds.filter(id => (compIncoming.get(id) ?? 0) === 0);
-    const start = roots.length ? roots : compIds.slice(0, 1);
-
-    const compLevel = new Map<string, number>();
-    const q = start.map(id => ({ id, l: 0 }));
-    const seen = new Set<string>();
-    
-    while (q.length) {
-      const { id, l } = q.shift()!;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      compLevel.set(id, Math.max(compLevel.get(id) ?? 0, l));
-      compEdges
-        .filter(e => e.source === id)
-        .forEach(e => q.push({ id: e.target, l: (compLevel.get(id) ?? 0) + 1 }));
-    }
-    compIds.forEach(id => compLevel.set(id, compLevel.get(id) ?? 0));
-
-    const byLevel = new Map<number, string[]>();
-    compIds.forEach(id => {
-      const l = compLevel.get(id)!;
-      if (!byLevel.has(l)) byLevel.set(l, []);
-      byLevel.get(l)!.push(id);
-    });
-
-    let maxLevel = 0;
-    for (const [l, group] of byLevel) {
-      maxLevel = Math.max(maxLevel, l);
-      group.forEach((id, i) => {
-        pos.set(id, {
-          x: i * colW - ((group.length - 1) * colW) / 2,
-          y: currentYOffset + l * rowH,
-        });
+  edges.forEach((e) => {
+    if (ids.includes(e.source) && ids.includes(e.target)) {
+      // Dagre can also take label dimensions
+      const labelLen = e.label?.length ?? 0;
+      g.setEdge(e.source, e.target, { 
+        width: labelLen * 8, 
+        height: 20 
       });
     }
-    currentYOffset += (maxLevel + 1) * rowH + 100; // Add space between components
-  }
+  });
+
+  dagre.layout(g);
+
+  const pos = new Map<string, { x: number; y: number }>();
+  g.nodes().forEach((v) => {
+    const node = g.node(v);
+    pos.set(v, { x: node.x, y: node.y });
+  });
 
   return pos;
 }
 
+/**
+ * Finalize layout by calculating bounding boxes for packages/subgraphs
+ * and converting child coordinates to relative.
+ */
 function clsSize(label: string, attrs: string[], methods: string[], stereo?: string) {
   const data = {
     label,
@@ -277,30 +273,58 @@ export function parseMermaid(code: string): ParseResult {
 function parseClassLike(lines: string[], _plant: boolean): ParseResult {
   const classes = new Map<
       string,
-      { label: string; stereotype?: string; attrs: string[]; methods: string[] }
+      { label: string; stereotype?: string; attrs: string[]; methods: string[]; parentId?: string }
   >();
   const ensure = (id: string, label?: string) => {
     if (!classes.has(id))
-      classes.set(id, { label: label ?? id, attrs: [], methods: [] });
+      classes.set(id, { label: label ?? id, attrs: [], methods: [], parentId: undefined });
     else if (label) classes.get(id)!.label = label;
     return classes.get(id)!;
   };
 
   // Pass 1: class definitions + members.
   let i = 0;
-  const classRe =
-      /^(?:abstract\s+class|class|interface|enum)\s+([A-Za-z0-9_]+)\s*(\{)?/;
-  const inlineMemberRe = /^([A-Za-z0-9_]+)\s*:\s*(.+)/;
-  
+  const nodes: FlowNode[] = [];
+  let layoutDir: "TB" | "LR" = "TB";
+  const classRe = /^(?:abstract\s+class|class|interface|enum)\s+([A-Za-z0-9_]+|`[^`]+`)\s*(\{)?/;
+  const inlineMemberRe = /^([A-Za-z0-9_]+|`[^`]+`)\s*:\s*(.+)/;
+  const parentStack: string[] = [];
+  const parentMap = new Map<string, string>(); // namespace id -> uid
+
   while (i < lines.length) {
     const line = lines[i].trim();
     if (!line || line.startsWith("%%")) { i++; continue; }
     
     const low = line.toLowerCase();
     if (low.startsWith("classdiagram")) { i++; continue; }
+    if (low.startsWith("direction")) {
+      if (low.includes("lr")) layoutDir = "LR";
+      if (low.includes("tb")) layoutDir = "TB";
+      i++;
+      continue;
+    }
+    
+    // Namespace support
+    const namespaceMatch = line.match(/^namespace\s+([A-Za-z0-9_]+|`[^`]+`)\s*\{/i);
+    if (namespaceMatch) {
+      const label = decodeMermaid(namespaceMatch[1].replace(/`/g, ""));
+      const uid = nanoid(8);
+      const parentId = parentStack.length > 0 ? parentMap.get(parentStack[parentStack.length - 1]) : undefined;
+      parentMap.set(namespaceMatch[1], uid);
+      
+      // Create package node
+      nodes.push(mkNode("package", 0, 0, { label }, 300, 300, parentId, uid));
+      parentStack.push(namespaceMatch[1]);
+      i++;
+      continue;
+    }
+    if (line === "}" && parentStack.length > 0) {
+      parentStack.pop();
+      i++;
+      continue;
+    }
+
     if (low.startsWith("note")) {
-      // If it's a block note, skip until closing brace if any, but Mermaid notes are usually one-line or block
-      // Simplest is to skip the line
       i++;
       continue;
     }
@@ -311,7 +335,9 @@ function parseClassLike(lines: string[], _plant: boolean): ParseResult {
       const isInterface = /^interface\b/.test(line);
       const isAbstract = /^abstract\s+class\b/.test(line);
       const isEnum = /^enum\b/.test(line);
-      const c = ensure(id, id);
+      const c = ensure(id, id.replace(/`/g, ""));
+      c.parentId = parentStack.length > 0 ? parentMap.get(parentStack[parentStack.length - 1]) : undefined;
+      
       if (isInterface) {
         c.stereotype = "«interface»";
       } else if (isAbstract) {
@@ -368,30 +394,81 @@ function parseClassLike(lines: string[], _plant: boolean): ParseResult {
 
   // Build nodes + edges.
   const idMap = new Map<string, string>();
-  const pos = gridLayout(classes.size);
-  const nodes: FlowNode[] = [];
-  let gi = 0;
-  for (const [mid, c] of classes) {
+  const classIds = [...classes.keys()];
+  const namespaceIds = [...parentMap.keys()];
+  const allIds = [...classIds, ...namespaceIds];
+  
+  // Build parent relationship map for Dagre
+  const dagreParents = new Map<string, string>();
+  for (const mid of classIds) {
+    const c = classes.get(mid)!;
+    // Find the namespace name for this parent UID
+    if (c.parentId) {
+      for (const [nsName, uid] of parentMap.entries()) {
+        if (uid === c.parentId) {
+          dagreParents.set(mid, nsName);
+          break;
+        }
+      }
+    }
+  }
+  // Also handle nested namespaces
+  // ... nested logic if needed, but for now simple 1-level
+
+  // Estimate sizes for Dagre
+  const nodeSizes = new Map<string, { width: number; height: number }>();
+  for (const mid of classIds) {
+    const c = classes.get(mid)!;
     const { w, h } = clsSize(c.label, c.attrs, c.methods, c.stereotype);
+    nodeSizes.set(mid, { width: w, height: h });
+  }
+  for (const nsId of namespaceIds) {
+    nodeSizes.set(nsId, { width: 300, height: 200 }); // Initial estimate for cluster
+  }
+
+  const pos = layeredLayout(
+      allIds,
+      rels.map((r) => ({ source: r.from, target: r.to, label: r.opts.label })),
+      layoutDir,
+      nodeSizes,
+      dagreParents
+  );
+  
+  const clsNodes: FlowNode[] = [];
+  for (const mid of classIds) {
+    const c = classes.get(mid)!;
+    const sz = nodeSizes.get(mid)!;
+    const p = pos.get(mid) ?? { x: 0, y: 0 };
     const uid = nanoid(8);
     idMap.set(mid, uid);
-    nodes.push(
+    clsNodes.push(
         mkNode(
             "cls",
-            pos(gi).x,
-            pos(gi).y,
+            p.x - sz.width / 2, // Dagre returns center coordinates
+            p.y - sz.height / 2,
             {
               label: c.label,
               stereotype: c.stereotype,
               attributes: c.attrs.join("\n"),
               methods: c.methods.join("\n"),
             },
-            w,
-            h
+            sz.width,
+            sz.height,
+            c.parentId,
+            uid
         )
     );
-    gi++;
   }
+
+  // Final nodes for namespaces
+  const nsNodes: FlowNode[] = [];
+  for (const nsId of namespaceIds) {
+    const p = pos.get(nsId) ?? { x: 0, y: 0 };
+    const uid = parentMap.get(nsId)!;
+    // We don't know the final size yet, finalizeLayout will calculate it
+    nsNodes.push(mkNode("package", p.x, p.y, { label: nsId.replace(/`/g, "") }, 300, 300, undefined, uid));
+  }
+
   const edges: FlowEdge[] = rels
       .map((r) => {
         const s = idMap.get(r.from);
@@ -401,7 +478,8 @@ function parseClassLike(lines: string[], _plant: boolean): ParseResult {
       })
       .filter(Boolean) as FlowEdge[];
 
-  return { nodes, edges, type: "class" };
+  const nodesOut = finalizeLayout([...nsNodes, ...clsNodes], edges);
+  return { nodes: nodesOut, edges, type: "class", preLayouted: true };
 }
 
 function pushMember(c: { attrs: string[]; methods: string[] }, raw: string) {
@@ -427,10 +505,14 @@ function pushMember(c: { attrs: string[]; methods: string[] }, raw: string) {
     line = "readonly " + line;
   }
 
+  // Handle Mermaid generics: List~User~ -> List<User>
+  line = line.replace(/~([^~]+)~/g, "<$1>");
+
   // Normalize visibility prefix spacing: "+name" -> "+ name"
   line = line.replace(/^([+\-#~])\s*/, "$1 ");
   
   // Handle methods (with parentheses) or attributes
+  // Improved method detection: should have parentheses, may have return type
   if (/\(.*\)/.test(line)) {
     c.methods.push(line);
   } else {
@@ -442,14 +524,16 @@ function pushMember(c: { attrs: string[]; methods: string[] }, raw: string) {
    Handles mermaid & plantuml arrow tokens.
    Supports multiplicity: ClassA "1" *-- "many" ClassB */
 function parseRelLine(line: string):
-    | { from: string; to: string; opts: Parameters<typeof mkEdge>[2] }
+    | { from: string; to: string; opts: RelOpts }
     | null {
-  // Enhanced multiplicity regex to handle spaces and quotes better
+  // Enhanced multiplicity regex: supports "1", "0..*", 1..n, etc. with quotes and spaces
   const m = line.match(
-      /^\s*([A-Za-z0-9_]+)\s*(?:"([^"]+)"\s*)?(<\|--|\.\.\|>|<\|\.\.|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.|---|<==|==>|--|<\|)\s*(?:"([^"]+)"\s+)?([A-Za-z0-9_]+)(?:\s*:\s*(.*))?$/
+      /^\s*([A-Za-z0-9_]+|`[^`]+`)\s*(?:"([^"]+)"|([^\s\-\.\*o<>]+))?\s*(<\|--|--\|>|\.\.\|>|<\|\.\.|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.|---|--|<==|==>)\s*(?:"([^"]+)"|([^\s:]+))?\s+([A-Za-z0-9_]+|`[^`]+`)(?:\s*:\s*(.*))?$/
   );
   if (!m) return null;
-  const [, leftId, leftMulti, token, rightMulti, rightId, labelRaw] = m;
+  const [, leftId, leftM1, leftM2, token, rightM1, rightM2, rightId, labelRaw] = m;
+  const leftMulti = leftM1 || leftM2;
+  const rightMulti = rightM1 || rightM2;
   const label = decodeMermaid(labelRaw?.trim() ?? "");
 
   // Combine multiplicity into the label if present
@@ -463,45 +547,34 @@ function parseRelLine(line: string):
   let opts: Parameters<typeof mkEdge>[2] = {};
   switch (token) {
     case "<|--":
+    case "--|>":
       opts = { marker: MARK.triangle };
-      leftFirst = false;
+      leftFirst = token === "--|>";
       break;
     case "..|>":
     case "<|..":
       opts = { marker: MARK.triangle, dashed: true };
-      leftFirst = false;
+      leftFirst = token === "..|>";
       break;
     case "<--":
-      opts = { marker: MARK.openArrow };
-      leftFirst = false;
-      break;
-    case "<..":
-      opts = { marker: MARK.openArrow, dashed: true };
-      leftFirst = false;
-      break;
-    case "--*":
-      opts = { markerStart: MARK.diamondFilledStart };
-      leftFirst = false;
-      break;
-    case "*--":
-      opts = { markerStart: MARK.diamondFilledStart };
-      leftFirst = true;
-      break;
-    case "--o":
-      opts = { markerStart: MARK.diamondOpenStart };
-      leftFirst = false;
-      break;
-    case "o--":
-      opts = { markerStart: MARK.diamondOpenStart };
-      leftFirst = true;
-      break;
     case "-->":
       opts = { marker: MARK.openArrow };
-      leftFirst = true;
+      leftFirst = token === "-->";
       break;
+    case "<..":
     case "..>":
       opts = { marker: MARK.openArrow, dashed: true };
-      leftFirst = true;
+      leftFirst = token === "..>";
+      break;
+    case "--*":
+    case "*--":
+      opts = { markerStart: MARK.diamondFilledStart };
+      leftFirst = token === "*--";
+      break;
+    case "--o":
+    case "o--":
+      opts = { markerStart: MARK.diamondOpenStart };
+      leftFirst = token === "o--";
       break;
     case "==>":
     case "<==":
@@ -515,6 +588,7 @@ function parseRelLine(line: string):
       break;
     default:
       opts = { ambiguous: true };
+      leftFirst = true;
   }
 
   if (finalLabel) opts.label = finalLabel;
@@ -694,7 +768,7 @@ function parseEdgeStyle(token: string): {
 }
 
 function parseFlowchart(lines: string[]): ParseResult {
-  const defs = new Map<string, { label: string; type: string; parentId?: string }>();
+  const defs = new Map<string, { label: string; type: string; stereotype?: string; parentId?: string }>();
   const rawEdges: { 
     from: string; 
     to: string; 
@@ -706,6 +780,12 @@ function parseFlowchart(lines: string[]): ParseResult {
 
   const parentStack: string[] = [];
   const parentMap = new Map<string, string>(); // id -> uid
+
+  // 1. Detect direction from header (flowchart TD, flowchart LR, etc.)
+  let layoutDir: "TB" | "LR" = "TB";
+  const headerLine = lines.find(l => /^(flowchart|graph)\b/i.test(l))?.toLowerCase() || "";
+  if (headerLine.includes("lr") || headerLine.includes("rl")) layoutDir = "LR";
+  else if (headerLine.includes("td") || headerLine.includes("tb") || headerLine.includes("bt")) layoutDir = "TB";
 
   for (const ln of lines) {
     let trimmed = ln.trim();
@@ -752,7 +832,7 @@ function parseFlowchart(lines: string[]): ParseResult {
 
     // ── No edge token → standalone node definition ──
     if (!FLOW_EDGE_RE.test(trimmed)) {
-      const ref = parseRef(trimmed);
+      const ref = parseRef(trimmed) as any;
       if (ref) {
         // Only set if not already defined OR if this ref provides a better label than just the ID
         const existing = defs.get(ref.id);
@@ -760,6 +840,7 @@ function parseFlowchart(lines: string[]): ParseResult {
           defs.set(ref.id, { 
             label: ref.label, 
             type: ref.type, 
+            stereotype: ref.stereotype,
             parentId: existing?.parentId ?? currentParentId 
           });
         }
@@ -806,57 +887,92 @@ function parseFlowchart(lines: string[]): ParseResult {
       const toPart = validParts[k + 1];
       if (!fromPart || !toPart) continue;
 
-      const a = parseRef(fromPart);
-      const b = parseRef(toPart);
+      const a = parseRef(fromPart) as any;
+      const b = parseRef(toPart) as any;
       if (!a || !b) continue;
 
-      if (!defs.has(a.id)) defs.set(a.id, { label: a.label, type: a.type, parentId: currentParentId });
-      if (!defs.has(b.id)) defs.set(b.id, { label: b.label, type: b.type, parentId: currentParentId });
+      if (!defs.has(a.id)) defs.set(a.id, { label: a.label, type: a.type, stereotype: a.stereotype, parentId: currentParentId });
+      if (!defs.has(b.id)) defs.set(b.id, { label: b.label, type: b.type, stereotype: b.stereotype, parentId: currentParentId });
 
       const style = parseEdgeStyle(edgeTokens[k].token);
       const from = style.swap ? b.id : a.id;
       const to = style.swap ? a.id : b.id;
 
+      // Use Case semantics detection in Flowchart
+      let finalMarker = style.marker;
+      let finalDashed = style.dashed;
+      let finalLabel = allLabels[k] ?? "";
+
+      const fromDef = defs.get(from);
+      const toDef = defs.get(to);
+
+      if ((fromDef?.type === "actor" && toDef?.type === "usecase") || 
+          (fromDef?.type === "usecase" && toDef?.type === "actor")) {
+        // Actor <-> UseCase association: No arrow in UML
+        finalMarker = undefined;
+      }
+
+      // Handle special UML labels in Flowchart
+      const lowLabel = finalLabel.toLowerCase();
+      if (lowLabel.includes("include") || lowLabel.includes("extend")) {
+        finalMarker = MARK.openArrow;
+        finalDashed = true;
+        finalLabel = lowLabel.includes("include") ? "«include»" : "«extend»";
+      } else if (lowLabel.includes("generalization")) {
+        finalMarker = MARK.triangle;
+        finalDashed = false;
+        finalLabel = "";
+      }
+
       rawEdges.push({
         from,
         to,
-        label: allLabels[k] ?? "",
-        marker: style.marker,
+        label: finalLabel,
+        marker: finalMarker,
         markerStart: style.markerStart,
-        dashed: style.dashed,
+        dashed: finalDashed,
       });
     }
   }
 
   // ── Layout ──
   const ids = [...defs.keys()];
+  // Only layout non-package nodes with dagre to get initial positions
+  const layoutIds = ids.filter(id => defs.get(id)!.type !== "package");
+  const layoutEdges = rawEdges.filter(e => 
+    defs.get(e.from)!.type !== "package" && defs.get(e.to)!.type !== "package"
+  );
+
+  const nodeSizes = new Map<string, { width: number; height: number }>();
+  layoutIds.forEach(id => {
+    const d = defs.get(id)!;
+    const [w, h] = DEFAULT_SIZES[d.type] ?? [150, 54];
+    nodeSizes.set(id, { width: w, height: h });
+  });
+
   const posMap = layeredLayout(
-      ids,
-      rawEdges.map((e) => ({ source: e.from, target: e.to }))
+      layoutIds,
+      layoutEdges.map((e) => ({ source: e.from, target: e.to, label: e.label })),
+      layoutDir,
+      nodeSizes
   );
 
   const nodeMap = new Map<string, string>(); // id -> uid
   const nodes: FlowNode[] = ids.map((id) => {
     const d = defs.get(id)!;
+    const isPkg = d.type === "package";
+    // For packages, we'll let finalizeLayout set the position later
     const p = posMap.get(id) ?? { x: 0, y: 0 };
-    const sizes: Record<string, [number, number]> = {
-      action: [150, 54],
-      decision: [150, 104],
-      start: [38, 38],
-      final: [40, 40],
-      fork: [100, 8],
-      actor: [76, 124],
-      usecase: [170, 76],
-      package: [300, 300],
-    };
-    const [w, h] = sizes[d.type] ?? [150, 54];
+    const [w, h] = DEFAULT_SIZES[d.type] ?? (isPkg ? [300, 300] : [150, 54]);
     const uid = parentMap.get(id) || nanoid(8);
     nodeMap.set(id, uid);
-    return mkNode(d.type, p.x, p.y, { label: d.label }, w, h, d.parentId, uid);
+    return mkNode(d.type, p.x - w / 2, p.y - h / 2, { label: d.label, stereotype: d.stereotype }, w, h, d.parentId, uid);
   });
 
-  const edges: FlowEdge[] = rawEdges
-      .map((e) => {
+  // CRITICAL: Import flow must also use finalizeLayout to wrap packages correctly
+  const finalNodes = finalizeLayout(nodes);
+
+  const edges: FlowEdge[] = rawEdges.map((e) => {
         const s = nodeMap.get(e.from);
         const t = nodeMap.get(e.to);
         if (!s || !t || s === t) return null;
@@ -870,14 +986,15 @@ function parseFlowchart(lines: string[]): ParseResult {
       })
       .filter(Boolean) as FlowEdge[];
 
-  return { nodes, edges, type: "activity" };
+  const nodesOut = finalizeLayout(finalNodes, edges);
+  return { nodes: nodesOut, edges, type: "activity", preLayouted: true };
 }
 
 /* ============================================================
    parseRef — FIXED: all Mermaid node shapes
    ============================================================ */
 function parseRef(ref: string):
-    | { id: string; label: string; type: string }
+    | { id: string; label: string; type: string; stereotype?: string; parentId?: string }
     | null {
   const s = ref.trim();
   if (!s) return null;
@@ -910,19 +1027,20 @@ function parseRef(ref: string):
   // Database / cylinder:  A[(text)]
   if ((m = s.match(/^([A-Za-z0-9_]+)\[\((.+)\)\]$/))) {
     const lt = getLabelType(m[2], "action");
-    return { id: m[1], ...lt };
+    return { id: m[1], label: lt.label, type: lt.type, stereotype: "«database»" };
   }
 
   // Stadium / Use Case:  A([text])
   if ((m = s.match(/^([A-Za-z0-9_]+)\(\[(.+)\]\)$/))) {
     const lt = getLabelType(m[2], "usecase");
+    // In activity diagram context, stadium is often just a rounded action
     return { id: m[1], ...lt };
   }
 
   // Subroutine:  A[[text]]
   if ((m = s.match(/^([A-Za-z0-9_]+)\[\[(.+)\]\]$/))) {
     const lt = getLabelType(m[2], "action");
-    return { id: m[1], ...lt };
+    return { id: m[1], label: lt.label, type: lt.type, stereotype: "«subprocess»" };
   }
 
   // Hexagon:  A{{text}}
@@ -940,13 +1058,13 @@ function parseRef(ref: string):
   // Parallelogram:  A[/text/]
   if ((m = s.match(/^([A-Za-z0-9_]+)\[\/(.+)\/\]$/))) {
     const lt = getLabelType(m[2], "action");
-    return { id: m[1], ...lt };
+    return { id: m[1], label: lt.label, type: lt.type, stereotype: "«input/output»" };
   }
 
   // Parallelogram alt:  A[\text\]
   if ((m = s.match(/^([A-Za-z0-9_]+)\[\\(.+)\\\]$/))) {
     const lt = getLabelType(m[2], "action");
-    return { id: m[1], ...lt };
+    return { id: m[1], label: lt.label, type: lt.type, stereotype: "«input/output»" };
   }
 
   // Trapezoid:  A[/text\]
@@ -1036,10 +1154,10 @@ function parseSequence(lines: string[]): ParseResult {
     idToUid.set(id, uid);
     const x = idx * 220;
     if (p.actor) {
-      nodes.push(mkNode("actor", x, 30, { label: p.label }, 76, 124));
+      nodes.push(mkNode("actor", x, 30, { label: p.label }, 76, 124, undefined, uid));
     } else {
       nodes.push(
-          mkNode("lifeline", x, 20, { label: ": " + p.label }, 150, 320)
+          mkNode("lifeline", x, 20, { label: ": " + p.label }, 150, 320, undefined, uid)
       );
     }
   });
@@ -1118,17 +1236,25 @@ function parseState(lines: string[]): ParseResult {
   }
   
   const ids = [...defs.keys()];
+  const nodeSizes = new Map<string, { width: number; height: number }>();
+  ids.forEach(id => {
+    if (id === "__start__" || id === "__end__") nodeSizes.set(id, { width: 40, height: 40 });
+    else nodeSizes.set(id, { width: 150, height: 56 });
+  });
+
   const pos = layeredLayout(
       ids,
-      rawEdges.map((e) => ({ source: e.from, target: e.to }))
+      rawEdges.map((e) => ({ source: e.from, target: e.to })),
+      "TB",
+      nodeSizes
   );
   const nodes: FlowNode[] = ids.map((id) => {
     const p = pos.get(id) ?? { x: 0, y: 0 };
     if (id === "__start__")
-      return mkNode("start", p.x + 20, p.y, { label: "" }, 38, 38);
+      return mkNode("start", p.x + 20 - 19, p.y - 19, { label: "" }, 38, 38);
     if (id === "__end__")
-      return mkNode("final", p.x + 20, p.y, { label: "" }, 40, 40);
-    return mkNode("action", p.x, p.y, { label: defs.get(id) ?? id }, 150, 56);
+      return mkNode("final", p.x + 20 - 20, p.y - 20, { label: "" }, 40, 40);
+    return mkNode("action", p.x - 75, p.y - 28, { label: defs.get(id) ?? id }, 150, 56);
   });
   const idToUid = new Map(nodes.map((n, i) => [ids[i], n.id]));
   const edges: FlowEdge[] = rawEdges
@@ -1139,7 +1265,9 @@ function parseState(lines: string[]): ParseResult {
         return mkEdge(s, t, { marker: MARK.arrow, label: e.label });
       })
       .filter(Boolean) as FlowEdge[];
-  return { nodes, edges, type: "state" };
+
+  const nodesOut = finalizeLayout(nodes, edges);
+  return { nodes: nodesOut, edges, type: "state", preLayouted: true };
 }
 
 /* ---------------- usecase (Mermaid) ---------------- */
@@ -1175,8 +1303,8 @@ function parseMermaidUseCase(lines: string[]): ParseResult {
     const ln = lines[i].trim();
     if (!ln || ln.startsWith("%%")) continue;
 
-    // Subgraph (system boundary)
-    const subgraphMatch = ln.match(/^subgraph\s+(?:"([^"]+)"|([A-Za-z0-9_]+))(?:\s+as\s+([A-Za-z0-9_]+))?/i);
+    // Subgraph / System boundary
+    const subgraphMatch = ln.match(/^(?:subgraph|rect)\s+(?:"([^"]+)"|([A-Za-z0-9_]+))(?:\s+as\s+([A-Za-z0-9_]+))?/i);
     if (subgraphMatch) {
       const label = subgraphMatch[1] || subgraphMatch[2];
       const id = subgraphMatch[3] || subgraphMatch[2] || label;
@@ -1267,11 +1395,14 @@ function parseMermaidUseCase(lines: string[]): ParseResult {
       const label = assocMatch[3];
       ensureNode(fromId, fromId, nodeMap.has(fromId) ? "usecase" : "actor");
       ensureNode(toId, toId, nodeMap.has(toId) ? "usecase" : "actor");
+      
+      // In Use Case diagrams, associations between actors and use cases should NOT have arrows.
+      // We ignore the ">" in tokens like "-->" for Use Case associations to follow UML standards.
       rawEdges.push({ 
         from: fromId, 
         to: toId, 
         label, 
-        marker: ln.includes(">") ? MARK.openArrow : undefined,
+        marker: undefined, 
         type: "bezier" 
       });
       continue;
@@ -1287,18 +1418,38 @@ function parseMermaidUseCase(lines: string[]): ParseResult {
     .map((e) => {
       const s = idToUid.get(e.from);
       const t = idToUid.get(e.to);
-      if (!s || !t) return null;
+      if (!s || !t || s === t) return null;
       return mkEdge(s, t, {
         marker: e.marker,
         markerStart: e.markerStart,
         dashed: e.dashed,
         label: e.label,
-        type: e.type
+        type: e.type as FlowEdge["type"]
       });
     })
     .filter(Boolean) as FlowEdge[];
 
-  return { nodes, edges, type: "usecase" };
+  // Apply layout
+  const nonPkgNodes = nodes.filter(n => n.type !== "package");
+  const nodeSizes = new Map<string, { width: number; height: number }>();
+  nonPkgNodes.forEach(n => {
+    nodeSizes.set(n.id, { width: n.width ?? 170, height: n.height ?? 76 });
+  });
+
+  const posMap = layeredLayout(
+      nonPkgNodes.map(n => n.id),
+      edges.map(e => ({ source: e.source, target: e.target })),
+      "TB",
+      nodeSizes
+  );
+
+  for (const n of nonPkgNodes) {
+    const p = posMap.get(n.id) ?? { x: 0, y: 0 };
+    n.position = { x: p.x - (n.width ?? 0) / 2, y: p.y - (n.height ?? 0) / 2 };
+  }
+
+  const nodesOut = finalizeLayout(nodes, edges);
+  return { nodes: nodesOut, edges, type: "usecase", preLayouted: true };
 }
 
 /* ---------------- component (Mermaid) ---------------- */
@@ -1347,18 +1498,17 @@ function parseMermaidComponent(lines: string[]): ParseResult {
       continue;
     }
 
-    // Component: [Component] or component "Label" as id
+    // Component: [Component], [["Component"]] or component "Label" as id
     const componentMatch = ln.match(/^component\s+(?:"([^"]+)"|([A-Za-z0-9_]+))(?:\s+as\s+([A-Za-z0-9_]+))?/i);
-    const bracketMatch = ln.match(/^\[([^\]]+)\](?:\s+as\s+([A-Za-z0-9_]+))?$/);
+    const bracketMatch = ln.match(/^\[\[?([^\]]+)\]?\](?:\s+as\s+([A-Za-z0-9_]+))?$/);
     if (componentMatch || bracketMatch) {
-      const match = componentMatch || bracketMatch!;
       let label, id;
       if (componentMatch) {
         label = componentMatch[1] || componentMatch[2];
         id = componentMatch[3] || componentMatch[2];
       } else {
-        label = bracketMatch[1];
-        id = bracketMatch[2] || label.replace(/\s+/g, "_");
+        label = bracketMatch![1];
+        id = bracketMatch![2] || label.replace(/\s+/g, "_");
       }
       const parentId = parentStack.length > 0 ? nodeMap.get(parentStack[parentStack.length - 1]) : undefined;
       ensureNode(id, label, "component", undefined, parentId);
@@ -1440,7 +1590,27 @@ function parseMermaidComponent(lines: string[]): ParseResult {
     })
     .filter(Boolean) as FlowEdge[];
 
-  return { nodes, edges, type: "component" };
+  // Apply layout
+  const nonPkgNodes = nodes.filter(n => n.type !== "package");
+  const nodeSizes = new Map<string, { width: number; height: number }>();
+  nonPkgNodes.forEach(n => {
+    nodeSizes.set(n.id, { width: n.width ?? 180, height: n.height ?? 92 });
+  });
+
+  const posMap = layeredLayout(
+      nonPkgNodes.map(n => n.id),
+      edges.map(e => ({ source: e.source, target: e.target })),
+      "TB",
+      nodeSizes
+  );
+
+  for (const n of nonPkgNodes) {
+    const p = posMap.get(n.id) ?? { x: 0, y: 0 };
+    n.position = { x: p.x - (n.width ?? 0) / 2, y: p.y - (n.height ?? 0) / 2 };
+  }
+
+  const nodesOut = finalizeLayout(nodes, edges);
+  return { nodes: nodesOut, edges, type: "component", preLayouted: true };
 }
 
 /* ============================================================
@@ -1584,7 +1754,21 @@ function parsePlantUseCase(lines: string[]): ParseResult {
     });
   }).filter(Boolean) as FlowEdge[];
 
-  return { nodes, edges, type: "usecase" };
+  // Apply layout
+  const nonPkgNodes = nodes.filter(n => n.type !== "package");
+  const posMap = layeredLayout(
+      nonPkgNodes.map(n => n.id),
+      edges.map(e => ({ source: e.source, target: e.target })),
+      "TB"
+  );
+
+  for (const n of nonPkgNodes) {
+    const p = posMap.get(n.id) ?? { x: 0, y: 0 };
+    n.position = { x: p.x - (n.width ?? 0) / 2, y: p.y - (n.height ?? 0) / 2 };
+  }
+
+  const nodesOut = finalizeLayout(nodes, edges);
+  return { nodes: nodesOut, edges, type: "usecase", preLayouted: true };
 }
 
 function parsePlantActivity(lines: string[]): ParseResult {
@@ -1727,12 +1911,25 @@ function parsePlantActivity(lines: string[]): ParseResult {
       .map(e => {
         const s = nodeMap.get(e.from) || e.from;
         const t = nodeMap.get(e.to) || e.to;
-        if (!s || !t) return null;
+        if (!s || !t || s === t) return null;
         return mkEdge(s, t, { marker: MARK.arrow, label: e.label });
       })
       .filter(Boolean) as FlowEdge[];
 
-  return { nodes, edges, type: "activity" };
+  // Apply layout
+  const posMap = layeredLayout(
+      nodes.map(n => n.id),
+      edges.map(e => ({ source: e.source, target: e.target })),
+      "TB"
+  );
+
+  for (const n of nodes) {
+    const p = posMap.get(n.id) ?? { x: 0, y: 0 };
+    n.position = { x: p.x - (n.width ?? 0) / 2, y: p.y - (n.height ?? 0) / 2 };
+  }
+
+  const nodesOut = finalizeLayout(nodes, edges);
+  return { nodes: nodesOut, edges, type: "activity", preLayouted: true };
 }
 
 function parsePlantComponent(lines: string[]): ParseResult {
@@ -1832,26 +2029,41 @@ function parsePlantComponent(lines: string[]): ParseResult {
   }
 
   const ids = [...comps.keys()];
-  const pos = gridLayout(ids.length);
-  const nodes: FlowNode[] = ids.map((id, i) => {
+  const nodeSizes = new Map<string, { width: number; height: number }>();
+  ids.forEach(id => {
     const c = comps.get(id)!;
-    const uid = nodeMap.get(id) || nanoid(8);
     let w = 180, h = 92;
     if (c.type === "package") { w = 300; h = 300; }
-    return mkNode(c.type, pos(i).x, pos(i).y, { label: c.label, stereotype: c.stereotype }, w, h, c.parentId, uid);
+    nodeSizes.set(id, { width: w, height: h });
   });
 
-  const idToUid = new Map(nodes.map((n, i) => [ids[i], n.id]));
+  const posMap = layeredLayout(
+      ids,
+      rawEdges.map((e) => ({ source: e.from, target: e.to })),
+      "TB",
+      nodeSizes
+  );
+
+  const nodes: FlowNode[] = ids.map((id) => {
+    const c = comps.get(id)!;
+    const sz = nodeSizes.get(id)!;
+    const p = posMap.get(id) ?? { x: 0, y: 0 };
+    const uid = nodeMap.get(id) || nanoid(8);
+    return mkNode(c.type, p.x - sz.width / 2, p.y - sz.height / 2, { label: c.label, stereotype: c.stereotype }, sz.width, sz.height, c.parentId, uid);
+  });
+
+  const idToUidMap = new Map(nodes.map((n, i) => [ids[i], n.id]));
   const edges: FlowEdge[] = rawEdges
       .map((e) => {
-        const s = idToUid.get(e.from);
-        const t = idToUid.get(e.to);
+        const s = idToUidMap.get(e.from);
+        const t = idToUidMap.get(e.to);
         if (!s || !t || s === t) return null;
         return mkEdge(s, t, e.opts);
       })
       .filter(Boolean) as FlowEdge[];
 
-  return { nodes, edges, type: "component" };
+  const nodesOut = finalizeLayout(nodes, edges);
+  return { nodes: nodesOut, edges, type: "component", preLayouted: true };
 }
 
 /* ============================================================
@@ -1976,6 +2188,23 @@ export function aiResponseToCanvas(res: DiagramChatResponse): ParseResult {
     return { ...flowNode, parentId: n.parentId, extent: n.parentId ? "parent" : undefined };
   });
 
+  // Smart diagram type detection from nodes if not explicitly provided
+  let detectedType = res.diagramType as DiagramType;
+  if (!detectedType) {
+    const nodeTypes = new Set(res.nodes?.map(n => n.type.toLowerCase()));
+    if (nodeTypes.has("start") || nodeTypes.has("final") || nodeTypes.has("decision")) {
+      detectedType = "activity";
+    } else if (nodeTypes.has("actor") || nodeTypes.has("usecase")) {
+      detectedType = "usecase";
+    } else if (nodeTypes.has("component")) {
+      detectedType = "component";
+    } else if (res.summary?.toLowerCase().includes("use case")) {
+      detectedType = "usecase";
+    } else {
+      detectedType = "class";
+    }
+  }
+
   const edges: FlowEdge[] = (res.edges ?? []).map((e) => {
     const aiEdge: AIEdge = {
       id: e.id,
@@ -1984,16 +2213,26 @@ export function aiResponseToCanvas(res: DiagramChatResponse): ParseResult {
       relation: (e.relation || "association").toLowerCase() as RelationKind,
       label: e.label,
     };
-    return aiEdgeToFlow(aiEdge);
+    const flowEdge = aiEdgeToFlow(aiEdge);
+
+    // Use Case specific: remove arrows for associations between Actor and UseCase
+    if (detectedType === "usecase" && aiEdge.relation === "association") {
+      const sourceNode = nodes.find(n => n.id === flowEdge.source);
+      const targetNode = nodes.find(n => n.id === flowEdge.target);
+      if (sourceNode && targetNode) {
+        if ((sourceNode.type === "actor" && targetNode.type === "usecase") ||
+            (sourceNode.type === "usecase" && targetNode.type === "actor")) {
+          flowEdge.data = { ...flowEdge.data, marker: "" };
+        }
+      }
+    }
+
+    return flowEdge;
   });
 
   const questions = res.questions
       ? aiQuestionsToImportQuestions(res.questions)
       : undefined;
-
-  const detectedType =
-      res.diagramType ||
-      (res.summary?.toLowerCase().includes("use case") ? "usecase" : undefined);
 
   return { nodes, edges, questions, type: detectedType as DiagramType };
 }

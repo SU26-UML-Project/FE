@@ -3,6 +3,7 @@ import {
   getSmoothStepPath, getBezierPath, getStraightPath,
   type EdgeProps,
 } from "@xyflow/react";
+import { SmartStepEdge } from "@tisoap/react-flow-smart-edge";
 
 interface EdgeData {
   marker?: string;
@@ -11,17 +12,15 @@ interface EdgeData {
   color?: string;
 }
 
-function EdgeView({ id, path, data, label, sourceX, sourceY, targetX, targetY, style, selected }: {
+function EdgeView({ id, path, data, label, labelX, labelY, selected }: {
   id: string; path: string; data: unknown; label?: string;
-  sourceX: number; sourceY: number; targetX: number; targetY: number;
+  labelX?: number; labelY?: number;
   style?: React.CSSProperties;
   selected?: boolean;
 }) {
   const d = data as EdgeData;
   const marker = d?.marker || undefined;
   const markerStart = d?.markerStart || undefined;
-  const lx = (sourceX + targetX) / 2;
-  const ly = (sourceY + targetY) / 2;
 
   // Visual feedback: blue highlight when selected or hovered
   const strokeColor = selected ? "#2563eb" : (d?.color || "#565e74");
@@ -44,7 +43,6 @@ function EdgeView({ id, path, data, label, sourceX, sourceY, targetX, targetY, s
         markerEnd={marker} 
         markerStart={markerStart}
         style={{ 
-          ...style, 
           stroke: strokeColor, 
           strokeWidth,
           strokeDasharray: d?.dashed ? "6 4" : undefined,
@@ -52,10 +50,10 @@ function EdgeView({ id, path, data, label, sourceX, sourceY, targetX, targetY, s
           filter: selected ? "drop-shadow(0 0 2px rgba(37, 99, 235, 0.4))" : undefined
         }}
       />
-      {label ? (
+      {label && labelX !== undefined && labelY !== undefined ? (
         <EdgeLabelRenderer>
           <div className="nodrag nopan absolute"
-            style={{ transform: `translate(-50%, -50%) translate(${lx}px, ${ly}px)` }}>
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}>
             <span className="whitespace-nowrap rounded-md border border-zinc-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-600 shadow-sm">
               {label}
             </span>
@@ -75,56 +73,67 @@ export function OrthogonalEdge(props: EdgeProps) {
                         (sourcePosition === "top" && targetPosition === "bottom");
 
   let path: string;
+  let labelX: number, labelY: number;
 
-  if (isHorizontalPair) {
-    if (Math.abs(sourceY - targetY) < 3) {
-      path = `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
-    } else {
-      const midX = sourceX + (targetX - sourceX) / 2;
-      path = `M ${sourceX} ${sourceY} L ${midX} ${sourceY} L ${midX} ${targetY} L ${targetX} ${targetY}`;
-    }
-  } else if (isVerticalPair) {
-    if (Math.abs(sourceX - targetX) < 3) {
-      path = `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
-    } else {
-      const midY = sourceY + (targetY - sourceY) / 2;
-      path = `M ${sourceX} ${sourceY} L ${sourceX} ${midY} L ${targetX} ${midY} L ${targetX} ${targetY}`;
-    }
+  if (isHorizontalPair && Math.abs(sourceY - targetY) < 3) {
+    [path, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY });
+  } else if (isVerticalPair && Math.abs(sourceX - targetX) < 3) {
+    [path, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY });
   } else {
-    [path] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 8 });
+    [path, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 8 });
   }
 
   return (
    <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
-      sourceX={sourceX} sourceY={sourceY} targetX={targetX} targetY={targetY} 
-      style={props.style} 
+      labelX={labelX} labelY={labelY}
       selected={props.selected}
     />
   );
 }
 
 export function BezierEdge(props: EdgeProps) {
-  const [path] = getBezierPath({
+  const [path, labelX, labelY] = getBezierPath({
     sourceX: props.sourceX, sourceY: props.sourceY, sourcePosition: props.sourcePosition,
     targetX: props.targetX, targetY: props.targetY, targetPosition: props.targetPosition,
   });
   return (
    <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
-      sourceX={props.sourceX} sourceY={props.sourceY} targetX={props.targetX} targetY={props.targetY} 
-      style={props.style} 
+      labelX={labelX} labelY={labelY}
       selected={props.selected}
     />
   );
 }
 
 export function StraightEdge(props: EdgeProps) {
-  const [path] = getStraightPath({ sourceX: props.sourceX, sourceY: props.sourceY, targetX: props.targetX, targetY: props.targetY });
+  const [path, labelX, labelY] = getStraightPath({ sourceX: props.sourceX, sourceY: props.sourceY, targetX: props.targetX, targetY: props.targetY });
   return (
     <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
-      sourceX={props.sourceX} sourceY={props.sourceY} targetX={props.targetX} targetY={props.targetY} 
-      style={props.style} 
+      labelX={labelX} labelY={labelY}
       selected={props.selected}
     />
+  );
+}
+
+/**
+ * Wrapper for SmartStepEdge to handle labels and project-specific styling.
+ */
+export function SmartEdge(props: EdgeProps) {
+  // SmartStepEdge is a component that renders its own path and handles.
+  // We wrap it to keep the label logic consistent.
+  return (
+    <>
+      <SmartStepEdge {...props} />
+      {props.label && props.labelX !== undefined && props.labelY !== undefined && (
+        <EdgeLabelRenderer>
+          <div className="nodrag nopan absolute"
+            style={{ transform: `translate(-50%, -50%) translate(${props.labelX}px, ${props.labelY}px)` }}>
+            <span className="whitespace-nowrap rounded-md border border-zinc-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-600 shadow-sm">
+              {props.label}
+            </span>
+          </div>
+        </EdgeLabelRenderer>
+      )}
+    </>
   );
 }
 
@@ -133,5 +142,6 @@ export const edgeTypes = {
   orthogonal: OrthogonalEdge,
   bezier: BezierEdge,
   straight: StraightEdge,
+  smart: SmartEdge,
   default: OrthogonalEdge,
 };
