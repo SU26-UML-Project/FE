@@ -151,55 +151,44 @@ function layeredLayout(
     ids: string[],
     edges: { source: string; target: string; label?: string }[],
     direction: "TB" | "LR" = "TB",
-    nodeSizes?: Map<string, { width: number; height: number }>,
-    parents?: Map<string, string>
+    nodeSizes?: Map<string, { width: number; height: number }>
 ): Map<string, { x: number; y: number }> {
-  const g = new dagre.graphlib.Graph({ compound: true });
+  const g = new dagre.graphlib.Graph();
   
-  // Mermaid-like compact spacing
-  const nodesep = 50; 
-  const ranksep = 50;
+  // LR mode needs very high nodesep (vertical gap) to create "corridors" for edges
+  const isLR = direction === "LR";
+  const nodesep = isLR ? 220 : 120; 
+  const ranksep = isLR ? 80 : 150;
 
   g.setGraph({ 
     rankdir: direction, 
     nodesep, 
     ranksep,
-    marginx: 20,
-    marginy: 20
+    marginx: 40,
+    marginy: 40
   });
   g.setDefaultEdgeLabel(() => ({}));
 
   ids.forEach((id) => {
-    const size = nodeSizes?.get(id) ?? { width: 150, height: 100 };
+    const size = nodeSizes?.get(id) ?? { width: 200, height: 100 };
     g.setNode(id, { width: size.width, height: size.height });
   });
 
-  // Set hierarchy for true cluster layout
-  if (parents) {
-    parents.forEach((parentId, childId) => {
-      if (ids.includes(childId) && ids.includes(parentId)) {
-        g.setParent(childId, parentId);
-      }
-    });
-  }
-
   edges.forEach((e) => {
-    if (ids.includes(e.source) && ids.includes(e.target)) {
-      // Dagre can also take label dimensions
-      const labelLen = e.label?.length ?? 0;
-      g.setEdge(e.source, e.target, { 
-        width: labelLen * 8, 
-        height: 20 
-      });
-    }
+    // Dagre can also take label dimensions
+    const labelLen = e.label?.length ?? 0;
+    g.setEdge(e.source, e.target, { 
+      width: labelLen * 8, 
+      height: 20 
+    });
   });
 
   dagre.layout(g);
 
   const pos = new Map<string, { x: number; y: number }>();
-  g.nodes().forEach((v) => {
-    const node = g.node(v);
-    pos.set(v, { x: node.x, y: node.y });
+  ids.forEach((id) => {
+    const node = g.node(id);
+    pos.set(id, { x: node.x, y: node.y });
   });
 
   return pos;
@@ -394,48 +383,25 @@ function parseClassLike(lines: string[], _plant: boolean): ParseResult {
 
   // Build nodes + edges.
   const idMap = new Map<string, string>();
-  const classIds = [...classes.keys()];
-  const namespaceIds = [...parentMap.keys()];
-  const allIds = [...classIds, ...namespaceIds];
+  const ids = [...classes.keys()];
   
-  // Build parent relationship map for Dagre
-  const dagreParents = new Map<string, string>();
-  for (const mid of classIds) {
-    const c = classes.get(mid)!;
-    // Find the namespace name for this parent UID
-    if (c.parentId) {
-      for (const [nsName, uid] of parentMap.entries()) {
-        if (uid === c.parentId) {
-          dagreParents.set(mid, nsName);
-          break;
-        }
-      }
-    }
-  }
-  // Also handle nested namespaces
-  // ... nested logic if needed, but for now simple 1-level
-
   // Estimate sizes for Dagre
   const nodeSizes = new Map<string, { width: number; height: number }>();
-  for (const mid of classIds) {
+  for (const mid of ids) {
     const c = classes.get(mid)!;
     const { w, h } = clsSize(c.label, c.attrs, c.methods, c.stereotype);
     nodeSizes.set(mid, { width: w, height: h });
   }
-  for (const nsId of namespaceIds) {
-    nodeSizes.set(nsId, { width: 300, height: 200 }); // Initial estimate for cluster
-  }
 
   const pos = layeredLayout(
-      allIds,
+      ids,
       rels.map((r) => ({ source: r.from, target: r.to, label: r.opts.label })),
       layoutDir,
-      nodeSizes,
-      dagreParents
+      nodeSizes
   );
   
   const clsNodes: FlowNode[] = [];
-  for (const mid of classIds) {
+  for (const mid of ids) {
     const c = classes.get(mid)!;
     const sz = nodeSizes.get(mid)!;
     const p = pos.get(mid) ?? { x: 0, y: 0 };
@@ -460,15 +426,6 @@ function parseClassLike(lines: string[], _plant: boolean): ParseResult {
     );
   }
 
-  // Final nodes for namespaces
-  const nsNodes: FlowNode[] = [];
-  for (const nsId of namespaceIds) {
-    const p = pos.get(nsId) ?? { x: 0, y: 0 };
-    const uid = parentMap.get(nsId)!;
-    // We don't know the final size yet, finalizeLayout will calculate it
-    nsNodes.push(mkNode("package", p.x, p.y, { label: nsId.replace(/`/g, "") }, 300, 300, undefined, uid));
-  }
-
   const edges: FlowEdge[] = rels
       .map((r) => {
         const s = idMap.get(r.from);
@@ -478,7 +435,7 @@ function parseClassLike(lines: string[], _plant: boolean): ParseResult {
       })
       .filter(Boolean) as FlowEdge[];
 
-  const nodesOut = finalizeLayout([...nsNodes, ...clsNodes], edges);
+  const nodesOut = finalizeLayout([...nodes, ...clsNodes], edges);
   return { nodes: nodesOut, edges, type: "class", preLayouted: true };
 }
 

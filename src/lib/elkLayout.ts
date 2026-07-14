@@ -136,35 +136,35 @@ function elkOptions(type?: DiagramType): Record<string, string> {
     "elk.layered.cycleBreaking.strategy": "GREEDY",
     "elk.layered.edgeRouting": "ORTHOGONAL",
     "elk.layered.unnecessaryBendpoints": "false",
-    "elk.layered.spacing.edgeNode": "40",
-    "elk.layered.spacing.edgeNodeBetweenLayers": "40",
-    "elk.layered.spacing.edgeEdge": "20",
-    "elk.spacing.edgeEdge": "20",
-    "elk.layered.spacing.labelNode": "30",
-    "elk.layered.spacing.labelLabel": "20",
+    "elk.layered.spacing.edgeNode": "80",
+    "elk.layered.spacing.edgeNodeBetweenLayers": "80",
+    "elk.layered.spacing.edgeEdge": "40",
+    "elk.spacing.edgeEdge": "40",
+    "elk.layered.spacing.labelNode": "50",
+    "elk.layered.spacing.labelLabel": "30",
     "elk.edgeLabels.placement": "CENTER",
     "elk.layered.edgeLabels.sideSelection": "ALWAYS_UP",
     "elk.layered.compaction.postCompaction.strategy": "EDGE_LENGTH",
     "elk.hierarchyHandling": "INCLUDE_CHILDREN",
     "elk.layered.hierarchyHandling": "INCLUDE_CHILDREN",
-    "elk.padding": "[top=40,left=40,bottom=40,right=40]",
-    "elk.spacing.componentComponent": "40",
+    "elk.padding": "[top=70,left=70,bottom=70,right=70]",
+    "elk.spacing.componentComponent": "140",
   };
 
   switch (type) {
     case "activity":
     case "state":
       return { ...base, "elk.direction": "DOWN",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "80", "elk.spacing.nodeNode": "60" };
+        "elk.layered.spacing.nodeNodeBetweenLayers": "100", "elk.spacing.nodeNode": "80" };
     case "class":
       return { ...base, "elk.direction": "RIGHT",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "60", "elk.spacing.nodeNode": "40" };
+        "elk.layered.spacing.nodeNodeBetweenLayers": "100", "elk.spacing.nodeNode": "55" };
     case "component":
       return { ...base, "elk.direction": "RIGHT",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "60", "elk.spacing.nodeNode": "40" };
+        "elk.layered.spacing.nodeNodeBetweenLayers": "90", "elk.spacing.nodeNode": "50" };
     default:
       return { ...base, "elk.direction": "DOWN",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "60", "elk.spacing.nodeNode": "40" };
+        "elk.layered.spacing.nodeNodeBetweenLayers": "80", "elk.spacing.nodeNode": "50" };
   }
 }
 
@@ -211,12 +211,11 @@ export function finalizeLayout(nodes: FlowNode[], edges: FlowEdge[] = []): FlowN
       const pkgW = maxX - minX + PADDING * 2;
       const pkgH = maxY - minY + PADDING * 2;
 
-      // Update package position and size to wrap children
       pkg.position = { x: pkgX, y: pkgY };
       pkg.width = pkgW;
       pkg.height = pkgH;
       pkg.style = { ...pkg.style, width: pkgW, height: pkgH };
-      pkg.zIndex = -1;
+      pkg.zIndex = -1; // Ensure package is behind everything
     }
   }
 
@@ -230,13 +229,13 @@ export function finalizeLayout(nodes: FlowNode[], edges: FlowEdge[] = []): FlowN
       
       // Smart Routing Logic:
       if (s.parentId !== t.parentId) {
-        edge.type = "smart"; // Use smart for cross-package to né node tốt hơn
+        edge.type = "smoothstep"; // Use smoothstep for cross-package to né node tốt hơn
         edge.zIndex = 200; 
       } else if (dx < 20 || dy < 20) {
         edge.type = "straight"; 
         edge.zIndex = 5;
       } else {
-        edge.type = "smart"; 
+        edge.type = "smoothstep"; 
         edge.zIndex = 5;
       }
     }
@@ -350,7 +349,7 @@ async function elkLayout(
   });
 
   // Re-run finalizeLayout to fix package sizes and relative positions
-  const finalNodes = finalizeLayout(layoutedNodes, edges);
+  const finalNodes = finalizeLayout(layoutedNodes);
   const layoutedEdges = assignHandles(finalNodes, edges);
   
   return { nodes: finalNodes, edges: layoutedEdges };
