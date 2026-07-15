@@ -51,6 +51,10 @@ import { loadSheets, saveSheets, saveActiveId, loadActiveId, createSheet } from 
 import { useCollab } from "../hooks/useCollab";
 import type { CanvasChangeData } from "../services";
 import { useAuthStore } from "../stores/useAuthStore";
+import ProjectExplorer from "./Workspace/ProjectExplorer";
+import MarkdownEditor from "./Workspace/MarkdownEditor";
+import { workspaceFileService } from "../services/workspaceFileService";
+import type { WorkspaceFileItem, WorkspaceTreeState, WorkspaceFileKind } from "../types/workspaceFile";
 
 type Snap = { nodes: FlowNode[]; edges: FlowEdge[] };
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -82,7 +86,7 @@ function download(filename: string, content: string) {
 
 export function Editor() {
   const rf = useReactFlow();
-  const { id } = useParams<{ id: string }>();
+  const { id, itemId } = useParams<{ id: string; itemId?: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
@@ -126,7 +130,7 @@ export function Editor() {
   const [importResult, setImportResult] = useState<any | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [typeMenu, setTypeMenu] = useState(false);
   const [aiOpen, setAiOpen] = useState(true);
   const [sheets, setSheets] = useState<Sheet[]>([]);
@@ -134,6 +138,8 @@ export function Editor() {
   const [projectName, setProjectName] = useState<string>("");
   const [projectOwner, setProjectOwner] = useState<string>("");
   const [publicAccess, setPublicAccess] = useState<boolean>(false);
+  const [workspaceTree, setWorkspaceTree] = useState<WorkspaceTreeState>({ items: [], expandedIds: [], activeItemId: null });
+  const [activeWorkspaceItem, setActiveWorkspaceItem] = useState<WorkspaceFileItem | null>(null);
 
   const sheetsRef = useRef<Sheet[]>([]);
   const projectNameRef = useRef<string>("");
@@ -1158,50 +1164,29 @@ export function Editor() {
               updatedAt: new Date(s.updatedAt).getTime()
             };
           });
-        } else {
-          // New project: start with a single empty sheet
-          const firstSheet = createSheet([]);
-          try {
-            const newSheetRes = await sheetService.createSheet({
-              name: firstSheet.name,
-              orderIndex: 0,
-              projectId: id,
-              diagramData: JSON.stringify({
-                nodes: firstSheet.nodes,
-                edges: firstSheet.edges,
-                diagramType: firstSheet.diagramType
-              })
-            });
-            all = [{
-              ...firstSheet,
-              id: newSheetRes.result.id
-            }];
-          } catch (e) {
-            console.error("Failed to create initial sheet on server", e);
-            all = [firstSheet];
-          }
         }
 
-        const activeId = loadActiveId() && all.some((s) => s.id === loadActiveId())
-            ? loadActiveId()!
-            : all[0].id;
-        const active = all.find((s) => s.id === activeId) ?? all[0];
-
         setSheets(all);
-        setActiveSheetId(active.id);
-        setDiagramType(active.diagramType);
-        setActiveEdgeId(getDiagram(active.diagramType).defaultEdge);
+        const tree = workspaceFileService.syncDiagrams(id, all.map(sheet => ({ id: sheet.id, name: sheet.name, diagramType: sheet.diagramType })));
+        const requestedItem = itemId ? tree.items.find(item => item.id === itemId) : null;
+        const persistedItem = tree.items.find(item => item.id === tree.activeItemId);
+        const activeItem = requestedItem ?? persistedItem ?? tree.items[0] ?? null;
+        const preferredSheetId = activeItem?.sheetId ?? loadActiveId();
+        const active = all.find(sheet => sheet.id === preferredSheetId) ?? all[0];
+        const nextTree = { ...tree, activeItemId: activeItem?.id ?? null };
+        workspaceFileService.saveState(id, nextTree);
+        setWorkspaceTree(nextTree);
+        setActiveWorkspaceItem(activeItem);
 
-        const nextNodes = active.nodes;
-        const nextEdges = active.edges;
-        nodesRef.current = nextNodes;
-        edgesRef.current = nextEdges;
-        setNodesState(nextNodes);
-        setEdgesState(nextEdges);
-
-        // Restore viewport
-        if (active.viewport) {
-          rf.setViewport(active.viewport);
+        if (active) {
+          setActiveSheetId(active.id);
+          setDiagramType(active.diagramType);
+          setActiveEdgeId(getDiagram(active.diagramType).defaultEdge);
+          nodesRef.current = active.nodes;
+          edgesRef.current = active.edges;
+          setNodesState(active.nodes);
+          setEdgesState(active.edges);
+          if (active.viewport) rf.setViewport(active.viewport);
         }
 
         setLoaded(true);
@@ -1219,7 +1204,7 @@ export function Editor() {
     };
 
     initWorkspace();
-  }, [id, syncHist, navigate]);
+  }, [id, itemId, syncHist, navigate, rf]);
 
   // Persist the active sheet whenever its content changes.
   useEffect(() => {
@@ -1360,14 +1345,14 @@ export function Editor() {
       [sheets, activeSheetId, rf, syncHist, saved, saveImmediate]
   );
 
-  const createNewSheet = useCallback(async () => {
+  const createNewSheet = useCallback(async (name?: string, type: DiagramType = "activity", parentId: string | null = null) => {
     // 1. Save current sheet first
     if (!saved) {
       await saveImmediate();
     }
 
     // 2. Create local temp sheet to get initial values
-    const tempSheet = createSheet(sheets);
+    const tempSheet = { ...createSheet(sheets), name: name || createSheet(sheets).name, diagramType: type };
 
     // 3. Create on server to get real UUID
     try {
@@ -1392,6 +1377,19 @@ export function Editor() {
 
       const next = [...sheets, newSheet];
       setSheets(next);
+      if (id) {
+        const item = workspaceFileService.create(id, {
+          id: `diagram:${newSheet.id}`,
+          name: newSheet.name,
+          kind: "diagram",
+          parentId,
+          sheetId: newSheet.id,
+          diagramType: newSheet.diagramType,
+        });
+        const nextTree = workspaceFileService.load(id);
+        setWorkspaceTree(nextTree);
+        setActiveWorkspaceItem(item);
+      }
 
       // 4. Switch to new sheet
       saveActiveId(newSheet.id);
@@ -1469,6 +1467,76 @@ export function Editor() {
       },
       [sheets, activeSheetId, switchSheet]
   );
+
+  const refreshWorkspaceTree = useCallback((active?: WorkspaceFileItem | null) => {
+    if (!id) return;
+    const tree = workspaceFileService.load(id);
+    setWorkspaceTree(tree);
+    if (active !== undefined) setActiveWorkspaceItem(active);
+  }, [id]);
+
+  const selectWorkspaceItem = useCallback(async (item: WorkspaceFileItem) => {
+    if (!id) return;
+    if (item.kind === "diagram" && item.sheetId) {
+      await switchSheet(item.sheetId);
+    } else if (!saved) {
+      await saveImmediate();
+    }
+    workspaceFileService.saveState(id, { activeItemId: item.id });
+    setWorkspaceTree(prev => ({ ...prev, activeItemId: item.id }));
+    setActiveWorkspaceItem(item);
+    navigate(`/workspace/${id}/editor/${encodeURIComponent(item.id)}`, { replace: true });
+  }, [id, saved, saveImmediate, switchSheet, navigate]);
+
+  const createWorkspaceItem = useCallback(async (kind: WorkspaceFileKind, name: string, parentId: string | null, type?: DiagramType) => {
+    if (!id) return;
+    if (kind === "diagram") {
+      await createNewSheet(name, type || "activity", parentId);
+      return;
+    }
+    const item = workspaceFileService.create(id, { name, kind, parentId, content: kind === "markdown" ? "" : undefined });
+    refreshWorkspaceTree(item);
+  }, [id, createNewSheet, refreshWorkspaceTree]);
+
+  const renameWorkspaceItem = useCallback(async (item: WorkspaceFileItem, name: string) => {
+    if (!id) return;
+    workspaceFileService.update(id, item.id, { name });
+    if (item.kind === "diagram" && item.sheetId) await renameSheet(item.sheetId, name);
+    const updated = { ...item, name };
+    refreshWorkspaceTree(activeWorkspaceItem?.id === item.id ? updated : undefined);
+  }, [id, renameSheet, refreshWorkspaceTree, activeWorkspaceItem]);
+
+  const deleteWorkspaceItem = useCallback(async (item: WorkspaceFileItem) => {
+    if (!id) return;
+    const removedIds = new Set<string>([item.id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      workspaceTree.items.forEach(candidate => {
+        if (candidate.parentId && removedIds.has(candidate.parentId) && !removedIds.has(candidate.id)) {
+          removedIds.add(candidate.id);
+          changed = true;
+        }
+      });
+    }
+    const diagrams = workspaceTree.items.filter(candidate => removedIds.has(candidate.id) && candidate.kind === "diagram" && candidate.sheetId);
+    if (diagrams.length >= sheets.length) {
+      toast.error("Keep at least one diagram while the current backend still requires a sheet.");
+      return;
+    }
+    for (const diagramItem of diagrams) await deleteSheet(diagramItem.sheetId!);
+    const deletedSheetIds = new Set(diagrams.map(diagram => diagram.sheetId));
+    setSheets(prev => prev.filter(sheet => !deletedSheetIds.has(sheet.id)));
+    workspaceFileService.remove(id, item.id);
+    refreshWorkspaceTree(activeWorkspaceItem && removedIds.has(activeWorkspaceItem.id) ? null : undefined);
+  }, [id, workspaceTree.items, sheets.length, deleteSheet, refreshWorkspaceTree, activeWorkspaceItem]);
+
+  const updateMarkdown = useCallback((content: string) => {
+    if (!id || !activeWorkspaceItem || activeWorkspaceItem.kind !== "markdown") return;
+    workspaceFileService.update(id, activeWorkspaceItem.id, { content });
+    setActiveWorkspaceItem(prev => prev ? { ...prev, content } : prev);
+    setWorkspaceTree(prev => ({ ...prev, items: prev.items.map(item => item.id === activeWorkspaceItem.id ? { ...item, content } : item) }));
+  }, [id, activeWorkspaceItem]);
 
   useEffect(() => {
     if (loaded) {
@@ -1690,7 +1758,7 @@ export function Editor() {
                 if (!saved) {
                   setConfirmExit(true);
                 } else {
-                  navigate("/dashboard");
+                  navigate(`/workspace/${id}`);
                 }
               }}
               onHelp={() => setHelpOpen(true)}
@@ -1744,6 +1812,40 @@ export function Editor() {
           />
 
           <div className="flex min-h-0 flex-1">
+            <ProjectExplorer
+                projectName={projectName}
+                items={workspaceTree.items}
+                activeId={activeWorkspaceItem?.id ?? null}
+                expandedIds={workspaceTree.expandedIds}
+                onExpandedChange={(expandedIds) => {
+                  if (id) workspaceFileService.saveState(id, { expandedIds });
+                  setWorkspaceTree(prev => ({ ...prev, expandedIds }));
+                }}
+                onSelect={selectWorkspaceItem}
+                onCreate={createWorkspaceItem}
+                onRename={renameWorkspaceItem}
+                onDelete={deleteWorkspaceItem}
+                onMove={(itemId, parentId) => {
+                  if (!id) return;
+                  try {
+                    workspaceFileService.move(id, itemId, parentId);
+                    refreshWorkspaceTree();
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : "Unable to move item");
+                  }
+                }}
+            />
+
+            {activeWorkspaceItem?.kind === "markdown" ? (
+              <MarkdownEditor name={activeWorkspaceItem.name} value={activeWorkspaceItem.content || ""} onChange={updateMarkdown} />
+            ) : activeWorkspaceItem?.kind === "folder" || !activeWorkspaceItem ? (
+              <div className="flex min-w-0 flex-1 items-center justify-center bg-admin-bg/40">
+                <div className="max-w-md text-center">
+                  <h2 className="text-xl font-bold text-admin-on-surface">Start building your project</h2>
+                  <p className="mt-2 text-sm text-admin-secondary">Create a Markdown note, diagram, or folder from the + button in Project Explorer.</p>
+                </div>
+              </div>
+            ) : <>
             <Sidebar
                 diagram={diagram}
                 diagramType={diagramType}
@@ -1907,16 +2009,8 @@ export function Editor() {
                 currentEdges={edges}
                 onImport={importCanvas}
             />
+            </>}
           </div>
-
-          <SheetBar
-              sheets={sheets}
-              activeId={activeSheetId}
-              onSelect={switchSheet}
-              onCreate={createNewSheet}
-              onRename={renameSheet}
-              onDelete={deleteSheet}
-          />
         </div>
 
         {ctxMenu && (
@@ -2008,11 +2102,11 @@ export function Editor() {
                 onConfirm={async () => {
                   await saveImmediate();
                   setConfirmExit(false);
-                  navigate("/dashboard");
+                  navigate(`/workspace/${id}`);
                 }}
                 onCancel={() => {
                   setConfirmExit(false);
-                  navigate("/dashboard");
+                  navigate(`/workspace/${id}`);
                 }}
             />
         )}
