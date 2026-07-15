@@ -24,6 +24,18 @@ import type { FlowEdge, FlowNode, FlowNodeData, DiagramType } from "../types";
 const esc = (s: string) => s.replace(/"/g, '\\"').replace(/\n/g, "\\n");
 const escM = (s: string) => s.replace(/"/g, '\\"').replace(/\n/g, "<br>");
 
+function safeId(id: string): string {
+  const sanitized = id.replace(/[^a-zA-Z0-9_]/g, "_");
+  if (/^[a-zA-Z]/.test(sanitized)) return sanitized;
+  return "id_" + sanitized;
+}
+
+function mermaidClassName(label: string): string {
+  const clean = label.replace(/[<>]/g, "").trim();
+  if (clean.includes(" ") || clean.includes("-")) return `\`${clean}\``;
+  return clean;
+}
+
 /** Generate a short safe alphanumeric ID prefix from a node UUID */
 function shortId(id: string): string {
   const alnum = id.replace(/[^a-zA-Z0-9]/g, "");
@@ -91,7 +103,7 @@ function exportMermaidClass(nodes: FlowNode[], edges: FlowEdge[]): string {
   const writeClass = (n: FlowNode) => {
     if (n.type !== "cls") return;
     const d = n.data as FlowNodeData;
-    const name = (d.label || n.id).replace(/[<>]/g, ""); // strip <>
+    const name = mermaidClassName(d.label || n.id);
     const attrs = (d.attributes ?? "").split("\n").filter(Boolean);
     const methods = (d.methods ?? "").split("\n").filter(Boolean);
     const stereo = d.stereotype?.replace(/[«»]/g, "") ?? "";
@@ -132,14 +144,36 @@ function exportMermaidClass(nodes: FlowNode[], edges: FlowEdge[]): string {
     const sn = nodes.find(x => x.id === e.source);
     const tn = nodes.find(x => x.id === e.target);
     if (!sn || !tn) continue;
-    const sL = (sn.data as FlowNodeData).label || sn.id;
-    const tL = (tn.data as FlowNodeData).label || tn.id;
+    const sL = mermaidClassName((sn.data as FlowNodeData).label || sn.id);
+    const tL = mermaidClassName((tn.data as FlowNodeData).label || tn.id);
     const rel = detectRelation(e);
     const label = (e.label ?? "") as string;
     const tok = rel.mermaidToken;
-    if (rel.hasStereotypeLabel) lines.push(`${sL} ${tok} ${tL} : ${label}`);
-    else if (label) lines.push(`${sL} ${tok} ${tL} : ${escM(label)}`);
-    else lines.push(`${sL} ${tok} ${tL}`);
+
+    const parts = label.split(":");
+    let finalLabel = label;
+    let leftMulti = "";
+    let rightMulti = "";
+    if (parts.length > 1) {
+      const multis = parts[0].trim().split(/\s+/);
+      if (multis.length === 2) {
+        leftMulti = multis[0];
+        rightMulti = multis[1];
+        finalLabel = parts.slice(1).join(":").trim();
+      }
+    }
+
+    if (leftMulti || rightMulti) {
+      if (finalLabel) {
+        lines.push(`${sL} "${leftMulti}" ${tok} "${rightMulti}" ${tL} : ${escM(finalLabel)}`);
+      } else {
+        lines.push(`${sL} "${leftMulti}" ${tok} "${rightMulti}" ${tL}`);
+      }
+    } else {
+      if (rel.hasStereotypeLabel) lines.push(`${sL} ${tok} ${tL} : ${label}`);
+      else if (label) lines.push(`${sL} ${tok} ${tL} : ${escM(label)}`);
+      else lines.push(`${sL} ${tok} ${tL}`);
+    }
   }
 
   return lines.join("\n");
@@ -399,7 +433,7 @@ function exportMermaidState(nodes: FlowNode[], edges: FlowEdge[]): string {
    ════════════════════════════════════════════════════════════ */
 
 function exportPlantUmlClass(nodes: FlowNode[], edges: FlowEdge[]): string {
-  const lines: string[] = ["@startuml"];
+  const lines: string[] = ["@startuml", "skinparam classAttributeIconSize 0"];
 
   const pkgKids = new Map<string, FlowNode[]>();
   const standalone: FlowNode[] = [];
@@ -423,13 +457,14 @@ function exportPlantUmlClass(nodes: FlowNode[], edges: FlowEdge[]): string {
       const stereo = d.stereotype ?? "";
       const attrs = (d.attributes ?? "").split("\n").filter(Boolean);
       const methods = (d.methods ?? "").split("\n").filter(Boolean);
+      const sId = safeId(n.id);
 
       if (stereo) {
         const kind = stereo.includes("interface") ? "interface" :
-                     stereo.includes("enum") ? "enum" : "class";
-        lines.push(`${kind} "${name}" as ${n.id} <<${stereo.replace(/[«»]/g, "")}>>`);
+            stereo.includes("enum") ? "enum" : "class";
+        lines.push(`${kind} "${name}" as ${sId} <<${stereo.replace(/[«»]/g, "")}>>`);
       } else {
-        lines.push(`class "${name}" as ${n.id}`);
+        lines.push(`class "${name}" as ${sId}`);
       }
       if (attrs.length || methods.length) {
         lines.push(`{`);
@@ -445,26 +480,50 @@ function exportPlantUmlClass(nodes: FlowNode[], edges: FlowEdge[]): string {
   for (const [pid, kids] of pkgKids) {
     const pkg = pkgMap.get(pid);
     if (!pkg) { writeClass(kids); continue; }
-    lines.push(`package "${esc(pkg.data.label || pkg.id)}" as ${pkg.id} {`);
+    lines.push(`package "${esc(pkg.data.label || pkg.id)}" as ${safeId(pkg.id)} {`);
     writeClass(kids);
     lines.push(`}`);
   }
 
   for (const n of nodes) {
     if (n.type === "package" && !pkgKids.has(n.id))
-      lines.push(`package "${esc(n.data.label || n.id)}" as ${n.id} {\n}`);
+      lines.push(`package "${esc(n.data.label || n.id)}" as ${safeId(n.id)} {\n}`);
   }
 
   for (const e of edges) {
     const sn = nodes.find(x => x.id === e.source);
     const tn = nodes.find(x => x.id === e.target);
     if (!sn || !tn) continue;
+    const sId = safeId(e.source);
+    const tId = safeId(e.target);
     const rel = detectRelation(e);
     const label = (e.label ?? "") as string;
     const tok = rel.plantToken;
-    if (rel.hasStereotypeLabel) lines.push(`${e.source} ${tok} ${e.target} : ${label}`);
-    else if (label) lines.push(`${e.source} ${tok} ${e.target} : ${esc(label)}`);
-    else lines.push(`${e.source} ${tok} ${e.target}`);
+
+    const parts = label.split(":");
+    let finalLabel = label;
+    let leftMulti = "";
+    let rightMulti = "";
+    if (parts.length > 1) {
+      const multis = parts[0].trim().split(/\s+/);
+      if (multis.length === 2) {
+        leftMulti = multis[0];
+        rightMulti = multis[1];
+        finalLabel = parts.slice(1).join(":").trim();
+      }
+    }
+
+    if (leftMulti || rightMulti) {
+      if (finalLabel) {
+        lines.push(`${sId} "${leftMulti}" ${tok} "${rightMulti}" ${tId} : ${esc(finalLabel)}`);
+      } else {
+        lines.push(`${sId} "${leftMulti}" ${tok} "${rightMulti}" ${tId}`);
+      }
+    } else {
+      if (rel.hasStereotypeLabel) lines.push(`${sId} ${tok} ${tId} : ${label}`);
+      else if (label) lines.push(`${sId} ${tok} ${tId} : ${esc(label)}`);
+      else lines.push(`${sId} ${tok} ${tId}`);
+    }
   }
 
   lines.push("@enduml");
@@ -494,8 +553,9 @@ function exportPlantUmlUseCase(nodes: FlowNode[], edges: FlowEdge[]): string {
 
   const writeNode = (n: FlowNode) => {
     const label = (n.data as FlowNodeData).label || n.id;
-    if (n.type === "actor")  lines.push(`actor "${esc(label)}" as ${n.id}`);
-    if (n.type === "usecase") lines.push(`usecase "${esc(label)}" as ${n.id}`);
+    const sId = safeId(n.id);
+    if (n.type === "actor")  lines.push(`actor "${esc(label)}" as ${sId}`);
+    if (n.type === "usecase") lines.push(`usecase "${esc(label)}" as ${sId}`);
   };
 
   for (const n of standalone) writeNode(n);
@@ -503,7 +563,7 @@ function exportPlantUmlUseCase(nodes: FlowNode[], edges: FlowEdge[]): string {
   for (const [pid, kids] of pkgKids) {
     const pkg = pkgMap.get(pid);
     if (!pkg) { for (const k of kids) writeNode(k); continue; }
-    lines.push(`rectangle "${esc(pkg.data.label || pkg.id)}" as ${pkg.id} {`);
+    lines.push(`rectangle "${esc(pkg.data.label || pkg.id)}" as ${safeId(pkg.id)} {`);
     for (const k of kids) writeNode(k);
     lines.push(`}`);
   }
@@ -515,9 +575,11 @@ function exportPlantUmlUseCase(nodes: FlowNode[], edges: FlowEdge[]): string {
     const label = (e.label ?? "") as string;
     const rel = detectRelation(e);
     const tok = rel.plantToken;
-    if (rel.hasStereotypeLabel) lines.push(`${e.source} ${tok} ${e.target} : ${label}`);
-    else if (label) lines.push(`${e.source} ${tok} ${e.target} : ${esc(label)}`);
-    else lines.push(`${e.source} ${tok} ${e.target}`);
+    const sId = safeId(e.source);
+    const tId = safeId(e.target);
+    if (rel.hasStereotypeLabel) lines.push(`${sId} ${tok} ${tId} : ${label}`);
+    else if (label) lines.push(`${sId} ${tok} ${tId} : ${esc(label)}`);
+    else lines.push(`${sId} ${tok} ${tId}`);
   }
 
   lines.push("@enduml");
@@ -528,24 +590,118 @@ function exportPlantUmlUseCase(nodes: FlowNode[], edges: FlowEdge[]): string {
    PLANTUML — ACTIVITY
    ════════════════════════════════════════════════════════════ */
 
-function exportPlantUmlActivity(nodes: FlowNode[], _edges: FlowEdge[]): string {
-  const lines: string[] = ["@startuml", "skinparam backgroundColor #FFFFFF", "start"];
+function exportPlantUmlActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
+  const lines: string[] = ["@startuml", "skinparam backgroundColor #FFFFFF"];
 
-  // Simplified: output all action/decision nodes sequentially
-  // Decisions become if/endif blocks without deep nesting
+  const visited = new Set<string>();
+  const mergeNodes = new Set<string>();
+
+  // Find all merge nodes (nodes with >1 incoming edges)
   for (const n of nodes) {
-    if (n.type === "start" || n.type === "final") continue;
-    const label = (n.data as FlowNodeData).label ?? "";
-    if (n.type === "decision") {
-      if (label) lines.push(`if (${esc(label)}) then`);
-      else lines.push(`if (??) then`);
-      lines.push("endif");
-    } else if (label) {
-      lines.push(`:${esc(label)};`);
+    const incoming = edges.filter(e => e.target === n.id);
+    if (incoming.length > 1) {
+      mergeNodes.add(n.id);
     }
   }
 
-  lines.push("stop", "@enduml");
+  const walk = (nodeId: string, stopAtMerge: boolean = false): string[] => {
+    if (visited.has(nodeId)) return [];
+    if (stopAtMerge && mergeNodes.has(nodeId)) return [];
+
+    visited.add(nodeId);
+    const n = nodes.find(x => x.id === nodeId);
+    if (!n) return [];
+
+    const res: string[] = [];
+
+    if (n.type === "start") {
+      res.push("start");
+      const out = edges.filter(e => e.source === nodeId);
+      if (out.length > 0) res.push(...walk(out[0].target, stopAtMerge));
+    } else if (n.type === "final") {
+      res.push("stop");
+    } else if (n.type === "action") {
+      res.push(`:${esc(n.data.label || "")};`);
+      const out = edges.filter(e => e.source === nodeId);
+      if (out.length > 0) res.push(...walk(out[0].target, stopAtMerge));
+    } else if (n.type === "decision") {
+      const cond = n.data.label || "Condition?";
+      const out = edges.filter(e => e.source === nodeId);
+      if (out.length === 2) {
+        const yesEdge = out.find(e => {
+          const lbl = String(e.label || "").toLowerCase();
+          return lbl.includes("đúng") || lbl.includes("dung") || lbl.includes("yes") || lbl.includes("true") || lbl.includes("ok") || lbl.includes("success");
+        }) || out[0];
+        const noEdge = out.find(e => e !== yesEdge) || out[1];
+
+        res.push(`if (${esc(cond)}) then (${yesEdge?.label || "yes"})`);
+        res.push(...walk(yesEdge.target, true)); // stop at merge node
+        res.push(`else (${noEdge?.label || "no"})`);
+        res.push(...walk(noEdge.target, true)); // stop at merge node
+        res.push(`endif`);
+
+        const reachableMerge = [...mergeNodes].find(mId => !visited.has(mId));
+        if (reachableMerge) {
+          res.push(...walk(reachableMerge, stopAtMerge));
+        }
+      } else if (out.length === 1) {
+        res.push(`if (${esc(cond)}) then`);
+        res.push(...walk(out[0].target, stopAtMerge));
+        res.push(`endif`);
+      }
+    } else if (n.type === "fork") {
+      const incoming = edges.filter(e => e.target === nodeId);
+      if (incoming.length > 1) {
+        // Join node: skip writing node declaration, just walk target
+        const out = edges.filter(e => e.source === nodeId);
+        if (out.length > 0) res.push(...walk(out[0].target, stopAtMerge));
+      } else {
+        // Fork node
+        res.push("fork");
+        const out = edges.filter(e => e.source === nodeId);
+        if (out.length > 0) {
+          res.push(...walk(out[0].target, true));
+          for (let idx = 1; idx < out.length; idx++) {
+            res.push("fork again");
+            res.push(...walk(out[idx].target, true));
+          }
+        }
+        res.push("end fork");
+
+        const reachableMerge = [...mergeNodes].find(mId => !visited.has(mId));
+        if (reachableMerge) {
+          res.push(...walk(reachableMerge, stopAtMerge));
+        }
+      }
+    } else if (n.type === "note") {
+      res.push(`note right\n  ${esc(n.data.label || "")}\nend note`);
+      const out = edges.filter(e => e.source === nodeId);
+      if (out.length > 0) res.push(...walk(out[0].target, stopAtMerge));
+    }
+
+    return res;
+  };
+
+  const startNode = nodes.find(n => n.type === "start") || nodes[0];
+  if (startNode) {
+    lines.push(...walk(startNode.id));
+  }
+
+  // Fallback for unvisited nodes
+  for (const n of nodes) {
+    if (!visited.has(n.id)) {
+      if (n.type === "action") {
+        lines.push(`:${esc(n.data.label || "")};`);
+      } else if (n.type === "decision") {
+        lines.push(`if (${esc(n.data.label || "Condition?")}) then`);
+        lines.push(`endif`);
+      } else if (n.type === "note") {
+        lines.push(`note right\n  ${esc(n.data.label || "")}\nend note`);
+      }
+    }
+  }
+
+  lines.push("@enduml");
   return lines.join("\n");
 }
 
@@ -574,12 +730,22 @@ function exportPlantUmlComponent(nodes: FlowNode[], edges: FlowEdge[]): string {
     const d = n.data as FlowNodeData;
     const label = d.label || n.id;
     const stereo = d.stereotype ?? "";
-    if (stereo.includes("interface")) {
-      lines.push(`interface "${esc(label)}" as ${n.id}`);
+    const stereoLower = stereo.toLowerCase();
+    const sId = safeId(n.id);
+    if (stereoLower.includes("interface")) {
+      lines.push(`interface "${esc(label)}" as ${sId}`);
+    } else if (stereoLower.includes("database")) {
+      lines.push(`database "${esc(label)}" as ${sId}`);
+    } else if (stereoLower.includes("node")) {
+      lines.push(`node "${esc(label)}" as ${sId}`);
+    } else if (stereoLower.includes("cloud")) {
+      lines.push(`cloud "${esc(label)}" as ${sId}`);
+    } else if (stereoLower.includes("storage")) {
+      lines.push(`storage "${esc(label)}" as ${sId}`);
     } else if (n.type === "component" || n.type === "cls") {
-      lines.push(`component "${esc(label)}" as ${n.id}`);
+      lines.push(`component "${esc(label)}" as ${sId}`);
     } else if (n.type === "note") {
-      lines.push(`note as ${n.id}\n  ${esc(label)}\nend note`);
+      lines.push(`note as ${sId}\n  ${esc(label)}\nend note`);
     }
   };
 
@@ -588,7 +754,7 @@ function exportPlantUmlComponent(nodes: FlowNode[], edges: FlowEdge[]): string {
   for (const [pid, kids] of pkgKids) {
     const pkg = pkgMap.get(pid);
     if (!pkg) { for (const k of kids) writeComp(k); continue; }
-    lines.push(`package "${esc(pkg.data.label || pkg.id)}" as ${pkg.id} {`);
+    lines.push(`package "${esc(pkg.data.label || pkg.id)}" as ${safeId(pkg.id)} {`);
     for (const k of kids) writeComp(k);
     lines.push(`}`);
   }
@@ -601,9 +767,11 @@ function exportPlantUmlComponent(nodes: FlowNode[], edges: FlowEdge[]): string {
     const rel = detectRelation(e);
     const dash = rel.mermaidToken.startsWith(".");
     const arrow = dash ? "..>" : "-->";
-    if (rel.hasStereotypeLabel) lines.push(`${e.source} ${arrow} ${e.target} : ${label}`);
-    else if (label) lines.push(`${e.source} ${arrow} ${e.target} : ${esc(label)}`);
-    else lines.push(`${e.source} ${arrow} ${e.target}`);
+    const sId = safeId(e.source);
+    const tId = safeId(e.target);
+    if (rel.hasStereotypeLabel) lines.push(`${sId} ${arrow} ${tId} : ${label}`);
+    else if (label) lines.push(`${sId} ${arrow} ${tId} : ${esc(label)}`);
+    else lines.push(`${sId} ${arrow} ${tId}`);
   }
 
   lines.push("@enduml");
@@ -683,9 +851,9 @@ export function toDiagramXml(nodes: FlowNode[], edges: FlowEdge[], type: Diagram
   for (const e of edges) {
     const d = (e.data ?? {}) as Record<string, unknown>;
     lines.push(`    <edge id="${e.id}" source="${e.source}" target="${e.target}"` +
-      ` label="${esc((e.label ?? "") as string)}"` +
-      ` marker="${(d.marker as string) ?? ""}"` +
-      ` dashed="${!!d.dashed}" />`);
+        ` label="${esc((e.label ?? "") as string)}"` +
+        ` marker="${(d.marker as string) ?? ""}"` +
+        ` dashed="${!!d.dashed}" />`);
   }
   lines.push(`  </edges>`, `</diagram>`);
   return lines.join("\n");
