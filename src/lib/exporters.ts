@@ -266,20 +266,46 @@ function exportMermaidActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
     else idMap.set(n.id, `n${counter++}`);
   }
 
-  // Node declarations + subgraphs
+  // Build hierarchy
+  const pkgKids = new Map<string, FlowNode[]>();
+  const standalone: FlowNode[] = [];
   for (const n of nodes) {
-    const sid = idMap.get(n.id)!;
-    if (n.type === "package") {
-      lines.push(`    subgraph ${sid}["${escM(n.data.label || n.id)}"]`);
-      continue;
+    if (n.type === "package") continue;
+    if (n.parentId) {
+      const arr = pkgKids.get(n.parentId) ?? [];
+      arr.push(n);
+      pkgKids.set(n.parentId, arr);
+    } else {
+      standalone.push(n);
     }
+  }
+  const pkgMap = new Map(nodes.filter(n => n.type === "package").map(n => [n.id, n]));
+
+  const writeNode = (n: FlowNode) => {
+    const sid = idMap.get(n.id)!;
     const shape = shapeMermaid(n);
     lines.push(`    ${sid}${shape}`);
+  };
+
+  // Write standalone nodes
+  for (const n of standalone) writeNode(n);
+
+  // Inside packages
+  for (const [pid, kids] of pkgKids) {
+    const pkg = pkgMap.get(pid);
+    const sid = idMap.get(pid)!;
+    if (!pkg) { for (const k of kids) writeNode(k); continue; }
+    lines.push(`    subgraph ${sid}["${escM(pkg.data.label || pkg.id)}"]`);
+    for (const k of kids) writeNode(k);
+    lines.push(`    end`);
   }
 
-  // Close subgraphs
+  // Empty packages
   for (const n of nodes) {
-    if (n.type === "package") lines.push(`    end`);
+    if (n.type === "package" && !pkgKids.has(n.id)) {
+      const sid = idMap.get(n.id)!;
+      lines.push(`    subgraph ${sid}["${escM(n.data.label || n.id)}"]\n    end`);
+    }
   }
 
   // Edges

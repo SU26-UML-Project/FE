@@ -950,16 +950,34 @@ function parseFlowchart(lines: string[]): ParseResult {
       nodeSizes
   );
 
+  // Auto-detect if this flowchart represents a component diagram instead of an activity diagram
+  let finalType: DiagramType = "activity";
+  const hasCompIndicators = [...defs.values()].some(d => {
+    const isDb = d.stereotype?.includes("database");
+    const isComp = d.stereotype?.includes("subprocess") || d.stereotype?.includes("component");
+    const hasBrackets = d.label.includes("[") && d.label.includes("]");
+    return isDb || isComp || hasBrackets;
+  });
+  if (hasCompIndicators) {
+    finalType = "component";
+  }
+
   const nodeMap = new Map<string, string>(); // id -> uid
   const nodes: FlowNode[] = ids.map((id) => {
     const d = defs.get(id)!;
     const isPkg = d.type === "package";
     // For packages, we'll let finalizeLayout set the position later
     const p = posMap.get(id) ?? { x: 0, y: 0 };
-    const [w, h] = DEFAULT_SIZES[d.type] ?? (isPkg ? [300, 300] : [150, 54]);
+
+    let nodeType = d.type;
+    if (finalType === "component" && nodeType === "action") {
+      nodeType = "component";
+    }
+
+    const [w, h] = DEFAULT_SIZES[nodeType] ?? (isPkg ? [300, 300] : [150, 54]);
     const uid = parentMap.get(id) || nanoid(8);
     nodeMap.set(id, uid);
-    return mkNode(d.type, p.x - w / 2, p.y - h / 2, { label: d.label, stereotype: d.stereotype }, w, h, d.parentId, uid);
+    return mkNode(nodeType, p.x - w / 2, p.y - h / 2, { label: d.label, stereotype: d.stereotype }, w, h, d.parentId, uid);
   });
 
   // CRITICAL: Import flow must also use finalizeLayout to wrap packages correctly
@@ -980,7 +998,7 @@ function parseFlowchart(lines: string[]): ParseResult {
       .filter(Boolean) as FlowEdge[];
 
   const nodesOut = finalizeLayout(finalNodes, edges);
-  return { nodes: nodesOut, edges, type: "activity", preLayouted: true, direction: layoutDir };
+  return { nodes: nodesOut, edges, type: finalType, preLayouted: true, direction: layoutDir };
 }
 
 /* ============================================================
