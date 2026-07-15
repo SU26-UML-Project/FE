@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, X, Loader2, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, X, Loader2, ShieldCheck, ShieldAlert, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
@@ -29,6 +29,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
+  // Popup riêng khi tài khoản bị khoá (BE trả code 1021 USER_INACTIVE).
+  const [lockedNotice, setLockedNotice] = useState<string | null>(null);
 
   // Forgot-password flow state
   const [forgotStep, setForgotStep] = useState<ForgotStep>('email');
@@ -49,6 +51,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
     setShowPassword(false);
     setShowConfirmPassword(false);
     setForgotStep('email');
+    setLockedNotice(null);
     resetOtpCountdown();
   }, [resetOtpCountdown]);
 
@@ -148,7 +151,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
       }
     } catch (error: any) {
       console.error('Auth error:', error);
-      toast.error(error.message || 'Đã có lỗi xảy ra');
+      // Tài khoản bị khoá → hiện popup nổi bật thay vì chỉ toast.
+      if (error?.code === 1021) {
+        setLockedNotice(error.message || 'Tài khoản của bạn đã bị khoá. Vui lòng liên hệ quản trị viên.');
+      } else {
+        toast.error(error.message || 'Đã có lỗi xảy ra');
+      }
     } finally {
       setLoading(false);
     }
@@ -196,6 +204,37 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
 
   return (
     <AnimatePresence>
+      {lockedNotice && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setLockedNotice(null)}
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: 16 }}
+            role="alertdialog"
+            aria-modal="true"
+            className="relative w-full max-w-[400px] bg-white rounded-[28px] shadow-2xl overflow-hidden px-8 py-9 text-center font-priego"
+          >
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
+              <ShieldAlert size={32} strokeWidth={1.8} className="text-red-500" />
+            </div>
+            <h3 className="text-[22px] font-black uppercase tracking-tight text-black">Tài khoản bị khoá</h3>
+            <p className="mt-3 text-[14px] leading-relaxed text-gray-500">{lockedNotice}</p>
+            <button
+              onClick={() => setLockedNotice(null)}
+              className="mt-7 w-full h-[50px] bg-uml-blue text-white font-bold text-[15px] rounded-[14px] hover:bg-blue-700 active:scale-[0.98] transition-all"
+            >
+              Đã hiểu
+            </button>
+          </motion.div>
+        </div>
+      )}
       {isOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           {/* Backdrop */}

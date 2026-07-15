@@ -226,25 +226,7 @@ export const intelConfig = [
   { key: "documents", label: "Tài liệu RAG", desc: "Nguồn dữ liệu ingest", icon: FileText, group: "workspace" },
 ] as const;
 
-export const llmProviders = ["Ollama", "LM Studio", "LocalAI", "OpenAI", "Anthropic", "Groq"];
-export const embeddingModels = ["nomic-embed-text", "mxbai-embed-large", "bge-large-en", "all-MiniLM-L6"];
 
-/** Các mô hình có thể phát hiện được khi quét engine local (Ollama /api/tags) */
-export const ollamaLlmModels = [
-  "llama3.1:8b",
-  "qwen2.5:7b",
-  "mistral-nemo",
-  "phi3:mini",
-  "gemma2:9b",
-  "deepseek-r1:7b",
-];
-export const ollamaEmbModels = [
-  "nomic-embed-text",
-  "mxbai-embed-large",
-  "bge-m3",
-  "all-minilm",
-  "snowflake-arctic-embed",
-];
 
 /* ---- Toàn bộ nhà cung cấp Vector DB mà AnythingLLM hỗ trợ ---- */
 export type VectorDbField = {
@@ -290,23 +272,13 @@ export type LlmProvider = {
   color: string;
 };
 
+export const embProviderCatalog: LlmProvider[] = [
+  { id: "ollama", name: "Ollama", kind: "local", desc: "Mô hình nhúng vector local với Ollama.", color: "#6366f1" },
+];
+
 export const llmProviderCatalog: LlmProvider[] = [
   { id: "ollama", name: "Ollama", kind: "local", desc: "Chạy local, mã nguồn mở. Hỗ trợ nhiều model như Llama 3, Mistral, Gemma.", color: "#6366f1" },
-  { id: "lm studio", name: "LM Studio", kind: "local", desc: "Giao diện desktop, tải model từ HuggingFace, expose OpenAI-compatible API.", color: "#8b5cf6" },
-  { id: "localai", name: "LocalAI", kind: "local", desc: "Self-hosted OpenAI alternative, chạy Docker hoặc binary.", color: "#a855f7" },
-  { id: "openai", name: "OpenAI", kind: "cloud", desc: "GPT-4, GPT-4o, GPT-4-turbo. Yêu cầu API key từ platform.openai.com.", color: "#10b981" },
-  { id: "azure", name: "Azure OpenAI", kind: "cloud", desc: "OpenAI qua Azure. Yêu cầu endpoint + API key từ Azure Portal.", color: "#0ea5e9" },
-  { id: "anthropic", name: "Anthropic", kind: "cloud", desc: "Claude 3 Opus/Sonnet/Haiku. API key từ console.anthropic.com.", color: "#f59e0b" },
-  { id: "google", name: "Google Gemini", kind: "cloud", desc: "Gemini Pro, Gemini 1.5. API key từ Google AI Studio.", color: "#ef4444" },
-  { id: "mistral", name: "Mistral AI", kind: "cloud", desc: "Mistral Large, Medium, Small. API key từ console.mistral.ai.", color: "#2563eb" },
   { id: "groq", name: "Groq", kind: "cloud", desc: "Inference siêu nhanh với LPU. Miễn phí, API key từ console.groq.com.", color: "#22d3ee" },
-  { id: "deepseek", name: "DeepSeek", kind: "cloud", desc: "DeepSeek Chat & Coder. API key từ platform.deepseek.com.", color: "#dc2626" },
-  { id: "together", name: "Together AI", kind: "cloud", desc: "100+ open-source models. API key từ api.together.xyz.", color: "#14b8a6" },
-  { id: "openrouter", name: "OpenRouter", kind: "cloud", desc: "Cổng kết nối nhiều providers, tự động routing. API key từ openrouter.ai.", color: "#f97316" },
-  { id: "perplexity", name: "Perplexity", kind: "cloud", desc: "Sonar models. API key từ perplexity.ai/settings.", color: "#06b6d4" },
-  { id: "cohere", name: "Cohere", kind: "cloud", desc: "Command R / Command R+. API key từ dashboard.cohere.com.", color: "#e11d48" },
-  { id: "fireworks", name: "Fireworks AI", kind: "cloud", desc: "Fast inference. API key từ fireworks.ai.", color: "#d946ef" },
-  { id: "novita", name: "Novita AI", kind: "cloud", desc: "GPU cluster for LLM inference. API key từ novita.ai.", color: "#64748b" },
 ];
 
 export type RagDoc = {

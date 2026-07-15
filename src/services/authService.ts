@@ -41,6 +41,45 @@ export const authService = {
     return apiClient.delete<any, ApiResponse<void>>(`/users/admin/${userId}`);
   },
 
+  //ADMIN: Cập nhật user (họ tên / SĐT / ngày sinh / avatar / vai trò / trạng thái). Chỉ gửi field cần đổi.
+  adminUpdateUser: async (
+    userId: string,
+    data: {
+      fullName?: string;
+      phone?: string;
+      dob?: string;
+      avatarUrl?: string;
+      roleName?: 'USER' | 'ADMIN';
+      status?: 'ACTIVE' | 'LOCKED';
+    }
+  ): Promise<ApiResponse<AdminUserListItem>> => {
+    return apiClient.patch<any, ApiResponse<AdminUserListItem>>(`/users/admin/${userId}`, data);
+  },
+
+  //ADMIN: Đặt lại mật khẩu cho user (không OTP, thu hồi phiên cũ)
+  adminSetPassword: async (userId: string, newPassword: string): Promise<ApiResponse<void>> => {
+    return apiClient.post<any, ApiResponse<void>>(`/users/admin/${userId}/password`, { newPassword });
+  },
+
+  //ADMIN: Upload/đổi avatar cho user (multipart) — BE lưu vào bucket avatars + cập nhật avatar_url
+  adminUploadAvatar: async (userId: string, file: File): Promise<ApiResponse<AdminUserListItem>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiClient.post<any, ApiResponse<AdminUserListItem>>(`/users/admin/${userId}/avatar`, formData, {
+      headers: { 'Content-Type': undefined as unknown as string },
+    });
+  },
+
+  //ADMIN: Soft-delete (chuyển PENDING_DELETE, ân hạn 30 ngày)
+  adminSoftDeleteUser: async (userId: string): Promise<ApiResponse<AdminUserListItem>> => {
+    return apiClient.post<any, ApiResponse<AdminUserListItem>>(`/users/admin/${userId}/soft-delete`);
+  },
+
+  //ADMIN: Khôi phục tài khoản đang chờ xoá
+  adminRestoreUser: async (userId: string): Promise<ApiResponse<AdminUserListItem>> => {
+    return apiClient.post<any, ApiResponse<AdminUserListItem>>(`/users/admin/${userId}/restore`);
+  },
+
 
   login: async (data: LoginRequest): Promise<ApiResponse<LoginResponse>> => {
     return apiClient.post<any, ApiResponse<LoginResponse>>('/auth/login', data);

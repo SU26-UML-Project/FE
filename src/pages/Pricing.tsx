@@ -1,134 +1,79 @@
 import { useState, useEffect } from 'react'
 import { motion, animate, useMotionValue, useTransform } from 'framer-motion'
-import { Check, ArrowRight, ArrowDown, Activity, RefreshCw, HardDrive, Globe, X, ChevronDown, LogIn } from 'lucide-react'
+import { Check, ArrowRight, ArrowDown, Activity, RefreshCw, HardDrive, Globe, X, ChevronDown } from 'lucide-react'
 import AuthModal from '../components/Auth/AuthModal'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/useAuthStore'
-import type { BillingCycle, Plan, ComparisonRow } from '../types/pricing'
+import type { BillingCycle } from '../types/pricing'
+import { planService, type PlanResponse } from '../services/planService'
 
-const plans: Plan[] = [
-  {
-    name: 'Free',
-    monthlyPrice: 0,
-    yearlyPrice: 0,
-    description: 'For individuals exploring UML diagrams and basic architecture design.',
-    features: [
-      'Up to 3 active diagrams',
-      'All UML diagram types',
-      'Real-time collaboration up to 4 members',
-      'PNG export',
-      'Community forum support',
-    ],
-    cta: 'Get started free',
-  },
-  {
-    name: 'Education',
-    monthlyPrice: 3,
-    yearlyPrice: 3,
-    description: 'For students and accredited educators around the world.',
-    features: [
-      'Unlimited diagrams',
-      'All UML diagram types',
-      'Real-time collaboration up to 4 members',
-      'PNG, SVG and PDF export',
-      'Priority email support',
-    ],
-    cta: 'Apply with .edu',
-  },
-  {
-    name: 'Pro',
-    monthlyPrice: 12,
-    yearlyPrice: 9,
-    description: 'For professional engineers, freelancers, and small product teams.',
-    features: [
-      'Everything in Education',
-      'Real-time collaboration',
-      'Version history & branches',
-      'Custom shape libraries',
-      'Priority support',
-      'Advanced team permissions',
-      'PNG, SVG, PDF and VDX export',
-      'Priority chat support',
-    ],
-    cta: 'Start 14-day free trial',
-    highlight: true,
-  },
-  {
-    name: 'Enterprise',
-    monthlyPrice: null,
-    yearlyPrice: null,
-    description: 'For organizations that need security, scale, and custom workflows.',
-    features: [
-      'Everything in Pro',
-      'SSO & SAML authentication',
-      'Dedicated success manager',
-      'Custom API & integrations',
-      'On-premise deployment',
-      '24/7 premium support',
-      'Enterprise SLA guarantee',
-    ],
-    cta: 'Contact sales',
-  },
-]
+/* ---------- helpers ---------- */
+const fmtVnd = (n: number) => n.toLocaleString('vi-VN')
+const fmtLimit = (v: number | null | undefined) =>
+  v == null ? '—' : v === -1 ? '∞' : fmtVnd(v)
+
+/** Giá quy đổi/tháng khi trả theo năm (chỉ khi gói bật yearlyBilling). */
+const yearlyPerMonth = (p: PlanResponse): number | null =>
+  p.yearlyBilling ? Math.round(p.price * (1 - (p.yearlyDiscount ?? 0) / 100)) : null
+
+/** Bullet hiển thị trên card: hạn mức đã đặt + các tính năng được bật. */
+function planBullets(p: PlanResponse): string[] {
+  const b: string[] = []
+  const L = p.limits
+  if (L) {
+    if (L.projects != null) b.push(L.projects === -1 ? 'Dự án không giới hạn' : `${fmtVnd(L.projects)} dự án`)
+    if (L.diagrams != null) b.push(L.diagrams === -1 ? 'Sơ đồ không giới hạn' : `${fmtVnd(L.diagrams)} sơ đồ`)
+    if (L.aiQueries != null) b.push(L.aiQueries === -1 ? 'AI không giới hạn' : `${fmtVnd(L.aiQueries)} lượt AI`)
+    if (L.exportPdf != null) b.push(L.exportPdf === -1 ? 'Export PDF không giới hạn' : `${fmtVnd(L.exportPdf)} lần export PDF`)
+    if (L.collaborators != null) b.push(L.collaborators === -1 ? 'Cộng tác viên không giới hạn' : `${fmtVnd(L.collaborators)} cộng tác viên`)
+  }
+  ;(p.features ?? []).filter(f => f.included).forEach(f => b.push(f.label))
+  return b
+}
 
 const includes = [
   {
     icon: Activity,
-    title: '99.9% uptime SLA',
-    description: 'Highly reliable infrastructure with automatic failover and multi-region redundancy for maximum availability.',
+    title: 'Cam kết uptime 99.9%',
+    description: 'Hạ tầng có độ tin cậy cao với tự động chuyển đổi dự phòng và dự phòng đa vùng để đảm bảo khả dụng tối đa.',
   },
   {
     icon: RefreshCw,
-    title: 'Real-time sync',
-    description: 'Edits appear on other devices in under 200ms. No manual save, no refresh button.',
+    title: 'Đồng bộ thời gian thực',
+    description: 'Chỉnh sửa hiển thị trên các thiết bị khác trong dưới 200ms. Không cần lưu tay, không cần tải lại.',
   },
   {
     icon: HardDrive,
-    title: 'Cloud backup',
-    description: 'Diagrams replicate across three geographic regions. Restore deleted files within 30 days.',
+    title: 'Sao lưu đám mây',
+    description: 'Sơ đồ được sao lưu trên ba vùng địa lý. Khôi phục tệp đã xóa trong vòng 30 ngày.',
   },
   {
     icon: Globe,
-    title: 'Desktop apps',
-    description: 'Native apps for macOS, Windows, and Linux. Browser version runs in Chrome, Firefox, Safari, Edge.',
+    title: 'Ứng dụng desktop',
+    description: 'Ứng dụng gốc cho macOS, Windows và Linux. Bản trình duyệt chạy trên Chrome, Firefox, Safari, Edge.',
   },
-]
-
-const comparisonData: ComparisonRow[] = [
-  { feature: 'Active diagrams', free: 'Up to 3', education: 'Unlimited', pro: 'Unlimited', enterprise: 'Unlimited' },
-  { feature: 'UML diagram types', free: 'All', education: 'All', pro: 'All', enterprise: 'All' },
-  { feature: 'Export formats', free: 'PNG', education: 'PNG, SVG, PDF', pro: 'PNG, SVG, PDF, VDX', enterprise: 'All formats' },
-  { feature: 'Real-time collaboration', free: 'Up to 4 members', education: 'Up to 4 members', pro: 'Unlimited', enterprise: 'Unlimited' },
-  { feature: 'Version history & branches', free: false, education: false, pro: true, enterprise: true },
-  { feature: 'Custom shape libraries', free: false, education: false, pro: true, enterprise: true },
-  { feature: 'Priority support', free: false, education: 'Email', pro: 'Chat & email', enterprise: '24/7 premium' },
-  { feature: 'Team permissions', free: false, education: false, pro: 'Advanced', enterprise: 'Advanced' },
-  { feature: 'SSO & SAML', free: false, education: false, pro: false, enterprise: true },
-  { feature: 'Dedicated success manager', free: false, education: false, pro: false, enterprise: true },
-  { feature: 'Custom API & integrations', free: false, education: false, pro: false, enterprise: true },
-  { feature: 'On-premise deployment', free: false, education: false, pro: false, enterprise: true },
 ]
 
 const faqData = [
   {
-    question: 'Can I cancel anytime?',
-    answer: 'Yes, you can cancel your subscription at any time. Your access will continue until the end of your current billing period. No questions asked.',
+    question: 'Tôi có thể hủy bất cứ lúc nào không?',
+    answer: 'Có, bạn có thể hủy đăng ký bất cứ lúc nào. Quyền truy cập vẫn duy trì đến hết kỳ thanh toán hiện tại. Không cần lý do.',
   },
   {
-    question: 'What payment methods do you accept?',
-    answer: 'We accept all major credit cards, PayPal, and bank transfers for annual Enterprise plans.',
+    question: 'Bạn chấp nhận những phương thức thanh toán nào?',
+    answer: 'Chúng tôi chấp nhận tất cả các loại thẻ tín dụng phổ biến, PayPal và chuyển khoản ngân hàng cho gói Enterprise trả theo năm.',
   },
   {
-    question: 'Is there a free trial for Pro?',
-    answer: 'Yes, we offer a 14-day free trial of the Pro plan with no credit card required. You get full access to all Pro features during the trial.',
+    question: 'Gói Pro có dùng thử miễn phí không?',
+    answer: 'Có, chúng tôi cung cấp bản dùng thử miễn phí 14 ngày cho gói Pro mà không cần thẻ tín dụng. Bạn được sử dụng đầy đủ mọi tính năng Pro trong thời gian dùng thử.',
   },
   {
-    question: 'Can I switch plans later?',
-    answer: 'Absolutely. You can upgrade or downgrade your plan at any time. Changes take effect immediately, and we prorate any differences in billing.',
+    question: 'Tôi có thể đổi gói sau này không?',
+    answer: 'Hoàn toàn được. Bạn có thể nâng cấp hoặc hạ cấp gói bất cứ lúc nào. Thay đổi có hiệu lực ngay lập tức và chúng tôi tính lại chênh lệch cước theo tỷ lệ.',
   },
   {
-    question: 'How does Education verification work?',
-    answer: 'Simply sign up with your .edu email address and we will automatically verify your student or educator status within minutes.',
+    question: 'Xác minh gói Education hoạt động thế nào?',
+    answer: 'Chỉ cần đăng ký bằng email .edu của bạn và chúng tôi sẽ tự động xác minh tư cách sinh viên hoặc giảng viên trong vài phút.',
   },
 ]
 
@@ -137,6 +82,20 @@ const Pricing = () => {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
+  const [plans, setPlans] = useState<PlanResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const { user } = useAuthStore()
+
+  useEffect(() => {
+    let alive = true
+    planService
+      .getPublicPlans()
+      .then(list => { if (alive) setPlans(list ?? []) })
+      .catch(() => { if (alive) setError(true) })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [])
 
   useEffect(() => {
     const collapse = () => setExpandedIndex(null)
@@ -149,14 +108,16 @@ const Pricing = () => {
     setIsAuthModalOpen(true)
   }
 
+  const hasYearly = plans.some(p => p.yearlyBilling)
+
   return (
     <>
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
         initialMode={authMode}
       />
-      <section className="relative pt-32 pb-16 px-4 md:px-8 min-h-[100dvh] bg-white/30">
+      <section className="relative pt-32 pb-8 px-4 md:px-8 bg-white/30">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ y: 20, opacity: 0 }}
@@ -165,49 +126,71 @@ const Pricing = () => {
             className="text-center mb-10"
           >
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-priego-extrabold uppercase tracking-tight text-black mb-4">
-              PRICING
+              BẢNG GIÁ
             </h1>
-            <p className="text-base md:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed whitespace-nowrap">
-              Simple, transparent pricing — choose the plan that fits your team and scale as you grow.
+            <p className="text-base md:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
+              Giá minh bạch, đơn giản — chọn gói phù hợp với đội ngũ và mở rộng khi bạn phát triển.
             </p>
           </motion.div>
 
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="flex justify-center mb-12"
-          >
-            <BillingToggle billing={billing} setBilling={setBilling} />
-          </motion.div>
+          {hasYearly && (
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="flex justify-center mb-12"
+            >
+              <BillingToggle billing={billing} setBilling={setBilling} />
+            </motion.div>
+          )}
 
-          <div className="flex flex-col md:flex-row gap-4 md:gap-5 items-stretch">
+          {loading ? (
+            <div className="flex flex-col md:flex-row gap-4 md:gap-5 items-stretch">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className="flex-1 rounded-[2rem] border-[1.5px] border-gray-200 bg-white p-6 animate-pulse">
+                  <div className="h-5 w-24 bg-gray-200 rounded mb-4" />
+                  <div className="h-9 w-32 bg-gray-200 rounded mb-4" />
+                  <div className="h-4 w-full bg-gray-100 rounded mb-2" />
+                  <div className="h-4 w-5/6 bg-gray-100 rounded mb-6" />
+                  <div className="space-y-2">
+                    {[0, 1, 2].map(j => <div key={j} className="h-3.5 w-full bg-gray-100 rounded" />)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center py-20 text-gray-500">Không tải được bảng giá. Vui lòng thử lại sau.</div>
+          ) : plans.length === 0 ? (
+            <div className="text-center py-20 text-gray-500">Chưa có gói nào được mở bán.</div>
+          ) : (
+            <div className="flex flex-col md:flex-row gap-4 md:gap-5 items-stretch">
               {plans.map((plan, idx) => (
-              <PlanCard
-                key={plan.name}
-                plan={plan}
-                index={idx}
-                billing={billing}
-                isExpanded={expandedIndex === idx}
-                isAnyExpanded={expandedIndex !== null}
-                onToggle={() => setExpandedIndex(prev => (prev === idx ? null : idx))}
-                openAuth={openAuth}
-              />
-            ))}
-          </div>
+                <PlanCard
+                  key={plan.id}
+                  plan={plan}
+                  billing={billing}
+                  isExpanded={expandedIndex === idx}
+                  isAnyExpanded={expandedIndex !== null}
+                  onToggle={() => setExpandedIndex(prev => (prev === idx ? null : idx))}
+                  openAuth={openAuth}
+                  currentPlanId={user?.currentPlanId}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
       <div className="flex justify-center -mt-8 mb-4">
         <motion.a
           href="#every-plan-includes"
-          aria-label="Scroll to Every plan includes"
+          aria-label="Cuộn tới phần Gói nào cũng có"
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.6 }}
           className="group inline-flex flex-col items-center gap-1.5 text-gray-500 hover:text-uml-blue transition-colors"
         >
-          <span className="text-xs font-bold uppercase tracking-widest">What's included</span>
+          <span className="text-xs font-bold uppercase tracking-widest">Bao gồm những gì</span>
           <motion.span
             aria-hidden
             animate={{ y: [0, 5, 0] }}
@@ -224,17 +207,17 @@ const Pricing = () => {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="text-center mb-10"
+        className="text-center mb-6"
       >
         <div className="inline-flex items-center gap-8 md:gap-14 px-8 py-4 bg-white rounded-2xl border border-gray-200/60 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)]">
           <div className="text-center">
             <div className="text-lg font-priego-extrabold text-black">2,000+</div>
-            <div className="text-xs text-gray-500">Teams Trust Us</div>
+            <div className="text-xs text-gray-500">Đội ngũ tin dùng</div>
           </div>
           <div className="w-px h-8 bg-gray-200"></div>
           <div className="text-center">
             <div className="text-lg font-priego-extrabold text-black">4.8/5</div>
-            <div className="text-xs text-gray-500">User Rating</div>
+            <div className="text-xs text-gray-500">Đánh giá người dùng</div>
           </div>
           <div className="w-px h-8 bg-gray-200"></div>
           <div className="text-center">
@@ -246,7 +229,7 @@ const Pricing = () => {
 
       <div className="bg-gradient-to-b from-transparent via-white/20 to-white/40">
         <EveryPlanIncludes />
-        <FeatureComparison />
+        {plans.length > 0 && <FeatureComparison plans={plans} />}
         <FAQSection />
       </div>
     </>
@@ -265,7 +248,7 @@ const BillingToggle = ({
   return (
     <div
       role="tablist"
-      aria-label="Billing cycle"
+      aria-label="Chu kỳ thanh toán"
       className="relative inline-flex items-center bg-white/60 backdrop-blur-sm border-2 border-gray-200/80 rounded-full p-0.5"
     >
       {(['monthly', 'yearly'] as BillingCycle[]).map(option => {
@@ -288,12 +271,12 @@ const BillingToggle = ({
               />
             )}
             <span className="relative z-10 flex items-center gap-1">
-              {option}
+              {option === 'monthly' ? 'Hàng tháng' : 'Hàng năm'}
               {option === 'yearly' && (
                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
                   isActive ? 'bg-white/20 text-white' : 'bg-green-100 text-green-700'
                 }`}>
-                  -25%
+                  Tiết kiệm
                 </span>
               )}
             </span>
@@ -307,6 +290,7 @@ const BillingToggle = ({
 const PriceCounter = ({ value }: { value: number }) => {
   const count = useMotionValue(0)
   const rounded = useTransform(count, latest => Math.round(latest))
+  const formatted = useTransform(rounded, latest => latest.toLocaleString('vi-VN'))
 
   useEffect(() => {
     const controls = animate(count, value, {
@@ -316,36 +300,53 @@ const PriceCounter = ({ value }: { value: number }) => {
     return () => controls.stop()
   }, [value, count])
 
-  return <motion.span className="tabular-nums">{rounded}</motion.span>
+  return <motion.span className="tabular-nums">{formatted}</motion.span>
 }
 
 const PlanCard = ({
   plan,
-  index,
   billing,
   isExpanded,
   isAnyExpanded,
   onToggle,
   openAuth,
+  currentPlanId,
 }: {
-  plan: Plan
-  index: number
+  plan: PlanResponse
   billing: BillingCycle
   isExpanded: boolean
   isAnyExpanded: boolean
   onToggle: () => void
   openAuth: (mode: 'login' | 'register') => void
+  currentPlanId?: string
 }) => {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuthStore()
   const [isHovered, setIsHovered] = useState(false)
-  const price = billing === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice
-  const monthlyPrice = plan.monthlyPrice
-  const yearlyPrice = plan.yearlyPrice
-  const monthlySaving = monthlyPrice !== null && yearlyPrice !== null && billing === 'yearly' ? monthlyPrice - yearlyPrice : 0
-  const yearlySaving = monthlySaving * 12
+
+  const bullets = planBullets(plan)
+  const perMonthYearly = yearlyPerMonth(plan)
+  const activePrice = billing === 'yearly' && perMonthYearly != null ? perMonthYearly : plan.price
+  const yearlySaving = perMonthYearly != null ? (plan.price - perMonthYearly) * 12 : 0
+  const isFree = !plan.contactSales && plan.price === 0
+  const isCurrentPlan = currentPlanId === plan.id
   const isBlurred = isAnyExpanded && !isExpanded
   const canBounce = isHovered && !isExpanded && !isBlurred
+
+  const goCheckout = () => {
+    if (plan.contactSales) { openAuth('login'); return }
+    if (isFree) { openAuth('register'); return }
+    if (isAuthenticated) {
+      navigate('/payment-information', {
+        state: {
+          plan,
+          billing,
+        },
+      })
+    } else {
+      openAuth('login')
+    }
+  }
 
   return (
     <motion.div
@@ -355,10 +356,10 @@ const PlanCard = ({
         opacity: isBlurred ? (isHovered ? 0.6 : 0.2) : 1,
         filter: isBlurred ? (isHovered ? 'blur(3px)' : 'blur(8px)') : 'blur(0px)',
         flexGrow: isExpanded ? 2.4 : 1,
-        scale: canBounce ? 1.025 : 1,
-        y: canBounce ? -6 : 0,
+        scale: canBounce ? 1.04 : (plan.popular && !isAnyExpanded ? 1.03 : 1),
+        y: canBounce ? -6 : (plan.popular && !isAnyExpanded ? -4 : 0),
         zIndex: isExpanded ? 10 : 1,
-        borderColor: isHovered && !plan.highlight ? '#2563eb' : (plan.highlight ? '#2563eb' : '#e5e7eb'),
+        borderColor: isHovered && !plan.popular ? '#2563eb' : (plan.popular ? '#2563eb' : '#e5e7eb'),
       }}
       whileHover={!isExpanded && !isAnyExpanded ? { scale: 1.025, y: -6 } : undefined}
       onHoverStart={() => setIsHovered(true)}
@@ -379,10 +380,10 @@ const PlanCard = ({
       }}
       className="group relative cursor-pointer min-w-0 flex-1 rounded-[2rem] border-[1.5px] flex flex-col overflow-hidden bg-white"
       style={{
-        boxShadow: plan.highlight
+        boxShadow: plan.popular
           ? '0 8px 30px -8px rgba(37,99,235,0.25), 0 1px 3px rgba(0,0,0,0.04)'
           : '0 4px 16px -6px rgba(0,0,0,0.08), 0 2px 6px -3px rgba(0,0,0,0.04)',
-        background: plan.highlight ? 'linear-gradient(to bottom, #f0f7ff, #ffffff)' : '#ffffff',
+        background: plan.popular ? 'linear-gradient(to bottom, #f0f7ff, #ffffff)' : '#ffffff',
         willChange: 'transform, filter',
       }}
       data-purpose={`plan-card-${plan.name.toLowerCase()}`}
@@ -401,43 +402,48 @@ const PlanCard = ({
           <h3 className="text-lg md:text-xl font-bold uppercase tracking-tight text-black">
             {plan.name}
           </h3>
-          {plan.highlight && (
-            <span className="text-[10px] font-bold uppercase bg-uml-blue text-white px-2 py-1 rounded tracking-wider">
-              Popular
-            </span>
-          )}
+          <div className="flex items-center gap-1.5">
+            {isCurrentPlan && (
+              <span className="text-[10px] font-bold uppercase bg-green-600 text-white px-2 py-1 rounded tracking-wider">
+                Hiện tại
+              </span>
+            )}
+            {plan.popular && (
+              <span className="text-[10px] font-bold uppercase bg-uml-blue text-white px-2 py-1 rounded tracking-wider">
+                Phổ biến nhất
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="mb-4">
-          {price === null ? (
+          {plan.contactSales ? (
             <>
-              <div className="text-3xl md:text-4xl font-priego-extrabold text-black">Custom</div>
-              <p className="text-xs text-gray-500 mt-1">Tailored to your team</p>
+              <div className="text-3xl md:text-4xl font-priego-extrabold text-black">Liên hệ</div>
+              <p className="text-xs text-gray-500 mt-1">Báo giá riêng theo nhu cầu</p>
             </>
-          ) : price === 0 ? (
+          ) : isFree ? (
             <>
-              <div className="text-3xl md:text-4xl font-priego-extrabold text-black">Free</div>
-              <p className="text-xs text-gray-500 mt-1">
-                {plan.name === 'Education'
-                  ? 'For accredited students & teachers'
-                  : 'No credit card required'}
-              </p>
+              <div className="text-3xl md:text-4xl font-priego-extrabold text-black">Miễn phí</div>
+              <p className="text-xs text-gray-500 mt-1">Không cần thẻ tín dụng</p>
             </>
           ) : (
             <>
-              <div className="flex items-baseline gap-1">
+              <div className="flex items-baseline gap-1 flex-wrap">
                 <span className="text-3xl md:text-4xl font-priego-extrabold text-black inline-flex items-baseline">
-                  $<PriceCounter value={price} />
+                  <PriceCounter value={activePrice} /><span className="text-2xl ml-1">đ</span>
                 </span>
-                <span className="text-sm text-gray-500">/user/mo</span>
-                {billing === 'yearly' && monthlySaving > 0 && (
+                <span className="text-sm text-gray-500">/tháng</span>
+                {billing === 'yearly' && yearlySaving > 0 && (
                   <span className="ml-2 text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                    Save ${yearlySaving}/yr
+                    Tiết kiệm {fmtVnd(yearlySaving)}đ/năm
                   </span>
                 )}
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                {billing === 'yearly' ? `Billed annually — $${yearlyPrice}/user/mo` : 'Billed monthly'}
+                {billing === 'yearly' && perMonthYearly != null
+                  ? `Thanh toán theo năm — ${fmtVnd(activePrice)}đ/tháng`
+                  : 'Thanh toán theo tháng'}
               </p>
             </>
           )}
@@ -446,52 +452,38 @@ const PlanCard = ({
         <p className="text-sm text-gray-600 mb-4 leading-relaxed">{plan.description}</p>
 
         <ul className="space-y-2.5 mb-4 flex-grow">
-          {plan.features.slice(0, isExpanded ? plan.features.length : 3).map(feature => (
-            <li key={feature} className="flex items-start gap-2.5 text-sm text-gray-700">
+          {bullets.length === 0 && (
+            <li className="text-xs text-gray-400">Chưa cấu hình tính năng.</li>
+          )}
+          {bullets.slice(0, isExpanded ? bullets.length : 3).map((feature, i) => (
+            <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700">
               <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-blue-50 flex items-center justify-center">
                 <Check size={10} className="text-uml-blue" strokeWidth={3} />
               </span>
               <span>{feature}</span>
             </li>
           ))}
-          {!isExpanded && plan.features.length > 3 && (
+          {!isExpanded && bullets.length > 3 && (
             <li className="text-xs text-gray-400 pl-6 font-medium">
-              +{plan.features.length - 3} more {plan.features.length - 3 === 1 ? 'feature' : 'features'}
+              +{bullets.length - 3} tính năng khác
             </li>
           )}
         </ul>
 
         <div className="pt-4 border-t border-gray-100">
           {isExpanded ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                const activePrice = billing === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
-                if (activePrice !== null && activePrice > 0) {
-                  if (isAuthenticated) {
-                    navigate('/payment-information', {
-                      state: {
-                        planName: plan.name,
-                        price: activePrice,
-                        billingCycle: billing,
-                        description: plan.description
-                      }
-                    });
-                  } else {
-                    openAuth(plan.name === 'Education' ? 'register' : 'login')
-                  }
-                } else {
-                  openAuth(plan.name === 'Education' ? 'register' : 'login')
-                }
-              }}
-              className={`w-full py-3 rounded-xl font-bold uppercase text-sm tracking-wider transition-colors duration-200 ${
-                plan.highlight
-                  ? 'bg-uml-blue text-white hover:bg-blue-700'
-                  : 'bg-black text-white hover:bg-gray-800'
-              }`}
-            >
-              {plan.cta}
-            </button>
+            !isFree && (
+              <button
+                onClick={(e) => { e.stopPropagation(); goCheckout() }}
+                className={`w-full py-3 rounded-xl font-bold uppercase text-sm tracking-wider transition-colors duration-200 ${
+                  plan.popular
+                    ? 'bg-uml-blue text-white hover:bg-blue-700'
+                    : 'bg-black text-white hover:bg-gray-800'
+                }`}
+              >
+                {plan.contactSales ? 'Liên hệ' : 'Chọn gói'}
+              </button>
+            )
           ) : (
             <button
               onClick={(e) => {
@@ -499,13 +491,13 @@ const PlanCard = ({
                 onToggle()
               }}
               className={`w-full py-3 rounded-xl font-bold uppercase text-sm tracking-wider transition-colors duration-300 ${
-                plan.highlight
+                plan.popular
                   ? 'border-2 border-uml-blue text-uml-blue hover:bg-blue-50'
                   : 'border-2 border-gray-300 text-gray-600 hover:border-uml-blue hover:text-uml-blue'
               }`}
             >
               <span className="flex items-center justify-center gap-2">
-                <span>View details</span>
+                <span>Xem chi tiết</span>
                 <ArrowRight size={14} strokeWidth={2.5} />
               </span>
             </button>
@@ -518,7 +510,7 @@ const PlanCard = ({
 
 const EveryPlanIncludes = () => {
   return (
-    <section id="every-plan-includes" className="py-16 px-4 md:px-8 border-t border-gray-200/60 scroll-mt-24">
+    <section id="every-plan-includes" className="pt-6 pb-16 px-4 md:px-8 border-t border-gray-200/60 scroll-mt-24">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ y: 20, opacity: 0 }}
@@ -528,10 +520,10 @@ const EveryPlanIncludes = () => {
           className="text-center mb-12"
         >
           <h2 className="text-3xl md:text-4xl font-priego-extrabold uppercase tracking-tight text-black mb-3">
-            EVERY PLAN INCLUDES
+            GÓI NÀO CŨNG CÓ
           </h2>
           <p className="text-base text-gray-600 max-w-xl mx-auto">
-            Core infrastructure that ships with every account, starting from the free tier.
+            Hạ tầng cốt lõi đi kèm mọi tài khoản, ngay từ gói miễn phí.
           </p>
         </motion.div>
 
@@ -575,9 +567,30 @@ const EveryPlanIncludes = () => {
   )
 }
 
-const FeatureComparison = () => {
-  const tiers = ['free', 'education', 'pro', 'enterprise'] as const
-  const planNames = ['Free', 'Education', 'Pro', 'Enterprise']
+type ComparisonRow = { feature: string; values: (string | boolean)[] }
+
+/** Dựng ma trận so sánh động: 4 hạn mức + toàn bộ catalog tính năng (✓/✗ theo từng gói). */
+function buildComparison(plans: PlanResponse[]): ComparisonRow[] {
+  const rows: ComparisonRow[] = [
+    { feature: 'Số dự án', values: plans.map(p => fmtLimit(p.limits?.projects)) },
+    { feature: 'Số sơ đồ', values: plans.map(p => fmtLimit(p.limits?.diagrams)) },
+    { feature: 'Lượt AI / kỳ', values: plans.map(p => fmtLimit(p.limits?.aiQueries)) },
+    { feature: 'Export PDF / kỳ', values: plans.map(p => fmtLimit(p.limits?.exportPdf)) },
+    { feature: 'Cộng tác viên', values: plans.map(p => fmtLimit(p.limits?.collaborators)) },
+  ]
+  // Catalog features: mọi gói cùng thứ tự catalog → lấy danh mục từ gói đầu, tra included theo id.
+  const catalog = plans[0]?.features ?? []
+  catalog.forEach(cell => {
+    rows.push({
+      feature: cell.label,
+      values: plans.map(p => p.features?.find(f => f.id === cell.id)?.included ?? false),
+    })
+  })
+  return rows
+}
+
+const FeatureComparison = ({ plans }: { plans: PlanResponse[] }) => {
+  const rows = buildComparison(plans)
 
   const renderCell = (value: string | boolean) => {
     if (typeof value === 'boolean') {
@@ -607,10 +620,10 @@ const FeatureComparison = () => {
           className="text-center mb-12"
         >
           <h2 className="text-3xl md:text-4xl font-priego-extrabold uppercase tracking-tight text-black mb-3">
-            DETAILED FEATURE COMPARISON
+            SO SÁNH TÍNH NĂNG CHI TIẾT
           </h2>
           <p className="text-base text-gray-600 max-w-xl mx-auto">
-            See exactly what each plan includes to find the right fit for your team.
+            Xem chính xác từng gói bao gồm những gì để tìm lựa chọn phù hợp cho đội ngũ của bạn.
           </p>
         </motion.div>
 
@@ -619,22 +632,22 @@ const FeatureComparison = () => {
             <thead>
               <tr className="bg-gray-50/80">
                 <th className="text-left px-6 py-4 text-xs font-bold uppercase tracking-widest text-gray-400 border-b border-gray-200 w-[28%] sticky left-0 bg-gray-50/80 z-10">
-                  Feature
+                  Tính năng
                 </th>
-                {planNames.map(name => (
+                {plans.map(p => (
                   <th
-                    key={name}
+                    key={p.id}
                     className={`px-6 py-4 text-xs font-bold uppercase tracking-widest text-center border-b border-gray-200 ${
-                      name === 'Pro' ? 'text-uml-blue' : 'text-gray-400'
+                      p.popular ? 'text-uml-blue' : 'text-gray-400'
                     }`}
                   >
-                    {name}
+                    {p.name}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {comparisonData.map((row, idx) => (
+              {rows.map((row, idx) => (
                 <motion.tr
                   key={row.feature}
                   initial={{ opacity: 0, y: 8 }}
@@ -648,12 +661,12 @@ const FeatureComparison = () => {
                   <td className={`px-6 py-3.5 text-sm font-semibold text-gray-800 border-b border-gray-100/80 sticky left-0 z-10 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}>
                     {row.feature}
                   </td>
-                  {tiers.map(tier => (
+                  {row.values.map((value, i) => (
                     <td
-                      key={tier}
+                      key={i}
                       className="px-6 py-3.5 text-center align-middle border-b border-gray-100/80"
                     >
-                      {renderCell(row[tier])}
+                      {renderCell(value)}
                     </td>
                   ))}
                 </motion.tr>
@@ -680,10 +693,10 @@ const FAQSection = () => {
           className="text-center mb-12"
         >
           <h2 className="text-3xl md:text-4xl font-priego-extrabold uppercase tracking-tight text-black mb-3">
-            FREQUENTLY ASKED QUESTIONS
+            CÂU HỎI THƯỜNG GẶP
           </h2>
           <p className="text-base text-gray-600 max-w-xl mx-auto">
-            Everything you need to know before getting started.
+            Mọi điều bạn cần biết trước khi bắt đầu.
           </p>
         </motion.div>
 

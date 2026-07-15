@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   RefreshCw,
   ScrollText,
   ServerCog,
@@ -10,6 +8,7 @@ import {
 import { auditService } from "../../../services/auditService";
 import type { AuditLog } from "../../../types/audit";
 import { Avatar, Badge, Card, Skeleton } from "../ui";
+import { Pagination } from "../Pagination";
 import { cn } from "../../../utils/cn";
 
 const PAGE_SIZE = 20;
@@ -282,27 +281,7 @@ export default function AuditLog() {
 
           {/* Pagination */}
           {!dateError && !error && totalElements > 0 && (
-            <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-              <p className="text-[12.5px] text-slate-400">
-                {totalElements.toLocaleString("vi-VN")} bản ghi · Trang {page + 1}/{Math.max(totalPages, 1)}
-              </p>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  disabled={page <= 0}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12.5px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" /> Trước
-                </button>
-                <button
-                  onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
-                  disabled={page + 1 >= totalPages}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12.5px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Sau <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
+            <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onChange={setPage} />
           )}
         </Card>
       </div>

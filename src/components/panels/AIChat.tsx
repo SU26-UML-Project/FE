@@ -9,6 +9,7 @@ import type {
   AiResponseKind
 } from "../../types/ai";
 import { chatService } from "../../services/chatService";
+import { getMyQuota, type QuotaInfo } from "../../services/quotaService";
 import { toast } from "react-hot-toast";
 import { QuestionCard } from "../overlays/QuestionBox";
 import { aiResponseToCanvas, type ParseResult, type Answer, type ImportQuestion } from "../../lib/importers";
@@ -74,6 +75,10 @@ export function AIChat({
   const [view, setView] = useState<"chat" | "history">("chat");
   const [sidebarWidth, setSidebarWidth] = useState(360);
   const [isResizing, setIsResizing] = useState(false);
+  const [quota, setQuota] = useState<QuotaInfo | null>(null);
+
+  const loadQuota = () => { getMyQuota().then(setQuota).catch(() => { /* im lặng */ }); };
+  useEffect(() => { if (open) loadQuota(); }, [open]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -366,14 +371,17 @@ export function AIChat({
       });
 
       handleAiResponse(res.result);
+      loadQuota(); // cập nhật lượt đã dùng
     } catch (err: any) {
       console.error("AI Chat Error:", err);
+      // 402 (hết lượt) / 429 (quá nhanh): BE trả message thân thiện → hiển thị luôn.
       toast.error(err.message || "AI đang bận, bro thử lại sau nhé");
-      setMsgs(prev => [...prev, { 
-        id: `err-${Date.now()}`, 
-        role: "ASSISTANT", 
-        text: `Lỗi: ${err.message || "Không thể kết nối với AI Architect."}` 
+      setMsgs(prev => [...prev, {
+        id: `err-${Date.now()}`,
+        role: "ASSISTANT",
+        text: `Lỗi: ${err.message || "Không thể kết nối với AI Architect."}`
       }]);
+      loadQuota(); // đồng bộ lại thanh quota (VD sau 402 hoặc rollback)
     } finally {
       setBusy(false);
     }
@@ -430,6 +438,17 @@ export function AIChat({
 
       {view === "chat" ? (
         <>
+          {quota && quota.limit !== -1 && (
+            <div className="border-b border-admin-outline/30 px-4 py-2 shrink-0">
+              <div className="flex items-center justify-between text-[11px] text-admin-secondary">
+                <span>Lượt AI: <b className="text-admin-on-surface">{quota.used}/{quota.limit}</b></span>
+                <span>Reset {new Date(quota.resetAt).toLocaleDateString("vi-VN")}</span>
+              </div>
+              <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-admin-bg">
+                <div className="h-full rounded-full bg-admin-primary transition-all" style={{ width: `${quota.limit > 0 ? Math.min(100, (quota.used / quota.limit) * 100) : 0}%` }} />
+              </div>
+            </div>
+          )}
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth">
             {msgs.map((m) => (
               <div key={m.id} className={`flex flex-col ${m.role === "USER" ? "items-end" : "items-start"}`}>

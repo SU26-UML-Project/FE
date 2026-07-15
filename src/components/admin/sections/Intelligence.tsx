@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
+  AlertTriangle,
   BrainCircuit,
   Briefcase,
   Check,
@@ -26,6 +27,7 @@ import {
   intelConfig,
   vectorDbCatalog,
   llmProviderCatalog,
+  embProviderCatalog,
 } from "../data";
 import { Badge, Button, Card, SearchInput, Skeleton } from "../ui";
 import SmartSelect from "../../ui/SmartSelect";
@@ -59,13 +61,9 @@ type DocEditorState = {
 const inputCls =
   "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-800 outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100";
 
-const localProviders = ["Ollama", "LM Studio", "LocalAI"];
 const providerDefaultBaseUrl: Record<string, string> = {
-  Ollama: "http://localhost:11434",
-  "LM Studio": "http://localhost:1234",
-  LocalAI: "http://localhost:8080",
-  OpenAI: "https://api.openai.com",
-  Anthropic: "https://api.anthropic.com",
+  ollama: "http://localhost:11434",
+  groq: "https://api.groq.com/openai/v1",
 };
 const kindLabel: Record<string, string> = {
   embedded: "Nhúng sẵn",
@@ -113,9 +111,10 @@ export default function Intelligence() {
   // ---- Version & Config ----
   const [versionInfo, setVersionInfo] = useState<AiVersionInfo | null>(null);
   const [sysConfig, setSysConfig] = useState<AiSystemConfig | null>(null);
+  const [configLoadError, setConfigLoadError] = useState(false);
 
   // ---- Providers ----
-  const [providers, setProviders] = useState<string[]>(["Ollama", "LM Studio", "LocalAI", "OpenAI", "Anthropic", "Groq"]);
+  const [providers, setProviders] = useState<string[]>(["ollama", "lm studio", "localai", "openai", "anthropic", "groq"]);
 
   // ---- Workspaces ----
   const [workspaces, setWorkspaces] = useState<AiWorkspaceInfo[]>([]);
@@ -135,16 +134,17 @@ export default function Intelligence() {
   const [llmProvider, setLlmProvider] = useState("");
   const [llmUrl, setLlmUrl] = useState("");
   const [model, setModel] = useState("");
+  const [llmApiKey, setLlmApiKey] = useState("");
   const [detectedLlm, setDetectedLlm] = useState<string[]>([]);
   const [detectingLlm, setDetectingLlm] = useState(false);
-  const [llmSearch, setLlmSearch] = useState("");
+
 
   // ---- Embedding ----
   const [embProvider, setEmbProvider] = useState("");
   const [emb, setEmb] = useState("");
   const [detectedEmb, setDetectedEmb] = useState<string[]>([]);
   const [detectingEmb, setDetectingEmb] = useState(false);
-  const [embSearch, setEmbSearch] = useState("");
+
 
   // ---- Vector DB ----
   const [activeVdbs, setActiveVdbs] = useState<VdbInstance[]>([{ providerId: "lancedb", fields: {} }]);
@@ -204,14 +204,34 @@ export default function Intelligence() {
         const cfg = cfgRes?.result;
         if (cfg) {
           setSysConfig(cfg);
-          if (cfg.llmProvider) setLlmProvider(cfg.llmProvider);
-          if (cfg.model) { setModel(cfg.model); }
+          setConfigLoadError(false);
+          if (cfg.llmProvider) {
+            const match = llmProviderCatalog.find(p => p.id === cfg.llmProvider!.toLowerCase());
+            setLlmProvider(match?.id || cfg.llmProvider);
+          }
+          if (cfg.model) setModel(cfg.model);
+          if (cfg.baseUrl) {
+            const pId = cfg.llmProvider?.toLowerCase() || "";
+            if (pId === "ollama" && providerDefaultBaseUrl.ollama) {
+              setLlmUrl(providerDefaultBaseUrl.ollama);
+            } else {
+              setLlmUrl(cfg.baseUrl);
+            }
+          }
+          if (cfg.embeddingProvider) {
+            const match = embProviderCatalog.find(p => p.id === cfg.embeddingProvider!.toLowerCase());
+            setEmbProvider(match?.id || cfg.embeddingProvider);
+          }
+          if (cfg.embeddingModel) setEmb(cfg.embeddingModel);
+          if (cfg.hasApiKey) setLlmApiKey("••••••••");
           if (cfg.documentChunkSize != null) setChunkSize(cfg.documentChunkSize);
           if (cfg.documentChunkOverlap != null) setChunkOverlap(cfg.documentChunkOverlap);
           if (cfg.vectorDb) {
             setVdb(cfg.vectorDb);
             setActiveVdbs([{ providerId: cfg.vectorDb, fields: { url: cfg.vectorDbEndpoint || "" } }]);
           }
+        } else {
+          setConfigLoadError(true);
         }
         if (verRes?.result) setVersionInfo(verRes.result);
         if (provRes?.result && provRes.result.length > 0) setProviders(provRes.result);
@@ -221,27 +241,22 @@ export default function Intelligence() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Auto-detect when local provider or base URL changes (debounced)
+  // Auto-detect when provider, base URL or API Key changes (debounced)
   useEffect(() => {
-    if (!canDetectLlm || !llmUrl.trim()) return;
     const timer = setTimeout(autoDetectLlm, 800);
     return () => clearTimeout(timer);
-  }, [llmProvider, llmUrl]);
+  }, [llmProvider, llmUrl, llmApiKey]);
 
   useEffect(() => {
-    if (!canDetectEmb || !llmUrl.trim()) return;
     const timer = setTimeout(autoDetectEmb, 800);
     return () => clearTimeout(timer);
-  }, [embProvider, llmUrl]);
+  }, [embProvider, llmUrl, llmApiKey]);
 
   const wsSlugs = workspaces.map((w) => w.slug);
   const filteredWs = wsSearch ? workspaces.filter((w) => w.name.toLowerCase().includes(wsSearch.toLowerCase()) || w.slug.toLowerCase().includes(wsSearch.toLowerCase())) : workspaces;
-  const canDetectLlm = localProviders.includes(llmProvider);
-  const canDetectEmb = localProviders.includes(embProvider);
   const llmOptions = detectedLlm.length ? detectedLlm : (model ? [model] : []);
   const embOptions = detectedEmb.length ? detectedEmb : (emb ? [emb] : []);
-  const filteredLlmProviders = llmSearch ? llmProviderCatalog.filter((p) => p.name.toLowerCase().includes(llmSearch.toLowerCase())) : llmProviderCatalog;
-  const filteredEmbProviders = embSearch ? llmProviderCatalog.filter((p) => p.name.toLowerCase().includes(embSearch.toLowerCase())) : llmProviderCatalog;
+
   const filteredVdbProviders = vdbSearch ? vectorDbCatalog.filter((p) => p.name.toLowerCase().includes(vdbSearch.toLowerCase())) : vectorDbCatalog;
 
   const allDocs: DisplayDoc[] = docs.map((d) => {
@@ -276,8 +291,26 @@ export default function Intelligence() {
   async function refreshSysConfig() {
     try {
       const res = await aiAdminService.getSystemConfig();
-      if (res?.result) { setSysConfig(res.result); }
-    } catch {}
+      const cfg = res?.result;
+      if (cfg) {
+        setSysConfig(cfg);
+        setConfigLoadError(false);
+        if (cfg.llmProvider) {
+          const match = llmProviderCatalog.find(p => p.id === cfg.llmProvider!.toLowerCase());
+          setLlmProvider(match?.id || cfg.llmProvider);
+        }
+        if (cfg.model) setModel(cfg.model);
+        if (cfg.baseUrl) setLlmUrl(cfg.baseUrl);
+        if (cfg.embeddingProvider) {
+          const match = embProviderCatalog.find(p => p.id === cfg.embeddingProvider!.toLowerCase());
+          setEmbProvider(match?.id || cfg.embeddingProvider);
+        }
+        if (cfg.embeddingModel) setEmb(cfg.embeddingModel);
+        if (cfg.documentChunkSize != null) setChunkSize(cfg.documentChunkSize);
+        if (cfg.documentChunkOverlap != null) setChunkOverlap(cfg.documentChunkOverlap);
+        if (cfg.vectorDb) setVdb(cfg.vectorDb);
+      }
+    } catch { setConfigLoadError(true); }
   }
 
   const latencyStr = testLatency || "—";
@@ -347,6 +380,10 @@ export default function Intelligence() {
       if (res?.result) {
         setWsTabDetail(res.result);
         setWsTabDirty(null);
+        const provider = res.result.chatProvider;
+        if (provider && !res.result.chatModel) {
+          detectWsModels();
+        }
       }
     } catch { toast.error("Không thể tải thông tin workspace"); }
     finally { setWsTabLoading(false); }
@@ -380,7 +417,7 @@ export default function Intelligence() {
 
   function detectWsModels() {
     const provider = (wsTabDirty?.chatProvider ?? wsTabDetail?.chatProvider ?? "");
-    if (!localProviders.includes(provider)) { setDetectedWsModels([]); return; }
+    if (!provider) { setDetectedWsModels([]); return; }
     setDetectingWsModels(true);
     aiAdminService.getProviderModels(provider, llmUrl || undefined)
       .then((res) => {
@@ -388,35 +425,62 @@ export default function Intelligence() {
         setDetectedWsModels(list);
         if (list.length > 0 && !(wsTabDirty?.model ?? wsTabDetail?.chatModel)) updateWsTabField("model", list[0]);
       })
-      .catch(() => setDetectedWsModels([]))
+      .catch((err: any) => { setDetectedWsModels([]); toast.error(err?.response?.data?.message || "Không thể quét model workspace"); })
       .finally(() => setDetectingWsModels(false));
   }
 
   // ---- LLM handlers ----
+  const MASKED_KEY = "••••••••";
+
   function autoDetectLlm() {
-    if (!canDetectLlm) { setDetectedLlm([]); return; }
     setDetectingLlm(true);
-    aiAdminService.getProviderModels(llmProvider, llmUrl || undefined)
+    const sendKey = llmApiKey && llmApiKey !== MASKED_KEY ? llmApiKey : undefined;
+    aiAdminService.getProviderModels(llmProvider, llmUrl || undefined, sendKey)
       .then((res) => {
         const models = res.result || [];
         setDetectedLlm(models);
         if (models.length > 0 && !model) setModel(models[0]);
       })
-      .catch(() => { setDetectedLlm([]); })
+      .catch((err: any) => { setDetectedLlm([]); toast.error(err?.response?.data?.message || "Không thể quét model"); })
       .finally(() => setDetectingLlm(false));
   }
 
+  function syncWorkspacesWithLlm() {
+    workspaces.filter(ws => ws.slug !== "_all").forEach((ws) => {
+      aiAdminService.updateWorkspace({ chatProvider: llmProvider?.toLowerCase(), model }, ws.slug)
+        .then(() => {
+          if (wsTab === ws.slug) { loadWsTabDetail(ws.slug); }
+        })
+        .catch(() => {});
+    });
+  }
+
   function saveLlm() {
+    const saveKey = llmApiKey && llmApiKey !== MASKED_KEY ? llmApiKey : undefined;
+    // Snapshot user's selections before refreshSysConfig may overwrite them
+    const savedProvider = llmProvider;
+    const savedModel = model;
+    const savedUrl = llmUrl;
     triggerSave("llm", async () => {
-      const r = await aiAdminService.updateSystemConfig({ llmProvider, baseUrl: llmUrl, model });
+      const r = await aiAdminService.updateSystemConfig({
+        llmProvider: savedProvider, baseUrl: savedUrl || undefined, model: savedModel, apiKey: saveKey,
+        embeddingProvider: sysConfig?.embeddingProvider ?? undefined,
+        embeddingModel: sysConfig?.embeddingModel ?? undefined,
+        documentChunkSize: chunkSize,
+        documentChunkOverlap: chunkOverlap,
+      });
       await refreshSysConfig();
+      setLlmProvider(savedProvider);
+      setModel(savedModel);
+      setLlmUrl(savedUrl || "");
+      syncWorkspacesWithLlm();
+      autoDetectLlm();
       return r;
     });
   }
 
   // ---- Embedding handlers ----
   function autoDetectEmb() {
-    if (!canDetectEmb) { setDetectedEmb([]); return; }
     setDetectingEmb(true);
     aiAdminService.getProviderModels(embProvider, llmUrl || undefined)
       .then((res) => {
@@ -424,7 +488,7 @@ export default function Intelligence() {
         setDetectedEmb(models);
         if (models.length > 0 && !emb) setEmb(models[0]);
       })
-      .catch(() => { setDetectedEmb([]); })
+      .catch((err: any) => { setDetectedEmb([]); toast.error(err?.response?.data?.message || "Không thể quét embedding model"); })
       .finally(() => setDetectingEmb(false));
   }
 
@@ -438,6 +502,9 @@ export default function Intelligence() {
         embeddingModel: emb,
         documentChunkSize: chunkSize,
         documentChunkOverlap: chunkOverlap,
+        llmProvider: sysConfig?.llmProvider ?? undefined,
+        baseUrl: sysConfig?.baseUrl ?? undefined,
+        model: sysConfig?.model ?? undefined,
       });
       await refreshSysConfig();
       return r;
@@ -470,6 +537,14 @@ export default function Intelligence() {
       const r = await aiAdminService.updateSystemConfig({
         vectorDb: vdb,
         vectorDbEndpoint: active?.fields?.url || "",
+        vectorDbApiKey: active?.fields?.key || undefined,
+        llmProvider: sysConfig?.llmProvider ?? undefined,
+        baseUrl: sysConfig?.baseUrl ?? undefined,
+        model: sysConfig?.model ?? undefined,
+        embeddingProvider: sysConfig?.embeddingProvider ?? undefined,
+        embeddingModel: sysConfig?.embeddingModel ?? undefined,
+        documentChunkSize: chunkSize,
+        documentChunkOverlap: chunkOverlap,
       });
       await refreshSysConfig();
       return r;
@@ -738,6 +813,16 @@ export default function Intelligence() {
         </div>
       </Card>
 
+      {configLoadError && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <div className="min-w-0">
+            <p className="text-[13px] font-medium text-amber-800">Không thể tải cấu hình từ AnythingLLM</p>
+            <p className="mt-0.5 text-[12px] text-amber-700">Vui lòng nhập thủ công các thông số bên dưới và nhấn <b>Đồng bộ cấu hình</b>.</p>
+          </div>
+        </div>
+      )}
+
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[220px_1fr]">
         {/* category nav */}
         <Card className="h-fit p-2">
@@ -851,17 +936,32 @@ export default function Intelligence() {
                   ) : (
                     <div className="space-y-1.5">
                       {filteredWs.map((w) => (
-                        <div key={w.slug} className="group flex items-center gap-3 rounded-lg border border-slate-200 px-4 py-3 transition hover:bg-slate-50">
-                          <button onClick={() => switchWsTab(w.slug)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><Layers className="h-4 w-4" /></span>
+                        <div key={w.slug} className="group flex items-start gap-3 rounded-lg border border-slate-200 px-4 py-3 transition hover:bg-slate-50">
+                          <button onClick={() => switchWsTab(w.slug)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><Layers className="h-4 w-4" /></span>
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-[13px] font-medium text-slate-900" title={w.name}>{w.name}</p>
                               <p className="truncate font-mono text-[11px] text-slate-400">/{w.slug}</p>
+                              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                {(w.llmProvider ?? sysConfig?.llmProvider) && (
+                                  <span className="inline-flex items-center gap-1 font-mono text-[10px] text-slate-400">
+                                    <Cpu className="h-3 w-3" />{w.llmProvider ?? sysConfig?.llmProvider}
+                                  </span>
+                                )}
+                                {(w.baseUrl ?? sysConfig?.baseUrl) && (
+                                  <span className="max-w-[180px] truncate font-mono text-[10px] text-slate-400" title={w.baseUrl ?? sysConfig?.baseUrl ?? ""}>
+                                    {w.baseUrl ?? sysConfig?.baseUrl}
+                                  </span>
+                                )}
+                                {(w.model ?? sysConfig?.model) && (
+                                  <span className="font-mono text-[10px] text-slate-400">{w.model ?? sysConfig?.model}</span>
+                                )}
+                              </div>
                             </div>
                           </button>
                           <button
                             onClick={() => setWsConfirmDel(w.slug)}
-                            className="shrink-0 rounded-md p-1.5 text-slate-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
+                            className="mt-1 shrink-0 rounded-md p-1.5 text-slate-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
                             title="Xoá workspace"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -904,94 +1004,132 @@ export default function Intelligence() {
                           <p className="truncate font-mono text-[11px] text-slate-400">/{wsTab}</p>
                         </div>
                       </div>
-                      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
-                        <div className="min-w-0">
-                          <Field label="Chat Model">
-                            <div className="flex items-stretch gap-2">
-                              <div className="min-w-0 flex-1">
-                                <SmartSelect
-                                  value={wsTabDirty?.model ?? wsTabDetail.chatModel ?? ""}
-                                  onChange={(v) => updateWsTabField("model", v || null)}
-                                  options={[
-                                    { value: "", label: "— Mặc định —" },
-                                    ...(detectedWsModels.length > 0
-                                      ? detectedWsModels.map((m) => ({ value: m, label: m }))
-                                      : wsTabDetail.chatModel
-                                        ? [{ value: wsTabDetail.chatModel, label: wsTabDetail.chatModel }]
-                                        : []),
-                                  ]}
-                                  searchable
-                                  placeholder="— Mặc định —"
-                                />
+
+                      {/* System config debug banner */}
+                      {(wsTabDetail.baseUrl ?? wsTabDetail.llmProvider ?? wsTabDetail.model) && (
+                        <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2.5">
+                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-slate-600">
+                            <span className="font-medium text-slate-700">🔧 System:</span>
+                            <span className="inline-flex items-center gap-1">
+                              <Cpu className="h-3.5 w-3.5" />
+                              {wsTabDetail.llmProvider ?? "—"}
+                            </span>
+                            <span className="text-slate-300">→</span>
+                            <span className="max-w-[240px] truncate font-mono text-slate-500" title={wsTabDetail.baseUrl ?? ""}>
+                              {wsTabDetail.baseUrl ?? "—"}
+                            </span>
+                            <span className="text-slate-300">|</span>
+                            <span className="font-mono">{wsTabDetail.model ?? "—"}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Section: Model */}
+                      <div>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Mô hình</p>
+                        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
+                          <div className="min-w-0">
+                            <Field label="Chat Model">
+                              <div className="flex items-stretch gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <SmartSelect
+                                    value={wsTabDirty?.model ?? wsTabDetail.chatModel ?? ""}
+                                    onChange={(v) => updateWsTabField("model", v || null)}
+                                    options={[
+                                      { value: "", label: "— Mặc định —" },
+                                      ...(detectedWsModels.length > 0
+                                        ? detectedWsModels.map((m) => ({ value: m, label: m }))
+                                        : wsTabDetail.chatModel
+                                          ? [{ value: wsTabDetail.chatModel, label: wsTabDetail.chatModel }]
+                                          : []),
+                                    ]}
+                                    searchable
+                                    placeholder="— Mặc định —"
+                                  />
+                                </div>
+                                <button
+                                  onClick={detectWsModels}
+                                  disabled={detectingWsModels}
+                                  className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40"
+                                  title="Quét mô hình"
+                                >
+                                  {detectingWsModels ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                </button>
                               </div>
-                              <button
-                                onClick={detectWsModels}
-                                disabled={detectingWsModels || !llmUrl.trim()}
-                                className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40"
-                                title="Quét mô hình"
-                              >
-                                {detectingWsModels ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                              </button>
-                            </div>
-                          </Field>
+                            </Field>
+                          </div>
+                          <div className="min-w-0">
+                            <Field label="Chat Provider">
+                              <SmartSelect
+                                value={wsTabDirty?.chatProvider ?? wsTabDetail.chatProvider ?? ""}
+                                onChange={(v) => updateWsTabField("chatProvider", v || null)}
+                                options={[{ value: "", label: "— Mặc định —" }, ...providers]}
+                                placeholder="— Mặc định —"
+                              />
+                            </Field>
+                          </div>
+                          <div className="min-w-0">
+                            <Field label="Chat Mode">
+                              <SmartSelect
+                                value={wsTabDirty?.chatMode ?? wsTabDetail.chatMode ?? ""}
+                                onChange={(v) => updateWsTabField("chatMode", v || null)}
+                                options={[
+                                  { value: "", label: "— Mặc định —" },
+                                  { value: "chat", label: "Chat" },
+                                  { value: "query", label: "Query" },
+                                ]}
+                                placeholder="— Mặc định —"
+                              />
+                            </Field>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <Field label="Chat Provider">
-                            <SmartSelect
-                              value={wsTabDirty?.chatProvider ?? wsTabDetail.chatProvider ?? ""}
-                              onChange={(v) => updateWsTabField("chatProvider", v || null)}
-                              options={[{ value: "", label: "— Mặc định —" }, ...providers]}
-                              placeholder="— Mặc định —"
-                            />
-                          </Field>
+                      </div>
+
+                      {/* Section: Parameters */}
+                      <div>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Tham số</p>
+                        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
+                          <div className="min-w-0">
+                            <Field label="Temperature">
+                              <div className="flex items-center gap-3">
+                                <input type="range" min={0} max={1} step={0.05} value={wsTabDirty?.temperature ?? wsTabDetail.temperature ?? 0.7} onChange={(e) => updateWsTabField("temperature", parseFloat(e.target.value))} className="w-full accent-indigo-600" />
+                                <span className="w-10 text-right font-mono text-[12px] text-slate-600">{(wsTabDirty?.temperature ?? wsTabDetail.temperature ?? 0.7).toFixed(2)}</span>
+                              </div>
+                            </Field>
+                          </div>
+                          <div className="min-w-0">
+                            <Field label="Top N (số kết quả)">
+                              <input type="text" inputMode="numeric" value={wsTabDirty?.topN ?? wsTabDetail.topN ?? ""} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); updateWsTabField("topN", v ? parseInt(v) : null); }} placeholder="4" className={inputCls} />
+                            </Field>
+                          </div>
+                          <div className="min-w-0">
+                            <Field label="Similarity Threshold">
+                              <div className="flex items-center gap-3">
+                                <input type="range" min={0} max={1} step={0.05} value={wsTabDirty?.similarityThreshold ?? wsTabDetail.similarityThreshold ?? 0.5} onChange={(e) => updateWsTabField("similarityThreshold", parseFloat(e.target.value))} className="w-full accent-indigo-600" />
+                                <span className="w-10 text-right font-mono text-[12px] text-slate-600">{(wsTabDirty?.similarityThreshold ?? wsTabDetail.similarityThreshold ?? 0.5).toFixed(2)}</span>
+                              </div>
+                            </Field>
+                          </div>
+                          <div className="min-w-0">
+                            <Field label="Lịch sử hội thoại">
+                              <input type="text" inputMode="numeric" value={wsTabDirty?.openAiHistory ?? wsTabDetail.openAiHistory ?? ""} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); updateWsTabField("openAiHistory", v ? parseInt(v) : null); }} placeholder="20" className={inputCls} />
+                            </Field>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <Field label="Chat Mode">
-                            <SmartSelect
-                              value={wsTabDirty?.chatMode ?? wsTabDetail.chatMode ?? ""}
-                              onChange={(v) => updateWsTabField("chatMode", v || null)}
-                              options={[
-                                { value: "", label: "— Mặc định —" },
-                                { value: "chat", label: "Chat" },
-                                { value: "query", label: "Query" },
-                              ]}
-                              placeholder="— Mặc định —"
-                            />
+                      </div>
+
+                      {/* Section: Customization */}
+                      <div>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Tuỳ chỉnh</p>
+                        <div className="space-y-3">
+                          <Field label="System Prompt">
+                            <textarea rows={3} value={wsTabDirty?.openAiPrompt ?? wsTabDetail.openAiPrompt ?? ""} onChange={(e) => updateWsTabField("openAiPrompt", e.target.value)} placeholder="Để trống = dùng mặc định của system" className={cn(inputCls, "resize-y font-mono text-[12px] leading-relaxed")} />
                           </Field>
-                        </div>
-                        <div className="min-w-0">
-                          <Field label="Temperature">
-                            <div className="flex items-center gap-3">
-                              <input type="range" min={0} max={1} step={0.05} value={wsTabDirty?.temperature ?? wsTabDetail.temperature ?? 0.7} onChange={(e) => updateWsTabField("temperature", parseFloat(e.target.value))} className="w-full accent-indigo-600" />
-                              <span className="w-10 text-right font-mono text-[12px] text-slate-600">{(wsTabDirty?.temperature ?? wsTabDetail.temperature ?? 0.7).toFixed(2)}</span>
-                            </div>
-                          </Field>
-                        </div>
-                        <div className="min-w-0">
-                          <Field label="Top N (số kết quả)">
-                            <input type="text" inputMode="numeric" value={wsTabDirty?.topN ?? wsTabDetail.topN ?? ""} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); updateWsTabField("topN", v ? parseInt(v) : null); }} placeholder="4" className={inputCls} />
-                          </Field>
-                        </div>
-                        <div className="min-w-0">
-                          <Field label="Similarity Threshold">
-                            <div className="flex items-center gap-3">
-                              <input type="range" min={0} max={1} step={0.05} value={wsTabDirty?.similarityThreshold ?? wsTabDetail.similarityThreshold ?? 0.5} onChange={(e) => updateWsTabField("similarityThreshold", parseFloat(e.target.value))} className="w-full accent-indigo-600" />
-                              <span className="w-10 text-right font-mono text-[12px] text-slate-600">{(wsTabDirty?.similarityThreshold ?? wsTabDetail.similarityThreshold ?? 0.5).toFixed(2)}</span>
-                            </div>
-                          </Field>
-                        </div>
-                        <div className="min-w-0">
-                          <Field label="Lịch sử hội thoại">
-                            <input type="text" inputMode="numeric" value={wsTabDirty?.openAiHistory ?? wsTabDetail.openAiHistory ?? ""} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); updateWsTabField("openAiHistory", v ? parseInt(v) : null); }} placeholder="20" className={inputCls} />
+                          <Field label="Query Refusal Response">
+                            <textarea rows={2} value={wsTabDirty?.queryRefusalResponse ?? wsTabDetail.queryRefusalResponse ?? ""} onChange={(e) => updateWsTabField("queryRefusalResponse", e.target.value)} placeholder="Phản hồi từ chối truy vấn (nếu có)" className={cn(inputCls, "resize-y font-mono text-[12px] leading-relaxed")} />
                           </Field>
                         </div>
                       </div>
-                      <Field label="System Prompt">
-                        <textarea rows={3} value={wsTabDirty?.openAiPrompt ?? wsTabDetail.openAiPrompt ?? ""} onChange={(e) => updateWsTabField("openAiPrompt", e.target.value)} placeholder="Để trống = dùng mặc định của system" className={cn(inputCls, "resize-y font-mono text-[12px] leading-relaxed")} />
-                      </Field>
-                      <Field label="Query Refusal Response">
-                        <textarea rows={2} value={wsTabDirty?.queryRefusalResponse ?? wsTabDetail.queryRefusalResponse ?? ""} onChange={(e) => updateWsTabField("queryRefusalResponse", e.target.value)} placeholder="Phản hồi từ chối truy vấn (nếu có)" className={cn(inputCls, "resize-y font-mono text-[12px] leading-relaxed")} />
-                      </Field>
                       <div className="flex items-center justify-between border-t border-slate-100 pt-3">
                         <button onClick={() => setWsConfirmDel(wsTab)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-medium text-rose-600 transition hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5" /> Xoá</button>
                         <button
@@ -1020,30 +1158,15 @@ export default function Intelligence() {
               <div className="flex-1 min-h-0 grid gap-4 lg:grid-cols-[220px_1fr]">
                 {/* provider list */}
                 <div className="scroll-slim min-h-0 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
-                  <SearchInput value={llmSearch} onChange={setLlmSearch} placeholder="Tìm provider…" className="mb-1.5 px-1" />
-                  <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Local</p>
-                  {filteredLlmProviders.filter((p) => p.kind === "local").map((p) => {
-                    const sel = llmProvider === p.name;
+                  {llmProviderCatalog.map((p) => {
+                    const sel = llmProvider === p.id;
+                    const isLocal = p.kind === "local";
                     return (
-                      <button key={p.id} onClick={() => { setLlmProvider(p.name); if (providerDefaultBaseUrl[p.name] && !llmUrl) setLlmUrl(providerDefaultBaseUrl[p.name]); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><Cpu className="h-3.5 w-3.5" /></span>
+                      <button key={p.id} onClick={() => { setLlmProvider(p.id); setLlmUrl(providerDefaultBaseUrl[p.id] || ""); setModel(""); setDetectedLlm([]); if (p.id !== llmProvider) setLlmApiKey(""); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}>{isLocal ? <Cpu className="h-3.5 w-3.5" /> : <Cloud className="h-3.5 w-3.5" />}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[12.5px] font-medium text-slate-800">{p.name}</span>
-                          <span className="block text-[10.5px] text-slate-400">Tự quản</span>
-                        </span>
-                        {sel && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
-                      </button>
-                    );
-                  })}
-                  <p className="mb-1.5 mt-3 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Cloud</p>
-                  {filteredLlmProviders.filter((p) => p.kind === "cloud").map((p) => {
-                    const sel = llmProvider === p.name;
-                    return (
-                      <button key={p.id} onClick={() => { setLlmProvider(p.name); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><Cloud className="h-3.5 w-3.5" /></span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[12.5px] font-medium text-slate-800">{p.name}</span>
-                          <span className="block text-[10.5px] text-slate-400">API</span>
+                          <span className="block text-[10.5px] text-slate-400">{isLocal ? "Tự quản" : "API"}</span>
                         </span>
                         {sel && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
                       </button>
@@ -1056,7 +1179,7 @@ export default function Intelligence() {
                   {llmProvider ? (
                     <>
                       {(() => {
-                        const prov = llmProviderCatalog.find((p) => p.name === llmProvider);
+                        const prov = llmProviderCatalog.find((p) => p.id === llmProvider);
                         return (
                           <>
                             {prov && (
@@ -1069,25 +1192,37 @@ export default function Intelligence() {
                               </div>
                             )}
                             <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
-                              <div className="min-w-0">
-                                <Field label="Base URL" hint={localProviders.includes(llmProvider) ? "bắt buộc" : "không bắt buộc"}>
-                                  <div className="flex items-stretch gap-2">
-                                    <input value={llmUrl} onChange={(e) => setLlmUrl(e.target.value)} className={cn(inputCls, "font-mono", detectingLlm && "animate-pulse")} />
-                                  </div>
-                                </Field>
-                              </div>
+                              {llmProvider === "ollama" && (
+                                <div className="min-w-0">
+                                  <Field label="Base URL" hint="bắt buộc">
+                                    <div className="flex items-stretch gap-2">
+                                      <input value={llmUrl} onChange={(e) => setLlmUrl(e.target.value)} className={cn(inputCls, "font-mono", detectingLlm && "animate-pulse")} />
+                                    </div>
+                                  </Field>
+                                </div>
+                              )}
                               <div className="min-w-0">
                                 <Field label="Chat Model">
                                   <div className="flex items-stretch gap-2">
                                     <div className="min-w-0 flex-1"><SmartSelect value={model} onChange={setModel} options={llmOptions} searchable /></div>
-                                    <button onClick={autoDetectLlm} disabled={detectingLlm || !llmUrl.trim()} className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40" title="Quét lại mô hình">
+                                    <button onClick={autoDetectLlm} disabled={detectingLlm} className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40" title="Quét lại mô hình">
                                       {detectingLlm ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                                     </button>
                                   </div>
                                 </Field>
                               </div>
+                              {(() => {
+                        const prov = llmProviderCatalog.find((p) => p.id === llmProvider);
+                                return prov?.kind === "cloud" ? (
+                                  <div className="min-w-0">
+                                    <Field label="API Key">
+                                      <input type="password" value={llmApiKey} onChange={(e) => setLlmApiKey(e.target.value)} placeholder="sk-••••••••" className={cn(inputCls, "font-mono")} />
+                                    </Field>
+                                  </div>
+                                ) : null;
+                              })()}
                             </div>
-                            {canDetectLlm && detectedLlm.length > 0 && (
+                            {detectedLlm.length > 0 && (
                               <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
                                 <div className="flex items-center gap-2">
                                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -1124,32 +1259,16 @@ export default function Intelligence() {
               <p className="mb-4 shrink-0 text-[13px] text-slate-500">Chọn nhà cung cấp embedding, sau đó cấu hình model cụ thể.</p>
 
               <div className="flex-1 min-h-0 grid gap-4 lg:grid-cols-[220px_1fr]">
-                {/* provider list */}
+                {/* provider list — only Ollama supported */}
                 <div className="scroll-slim min-h-0 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
-                  <SearchInput value={embSearch} onChange={setEmbSearch} placeholder="Tìm provider…" className="mb-1.5 px-1" />
-                  <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Local</p>
-                  {filteredEmbProviders.filter((p) => p.kind === "local").map((p) => {
+                  {embProviderCatalog.map((p) => {
                     const sel = embProvider === p.name;
                     return (
-                      <button key={p.id} onClick={() => { setEmbProvider(p.name); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
+                      <button key={p.id} onClick={() => { setEmbProvider(p.id); setEmb(""); setDetectedEmb([]); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><Cpu className="h-3.5 w-3.5" /></span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[12.5px] font-medium text-slate-800">{p.name}</span>
                           <span className="block text-[10.5px] text-slate-400">Tự quản</span>
-                        </span>
-                        {sel && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
-                      </button>
-                    );
-                  })}
-                  <p className="mb-1.5 mt-3 px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Cloud</p>
-                  {filteredEmbProviders.filter((p) => p.kind === "cloud").map((p) => {
-                    const sel = embProvider === p.name;
-                    return (
-                      <button key={p.id} onClick={() => { setEmbProvider(p.name); }} className={cn("flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition", sel ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300")}>
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><Cloud className="h-3.5 w-3.5" /></span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[12.5px] font-medium text-slate-800">{p.name}</span>
-                          <span className="block text-[10.5px] text-slate-400">API</span>
                         </span>
                         {sel && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
                       </button>
@@ -1162,11 +1281,11 @@ export default function Intelligence() {
                   {embProvider ? (
                     <>
                       {(() => {
-                        const prov = llmProviderCatalog.find((p) => p.name === embProvider);
+                        const prov = embProviderCatalog.find((p) => p.id === embProvider);
                         return (
                           prov && (
                             <div className="mb-4 flex items-center gap-3">
-                              <span className="flex h-9 w-9 items-center justify-center rounded-lg text-white" style={{ backgroundColor: prov.color }}>{prov.kind === "local" ? <Cpu className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}</span>
+                              <span className="flex h-9 w-9 items-center justify-center rounded-lg text-white" style={{ backgroundColor: prov.color }}><Cpu className="h-4 w-4" /></span>
                             <div className="min-w-0">
                                   <p className="truncate text-[14px] font-semibold text-slate-900" title={prov.name}>{prov.name}</p>
                                   <p className="truncate text-[11px] text-slate-400" title={prov.desc}>{prov.desc}</p>
@@ -1180,14 +1299,14 @@ export default function Intelligence() {
                             <Field label="Embedding Model">
                             <div className="flex items-stretch gap-2">
                               <div className="min-w-0 flex-1"><SmartSelect value={emb} onChange={setEmb} options={embOptions} searchable /></div>
-                              <button onClick={autoDetectEmb} disabled={detectingEmb || !llmUrl.trim()} className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40" title="Quét lại mô hình">
+                              <button onClick={autoDetectEmb} disabled={detectingEmb} className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40" title="Quét lại mô hình">
                                 {detectingEmb ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                               </button>
                             </div>
                           </Field>
                           </div>
                         </div>
-                      {canDetectEmb && detectedEmb.length > 0 && (
+                      {detectedEmb.length > 0 && (
                         <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -1469,8 +1588,8 @@ export default function Intelligence() {
           </>
         }
       >
-        <p className="text-[13px] leading-relaxed text-slate-600">
-          Workspace <b className="inline-block max-w-[240px] truncate align-bottom text-slate-900" title={wsConfirmDel}>{wsConfirmDel}</b> sẽ bị xoá vĩnh viễn. Tài liệu trong workspace này cũng sẽ bị gỡ khỏi vector DB. Hành động này không thể hoàn tác.
+          <p className="text-[13px] leading-relaxed text-slate-600">
+           Workspace <b className="inline-block max-w-[240px] truncate align-bottom text-slate-900" title={wsConfirmDel ?? undefined}>{wsConfirmDel}</b> sẽ bị xoá vĩnh viễn. Tài liệu trong workspace này cũng sẽ bị gỡ khỏi vector DB. Hành động này không thể hoàn tác.
         </p>
       </Modal>
 

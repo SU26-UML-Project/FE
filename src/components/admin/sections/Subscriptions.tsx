@@ -2,50 +2,30 @@ import { useEffect, useState, useRef } from "react";
 import { useClickOutside } from "../../../hooks/useClickOutside";
 import { BadgePercent, Calculator, CalendarDays, Check, ChevronDown, CircleDollarSign, Crown, LayoutGrid, List, Palette, Pencil, Plus, Sparkles, Trash2, TrendingUp, Users, X, Zap } from "lucide-react";
 import { Badge, Card, Segmented, Skeleton } from "../ui";
+import { ConfirmModal } from "../ConfirmModal";
 import { Modal } from "../Modal";
 import { cn } from "../../../utils/cn";
+import toast from "react-hot-toast";
+import { planService, type PlanResponse, type PlanRequest, type PlanStatus } from "../../../services/planService";
+import { featureService, type FeatureCatalogItem } from "../../../services/featureService";
 
-type PlanStatus = "active" | "draft" | "archived";
-type PlanFeature = { key: string; label: string; included: boolean };
-type PlanLimits = { projects: number; diagrams: number; aiQueries: number; collaborators: number };
-type SubscriptionPlan = { id: number; name: string; description: string; price: number; contactOnly: boolean; status: PlanStatus; popular: boolean; subscribers: number; color: string; features: PlanFeature[]; limits: PlanLimits; yearlyBilling: boolean; yearlyDiscount: number; };
-
-const featureCatalog: { key: string; label: string }[] = [
-  { key: "unlimited_uml", label: "Sơ đồ UML không giới hạn" },
-  { key: "ai_assistant", label: "AI Assistant (RAG)" },
-  { key: "export", label: "Xuất PDF / PNG / SVG" },
-  { key: "premium_templates", label: "Mẫu workspace cao cấp" },
-  { key: "versioning", label: "Phiên bản & lịch sử" },
-  { key: "realtime_collab", label: "Cộng tác thời gian thực" },
-  { key: "private_ws", label: "Workspace riêng tư" },
-  { key: "sso", label: "SSO / SAML" },
-  { key: "api_access", label: "Truy cập API" },
-  { key: "priority_support", label: "Hỗ trợ ưu tiên" },
-];
-
-const mkFeatures = (keys: string[]): PlanFeature[] => featureCatalog.map((f) => ({ ...f, included: keys.includes(f.key) }));
-
-const seedPlans: SubscriptionPlan[] = [
-  { id: 1, name: "Free", description: "Dành cho cá nhân khám phá và phác thảo nhanh.", price: 0, contactOnly: false, status: "active", popular: false, subscribers: 1842, color: "#94a3b8", features: mkFeatures(["export"]), limits: { projects: 3, diagrams: 25, aiQueries: 10, collaborators: 1 }, yearlyBilling: false, yearlyDiscount: 0 },
-  { id: 2, name: "Pro", description: "Cho chuyên gia & nhóm nhỏ cần AI và cộng tác.", price: 290000, contactOnly: false, status: "active", popular: true, subscribers: 746, color: "#6366f1", features: mkFeatures(["unlimited_uml", "ai_assistant", "export", "premium_templates", "versioning", "realtime_collab"]), limits: { projects: 30, diagrams: -1, aiQueries: 1000, collaborators: 5 }, yearlyBilling: true, yearlyDiscount: 20 },
-  { id: 3, name: "Business", description: "Cho đội ngũ lớn cần bảo mật và quản trị.", price: 890000, contactOnly: false, status: "active", popular: false, subscribers: 213, color: "#0ea5e9", features: mkFeatures(["unlimited_uml", "ai_assistant", "export", "premium_templates", "versioning", "realtime_collab", "private_ws", "api_access"]), limits: { projects: -1, diagrams: -1, aiQueries: 10000, collaborators: 25 }, yearlyBilling: true, yearlyDiscount: 17 },
-  { id: 4, name: "Enterprise", description: "Tuỳ biến toàn diện, SSO và hỗ trợ tận nơi.", price: 0, contactOnly: true, status: "draft", popular: false, subscribers: 18, color: "#0f172a", features: mkFeatures(featureCatalog.map((f) => f.key)), limits: { projects: -1, diagrams: -1, aiQueries: -1, collaborators: -1 }, yearlyBilling: false, yearlyDiscount: 0 },
-];
+type PlanFeature = { id: string; label: string; included: boolean };
+type PlanLimits = { projects: number | null; diagrams: number | null; aiQueries: number | null; exportPdf: number | null; collaborators: number | null };
+type SubscriptionPlan = { id: string; name: string; description: string; price: number; currency: string; contactOnly: boolean; status: PlanStatus; popular: boolean; subscribers: number; color: string; features: PlanFeature[]; limits: PlanLimits; yearlyBilling: boolean; yearlyDiscount: number; durationDays: number; rateLimitPer10s: number | null; rateLimitPerMin: number | null; };
 
 const statusLabel: Record<PlanStatus, { tone: "emerald" | "amber" | "slate"; label: string }> = {
-  active: { tone: "emerald", label: "Đang hoạt động" },
-  draft: { tone: "amber", label: "Bản nháp" },
-  archived: { tone: "slate", label: "Đã lưu trữ" },
+  ACTIVE: { tone: "emerald", label: "Đang hoạt động" },
+  DRAFT: { tone: "amber", label: "Bản nháp" },
+  ARCHIVED: { tone: "slate", label: "Đã lưu trữ" },
 };
 
 const accentColors = ["#e4a11b", "#0ea5e9", "#10b981", "#6366f1", "#ec4899", "#0f172a", "#8b5cf6", "#14b8a6"];
 
-type Draft = { id: number; mode: "create" | "edit"; name: string; description: string; price: number; contactOnly: boolean; yearlyBilling: boolean; yearlyDiscount: number; status: PlanStatus; popular: boolean; subscribers: number; color: string; features: Record<string, boolean>; customFeatures: string[]; limits: PlanLimits; };
+type Draft = { id: string; mode: "create" | "edit"; name: string; description: string; price: number; contactOnly: boolean; currency: string; durationDays: number; yearlyBilling: boolean; yearlyDiscount: number; status: PlanStatus; popular: boolean; subscribers: number; color: string; features: Record<string, boolean>; limits: PlanLimits; rateLimitPer10s: number | null; rateLimitPerMin: number | null; };
 type Billing = "monthly" | "yearly";
 
-const unlimited = (v: number) => v < 0;
-const isCatalogKey = (k: string) => featureCatalog.some((f) => f.key === k);
 const fmtVnd = (n: number) => new Intl.NumberFormat("vi-VN").format(n);
+const fmtLimit = (v: number | null) => (v == null ? "—" : v === -1 ? "∞" : fmtVnd(v));
 export const discountLevels = [5, 10, 15, 17, 20, 25, 30];
 
 type PriceInfo = { amount: string; suffix: string; perMonth?: string; saved?: string; isZero: boolean; yearlySupported: boolean; };
@@ -109,8 +89,8 @@ function PlanCard({ plan, billing, onEdit, onDelete, onStatusChange }: { plan: S
   const price = computePrice(plan, billing);
   const included = plan.features.filter((f) => f.included);
   const excluded = plan.features.filter((f) => !f.included);
-  const limit = (label: string, v: number | string) => <div className="rounded-xl bg-slate-50 p-2 text-center ring-1 ring-inset ring-slate-200">
-    <p className="text-[13px] font-bold text-slate-900">{typeof v === "number" ? (v < 0 ? "∞" : fmtVnd(v)) : v}</p>
+  const limit = (label: string, v: number | null) => <div className="rounded-xl bg-slate-50 p-2 text-center ring-1 ring-inset ring-slate-200">
+    <p className="text-[13px] font-bold text-slate-900">{fmtLimit(v)}</p>
     <p className="text-[10.5px] text-slate-400">{label}</p>
   </div>;
 
@@ -126,7 +106,7 @@ function PlanCard({ plan, billing, onEdit, onDelete, onStatusChange }: { plan: S
         </div>
         <div className="relative" ref={ref}>
           <button onClick={() => setOpen(!open)} className={cn("inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition", open && "ring-2 ring-slate-400 ring-offset-1")}>
-            <span className={cn("h-1.5 w-1.5 rounded-full", plan.status === "active" ? "bg-emerald-500" : plan.status === "draft" ? "bg-amber-500" : "bg-slate-400")} />
+            <span className={cn("h-1.5 w-1.5 rounded-full", plan.status === "ACTIVE" ? "bg-emerald-500" : plan.status === "DRAFT" ? "bg-amber-500" : "bg-slate-400")} />
             {statusLabel[plan.status].label}
             <ChevronDown className="h-3 w-3" />
           </button>
@@ -134,7 +114,7 @@ function PlanCard({ plan, billing, onEdit, onDelete, onStatusChange }: { plan: S
             <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
               {(Object.keys(statusLabel) as PlanStatus[]).map((s) => (
                 <button key={s} onClick={() => { onStatusChange(s); setOpen(false); }} className={cn("flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] transition", s === plan.status ? "bg-slate-100 font-medium text-slate-900" : "text-slate-600 hover:bg-slate-50")}>
-                  <span className={cn("h-2 w-2 rounded-full", s === "active" ? "bg-emerald-500" : s === "draft" ? "bg-amber-500" : "bg-slate-400")} />
+                  <span className={cn("h-2 w-2 rounded-full", s === "ACTIVE" ? "bg-emerald-500" : s === "DRAFT" ? "bg-amber-500" : "bg-slate-400")} />
                   {statusLabel[s].label}
                   {s === plan.status && <Check className="ml-auto h-3.5 w-3.5 text-slate-400" />}
                 </button>
@@ -154,12 +134,13 @@ function PlanCard({ plan, billing, onEdit, onDelete, onStatusChange }: { plan: S
       <div className="mt-4 grid grid-cols-2 gap-2">
         {limit("Dự án", plan.limits.projects)}
         {limit("Sơ đồ", plan.limits.diagrams)}
-        {limit("AI query", plan.limits.aiQueries)}
+        {limit("Lượt AI", plan.limits.aiQueries)}
+        {limit("Export PDF", plan.limits.exportPdf)}
         {limit("Cộng tác viên", plan.limits.collaborators)}
       </div>
       <div className="mt-4 space-y-1.5 border-t border-slate-100 pt-3">
-        {included.map((f) => <div key={f.key} className="flex items-center gap-2 text-[12.5px] text-slate-700"><Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" /><span className="truncate">{f.label}</span></div>)}
-        {excluded.slice(0, 2).map((f) => <div key={f.key} className="flex items-center gap-2 text-[12.5px] text-slate-300"><X className="h-3.5 w-3.5 shrink-0" /><span className="truncate line-through">{f.label}</span></div>)}
+        {included.map((f) => <div key={f.id} className="flex items-center gap-2 text-[12.5px] text-slate-700"><Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" /><span className="truncate">{f.label}</span></div>)}
+        {excluded.slice(0, 2).map((f) => <div key={f.id} className="flex items-center gap-2 text-[12.5px] text-slate-300"><X className="h-3.5 w-3.5 shrink-0" /><span className="truncate line-through">{f.label}</span></div>)}
         {excluded.length > 2 && <p className="pl-5 text-[11.5px] text-slate-400">+ {excluded.length - 2} tính năng khác bị tắt</p>}
       </div>
       <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3">
@@ -177,7 +158,7 @@ function PlanRow({ plan, billing, onEdit, onDelete, onStatusChange }: { plan: Su
   const price = computePrice(plan, billing);
   const includedCount = plan.features.filter((f) => f.included).length;
   const totalFeatures = plan.features.length;
-  const lim = (v: number) => (v < 0 ? "∞" : fmtVnd(v));
+  const lim = fmtLimit;
   return <div className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:bg-slate-50">
     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white" style={{ backgroundColor: plan.color }}>
       {plan.popular ? <Crown className="h-[18px] w-[18px]" /> : <CircleDollarSign className="h-[18px] w-[18px]" />}
@@ -203,7 +184,7 @@ function PlanRow({ plan, billing, onEdit, onDelete, onStatusChange }: { plan: Su
     <div className="hidden w-20 shrink-0 text-right xl:block"><p className="text-[13px] font-bold text-slate-900">{fmtVnd(plan.subscribers)}</p><p className="text-[10px] text-slate-400">thuê bao</p></div>
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen(!open)} className={cn("inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition", open && "ring-2 ring-slate-400 ring-offset-1")}>
-        <span className={cn("h-1.5 w-1.5 rounded-full", plan.status === "active" ? "bg-emerald-500" : plan.status === "draft" ? "bg-amber-500" : "bg-slate-400")} />
+        <span className={cn("h-1.5 w-1.5 rounded-full", plan.status === "ACTIVE" ? "bg-emerald-500" : plan.status === "DRAFT" ? "bg-amber-500" : "bg-slate-400")} />
         {statusLabel[plan.status].label}
         <ChevronDown className="h-3 w-3" />
       </button>
@@ -211,7 +192,7 @@ function PlanRow({ plan, billing, onEdit, onDelete, onStatusChange }: { plan: Su
         <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
           {(Object.keys(statusLabel) as PlanStatus[]).map((s) => (
             <button key={s} onClick={() => { onStatusChange(s); setOpen(false); }} className={cn("flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] transition", s === plan.status ? "bg-slate-100 font-medium text-slate-900" : "text-slate-600 hover:bg-slate-50")}>
-              <span className={cn("h-2 w-2 rounded-full", s === "active" ? "bg-emerald-500" : s === "draft" ? "bg-amber-500" : "bg-slate-400")} />
+              <span className={cn("h-2 w-2 rounded-full", s === "ACTIVE" ? "bg-emerald-500" : s === "DRAFT" ? "bg-amber-500" : "bg-slate-400")} />
               {statusLabel[s].label}
               {s === plan.status && <Check className="ml-auto h-3.5 w-3.5 text-slate-400" />}
             </button>
@@ -226,33 +207,21 @@ function PlanRow({ plan, billing, onEdit, onDelete, onStatusChange }: { plan: Su
   </div>;
 }
 
-function LimitField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
-  const unlim = unlimited(value);
+function LimitField({ label, value, onChange }: { label: string; value: number | null; onChange: (v: number | null) => void }) {
+  const unlim = value === -1;
   return <div>
     <div className="mb-1 flex items-center justify-between">
       <span className="text-[12.5px] font-medium text-slate-700">{label}</span>
-      <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-slate-400"><Switch on={unlim} onClick={() => onChange(unlim ? 0 : -1)} /> Không giới hạn</label>
+      <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-slate-400"><Switch on={unlim} onClick={() => onChange(unlim ? null : -1)} /> Không giới hạn</label>
     </div>
-    <input type="text" inputMode="numeric" disabled={unlim} value={unlim ? "" : value} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); onChange(v ? Math.max(0, parseInt(v, 10)) : 0); }} placeholder={unlim ? "∞" : "0"}
+    <input type="text" inputMode="numeric" disabled={unlim} value={unlim ? "" : (value ?? "")} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); onChange(v ? Math.max(0, parseInt(v, 10)) : null); }} placeholder={unlim ? "∞" : "Chưa đặt"}
       className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-900 outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:text-slate-400" />
   </div>;
 }
 
-function PlanEditor({ draft, setDraft, onSave, onClose, tab, onTabChange }: { draft: Draft; setDraft: (d: Draft) => void; onSave: () => void; onClose: () => void; tab: "info" | "config" | "features" | "review"; onTabChange: (t: "info" | "config" | "features" | "review") => void }) {
-  const [newFeature, setNewFeature] = useState("");
+function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChange }: { draft: Draft; setDraft: (d: Draft) => void; catalog: FeatureCatalogItem[]; onSave: () => void; onClose: () => void; tab: "info" | "config" | "features" | "review"; onTabChange: (t: "info" | "config" | "features" | "review") => void }) {
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
   const setLimit = (patch: Partial<PlanLimits>) => set({ limits: { ...draft.limits, ...patch } });
-  const addCustomFeature = () => {
-    const label = newFeature.trim();
-    if (!label || draft.customFeatures.includes(label)) return;
-    set({ customFeatures: [...draft.customFeatures, label], features: { ...draft.features, [`custom_${label}`]: true } });
-    setNewFeature("");
-  };
-  const removeCustomFeature = (label: string) => {
-    const key = `custom_${label}`;
-    const { [key]: _omit, ...rest } = draft.features;
-    set({ customFeatures: draft.customFeatures.filter((f) => f !== label), features: rest });
-  };
   const inputCls = "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-900 outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100";
 
   const steps = ["info", "config", "features", "review"] as const;
@@ -270,7 +239,7 @@ function PlanEditor({ draft, setDraft, onSave, onClose, tab, onTabChange }: { dr
           <label className="block"><span className="mb-1 block text-[12.5px] font-medium text-slate-700">Trạng thái</span>
             <div className="relative">
               <select value={draft.status} onChange={(e) => set({ status: e.target.value as PlanStatus })} className={cn(inputCls, "appearance-none pr-9")}>
-                <option value="active">Đang hoạt động</option><option value="draft">Bản nháp</option><option value="archived">Đã lưu trữ</option>
+                <option value="ACTIVE">Đang hoạt động</option><option value="DRAFT">Bản nháp</option><option value="ARCHIVED">Đã lưu trữ</option>
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             </div>
@@ -353,12 +322,27 @@ function PlanEditor({ draft, setDraft, onSave, onClose, tab, onTabChange }: { dr
       </div>
 
       <div>
-        <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Giới hạn sử dụng</p>
+        <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Giới hạn sử dụng (theo kỳ)</p>
         <div className="grid gap-2.5 sm:grid-cols-2">
           <LimitField label="Số dự án" value={draft.limits.projects} onChange={(v) => setLimit({ projects: v })} />
           <LimitField label="Số sơ đồ UML" value={draft.limits.diagrams} onChange={(v) => setLimit({ diagrams: v })} />
-          <LimitField label="Lượt AI query" value={draft.limits.aiQueries} onChange={(v) => setLimit({ aiQueries: v })} />
+          <LimitField label="Lượt AI / kỳ" value={draft.limits.aiQueries} onChange={(v) => setLimit({ aiQueries: v })} />
+          <LimitField label="Export PDF / kỳ" value={draft.limits.exportPdf} onChange={(v) => setLimit({ exportPdf: v })} />
           <LimitField label="Cộng tác viên" value={draft.limits.collaborators} onChange={(v) => setLimit({ collaborators: v })} />
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Rate limit <span className="font-normal normal-case text-slate-400">— kỹ thuật, ẩn với người dùng</span></p>
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-[12.5px] font-medium text-slate-700">Request / 10 giây</span>
+            <input type="text" inputMode="numeric" value={draft.rateLimitPer10s ?? ""} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); set({ rateLimitPer10s: v ? parseInt(v, 10) : null }); }} placeholder="Không giới hạn" className={inputCls} />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[12.5px] font-medium text-slate-700">Request / phút</span>
+            <input type="text" inputMode="numeric" value={draft.rateLimitPerMin ?? ""} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); set({ rateLimitPerMin: v ? parseInt(v, 10) : null }); }} placeholder="Không giới hạn" className={inputCls} />
+          </label>
         </div>
       </div>
     </div>}
@@ -366,32 +350,21 @@ function PlanEditor({ draft, setDraft, onSave, onClose, tab, onTabChange }: { dr
     {tab === "features" && <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Tính năng đi kèm</p>
-        <span className="text-[11px] text-slate-400">{Object.values(draft.features).filter(Boolean).length}/{featureCatalog.length + draft.customFeatures.length} bật</span>
+        <span className="text-[11px] text-slate-400">{Object.values(draft.features).filter(Boolean).length}/{catalog.length} bật</span>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {featureCatalog.map((f) => {
-          const on = draft.features[f.key];
-          return <button key={f.key} onClick={() => set({ features: { ...draft.features, [f.key]: !on } })} className={cn("flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition", on ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:bg-slate-50")}>
-            <span className={cn("flex h-5 w-5 items-center justify-center rounded-md border transition", on ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white")}>{on && <Check className="h-3 w-3" />}</span>
-            <span className={cn("text-[12.5px]", on ? "text-slate-800" : "text-slate-500")}>{f.label}</span>
-          </button>;
-        })}
-        {draft.customFeatures.map((label) => {
-          const key = `custom_${label}`;
-          const on = draft.features[key];
-          return <div key={key} className={cn("flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition", on ? "border-slate-900 bg-slate-50" : "border-slate-200")}>
-            <button onClick={() => set({ features: { ...draft.features, [key]: !on } })} className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition", on ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white")}>{on && <Check className="h-3 w-3" />}</button>
-            <span className="flex-1 truncate text-[12.5px] text-slate-700">{label}</span>
-            <button onClick={() => removeCustomFeature(label)} className="shrink-0 rounded p-0.5 text-slate-300 transition hover:bg-rose-50 hover:text-rose-600"><X className="h-3.5 w-3.5" /></button>
-          </div>;
-        })}
-      </div>
-      <div className="flex items-center gap-2">
-        <input value={newFeature} onChange={(e) => setNewFeature(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCustomFeature()} placeholder="Thêm tính năng riêng…" className={cn(inputCls, "border-dashed")} />
-        <button onClick={addCustomFeature} disabled={!newFeature.trim()} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-slate-700 disabled:opacity-40">
-          <Plus className="h-4 w-4" /> Thêm
-        </button>
-      </div>
+      {catalog.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-slate-200 py-6 text-center text-[12.5px] text-slate-400">Danh mục tính năng đang trống. Thêm tính năng ở mục quản lý danh mục trước.</p>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {catalog.map((f) => {
+            const on = !!draft.features[f.id];
+            return <button key={f.id} type="button" onClick={() => set({ features: { ...draft.features, [f.id]: !on } })} className={cn("flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition", on ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:bg-slate-50")}>
+              <span className={cn("flex h-5 w-5 items-center justify-center rounded-md border transition", on ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white")}>{on && <Check className="h-3 w-3" />}</span>
+              <span className={cn("text-[12.5px]", on ? "text-slate-800" : "text-slate-500")}>{f.label}</span>
+            </button>;
+          })}
+        </div>
+      )}
     </div>}
 
     {tab === "review" && <div className="space-y-4">
@@ -425,9 +398,9 @@ function PlanEditor({ draft, setDraft, onSave, onClose, tab, onTabChange }: { dr
       <div>
         <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Giới hạn</p>
         <div className="grid grid-cols-2 gap-2">
-          {[{ label: "Dự án", v: draft.limits.projects }, { label: "Sơ đồ UML", v: draft.limits.diagrams }, { label: "AI query", v: draft.limits.aiQueries }, { label: "Cộng tác viên", v: draft.limits.collaborators }].map((x) => (
+          {[{ label: "Dự án", v: draft.limits.projects }, { label: "Sơ đồ UML", v: draft.limits.diagrams }, { label: "Lượt AI", v: draft.limits.aiQueries }, { label: "Export PDF", v: draft.limits.exportPdf }, { label: "Cộng tác viên", v: draft.limits.collaborators }].map((x) => (
             <div key={x.label} className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-center">
-              <p className="text-[13px] font-bold text-slate-900">{unlimited(x.v) ? "∞" : fmtVnd(x.v)}</p>
+              <p className="text-[13px] font-bold text-slate-900">{fmtLimit(x.v)}</p>
               <p className="text-[10.5px] text-slate-400">{x.label}</p>
             </div>
           ))}
@@ -435,11 +408,11 @@ function PlanEditor({ draft, setDraft, onSave, onClose, tab, onTabChange }: { dr
       </div>
 
       <div>
-        <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Tính năng ({Object.values(draft.features).filter(Boolean).length}/{featureCatalog.length + draft.customFeatures.length} bật)</p>
+        <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Tính năng ({Object.values(draft.features).filter(Boolean).length}/{catalog.length} bật)</p>
         <div className="grid grid-cols-2 gap-1.5">
-          {featureCatalog.map((f) => {
-            const on = draft.features[f.key];
-            return <div key={f.key} className={cn("flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px]", on ? "text-slate-700" : "text-slate-300")}>
+          {catalog.map((f) => {
+            const on = !!draft.features[f.id];
+            return <div key={f.id} className={cn("flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px]", on ? "text-slate-700" : "text-slate-300")}>
               <span className={cn(on ? "text-emerald-600" : "text-slate-200")}>{on ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}</span>
               {f.label}
             </div>;
@@ -476,56 +449,154 @@ function PlanEditor({ draft, setDraft, onSave, onClose, tab, onTabChange }: { dr
 
 function toDraft(plan: SubscriptionPlan): Draft {
   const features: Record<string, boolean> = {};
-  featureCatalog.forEach((f) => (features[f.key] = plan.features.some((p) => p.key === f.key && p.included)));
-  const customFeatures: string[] = [];
-  plan.features.filter((p) => !isCatalogKey(p.key)).forEach((p) => { customFeatures.push(p.label); features[p.key] = p.included; });
-  return { id: plan.id, mode: "edit", name: plan.name, description: plan.description, price: plan.price, contactOnly: plan.contactOnly, yearlyBilling: plan.yearlyBilling, yearlyDiscount: plan.yearlyDiscount, status: plan.status, popular: plan.popular, subscribers: plan.subscribers, color: plan.color, features, customFeatures, limits: { ...plan.limits } };
+  plan.features.forEach((f) => (features[f.id] = f.included));
+  return { id: plan.id, mode: "edit", name: plan.name, description: plan.description, price: plan.price, contactOnly: plan.contactOnly, currency: plan.currency, durationDays: plan.durationDays, yearlyBilling: plan.yearlyBilling, yearlyDiscount: plan.yearlyDiscount, status: plan.status, popular: plan.popular, subscribers: plan.subscribers, color: plan.color, features, limits: { ...plan.limits }, rateLimitPer10s: plan.rateLimitPer10s, rateLimitPerMin: plan.rateLimitPerMin };
 }
 
-function blankDraft(): Draft {
+function blankDraft(catalog: FeatureCatalogItem[]): Draft {
   const features: Record<string, boolean> = {};
-  featureCatalog.forEach((f) => (features[f.key] = false));
-  return { id: 0, mode: "create", name: "", description: "", price: 0, contactOnly: false, yearlyBilling: false, yearlyDiscount: 20, status: "draft", popular: false, subscribers: 0, color: accentColors[0], features, customFeatures: [], limits: { projects: 5, diagrams: 50, aiQueries: 100, collaborators: 1 } };
+  catalog.forEach((f) => (features[f.id] = false));
+  return { id: "", mode: "create", name: "", description: "", price: 0, contactOnly: false, currency: "VND", durationDays: 30, yearlyBilling: false, yearlyDiscount: 20, status: "DRAFT", popular: false, subscribers: 0, color: accentColors[0], features, limits: { projects: 5, diagrams: 50, aiQueries: 100, exportPdf: 10, collaborators: 1 }, rateLimitPer10s: null, rateLimitPerMin: null };
 }
 
-function draftToPlan(d: Draft, base?: SubscriptionPlan): SubscriptionPlan {
-  const features: PlanFeature[] = featureCatalog.map((f) => ({ key: f.key, label: f.label, included: !!d.features[f.key] }));
-  d.customFeatures.forEach((label) => { features.push({ key: `custom_${label}`, label, included: !!d.features[`custom_${label}`] }); });
-  return { id: base?.id ?? d.id, name: d.name.trim() || "Gói chưa đặt tên", description: d.description.trim() || "—", price: d.contactOnly ? 0 : d.price, contactOnly: d.contactOnly, yearlyBilling: d.yearlyBilling && !d.contactOnly, yearlyDiscount: d.yearlyDiscount, status: d.status, popular: d.popular, subscribers: d.subscribers, color: d.color, features, limits: d.limits };
+function fromApi(be: PlanResponse): SubscriptionPlan {
+  return {
+    id: be.id,
+    name: be.name,
+    description: be.description ?? "",
+    price: be.price,
+    currency: be.currency || "VND",
+    contactOnly: be.contactSales ?? false,
+    status: be.status,
+    popular: be.popular,
+    subscribers: be.subscribers,
+    color: be.color || "#94a3b8",
+    features: (be.features ?? []).map((f) => ({ id: f.id, label: f.label, included: f.included })),
+    limits: {
+      projects: be.limits?.projects ?? null,
+      diagrams: be.limits?.diagrams ?? null,
+      aiQueries: be.limits?.aiQueries ?? null,
+      exportPdf: be.limits?.exportPdf ?? null,
+      collaborators: be.limits?.collaborators ?? null,
+    },
+    yearlyBilling: be.yearlyBilling,
+    yearlyDiscount: be.yearlyDiscount,
+    durationDays: be.durationDays ?? 30,
+    rateLimitPer10s: be.rateLimitPer10s ?? null,
+    rateLimitPerMin: be.rateLimitPerMin ?? null,
+  };
+}
+
+function draftToRequest(d: Draft): PlanRequest {
+  return {
+    name: d.name.trim() || "Gói chưa đặt tên",
+    price: d.price,
+    description: d.description.trim(),
+    currency: "VND",
+    status: d.status,
+    popular: d.popular,
+    color: d.color,
+    contactSales: d.contactOnly,
+    yearlyBilling: d.yearlyBilling,
+    yearlyDiscount: d.yearlyDiscount,
+    durationDays: d.durationDays,
+    rateLimitPer10s: d.rateLimitPer10s,
+    rateLimitPerMin: d.rateLimitPerMin,
+    limits: d.limits,
+    enabledFeatureIds: Object.entries(d.features).filter(([, on]) => on).map(([id]) => id),
+  };
+}
+
+function planToRequest(p: SubscriptionPlan, patch?: Partial<PlanRequest>): PlanRequest {
+  return {
+    name: p.name,
+    price: p.price,
+    description: p.description,
+    currency: p.currency,
+    status: p.status,
+    popular: p.popular,
+    color: p.color,
+    contactSales: p.contactOnly,
+    yearlyBilling: p.yearlyBilling,
+    yearlyDiscount: p.yearlyDiscount,
+    durationDays: p.durationDays,
+    rateLimitPer10s: p.rateLimitPer10s,
+    rateLimitPerMin: p.rateLimitPerMin,
+    limits: p.limits,
+    enabledFeatureIds: p.features.filter((f) => f.included).map((f) => f.id),
+    ...patch,
+  };
 }
 
 export default function SubscriptionsSection() {
-  const [plans, setPlans] = useState<SubscriptionPlan[]>(seedPlans);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [catalog, setCatalog] = useState<FeatureCatalogItem[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmDel, setConfirmDel] = useState<SubscriptionPlan | null>(null);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [billing, setBilling] = useState<Billing>("monthly");
   const [editorTab, setEditorTab] = useState<"info" | "config" | "features" | "review">("info");
   const [loading, setLoading] = useState(true);
-  useEffect(() => { const t = setTimeout(() => setLoading(false), 400); return () => clearTimeout(t); }, []);
 
-  const activePlans = plans.filter((p) => p.status === "active").length;
+  useEffect(() => {
+    let alive = true;
+    Promise.all([planService.getAdminPlans(), featureService.getFeatures()])
+      .then(([ps, cat]) => {
+        if (!alive) return;
+        setCatalog(cat ?? []);
+        setPlans((ps ?? []).map(fromApi));
+      })
+      .catch(() => { if (alive) toast.error("Không tải được danh sách gói"); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
+
+  const activePlans = plans.filter((p) => p.status === "ACTIVE").length;
   const totalSubs = plans.reduce((s, p) => s + p.subscribers, 0);
   const yearlyCount = plans.filter((p) => p.yearlyBilling).length;
-  const mrr = plans.filter((p) => p.status === "active").reduce((s, p) => s + p.price * p.subscribers, 0);
+  const mrr = plans.filter((p) => p.status === "ACTIVE").reduce((s, p) => s + p.price * p.subscribers, 0);
 
-  function save() {
+  async function save() {
     if (!draft) return;
-    if (draft.mode === "edit") {
-      const base = plans.find((p) => p.id === draft.id);
-      setPlans((arr) => arr.map((p) => (p.id === (base?.id ?? 0) ? draftToPlan(draft, base) : p)));
-    } else {
-      setPlans((arr) => [...arr, draftToPlan({ ...draft, id: Date.now() })]);
+    const body = draftToRequest(draft);
+    try {
+      if (draft.mode === "edit") {
+        const updated = await planService.updatePlan(draft.id, body);
+        setPlans((arr) => arr.map((p) => (p.id === draft.id ? fromApi(updated) : p)));
+        toast.success("Đã lưu gói");
+      } else {
+        const created = await planService.createPlan(body);
+        setPlans((arr) => [...arr, fromApi(created)]);
+        toast.success("Đã tạo gói");
+      }
+      setDraft(null);
+    } catch (e: any) {
+      toast.error(e?.message || "Lưu gói thất bại");
     }
-    setDraft(null);
   }
-  function doDelete() {
+  async function doDelete() {
     if (!confirmDel) return;
-    setPlans((arr) => arr.filter((p) => p.id !== confirmDel.id));
-    setConfirmDel(null);
+    try {
+      await planService.deletePlan(confirmDel.id);
+      setPlans((arr) => arr.filter((p) => p.id !== confirmDel.id));
+      toast.success("Đã xoá gói");
+      setConfirmDel(null);
+    } catch (e: any) {
+      toast.error(e?.message || "Xoá gói thất bại");
+    }
   }
-  function changeStatus(planId: number, status: PlanStatus) {
-    setPlans((arr) => arr.map((p) => p.id === planId ? { ...p, status } : p));
+  async function changeStatus(planId: string, status: PlanStatus) {
+    const plan = plans.find((p) => p.id === planId);
+    if (!plan) return;
+    const prev = plan.status;
+    setPlans((arr) => arr.map((p) => (p.id === planId ? { ...p, status } : p)));
+    try {
+      const updated = await planService.updatePlan(planId, planToRequest(plan, { status }));
+      setPlans((arr) => arr.map((p) => (p.id === planId ? fromApi(updated) : p)));
+    } catch (e: any) {
+      setPlans((arr) => arr.map((p) => (p.id === planId ? { ...p, status: prev } : p)));
+      toast.error(e?.message || "Đổi trạng thái thất bại");
+    }
   }
 
   if (loading) {
@@ -601,7 +672,7 @@ export default function SubscriptionsSection() {
           <div><h3 className="text-[14px] font-semibold text-slate-900">Các gói subscription</h3><p className="text-[13px] text-slate-500">Tạo gói và bật/tắt từng tính năng đi kèm.</p></div>
           <div className="flex items-center gap-2">
             <Segmented value={view} onChange={setView} options={[{ id: "grid", label: "", icon: <LayoutGrid className="h-4 w-4" /> }, { id: "list", label: "", icon: <List className="h-4 w-4" /> }]} />
-            <button onClick={() => setDraft(blankDraft())} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-slate-700">
+            <button onClick={() => setDraft(blankDraft(catalog))} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-slate-700">
               <Plus className="h-4 w-4" /> Tạo gói
             </button>
           </div>
@@ -638,14 +709,14 @@ export default function SubscriptionsSection() {
             </svg>
             <p className="text-[15px] font-medium text-slate-400">Chưa có gói subscription nào</p>
             <p className="text-[13px] text-slate-400">Tạo gói đầu tiên để bắt đầu cung cấp subscription cho người dùng.</p>
-            <button onClick={() => setDraft(blankDraft())} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-[13px] font-medium text-white transition hover:bg-slate-700">
+            <button onClick={() => setDraft(blankDraft(catalog))} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-[13px] font-medium text-white transition hover:bg-slate-700">
               <Plus className="h-4 w-4" /> Tạo gói đầu tiên
             </button>
           </div>
         ) : view === "grid" ? (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
             {plans.map((p) => <PlanCard key={p.id} billing={billing} plan={p} onEdit={() => setDraft(toDraft(p))} onDelete={() => setConfirmDel(p)} onStatusChange={(s) => changeStatus(p.id, s)} />)}
-            <button onClick={() => setDraft(blankDraft())} className="flex min-h-[240px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 transition hover:border-indigo-300 hover:text-indigo-500"><Plus className="h-7 w-7" /><span className="text-[13px] font-medium">Tạo gói mới</span></button>
+            <button onClick={() => setDraft(blankDraft(catalog))} className="flex min-h-[240px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 transition hover:border-indigo-300 hover:text-indigo-500"><Plus className="h-7 w-7" /><span className="text-[13px] font-medium">Tạo gói mới</span></button>
           </div>
         ) : (
           <div className="space-y-2">
@@ -655,7 +726,7 @@ export default function SubscriptionsSection() {
               <span className="hidden w-20 shrink-0 text-right xl:block">Thuê bao</span><span className="w-[68px] shrink-0">Trạng thái</span><span className="w-[72px] shrink-0 text-right">Thao tác</span>
             </div>
             {plans.map((p) => <PlanRow key={p.id} billing={billing} plan={p} onEdit={() => setDraft(toDraft(p))} onDelete={() => setConfirmDel(p)} onStatusChange={(s) => changeStatus(p.id, s)} />)}
-            <button onClick={() => setDraft(blankDraft())} className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-4 text-[13px] font-medium text-slate-400 transition hover:border-indigo-300 hover:text-indigo-500"><Plus className="h-5 w-5" /> Tạo gói mới</button>
+            <button onClick={() => setDraft(blankDraft(catalog))} className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-4 text-[13px] font-medium text-slate-400 transition hover:border-indigo-300 hover:text-indigo-500"><Plus className="h-5 w-5" /> Tạo gói mới</button>
           </div>
         )}
       </Card>
@@ -668,13 +739,18 @@ export default function SubscriptionsSection() {
             </button>
           ))}
         </div>}>
-        {draft && <PlanEditor draft={draft} setDraft={setDraft} onSave={save} onClose={() => setDraft(null)} tab={editorTab} onTabChange={setEditorTab} />}
+        {draft && <PlanEditor draft={draft} setDraft={setDraft} catalog={catalog} onSave={save} onClose={() => setDraft(null)} tab={editorTab} onTabChange={setEditorTab} />}
       </Modal>
 
-      <Modal open={!!confirmDel} onClose={() => setConfirmDel(null)} title="Xoá gói subscription?" size="sm"
-        footer={<><button onClick={() => setConfirmDel(null)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50">Huỷ</button><button onClick={doDelete} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-rose-700"><Trash2 className="h-4 w-4" /> Xoá gói</button></>}>
-        <p className="text-[13px] leading-relaxed text-slate-600">Gói <b className="text-slate-900">{confirmDel?.name}</b> đang có <b className="text-slate-900">{fmtVnd(confirmDel?.subscribers ?? 0)}</b> thuê bao sẽ bị xoá. Người dùng đang sử dụng gói này sẽ cần được chuyển sang gói khác. Hành động không thể hoàn tác.</p>
-      </Modal>
+      <ConfirmModal
+        open={!!confirmDel}
+        onClose={() => setConfirmDel(null)}
+        title="Xoá gói subscription?"
+        message={`Gói ${confirmDel?.name} đang có ${fmtVnd(confirmDel?.subscribers ?? 0)} thuê bao sẽ bị xoá. Người dùng đang sử dụng gói này sẽ cần được chuyển sang gói khác. Hành động không thể hoàn tác.`}
+        confirmLabel="Xoá gói"
+        confirmTone="red"
+        onConfirm={doDelete}
+      />
       </div>
     </div>
   );

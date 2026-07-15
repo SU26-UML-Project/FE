@@ -51,10 +51,8 @@ export const aiAdminService = {
     return apiClient.delete<any, ApiResponse<void>>(`/ai/workspace/${slug}`);
   },
 
-  getProviderModels: async (provider: string, basePath?: string): Promise<ApiResponse<string[]>> => {
-    const params: any = {};
-    if (basePath) params.basePath = basePath;
-    return apiClient.get<any, ApiResponse<string[]>>(`/ai/providers/${provider}/models`, { params });
+  getProviderModels: async (provider: string, basePath?: string, apiKey?: string): Promise<ApiResponse<string[]>> => {
+    return apiClient.post<any, ApiResponse<string[]>>(`/ai/providers/${provider}/models`, { basePath, apiKey });
   },
 
   getDocuments: async (workspaceSlug?: string): Promise<ApiResponse<AiDocument[]>> => {

@@ -81,41 +81,41 @@ const Hero = () => {
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-6 pt-32 pb-12" data-purpose="hero-content">
+    <main className="max-w-7xl mx-auto px-6 pt-32 pb-0" data-purpose="hero-content">
       <div className="max-w-3xl">
-        <motion.h1 
+        <motion.h1
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="text-5xl md:text-6xl font-priego-extrabold text-black uppercase mb-6"
         >
-          DESIGN COMPLEX<br />SYSTEMS, SIMPLY.
+          THIẾT KẾ HỆ THỐNG<br />PHỨC TẠP, ĐƠN GIẢN.
         </motion.h1>
-        <motion.p 
+        <motion.p
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
           className="text-xl text-gray-700 mb-10 max-w-2xl leading-relaxed"
         >
-          Visualize software architecture, processes, and systems using intuitive, standard UML diagrams. Built for engineering teams.
+          Trực quan hóa kiến trúc phần mềm, quy trình và hệ thống bằng các sơ đồ UML chuẩn, trực quan. Được xây dựng cho các đội ngũ kỹ thuật.
         </motion.p>
-        <motion.div 
+        <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
-          className="flex flex-wrap gap-4 mb-20" 
+          className="flex flex-wrap gap-4 mb-16"
           data-purpose="hero-actions"
         >
           <button className="px-8 py-4 bg-uml-blue text-white font-bold rounded-md hover:bg-blue-700 transition tracking-wide uppercase">
-            START FREE TRIAL
+            DÙNG THỬ MIỄN PHÍ
           </button>
           <button className="px-8 py-4 bg-white border-2 border-black text-black font-bold rounded-md hover:bg-gray-50 transition tracking-wide uppercase">
-            VIEW ALL DIAGRAM
+            XEM TẤT CẢ SƠ ĐỒ
           </button>
         </motion.div>
       </div>
 
-      <div className="relative w-full flex justify-center mt-12 min-h-[700px]" data-purpose="product-visual">
+      <div className="relative w-full flex justify-center mt-4 min-h-[560px]" data-purpose="product-visual">
         <div className="relative w-full max-w-5xl h-[600px]">
           {/* Laptop Mockup */}
           <motion.div 
@@ -125,7 +125,7 @@ const Hero = () => {
             animate={["showcase", "final"]}
             variants={laptopVariants}
           >
-             <img src={laptopMockup} alt="Laptop Mockup" className="w-full h-full drop-shadow-sm object-contain" />
+             <img src={laptopMockup} alt="Giao diện DiaUML trên laptop" className="w-full h-full drop-shadow-sm object-contain" />
           </motion.div>
           
           {/* Tablet Mockup */}
@@ -137,7 +137,7 @@ const Hero = () => {
             variants={tabletVariants}
             transition={{ delay: 1.5 }} // Sequence after laptop starts
           >
-            <img src={tabletMockup} alt="Tablet Mockup" className="w-full h-full drop-shadow-2xl object-contain" />
+            <img src={tabletMockup} alt="Giao diện DiaUML trên máy tính bảng" className="w-full h-full drop-shadow-2xl object-contain" />
           </motion.div>
 
           {/* Mobile Mockup */}
@@ -149,7 +149,7 @@ const Hero = () => {
             variants={mobileVariants}
             transition={{ delay: 3 }} // Sequence after tablet starts
           >
-            <img src={mobileMockup} alt="Mobile Mockup" className="w-full h-full drop-shadow-2xl object-contain" />
+            <img src={mobileMockup} alt="Giao diện DiaUML trên điện thoại" className="w-full h-full drop-shadow-2xl object-contain" />
           </motion.div>
         </div>
       </div>

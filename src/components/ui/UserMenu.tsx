@@ -102,13 +102,9 @@ const UserMenu = () => {
             <div className="py-1.5">
               <MenuItem icon={<UserCircle size={17} />} label="Profile" onClick={() => go('/profile')} />
               <MenuItem icon={<LayoutDashboard size={17} />} label="Dashboard" onClick={() => go('/dashboard')} />
-              {/* --- DISABLED FOR TESTING: Always show Admin Panel --- */}
-              <MenuItem icon={<Shield size={17} />} label="Admin Panel" onClick={() => go('/admin')} />
-              {/* 
               {role === 'ADMIN' && (
                 <MenuItem icon={<Shield size={17} />} label="Admin Panel" onClick={() => go('/admin')} />
               )}
-              */}
             </div>
 
             <div className="border-t border-gray-100 py-1.5">

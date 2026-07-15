@@ -18,6 +18,7 @@ import PrebuiltDetail from './pages/PrebuiltDetail'
 import { Editor } from "./components/Editor"
 import { useAuthStore } from './stores/useAuthStore'
 import GlobalAIChatSidebar from './components/Chat/GlobalAIChatSidebar'
+import ScrollToTop from './components/ui/ScrollToTop'
 import { authService } from './services/authService'
 import { setAuthCookie, COOKIE_KEYS } from './utils/auth'
 
@@ -123,7 +124,7 @@ export default function App() {
   return (
     <div className={`min-h-screen flex flex-col ${!isAdminPage && !isDashboardPage && !isWorkspacePage ? 'grid-background' : ''}`}>
       <OAuth2Handler />
-      {!isAdminPage && !isWorkspacePage && !isWorkspacePage && location.pathname !== '/payment-information' && <Navbar />}
+      {!isAdminPage && !isWorkspacePage && !isWorkspacePage && <Navbar />}
 
       <div className="flex-1 flex overflow-hidden relative">
         <main className={`flex-1 transition-all duration-300 ease-in-out ${isAiSidebarOpen && !isAdminPage && !isWorkspacePage && !isMarketingPage && !isDashboardPage ? 'mr-[380px]' : ''}`}>
@@ -161,8 +162,9 @@ export default function App() {
         )}
       </div>
 
-      {!isAdminPage && !isDashboardPage && !isWorkspacePage && !isWorkspacePage && location.pathname !== '/payment-information' && <Footer />}
+      {!isAdminPage && !isDashboardPage && !isWorkspacePage && !isWorkspacePage && <Footer />}
       <ScrollToHash />
+      <ScrollToTop />
       <Toaster position="top-right" />
     </div>
   )

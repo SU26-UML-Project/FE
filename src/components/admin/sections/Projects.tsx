@@ -1,14 +1,10 @@
-import { useEffect, useState } from "react";
-import { FolderKanban, LayoutGrid, List, Plus } from "lucide-react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { ChevronRight, FolderKanban, LayoutGrid, List, Plus } from "lucide-react";
 import { projectService } from "../../../services/projectService";
 import type { ProjectResponse } from "../../../types/project";
 import { Avatar, Badge, Card, Segmented, Skeleton } from "../ui";
-
-const statusMeta: Record<string, { tone: "emerald" | "amber" | "slate"; label: string }> = {
-  "on-track": { tone: "emerald", label: "Đúng tiến độ" },
-  "at-risk": { tone: "amber", label: "Cần chú ý" },
-  draft: { tone: "slate", label: "Bản nháp" },
-};
+import { Pagination } from "../Pagination";
+import { cn } from "../../../utils/cn";
 
 function getInitials(name?: string) {
   if (!name) return "?";
@@ -33,10 +29,6 @@ function relativeTime(iso?: string) {
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days} ngày trước`;
   return new Date(iso).toLocaleDateString("vi-VN");
-}
-
-function projectStatus(p: ProjectResponse): "on-track" | "draft" {
-  return p.isDraft ? "draft" : "on-track";
 }
 
 function StatCard({ label, value, delta }: { label: string; value: string; delta?: string }) {
@@ -75,6 +67,36 @@ export default function Projects() {
 
   const onTrack = projects.filter((p) => !p.isDraft).length;
   const draftCount = projects.filter((p) => p.isDraft).length;
+
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
+
+  // Gộp dự án theo chủ sở hữu (ưu tiên userId để không nhầm khi trùng tên).
+  const groups = useMemo(() => {
+    const map = new Map<string, { key: string; name: string; projects: ProjectResponse[] }>();
+    for (const p of projects) {
+      const key = p.userId ?? p.ownerEmail ?? p.ownerName ?? "—";
+      let g = map.get(key);
+      if (!g) {
+        g = { key, name: p.ownerName ?? p.ownerEmail ?? "Không rõ", projects: [] };
+        map.set(key, g);
+      }
+      g.projects.push(p);
+    }
+    return Array.from(map.values()).sort((a, b) => b.projects.length - a.projects.length);
+  }, [projects]);
+
+  const pageCount = Math.max(1, Math.ceil(groups.length / PAGE_SIZE));
+  const pageGroups = groups.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+
+  const toggleOwner = (key: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   return (
     <div className="flex h-full flex-col gap-5 overflow-hidden">
@@ -170,7 +192,6 @@ export default function Projects() {
                   <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
                     <FolderKanban className="h-5 w-5" />
                   </span>
-                  <Badge tone={statusMeta[projectStatus(p)].tone}>{statusMeta[projectStatus(p)].label}</Badge>
                 </div>
                 <h4 className="mt-3 text-[14.5px] font-semibold text-slate-900">{p.projectName}</h4>
                 <p className="text-[12px] text-slate-400">{p.description ?? "—"}</p>
@@ -201,49 +222,64 @@ export default function Projects() {
             ))}
           </div>
         ) : (
+          <>
           <div className="-mx-2 overflow-x-auto">
             <table className="w-full min-w-[640px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-slate-100 text-[11px] uppercase tracking-wide text-slate-400">
                   <th className="px-3 py-2 font-semibold">Dự án</th>
-                  <th className="px-3 py-2 font-semibold">Chủ sở hữu</th>
                   <th className="px-3 py-2 text-right font-semibold">Sơ đồ</th>
                   <th className="px-3 py-2 text-right font-semibold">Thành viên</th>
-                  <th className="px-3 py-2 font-semibold">Trạng thái</th>
                   <th className="px-3 py-2 font-semibold">Cập nhật</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {projects.map((p) => (
-                  <tr key={p.id} className="transition hover:bg-slate-50">
-                    <td className="px-3 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><FolderKanban className="h-4 w-4" /></span>
-                        <div>
-                          <p className="text-[13px] font-medium text-slate-900">{p.projectName}</p>
-                          <p className="text-[11.5px] text-slate-400">{p.description ?? "—"}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {p.ownerName ? (
-                        <div className="flex items-center gap-2">
-                          <Avatar initials={getInitials(p.ownerName)} color={hashColor(p.ownerName)} size="h-6 w-6" />
-                          <span className="text-[12.5px] text-slate-600">{p.ownerName}</span>
-                        </div>
-                      ) : (
-                        <span className="text-[12.5px] text-slate-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 text-right text-[13px] font-semibold text-slate-900">{p.diagramCount ?? "—"}</td>
-                    <td className="px-3 py-2.5 text-right text-[13px] text-slate-600">—</td>
-                    <td className="px-3 py-2.5"><Badge tone={statusMeta[projectStatus(p)].tone}>{statusMeta[projectStatus(p)].label}</Badge></td>
-                    <td className="px-3 py-2.5 text-[12px] text-slate-400">{relativeTime(p.updatedAt)}</td>
-                  </tr>
-                ))}
+              <tbody>
+                {pageGroups.map((g) => {
+                  const isOpen = expanded.has(g.key);
+                  return (
+                    <Fragment key={g.key}>
+                      {/* Dòng cha: chủ sở hữu */}
+                      <tr
+                        onClick={() => toggleOwner(g.key)}
+                        className="cursor-pointer border-b border-slate-100 bg-slate-50/50 transition hover:bg-slate-100/70"
+                      >
+                        <td colSpan={4} className="px-3 py-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <ChevronRight className={cn("h-4 w-4 shrink-0 text-slate-400 transition-transform", isOpen && "rotate-90")} />
+                            <Avatar initials={getInitials(g.name)} color={hashColor(g.name)} size="h-7 w-7" />
+                            <span className="text-[13px] font-semibold text-slate-900">{g.name}</span>
+                            <Badge tone="slate">{g.projects.length} dự án</Badge>
+                          </div>
+                        </td>
+                      </tr>
+                      {/* Dòng con: các dự án của chủ sở hữu */}
+                      {isOpen && g.projects.map((p) => (
+                        <tr key={p.id} className="border-b border-slate-50 transition hover:bg-slate-50">
+                          <td className="px-3 py-2.5 pl-11">
+                            <div className="flex items-center gap-2.5">
+                              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><FolderKanban className="h-4 w-4" /></span>
+                              <div>
+                                <p className="text-[13px] font-medium text-slate-900">{p.projectName}</p>
+                                <p className="text-[11.5px] text-slate-400">{p.description ?? "—"}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 text-right text-[13px] font-semibold text-slate-900">{p.diagramCount ?? "—"}</td>
+                          <td className="px-3 py-2.5 text-right text-[13px] text-slate-600">—</td>
+                          <td className="px-3 py-2.5 text-[12px] text-slate-400">{relativeTime(p.updatedAt)}</td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
+
+          {pageCount > 1 && (
+            <Pagination page={page} totalPages={pageCount} totalElements={groups.length} onChange={setPage} />
+          )}
+          </>
         )}
       </Card>
       </div>
