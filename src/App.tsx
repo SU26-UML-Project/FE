@@ -18,6 +18,7 @@ import PrebuiltDetail from './pages/PrebuiltDetail'
 import { Editor } from "./components/Editor"
 import { useAuthStore } from './stores/useAuthStore'
 import GlobalAIChatSidebar from './components/Chat/GlobalAIChatSidebar'
+import ScrollToTop from './components/ui/ScrollToTop'
 import { authService } from './services/authService'
 import { setAuthCookie, COOKIE_KEYS } from './utils/auth'
 
@@ -163,6 +164,7 @@ export default function App() {
 
       {!isAdminPage && !isDashboardPage && !isWorkspacePage && !isWorkspacePage && <Footer />}
       <ScrollToHash />
+      <ScrollToTop />
       <Toaster position="top-right" />
     </div>
   )

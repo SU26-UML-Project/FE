@@ -34,46 +34,46 @@ function planBullets(p: PlanResponse): string[] {
 const includes = [
   {
     icon: Activity,
-    title: '99.9% uptime SLA',
-    description: 'Highly reliable infrastructure with automatic failover and multi-region redundancy for maximum availability.',
+    title: 'Cam kết uptime 99.9%',
+    description: 'Hạ tầng có độ tin cậy cao với tự động chuyển đổi dự phòng và dự phòng đa vùng để đảm bảo khả dụng tối đa.',
   },
   {
     icon: RefreshCw,
-    title: 'Real-time sync',
-    description: 'Edits appear on other devices in under 200ms. No manual save, no refresh button.',
+    title: 'Đồng bộ thời gian thực',
+    description: 'Chỉnh sửa hiển thị trên các thiết bị khác trong dưới 200ms. Không cần lưu tay, không cần tải lại.',
   },
   {
     icon: HardDrive,
-    title: 'Cloud backup',
-    description: 'Diagrams replicate across three geographic regions. Restore deleted files within 30 days.',
+    title: 'Sao lưu đám mây',
+    description: 'Sơ đồ được sao lưu trên ba vùng địa lý. Khôi phục tệp đã xóa trong vòng 30 ngày.',
   },
   {
     icon: Globe,
-    title: 'Desktop apps',
-    description: 'Native apps for macOS, Windows, and Linux. Browser version runs in Chrome, Firefox, Safari, Edge.',
+    title: 'Ứng dụng desktop',
+    description: 'Ứng dụng gốc cho macOS, Windows và Linux. Bản trình duyệt chạy trên Chrome, Firefox, Safari, Edge.',
   },
 ]
 
 const faqData = [
   {
-    question: 'Can I cancel anytime?',
-    answer: 'Yes, you can cancel your subscription at any time. Your access will continue until the end of your current billing period. No questions asked.',
+    question: 'Tôi có thể hủy bất cứ lúc nào không?',
+    answer: 'Có, bạn có thể hủy đăng ký bất cứ lúc nào. Quyền truy cập vẫn duy trì đến hết kỳ thanh toán hiện tại. Không cần lý do.',
   },
   {
-    question: 'What payment methods do you accept?',
-    answer: 'We accept all major credit cards, PayPal, and bank transfers for annual Enterprise plans.',
+    question: 'Bạn chấp nhận những phương thức thanh toán nào?',
+    answer: 'Chúng tôi chấp nhận tất cả các loại thẻ tín dụng phổ biến, PayPal và chuyển khoản ngân hàng cho gói Enterprise trả theo năm.',
   },
   {
-    question: 'Is there a free trial for Pro?',
-    answer: 'Yes, we offer a 14-day free trial of the Pro plan with no credit card required. You get full access to all Pro features during the trial.',
+    question: 'Gói Pro có dùng thử miễn phí không?',
+    answer: 'Có, chúng tôi cung cấp bản dùng thử miễn phí 14 ngày cho gói Pro mà không cần thẻ tín dụng. Bạn được sử dụng đầy đủ mọi tính năng Pro trong thời gian dùng thử.',
   },
   {
-    question: 'Can I switch plans later?',
-    answer: 'Absolutely. You can upgrade or downgrade your plan at any time. Changes take effect immediately, and we prorate any differences in billing.',
+    question: 'Tôi có thể đổi gói sau này không?',
+    answer: 'Hoàn toàn được. Bạn có thể nâng cấp hoặc hạ cấp gói bất cứ lúc nào. Thay đổi có hiệu lực ngay lập tức và chúng tôi tính lại chênh lệch cước theo tỷ lệ.',
   },
   {
-    question: 'How does Education verification work?',
-    answer: 'Simply sign up with your .edu email address and we will automatically verify your student or educator status within minutes.',
+    question: 'Xác minh gói Education hoạt động thế nào?',
+    answer: 'Chỉ cần đăng ký bằng email .edu của bạn và chúng tôi sẽ tự động xác minh tư cách sinh viên hoặc giảng viên trong vài phút.',
   },
 ]
 
@@ -117,7 +117,7 @@ const Pricing = () => {
         onClose={() => setIsAuthModalOpen(false)}
         initialMode={authMode}
       />
-      <section className="relative pt-32 pb-16 px-4 md:px-8 min-h-[100dvh] bg-white/30">
+      <section className="relative pt-32 pb-8 px-4 md:px-8 bg-white/30">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ y: 20, opacity: 0 }}
@@ -126,10 +126,10 @@ const Pricing = () => {
             className="text-center mb-10"
           >
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-priego-extrabold uppercase tracking-tight text-black mb-4">
-              PRICING
+              BẢNG GIÁ
             </h1>
             <p className="text-base md:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              Simple, transparent pricing — choose the plan that fits your team and scale as you grow.
+              Giá minh bạch, đơn giản — chọn gói phù hợp với đội ngũ và mở rộng khi bạn phát triển.
             </p>
           </motion.div>
 
@@ -184,13 +184,13 @@ const Pricing = () => {
       <div className="flex justify-center -mt-8 mb-4">
         <motion.a
           href="#every-plan-includes"
-          aria-label="Scroll to Every plan includes"
+          aria-label="Cuộn tới phần Gói nào cũng có"
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.6 }}
           className="group inline-flex flex-col items-center gap-1.5 text-gray-500 hover:text-uml-blue transition-colors"
         >
-          <span className="text-xs font-bold uppercase tracking-widest">What's included</span>
+          <span className="text-xs font-bold uppercase tracking-widest">Bao gồm những gì</span>
           <motion.span
             aria-hidden
             animate={{ y: [0, 5, 0] }}
@@ -207,17 +207,17 @@ const Pricing = () => {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="text-center mb-10"
+        className="text-center mb-6"
       >
         <div className="inline-flex items-center gap-8 md:gap-14 px-8 py-4 bg-white rounded-2xl border border-gray-200/60 shadow-[0_4px_16px_-6px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)]">
           <div className="text-center">
             <div className="text-lg font-priego-extrabold text-black">2,000+</div>
-            <div className="text-xs text-gray-500">Teams Trust Us</div>
+            <div className="text-xs text-gray-500">Đội ngũ tin dùng</div>
           </div>
           <div className="w-px h-8 bg-gray-200"></div>
           <div className="text-center">
             <div className="text-lg font-priego-extrabold text-black">4.8/5</div>
-            <div className="text-xs text-gray-500">User Rating</div>
+            <div className="text-xs text-gray-500">Đánh giá người dùng</div>
           </div>
           <div className="w-px h-8 bg-gray-200"></div>
           <div className="text-center">
@@ -248,7 +248,7 @@ const BillingToggle = ({
   return (
     <div
       role="tablist"
-      aria-label="Billing cycle"
+      aria-label="Chu kỳ thanh toán"
       className="relative inline-flex items-center bg-white/60 backdrop-blur-sm border-2 border-gray-200/80 rounded-full p-0.5"
     >
       {(['monthly', 'yearly'] as BillingCycle[]).map(option => {
@@ -356,8 +356,8 @@ const PlanCard = ({
         opacity: isBlurred ? (isHovered ? 0.6 : 0.2) : 1,
         filter: isBlurred ? (isHovered ? 'blur(3px)' : 'blur(8px)') : 'blur(0px)',
         flexGrow: isExpanded ? 2.4 : 1,
-        scale: canBounce ? 1.025 : 1,
-        y: canBounce ? -6 : 0,
+        scale: canBounce ? 1.04 : (plan.popular && !isAnyExpanded ? 1.03 : 1),
+        y: canBounce ? -6 : (plan.popular && !isAnyExpanded ? -4 : 0),
         zIndex: isExpanded ? 10 : 1,
         borderColor: isHovered && !plan.popular ? '#2563eb' : (plan.popular ? '#2563eb' : '#e5e7eb'),
       }}
@@ -410,7 +410,7 @@ const PlanCard = ({
             )}
             {plan.popular && (
               <span className="text-[10px] font-bold uppercase bg-uml-blue text-white px-2 py-1 rounded tracking-wider">
-                Popular
+                Phổ biến nhất
               </span>
             )}
           </div>
@@ -510,7 +510,7 @@ const PlanCard = ({
 
 const EveryPlanIncludes = () => {
   return (
-    <section id="every-plan-includes" className="py-16 px-4 md:px-8 border-t border-gray-200/60 scroll-mt-24">
+    <section id="every-plan-includes" className="pt-6 pb-16 px-4 md:px-8 border-t border-gray-200/60 scroll-mt-24">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ y: 20, opacity: 0 }}
@@ -520,10 +520,10 @@ const EveryPlanIncludes = () => {
           className="text-center mb-12"
         >
           <h2 className="text-3xl md:text-4xl font-priego-extrabold uppercase tracking-tight text-black mb-3">
-            EVERY PLAN INCLUDES
+            GÓI NÀO CŨNG CÓ
           </h2>
           <p className="text-base text-gray-600 max-w-xl mx-auto">
-            Core infrastructure that ships with every account, starting from the free tier.
+            Hạ tầng cốt lõi đi kèm mọi tài khoản, ngay từ gói miễn phí.
           </p>
         </motion.div>
 
@@ -620,10 +620,10 @@ const FeatureComparison = ({ plans }: { plans: PlanResponse[] }) => {
           className="text-center mb-12"
         >
           <h2 className="text-3xl md:text-4xl font-priego-extrabold uppercase tracking-tight text-black mb-3">
-            DETAILED FEATURE COMPARISON
+            SO SÁNH TÍNH NĂNG CHI TIẾT
           </h2>
           <p className="text-base text-gray-600 max-w-xl mx-auto">
-            See exactly what each plan includes to find the right fit for your team.
+            Xem chính xác từng gói bao gồm những gì để tìm lựa chọn phù hợp cho đội ngũ của bạn.
           </p>
         </motion.div>
 
@@ -632,7 +632,7 @@ const FeatureComparison = ({ plans }: { plans: PlanResponse[] }) => {
             <thead>
               <tr className="bg-gray-50/80">
                 <th className="text-left px-6 py-4 text-xs font-bold uppercase tracking-widest text-gray-400 border-b border-gray-200 w-[28%] sticky left-0 bg-gray-50/80 z-10">
-                  Feature
+                  Tính năng
                 </th>
                 {plans.map(p => (
                   <th
@@ -693,10 +693,10 @@ const FAQSection = () => {
           className="text-center mb-12"
         >
           <h2 className="text-3xl md:text-4xl font-priego-extrabold uppercase tracking-tight text-black mb-3">
-            FREQUENTLY ASKED QUESTIONS
+            CÂU HỎI THƯỜNG GẶP
           </h2>
           <p className="text-base text-gray-600 max-w-xl mx-auto">
-            Everything you need to know before getting started.
+            Mọi điều bạn cần biết trước khi bắt đầu.
           </p>
         </motion.div>
 
