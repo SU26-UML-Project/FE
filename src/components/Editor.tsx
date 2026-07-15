@@ -40,6 +40,7 @@ import { SmartGuides, type GuidesState } from "./canvas/SmartGuides";
 import { QuickAdd } from "./canvas/QuickAdd";
 import { RemoteCursors } from "./canvas/RemoteCursors";
 import { ImportModal } from "./overlays/ImportModal";
+import { ExportModal } from "./overlays/ExportModal";
 import { HelpOverlay } from "./overlays/HelpOverlay";
 import { AIChat } from "./panels/AIChat";
 import { SheetBar } from "./panels/SheetBar";
@@ -121,6 +122,7 @@ export function Editor() {
   } | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [importResult, setImportResult] = useState<any | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
@@ -891,41 +893,53 @@ export function Editor() {
   );
 
   const layoutCanvas = useCallback(
-    async (direction?: string) => {
+    async (_direction?: string) => {
       beginMutation();
       
-      // Initial fade-out for smoother transition
-      setNodes((prev) => prev.map((n) => ({ ...n, style: { ...n.style, opacity: 0 } })));
+      // Set opacity 0 for transition, store original styles
+      const origStyles = new Map<string, { s: object; opacity?: number }>();
+      setNodes((prev) => {
+        prev.forEach(n => origStyles.set(n.id, { s: n.style as object }));
+        return prev.map((n) => ({ ...n, style: { ...n.style, opacity: 0 } }));
+      });
       setEdges((prev) => prev.map((e) => ({ ...e, style: { ...e.style, opacity: 0 } })));
 
-      // PASS 1: layout with estimated sizes
-      const { nodes: l1, edges: e1 } = await layoutElements(
-        nodesRef.current,
-        edgesRef.current,
-        { diagramType }
-      );
-      setNodes(l1);
-      setEdges(e1);
+      try {
+        // PASS 1: layout with estimated sizes
+        const { nodes: l1, edges: e1 } = await layoutElements(
+          nodesRef.current,
+          edgesRef.current,
+          { diagramType }
+        );
+        setNodes(l1);
+        setEdges(e1);
 
-      // Wait for RF to measure real sizes
-      await new Promise((r) => setTimeout(r, 100));
-      await new Promise((r) => requestAnimationFrame(() => r(null)));
+        // Wait for RF to measure real sizes
+        await new Promise((r) => setTimeout(r, 100));
+        await new Promise((r) => requestAnimationFrame(() => r(null)));
 
-      // PASS 2: re-layout with correct sizes
-      const { nodes: finalNodes, edges: finalEdges } = await layoutElements(
-        nodesRef.current,
-        edgesRef.current,
-        { diagramType }
-      );
-      
-      // Final nodes with fade-in
-      setNodes(finalNodes.map(n => ({ ...n, style: { ...n.style, opacity: 1 } })));
-      setEdges(finalEdges.map(e => ({ ...e, style: { ...e.style, opacity: 1 } })));
+        // PASS 2: re-layout with correct sizes
+        const { nodes: finalNodes, edges: finalEdges } = await layoutElements(
+          nodesRef.current,
+          edgesRef.current,
+          { diagramType }
+        );
+        
+        // Fade in with opacity:1
+        setNodes(finalNodes.map(n => ({ ...n, style: { ...n.style, opacity: 1 } })));
+        setEdges(finalEdges.map(e => ({ ...e, style: { ...e.style, opacity: 1 } })));
 
-      setTimeout(() => rf.fitView({ padding: 0.25, duration: 450 }), 60);
+        setTimeout(() => rf.fitView({ padding: 0.25, duration: 450 }), 60);
 
-      if (!skipCollabEmit.current) {
-        emitCanvasChange({ nodes: finalNodes, edges: finalEdges, type: "layout" });
+        if (!skipCollabEmit.current) {
+          emitCanvasChange({ nodes: finalNodes, edges: finalEdges, type: "layout" });
+        }
+      } catch (err) {
+        console.error("Layout failed:", err);
+        // Restore visibility even if layout crashed
+        setNodes((prev) => prev.map((n) => ({ ...n, style: { ...(n.style as object), opacity: 1 } })));
+        setEdges((prev) => prev.map((e) => ({ ...e, style: { ...(e.style as object), opacity: 1 } })));
+        toast.error("Auto-layout failed. Check console for details.");
       }
     },
     [beginMutation, setNodes, setEdges, diagramType, emitCanvasChange, rf]
@@ -966,17 +980,26 @@ export function Editor() {
           emitCanvasChange({ nodes: visibleNodes, edges: visibleEdges, type: "add" });
         }
 
-        // Hybrid: Show fast with Dagre, then auto-refine with ELK for production-grade spacing
+        // Auto-refine with ELK after a short delay for better spacing,
+        // but ONLY if the user hasn't manually moved anything
         setTimeout(async () => {
-          const { nodes: refinedNodes, edges: refinedEdges } = await layoutElements(
-            nodesRef.current,
-            edgesRef.current,
-            { diagramType: finalType }
-          );
-          setNodes(refinedNodes);
-          setEdges(refinedEdges);
-          if (!skipCollabEmit.current) {
-            emitCanvasChange({ nodes: refinedNodes, edges: refinedEdges, type: "update" });
+          if (nodesRef.current.length === 0) return;
+          try {
+            const { nodes: refinedNodes, edges: refinedEdges } = await layoutElements(
+              nodesRef.current,
+              edgesRef.current,
+              { diagramType: finalType }
+            );
+            // Only apply if nodes haven't been cleared or replaced
+            if (nodesRef.current.length === refinedNodes.length) {
+              setNodes(refinedNodes.map(n => ({ ...n, style: { ...n.style, opacity: 1 } })));
+              setEdges(refinedEdges.map(e => ({ ...e, style: { ...e.style, opacity: 1 } })));
+              if (!skipCollabEmit.current) {
+                emitCanvasChange({ nodes: refinedNodes, edges: refinedEdges, type: "update" });
+              }
+            }
+          } catch (err) {
+            console.error("Auto-refine ELK layout failed, keeping Dagre layout:", err);
           }
         }, 800);
 
@@ -1692,6 +1715,7 @@ export function Editor() {
           onImportCode={() => setImportOpen(true)}
           onExportPng={exportPng}
           onExportJson={exportJson}
+          onExportCode={() => setExportOpen(true)}
           onImportFile={importFile}
         saved={saved}
         projectId={id}
@@ -1997,6 +2021,15 @@ export function Editor() {
               importCanvas(res.nodes, res.edges, res.type, res.preLayouted);
             }
           }}
+        />
+      )}
+
+      {exportOpen && (
+        <ExportModal
+          nodes={nodesRef.current}
+          edges={edgesRef.current}
+          diagramType={diagramType}
+          onClose={() => setExportOpen(false)}
         />
       )}
 

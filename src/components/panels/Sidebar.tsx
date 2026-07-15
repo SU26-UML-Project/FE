@@ -28,8 +28,6 @@ export function ShapeGlyph({ type }: { type: string }) {
       return (<svg {...common}><ellipse cx="13" cy="10" rx="10.5" ry="6" fill="#fff" /></svg>);
     case "actor":
       return (<svg {...common}><circle cx="13" cy="4.5" r="2.4" fill="#fff" /><line x1="13" y1="7" x2="13" y2="13.5" /><line x1="8" y1="9.5" x2="18" y2="9.5" /><line x1="13" y1="13.5" x2="10" y2="18" /><line x1="13" y1="13.5" x2="16" y2="18" /></svg>);
-    case "lifeline":
-      return (<svg {...common}><rect x="4" y="2.5" width="18" height="6" rx="2" fill="#fff" /><line x1="13" y1="8.5" x2="13" y2="18" strokeDasharray="2 2" /></svg>);
     case "note":
       return (<svg {...common}><path d="M3 3 H17 L23 8 V18 H3 Z" fill="#f6f6f7" /><path d="M17 3 V8 H23" /></svg>);
     case "text":

@@ -355,22 +355,6 @@ export function ActorNode({ id, data, selected }: NodeProps) {
   );
 }
 
-export function LifelineNode({ id, data, selected }: NodeProps) {
-  const d = data as FlowNodeData;
-  const ink = inkColor(d);
-  return (
-    <div className="relative h-full w-full">
-      <Resizer selected={selected} minW={90} minH={160} />
-      <AllHandles />
-      <div className="absolute left-0 right-0 top-0 mx-auto rounded-[9px] px-4 py-2 text-center text-[13px] font-medium text-zinc-900"
-        style={{ border: `1.5px solid ${ink}`, background: fillColor(d), width: "fit-content", maxWidth: "100%" }}>
-        <EditableText id={id} field="label" value={d.label} placeholder=": Participant" />
-      </div>
-      <div className="absolute left-1/2 top-[44px] bottom-0 -translate-x-1/2 border-l-[1.5px] border-dashed" style={{ borderColor: ink }} />
-    </div>
-  );
-}
-
 export function NoteNode({ id, data, selected, height }: NodeProps) {
   const d = data as FlowNodeData;
   const ink = inkColor(d);
@@ -407,7 +391,7 @@ export function TextNode({ id, data, selected }: NodeProps) {
   );
 }
 
-export function PackageNode({ id, data, selected, width, height }: NodeProps) {
+export function PackageNode({ id, data, selected }: NodeProps) {
   const d = data as FlowNodeData;
   const ink = inkColor(d);
   return (
@@ -466,7 +450,6 @@ export const nodeTypes = {
   component: ComponentNode,
   usecase: UseCaseNode,
   actor: ActorNode,
-  lifeline: LifelineNode,
   note: NoteNode,
   text: TextNode,
   package: PackageNode,

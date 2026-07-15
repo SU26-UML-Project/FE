@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { detectAndParse, parseMermaid, parsePlantUml, type ParseResult } from "../../lib/importers";
-import type { FlowNode, FlowEdge, DiagramType } from "../../types";
+import { useState } from "react";
+import { detectAndParse, parseMermaid, parsePlantUml } from "../../lib/importers";
+import type { ParseResult } from "../../lib/importers";
 
 interface ImportModalProps {
   onClose: () => void;

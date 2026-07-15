@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import dagre from "dagre";
-import type { DiagramType, FlowEdge, FlowNode, FlowNodeData } from "../types";
+import type { DiagramType, FlowEdge, FlowEdgeData, FlowNode, FlowNodeData } from "../types";
 import { classMinSize } from "./sizing";
 import type { DiagramChatResponse, AiQuestionDto } from "../types/ai";
 import { finalizeLayout } from "./elkLayout";
@@ -135,16 +135,14 @@ function decodeMermaid(str: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
     .replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#x2F;/g, "/")
+    .replace(/&#123;/g, "{")
+    .replace(/&#125;/g, "}")
     .replace(/<br\/?>/gi, "\n")
     .trim();
-}
-
-function gridLayout(n: number) {
-  const cols = Math.max(1, Math.ceil(Math.sqrt(n)));
-  const gapX = 280;
-  const gapY = 170;
-  return (i: number) => ({ x: (i % cols) * gapX, y: Math.floor(i / cols) * gapY });
 }
 
 function layeredLayout(
@@ -218,6 +216,7 @@ export function parseMermaid(code: string): ParseResult {
     .replace(/^\s*---[\s\S]*?---\s*/, ""); // Strip YAML frontmatter
 
   // 2. Filter lines: keep only those that define nodes or edges
+  // NOTE: do NOT strip "direction" here — each sub-parser handles its own
   const lines = processed.split("\n").map(l => l.trim());
   const clean: string[] = [];
 
@@ -231,7 +230,6 @@ export function parseMermaid(code: string): ParseResult {
     if (low.startsWith("classdef ")) continue;
     if (low.startsWith("linkstyle ")) continue;
     if (low.startsWith("click ")) continue;
-    if (low.startsWith("direction ")) continue;
     if (low.startsWith("title ")) continue;
     if (low.startsWith("accTitle ")) continue;
     if (low.startsWith("accDescr ")) continue;
@@ -243,7 +241,6 @@ export function parseMermaid(code: string): ParseResult {
 
   const head = clean[0].toLowerCase();
   if (head.startsWith("classdiagram")) return parseClassLike(clean, false);
-  if (head.startsWith("sequencediagram")) return parseSequence(clean);
   if (head.startsWith("flowchart") || head.startsWith("graph"))
     return parseFlowchart(clean);
   if (head.startsWith("statediagram")) return parseState(clean);
@@ -252,7 +249,6 @@ export function parseMermaid(code: string): ParseResult {
 
   // No header — guess.
   if (/\bclass\b|\}<\|--|\*--|o--/.test(processed)) return parseClassLike(clean, false);
-  if (/-+>+|->>+|-->>/.test(processed)) return parseSequence(clean);
   if (/\bactor\b|\busecase\b|\(\)/.test(processed)) return parseMermaidUseCase(clean);
   if (/\bcomponent\b|\[\[.*\]\]/.test(processed)) return parseMermaidComponent(clean);
   return parseFlowchart(clean);
@@ -275,8 +271,8 @@ function parseClassLike(lines: string[], _plant: boolean): ParseResult {
   let i = 0;
   const nodes: FlowNode[] = [];
   let layoutDir: "TB" | "LR" = "TB";
-  const classRe = /^(?:abstract\s+class|class|interface|enum)\s+([A-Za-z0-9_]+|`[^`]+`)\s*(\{)?/;
-  const inlineMemberRe = /^([A-Za-z0-9_]+|`[^`]+`)\s*:\s*(.+)/;
+  const classRe = /^(?:abstract\s+class|class|interface|enum)\s+([A-Za-z0-9_\-]+|`[^`]+`)\s*(\{)?/;
+  const inlineMemberRe = /^([A-Za-z0-9_\-]+|`[^`]+`)\s*:\s*(.+)/;
   const parentStack: string[] = [];
   const parentMap = new Map<string, string>(); // namespace id -> uid
 
@@ -484,8 +480,10 @@ function parseRelLine(line: string):
     | { from: string; to: string; opts: RelOpts }
     | null {
   // Enhanced multiplicity regex: supports "1", "0..*", 1..n, etc. with quotes and spaces
+  // Relaxed ID regex: supports letters, digits, underscores, hyphens, dots, and backtick-quoted
+  const idRe = '[A-Za-z0-9_\\-](?:[A-Za-z0-9_\\-.]*[A-Za-z0-9_\\-])?|[A-Za-z0-9_\\-]|`[^`]+`';
   const m = line.match(
-      /^\s*([A-Za-z0-9_]+|`[^`]+`)\s*(?:"([^"]+)"|([^\s\-\.\*o<>]+))?\s*(<\|--|--\|>|\.\.\|>|<\|\.\.|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.|---|--|<==|==>)\s*(?:"([^"]+)"|([^\s:]+))?\s+([A-Za-z0-9_]+|`[^`]+`)(?:\s*:\s*(.*))?$/
+      new RegExp(`^\\s*(${idRe})\\s*(?:"([^"]+)"|([^\\s\\-\\.\\*o<>]+))?\\s*(<\\|--|--\\|>|\\.\\.\\|>|<\\|\\.\\.|\\*--|--\\*|o--|--o|-->|<--|\\.\\.>|<\\.\\.|---|--|<==|==>)\\s*(?:"([^"]+)"|([^\\s:]+))?\\s+(${idRe})(?:\\s*:\\s*(.*))?$`)
   );
   if (!m) return null;
   const [, leftId, leftM1, leftM2, token, rightM1, rightM2, rightId, labelRaw] = m;
@@ -607,8 +605,8 @@ function buildQuestions(result: ParseResult): ImportQuestion[] {
 
 /** Patch one edge with one answer. Returns the updated edge. */
 function applyOne(edge: FlowEdge, ans: Answer): FlowEdge {
-  const data = { ...(edge.data as object) } as Record<string, unknown>;
-  delete data.ambiguous;
+  const data: FlowEdgeData = { ...(edge.data as FlowEdgeData) };
+  delete (data as any).ambiguous;
   let label = typeof edge.label === "string" ? edge.label : "";
   if (ans.kind === "option") {
     const o = ans.option;
@@ -680,6 +678,16 @@ const FLOW_EDGE_RE =
 
 /**
  * Parse edge token and return style information (swap, marker, markerStart, dashed)
+ *
+ * Supported Mermaid flowchart edge decorations:
+ *   -->   arrow            ---   line
+ *   -.->  dotted arrow     -.-   dotted line
+ *   ==>   thick arrow      ===   thick line
+ *   --o   circle end       --x   x end
+ *   o--   circle start     x--   x start
+ *   o--o  circle both      x--x  x both
+ *   <-->  bidirectional
+ *   <--   reverse
  */
 function parseEdgeStyle(token: string): { 
   swap: boolean; 
@@ -691,34 +699,53 @@ function parseEdgeStyle(token: string): {
   let markerStart: string | undefined;
   let dashed = false;
   let swap = false;
+  const t = token;
 
-  if (token.includes("<")) {
-    if (token.includes(">")) {
-      // Bidirectional - we don't have a specific marker for both ends in this simple setup
-      // but we can set markerEnd
-      marker = MARK.arrow;
-    } else {
-      swap = true;
-      marker = MARK.arrow;
-    }
+  // Direction: arrows point from source to target by default
+  if (t.startsWith("<")) {
+    swap = true;
+    marker = MARK.arrow;
   }
 
-  if (token.includes("o")) {
-    // Mermaid circle end - not supported yet in MARK, fallback to arrow or none
+  // Circle end (aggregation-like): --o or o--o
+  if (t.endsWith("o") || t.endsWith("o--")) {
+    marker = undefined; // no arrow, use circle
+  }
+  if (t.startsWith("o")) {
+    markerStart = MARK.diamondOpenStart;
+  }
+  if (t.endsWith("o") && !t.includes("o--o")) {
+    // circle at target end only — store as markerStart concept but on end
+    // We default to openArrow for visual clarity; UML aggregation uses diamond
+    marker = undefined;
+  }
+  // o both ends
+  if (t.includes("o--o")) {
+    marker = undefined;
+    markerStart = MARK.diamondOpenStart;
   }
 
-  if (token.includes("x")) {
-    // Mermaid x end - not supported yet
+  // X end
+  if (t.endsWith("x")) {
+    marker = undefined; // cross not in marker defs — skip arrow
+  }
+  if (t.startsWith("x")) {
+    markerStart = undefined;
   }
 
-  // Check for dashed
-  if (token.includes(".") || token.includes("-.")) {
+  // Check for dashed (dots)
+  if (t.includes(".") || t.includes("-.")) {
     dashed = true;
   }
 
-  // Check for just line (no arrow)
-  if (!token.includes(">") && !token.includes("<")) {
+  // Check for just line (no arrow, no special end)
+  if (!t.includes(">") && !t.includes("<") && !t.includes("o") && !t.includes("x")) {
     marker = undefined;
+  }
+
+  // Bidirectional
+  if (t.includes("<") && t.includes(">")) {
+    marker = MARK.arrow;
   }
 
   return { swap, marker, markerStart, dashed };
@@ -815,11 +842,18 @@ function parseFlowchart(lines: string[]): ParseResult {
       return "";
     });
 
-    // --- Find all edge tokens ---
+    // --- Find all edge tokens, filtering out false positives inside [...] ---
     const edgeTokens: { token: string; pos: number }[] = [];
     const re = new RegExp(FLOW_EDGE_RE.source, "g");
     let em: RegExpExecArray | null;
     while ((em = re.exec(work)) !== null) {
+      // Skip false matches where edge token is inside brackets [====]
+      // because FLOW_EDGE_RE mistakenly matches ==== inside [====]
+      const before = work.slice(0, em.index);
+      const after = work.slice(em.index + em[0].length);
+      const openBrackets = (before.match(/\[/g) || []).length;
+      const closeBrackets = (before.match(/\]/g) || []).length;
+      if (openBrackets > closeBrackets) continue; // inside brackets → skip
       edgeTokens.push({ token: em[0], pos: em.index });
     }
 
@@ -958,7 +992,8 @@ function parseRef(ref: string):
   let m: RegExpMatchArray | null;
 
   const getLabelType = (label: string, defaultType: string) => {
-    const decoded = decodeMermaid(label);
+    const decoded = decodeMermaid(label).trim();
+    if (!decoded) return { label: "", type: defaultType };
     if (decoded.includes("👤") || decoded.toLowerCase().includes("actor")) {
       return { label: decoded, type: "actor" };
     }
@@ -1062,88 +1097,32 @@ function parseRef(ref: string):
   return null;
 }
 
-/* ---- sequence ---- */
-function parseSequence(lines: string[]): ParseResult {
-  const parts = new Map<string, { label: string; actor: boolean }>();
-  const order: string[] = [];
-  const msgs: {
-    from: string;
-    to: string;
-    label?: string;
-    dashed?: boolean;
-  }[] = [];
-
-  for (const ln of lines) {
-    const p = ln.match(/^(?:participant|actor)\s+([A-Za-z0-9_]+)(?:\s+as\s+(.+))?/);
-    if (p) {
-      const id = p[1];
-      if (!parts.has(id)) {
-        parts.set(id, { label: p[2]?.trim() ?? id, actor: /^actor\b/.test(ln) });
-        order.push(id);
-      }
-      continue;
-    }
-    const mm = ln.match(
-        /^([A-Za-z0-9_]+)\s*(-+>+|-->>+|->|--x|-)\s*([A-Za-z0-9_]+)\s*:\s*(.*)$/
-    );
-    if (mm) {
-      const [, from, arrow, to, label] = mm;
-      [from, to].forEach((id) => {
-        if (!parts.has(id)) {
-          parts.set(id, { label: id, actor: false });
-          order.push(id);
-        }
-      });
-      msgs.push({
-        from,
-        to,
-        label: label?.trim() || "",
-        dashed: arrow.includes("-") && arrow.startsWith("--"),
-      });
-    }
-  }
-
-  const nodes: FlowNode[] = [];
-  const idToUid = new Map<string, string>();
-  order.forEach((id, idx) => {
-    const p = parts.get(id)!;
-    const uid = nanoid(8);
-    idToUid.set(id, uid);
-    const x = idx * 220;
-    if (p.actor) {
-      nodes.push(mkNode("actor", x, 30, { label: p.label }, 76, 124, undefined, uid));
-    } else {
-      nodes.push(
-          mkNode("lifeline", x, 20, { label: ": " + p.label }, 150, 320, undefined, uid)
-      );
-    }
-  });
-
-  const edges: FlowEdge[] = msgs
-      .map((m) => {
-        const s = idToUid.get(m.from);
-        const t = idToUid.get(m.to);
-        if (!s || !t) return null;
-        return mkEdge(s, t, {
-          marker: m.dashed ? MARK.openArrow : MARK.arrow,
-          dashed: m.dashed,
-          label: m.label,
-          type: "smoothstep",
-        });
-      })
-      .filter(Boolean) as FlowEdge[];
-
-  return { nodes, edges, type: "sequence" };
-}
-
-/* ---- state ---- */
+/* ---- state (with composite state support) ---- */
 function parseState(lines: string[]): ParseResult {
   const defs = new Map<string, string>();
   const rawEdges: { from: string; to: string; label?: string }[] = [];
-  for (const ln of lines) {
-    const clean = ln.trim();
+  const stateStack: string[] = []; // for composite states: state "Label" { ... }
+  const packages: FlowNode[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const clean = lines[i].trim();
     if (!clean) continue;
+
     if (/^statediagram(-v2)?\b/i.test(clean)) continue;
+
+    // Composite state: state "Label" as id { ... }
+    const compositeMatch = clean.match(/^state\s+(?:"([^"]+)"|([A-Za-z0-9_]+))(?:\\s+as\\s+([A-Za-z0-9_]+))?\s*\{/);
+    if (compositeMatch) {
+      const label = compositeMatch[1] || compositeMatch[2] || "State";
+      const id = compositeMatch[3] || compositeMatch[2] || `state_${i}`;
+      defs.set(id, label);
+      stateStack.push(id);
+      continue;
+    }
+    if (clean === "}" && stateStack.length > 0) {
+      stateStack.pop();
+      continue;
+    }
 
     // Start/end to state: [*] --> State
     const startMatch = clean.match(/^\[\*\]\s*-->\s*(.+?)(?:\s*:\s*(.+))?$/);
@@ -1187,11 +1166,22 @@ function parseState(lines: string[]): ParseResult {
     }
 
     // Simple state definition: just state name
-    if (!clean.includes("-->") && !clean.includes("[*]")) {
-      defs.set(clean, clean);
+    if (!clean.includes("-->") && !clean.includes("[*]") && !clean.startsWith("state ")) {
+      // Don't register "end" as a state
+      if (clean !== "end") defs.set(clean, clean);
     }
   }
-  
+
+  // Create package nodes for composite states
+  const pkgMap = new Map<string, string>();
+  if (stateStack.length > 0) {
+    for (const sid of stateStack) {
+      const uid = nanoid(8);
+      pkgMap.set(sid, uid);
+      packages.push(mkNode("package", 0, 0, { label: defs.get(sid) || sid }, 300, 200, undefined, uid));
+    }
+  }
+
   const ids = [...defs.keys()];
   const nodeSizes = new Map<string, { width: number; height: number }>();
   ids.forEach(id => {
@@ -1211,7 +1201,8 @@ function parseState(lines: string[]): ParseResult {
       return mkNode("start", p.x + 20 - 19, p.y - 19, { label: "" }, 38, 38);
     if (id === "__end__")
       return mkNode("final", p.x + 20 - 20, p.y - 20, { label: "" }, 40, 40);
-    return mkNode("action", p.x - 75, p.y - 28, { label: defs.get(id) ?? id }, 150, 56);
+    const parentId = pkgMap.get(id);
+    return mkNode("action", p.x - 75, p.y - 28, { label: defs.get(id) ?? id }, 150, 56, parentId);
   });
   const idToUid = new Map(nodes.map((n, i) => [ids[i], n.id]));
   const edges: FlowEdge[] = rawEdges
@@ -1223,7 +1214,7 @@ function parseState(lines: string[]): ParseResult {
       })
       .filter(Boolean) as FlowEdge[];
 
-  const nodesOut = finalizeLayout(nodes, edges);
+  const nodesOut = finalizeLayout([...nodes, ...packages], edges);
   return { nodes: nodesOut, edges, type: "state", preLayouted: true };
 }
 
@@ -1481,8 +1472,8 @@ function parseMermaidComponent(lines: string[]): ParseResult {
         label = interfaceMatch[1] || interfaceMatch[2];
         id = interfaceMatch[3] || interfaceMatch[2];
       } else {
-        label = circleMatch[1] || "Interface";
-        id = circleMatch[2] || label.replace(/\s+/g, "_");
+        label = circleMatch![1] || "Interface";
+        id = circleMatch![2] || label.replace(/\s+/g, "_");
       }
       const parentId = parentStack.length > 0 ? nodeMap.get(parentStack[parentStack.length - 1]) : undefined;
       ensureNode(id, label, "cls", "«interface»", parentId);
@@ -1498,8 +1489,8 @@ function parseMermaidComponent(lines: string[]): ParseResult {
         label = dbMatch[1] || dbMatch[2];
         id = dbMatch[3] || dbMatch[2];
       } else {
-        label = dbBracketMatch[1];
-        id = dbBracketMatch[2] || label.replace(/\s+/g, "_");
+        label = dbBracketMatch![1];
+        id = dbBracketMatch![2] || label.replace(/\s+/g, "_");
       }
       const parentId = parentStack.length > 0 ? nodeMap.get(parentStack[parentStack.length - 1]) : undefined;
       ensureNode(id, label, "component", "«database»", parentId);
@@ -1597,6 +1588,17 @@ export function parsePlantUml(code: string): ParseResult {
   return parseClassLike(lines, true);
 }
 
+/** Auto-detect the UML type of a node from PlantUML source lines. */
+function detectNodeType(id: string, lines: string[]): string {
+  for (const ln of lines) {
+    // Check explicit definitions: actor "Label" as A1 or actor A1
+    if (new RegExp(`^actor\\s+(?:"[^"]+"|${id})(?:\\s+as\\s+${id})?`, 'i').test(ln)) return "actor";
+    if (new RegExp(`^usecase\\s+(?:"[^"]+"|\\([^)]+\\))(?:\\s+as\\s+${id})?`, 'i').test(ln)) return "usecase";
+  }
+  // Default heuristic: if name looks like "Actor" → actor, else usecase
+  return /^[A-Z][a-z]*(?:Actor|User|Admin|Customer|Client)/.test(id) ? "actor" : "usecase";
+}
+
 function parsePlantUseCase(lines: string[]): ParseResult {
   const nodes: FlowNode[] = [];
   const rawEdges: { from: string; to: string; label?: string; dashed?: boolean; marker?: string; type?: string }[] = [];
@@ -1625,8 +1627,8 @@ function parsePlantUseCase(lines: string[]): ParseResult {
     const noteMatch = ln.match(/^note\s+(?:"([^"]+)"|([A-Za-z0-9_]+))(?:\s+as\s+([A-Za-z0-9_]+))?$/);
     if (noteMatch) {
       const label = noteMatch[1] || noteMatch[2];
-      const id = noteMatch[3] || nanoid(6);
-      ensureNode(id, label, "note");
+      const nid2 = noteMatch[3] || nanoid(6);
+      ensureNode(nid2, label, "note");
       continue;
     }
 
@@ -1684,8 +1686,11 @@ function parsePlantUseCase(lines: string[]): ParseResult {
       if (!label && ln.includes("<<include>>")) label = "«include»";
       if (!label && ln.includes("<<extend>>")) label = "«extend»";
 
-      ensureNode(from, from, "actor");
-      ensureNode(to, to, "usecase");
+      // Auto-detect type: look up if already defined, or infer from context
+      const fromType = detectNodeType(from, lines);
+      const toType = detectNodeType(to, lines);
+      ensureNode(from, from, fromType);
+      ensureNode(to, to, toType);
 
       const dashed = arrow.includes(".") || label.includes("include") || label.includes("extend");
       rawEdges.push({
@@ -1696,6 +1701,15 @@ function parsePlantUseCase(lines: string[]): ParseResult {
         marker: MARK.openArrow,
         type: "bezier",
       });
+    }
+    // Generalization: A --|> B or A <|-- B
+    const gen2 = ln.match(/^([A-Za-z0-9_]+)\s*(?:<\|--|--\|>)\s*([A-Za-z0-9_]+)/);
+    if (gen2) {
+      let gfrom = gen2[1], gto = gen2[2];
+      if (ln.includes("<|--")) [gfrom, gto] = [gto, gfrom];
+      ensureNode(gfrom, gfrom, detectNodeType(gfrom, lines));
+      ensureNode(gto, gto, detectNodeType(gto, lines));
+      rawEdges.push({ from: gfrom, to: gto, marker: MARK.triangle, type: "bezier" });
     }
   }
 
@@ -1751,13 +1765,15 @@ function parsePlantActivity(lines: string[]): ParseResult {
   let currentLane: string | null = null;
   const forkStack: string[] = [];
   const decisionStack: string[] = [];
+  /** Stores label to apply to the NEXT sequential edge — used by "else" */
+  let pendingEdgeLabel: string | null = null;
 
   for (let i = 0; i < lines.length; i++) {
     const ln = lines[i].trim();
     if (!ln || ln.startsWith("'")) continue;
 
-    // Swimlane: |Lane Name|
-    const laneMatch = ln.match(/^\|([^|]+)\|$/);
+    // Swimlane: |Lane Name| or |#Color|Lane Name|
+    const laneMatch = ln.match(/^\|(?:#\w+\|)?([^|]+)\|$/);
     if (laneMatch) {
       currentLane = laneMatch[1].trim();
       continue;
@@ -1769,7 +1785,8 @@ function parsePlantActivity(lines: string[]): ParseResult {
     }
     if (ln === "stop" || ln === "end") {
       const id = ensureNode("final-" + nanoid(4), "", "final");
-      if (lastId) rawEdges.push({ from: lastId, to: id });
+      if (lastId) rawEdges.push({ from: lastId, to: id, label: pendingEdgeLabel || undefined });
+      pendingEdgeLabel = null;
       lastId = null;
       continue;
     }
@@ -1783,36 +1800,54 @@ function parsePlantActivity(lines: string[]): ParseResult {
 
       const id = nanoid(6);
       ensureNode(id, label, "action");
-      if (lastId) rawEdges.push({ from: lastId, to: id });
+      if (lastId) {
+        rawEdges.push({ from: lastId, to: id, label: pendingEdgeLabel || undefined });
+        pendingEdgeLabel = null;
+      }
       lastId = id;
       continue;
     }
 
     // If / Else / Endif
     if (ln.startsWith("if")) {
-      const m = ln.match(/if\s*\((.+)\)(?:\s+then\s*\((.+)\))?/i);
+      const m = ln.match(/if\s*\(([^)]+)\)(?:\s+then\s*\(([^)]+)\))?/i);
       const cond = m ? m[1] : "";
       const id = ensureNode(nanoid(6), cond, "decision");
-      if (lastId) rawEdges.push({ from: lastId, to: id });
+      if (lastId) {
+        rawEdges.push({ from: lastId, to: id, label: pendingEdgeLabel || undefined });
+        pendingEdgeLabel = null;
+      }
       decisionStack.push(id);
       lastId = id;
+      // Set pending label for YES branch (e.g. "yes" from "then (yes)")
+      if (m && m[2]) pendingEdgeLabel = m[2].trim() || "yes";
       continue;
     }
     if (ln.startsWith("else") || ln.startsWith("elseif")) {
       const parentDecision = decisionStack[decisionStack.length - 1];
       if (parentDecision) {
-        const m = ln.match(/(?:else|elseif)\s*\((.+)\)(?:\s+then\s*\((.+)\))?/i);
+        const m = ln.match(/(?:else|elseif)\s*\(([^)]+)\)(?:\s+then\s*\(([^)]+)\))?/i);
         const label = m ? m[2] || m[1] : "No";
-        const id = ln.startsWith("elseif")
-            ? ensureNode(nanoid(6), m ? m[1] : "", "decision")
-            : lastId;
-        rawEdges.push({ from: parentDecision, to: id || "", label });
-        if (ln.startsWith("elseif")) lastId = id;
+        
+        if (ln.startsWith("elseif")) {
+          const elseifId = ensureNode(nanoid(6), m ? m[1] : "", "decision");
+          rawEdges.push({ from: parentDecision, to: elseifId, label });
+          decisionStack.pop();
+          decisionStack.push(elseifId);
+          lastId = elseifId;
+          // Propagate "then (label)" forward as YES branch label
+          if (m && m[2]) pendingEdgeLabel = m[2].trim() || "yes";
+        } else {
+          // else: next action connects FROM decision WITH label
+          lastId = parentDecision;
+          pendingEdgeLabel = label;
+        }
       }
       continue;
     }
     if (ln === "endif") {
       decisionStack.pop();
+      pendingEdgeLabel = null;
       continue;
     }
 
@@ -1863,7 +1898,6 @@ function parsePlantActivity(lines: string[]): ParseResult {
     }
   }
 
-  // Build edges (don't do layout here, let caller use layoutElements)
   const edges = rawEdges
       .map(e => {
         const s = nodeMap.get(e.from) || e.from;
@@ -1873,7 +1907,6 @@ function parsePlantActivity(lines: string[]): ParseResult {
       })
       .filter(Boolean) as FlowEdge[];
 
-  // Apply layout
   const posMap = layeredLayout(
       nodes.map(n => n.id),
       edges.map(e => ({ source: e.source, target: e.target })),
@@ -2032,7 +2065,7 @@ function parsePlantComponent(lines: string[]): ParseResult {
  * Detection strategy:
  * 1. Check code-fence markers: ```mermaid vs ```plantuml
  * 2. Look for @startuml/@enduml → PlantUML
- * 3. Look for Mermaid keywords: classDiagram, flowchart, sequenceDiagram, etc.
+ * 3. Look for Mermaid keywords: classDiagram, flowchart, stateDiagram-v2, etc.
  * 4. If still ambiguous, try Mermaid first, fallback to PlantUML
  */
 export function detectAndParse(text: string): ParseResult & { format: string } {
@@ -2068,9 +2101,10 @@ export function detectAndParse(text: string): ParseResult & { format: string } {
 
   // ── 3. Explicit Mermaid markers ───────────────────────────────
   const hasMermaid =
+      // Direct diagram-type headers (strong signal)
       /\bclassDiagram\b/i.test(code) ||
       /\bflowchart\b/i.test(code) ||
-      /\bsequenceDiagram\b/i.test(code) ||
+
       /\bstateDiagram(-v2)?\b/i.test(code) ||
       /\berDiagram\b/i.test(code) ||
       /\buseCaseDiagram\b/i.test(code) ||
@@ -2085,8 +2119,12 @@ export function detectAndParse(text: string): ParseResult & { format: string } {
       /\bmindmap\b/i.test(code) ||
       /\btimeline\b/i.test(code) ||
       /\bsankey-beta\b/i.test(code) ||
+      // Mermaid-only syntax: %% comments
       /%%[^\n]*/m.test(code) ||
-      /-->[\s\S]*\|/m.test(code);
+      // Mermaid-only syntax: class member inside braces
+      /\{\s*\n\s*\+/.test(code) ||
+      // Pipe labels: A -->|label| B (not found in PlantUML)
+      /-->\s*\|[^|]+\|/.test(code);
 
   // ── 4. Dispatch ───────────────────────────────────────────────
   if (hasPlantUml && !hasMermaid) {
@@ -2130,15 +2168,16 @@ import { resolveRelation } from "./relationMapper";
 import type { AINode, AIEdge, AINodeType, RelationKind } from "../types/aiContract";
 
 export function aiResponseToCanvas(res: DiagramChatResponse): ParseResult {
-  const nodes: FlowNode[] = (res.nodes ?? []).map((n) => {
+  const dto = res as any; // widen for dynamic fields
+  const nodes: FlowNode[] = (dto.nodes ?? []).map((n: any) => {
     // Convert DiagramChatResponse's node to AINode format
     const aiNode: AINode = {
       id: n.id,
       type: (n.type || "cls").toLowerCase() as AINodeType,
       label: n.label,
       stereotype: n.stereotype,
-      attributes: Array.isArray(n.attributes) ? n.attributes : n.attributes ? n.attributes.split("\n") : undefined,
-      methods: Array.isArray(n.methods) ? n.methods : n.methods ? n.methods.split("\n") : undefined,
+      attributes: Array.isArray(n.attributes) ? n.attributes : typeof n.attributes === "string" ? n.attributes.split("\n") : undefined,
+      methods: Array.isArray(n.methods) ? n.methods : typeof n.methods === "string" ? n.methods.split("\n") : undefined,
     };
     // Use our shared aiNodeToFlow function, then set parentId
     const flowNode = aiNodeToFlow(aiNode);
@@ -2146,7 +2185,7 @@ export function aiResponseToCanvas(res: DiagramChatResponse): ParseResult {
   });
 
   // Smart diagram type detection from nodes if not explicitly provided
-  let detectedType = res.diagramType as DiagramType;
+  let detectedType = dto.diagramType as DiagramType;
   if (!detectedType) {
     const nodeTypes = new Set(res.nodes?.map(n => n.type.toLowerCase()));
     if (nodeTypes.has("start") || nodeTypes.has("final") || nodeTypes.has("decision")) {
@@ -2162,7 +2201,7 @@ export function aiResponseToCanvas(res: DiagramChatResponse): ParseResult {
     }
   }
 
-  const edges: FlowEdge[] = (res.edges ?? []).map((e) => {
+  const edges: FlowEdge[] = (dto.edges ?? []).map((e: any) => {
     const aiEdge: AIEdge = {
       id: e.id,
       source: e.source,
@@ -2179,7 +2218,7 @@ export function aiResponseToCanvas(res: DiagramChatResponse): ParseResult {
       if (sourceNode && targetNode) {
         if ((sourceNode.type === "actor" && targetNode.type === "usecase") ||
             (sourceNode.type === "usecase" && targetNode.type === "actor")) {
-          flowEdge.data = { ...flowEdge.data, marker: "" };
+          flowEdge.data = { ...flowEdge.data, marker: "", dashed: !!(flowEdge.data as any)?.dashed };
         }
       }
     }
@@ -2187,8 +2226,8 @@ export function aiResponseToCanvas(res: DiagramChatResponse): ParseResult {
     return flowEdge;
   });
 
-  const questions = res.questions
-      ? aiQuestionsToImportQuestions(res.questions)
+  const questions = dto.questions
+      ? aiQuestionsToImportQuestions(dto.questions)
       : undefined;
 
   return { nodes, edges, questions, type: detectedType as DiagramType };
@@ -2288,18 +2327,6 @@ B -->|No| D[Show login]
 D --> E[Authenticate]
 E --> C
 C --> F([End])`,
-  },
-  sequenceMermaid: {
-    title: "Sequence (Mermaid)",
-    format: "mermaid",
-    code: `sequenceDiagram
-actor User
-participant App
-participant API
-User->>App: open()
-App->>API: fetch()
-API-->>App: data
-App-->>User: render`,
   },
   classPlant: {
     title: "Class (PlantUML)",

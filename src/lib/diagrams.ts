@@ -41,22 +41,6 @@ export const DIAGRAMS: DiagramDef[] = [
     ],
   },
   {
-    id: "sequence",
-    name: "Sequence",
-    hint: "Object interactions over time",
-    defaultEdge: "sync",
-    nodes: [
-      P("actor", "Actor", { label: "User" }, 76, 124),
-      P("lifeline", "Lifeline", { label: ": Participant" }, 150, 340),
-      P("note", "Note", { label: "Comment…" }, 170, 80),
-    ],
-    edges: [
-      { id: "sync", label: "Synchronous", markerEnd: M.arrow, dashed: false, path: "smoothstep" },
-      { id: "async", label: "Asynchronous", markerEnd: M.openArrow, dashed: false, path: "smoothstep" },
-      { id: "return", label: "Return", markerEnd: M.openArrow, dashed: true, path: "bezier" },
-    ],
-  },
-  {
     id: "state",
     name: "State Machine",
     hint: "States, transitions & guards",
@@ -229,8 +213,6 @@ export function sampleFor(id: string): { nodes: FlowNode[]; edges: FlowEdge[] } 
   switch (id) {
     case "activity":
       return act();
-    case "sequence":
-      return seq();
     case "state":
       return st();
     case "class":
@@ -262,24 +244,6 @@ function act() {
       edge("a2", "f", { marker: M.arrow }),
       edge("a3", "dec", { marker: M.arrow, label: "retry", type: "bezier" }),
       edge("n", "a3", { marker: M.openArrow, dashed: true, type: "bezier" }),
-    ],
-  };
-}
-
-function seq() {
-  const user = node("actor", 40, 40, { label: "User" }, 76, 124, "user");
-  const app = node("lifeline", 200, 30, { label: ": App" }, 150, 360, "app");
-  const api = node("lifeline", 440, 30, { label: ": API" }, 150, 360, "api");
-  const db = node("lifeline", 680, 30, { label: ": Database" }, 150, 360, "db");
-  return {
-    nodes: [user, app, api, db],
-    edges: [
-      edge("user", "app", { marker: M.arrow, label: "login()", sh: "r", th: "l" }),
-      edge("app", "api", { marker: M.arrow, label: "authenticate()", sh: "r", th: "l" }),
-      edge("api", "db", { marker: M.arrow, label: "find()", sh: "r", th: "l" }),
-      edge("db", "api", { marker: M.openArrow, dashed: true, label: "user", type: "bezier", sh: "l", th: "r" }),
-      edge("api", "app", { marker: M.openArrow, dashed: true, label: "token", type: "bezier", sh: "l", th: "r" }),
-      edge("app", "user", { marker: M.openArrow, dashed: true, label: "ok", type: "bezier", sh: "l", th: "r" }),
     ],
   };
 }

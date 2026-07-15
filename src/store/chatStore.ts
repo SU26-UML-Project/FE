@@ -20,15 +20,6 @@ function mockSessions(): ChatSession[] {
       ],
     },
     {
-      id: "mock2",
-      title: "Sequence — login flow",
-      createdAt: now - 95 * MIN_AGO,
-      messages: [
-        { role: "user", text: "sequenceDiagram\nactor User\nparticipant Auth" },
-        { role: "assistant", text: "Imported 4 shapes and 5 connectors as a Mermaid sequence diagram." },
-      ],
-    },
-    {
       id: "mock3",
       title: "State machine — order",
       createdAt: now - 26 * MIN_AGO,

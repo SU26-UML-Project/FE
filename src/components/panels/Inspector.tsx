@@ -10,7 +10,7 @@ import {
 const NODE_NAMES: Record<string, string> = {
   action: "Action", decision: "Decision", start: "Start node", final: "Final node",
   fork: "Fork / Join", cls: "Class", component: "Component", usecase: "Use case",
-  actor: "Actor", lifeline: "Lifeline", note: "Note", text: "Label", package: "Container",
+  actor: "Actor", note: "Note", text: "Label", package: "Container",
 };
 
 const inputCls = "w-full rounded-lg border border-admin-outline/30 bg-white px-2.5 py-1.5 text-[13px] text-admin-on-surface font-medium outline-none transition-shadow placeholder:text-admin-secondary/30 focus:border-admin-primary focus:ring-4 focus:ring-admin-primary/5";

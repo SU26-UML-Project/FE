@@ -49,6 +49,7 @@ export function Toolbar(props: {
   onClear: () => void;
   onExportPng: () => void;
   onExportJson: () => void;
+  onExportCode: () => void;
   onImportCode: () => void;
   onImportFile: (file: File) => void;
   saved?: boolean;
@@ -246,9 +247,11 @@ export function Toolbar(props: {
             Export
           </button>
           {menu && (
-            <div className="animate-pop absolute right-0 top-9 w-44 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="animate-pop absolute right-0 top-9 w-48 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
               <MenuItem onClick={() => { props.onExportPng(); setMenu(false); }}>PNG image</MenuItem>
               <MenuItem onClick={() => { props.onExportJson(); setMenu(false); }}>JSON file</MenuItem>
+              <div className="mx-3 my-1 border-t border-zinc-100" />
+              <MenuItem onClick={() => { props.onExportCode(); setMenu(false); }}>Mermaid / PlantUML code</MenuItem>
             </div>
           )}
         </div>

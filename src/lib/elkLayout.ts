@@ -34,7 +34,6 @@ function estimateSize(node: FlowNode): { width: number; height: number } {
     }
     case "fork": return { width: 130, height: 14 };
     case "package": return { width: 400, height: 300 };
-    case "lifeline": return { width: 150, height: 340 };
     default: return { width: 150, height: 60 };
   }
 }
@@ -590,7 +589,6 @@ function layoutUseCase(
 
   const boundaryX = (isFinite(ucMinX) ? ucMinX : 0) - BOUNDARY_PAD;
   const boundaryY = (isFinite(ucMinY) ? ucMinY : 0) - BOUNDARY_PAD;
-  const boundaryW = (isFinite(ucMaxX) ? ucMaxX - ucMinX : 200) + BOUNDARY_PAD * 2;
   const boundaryHeight = (isFinite(ucMaxY) ? ucMaxY - ucMinY : 200) + BOUNDARY_PAD * 2;
 
   const positionedOthers = others.map((o, i) => {

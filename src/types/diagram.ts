@@ -2,7 +2,6 @@ import type { FlowNodeData } from "./node";
 
 export type DiagramType =
   | "activity"
-  | "sequence"
   | "state"
   | "class"
   | "usecase"
