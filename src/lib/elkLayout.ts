@@ -77,9 +77,9 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
     const dx = t.cx - s.cx;
     const dy = t.cy - s.cy;
     // Check both label and marker data for special relations (include/extend)
-    const isIncludeExtend = 
-      (e.label as string)?.includes("«") || 
-      (e.data as { marker?: string })?.marker?.includes("open");
+    const isIncludeExtend =
+        (e.label as string)?.includes("«") ||
+        (e.data as { marker?: string })?.marker?.includes("open");
 
     const horizontalRatio = Math.abs(dx) / (Math.abs(dx) + Math.abs(dy) || 1);
 
@@ -87,16 +87,16 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
     const isPackage = nodes.find(n => n.id === e.source)?.type === "package" || nodes.find(n => n.id === e.target)?.type === "package";
     if (isPackage) {
       if (horizontalRatio > 0.6 || isIncludeExtend) {
-        return { 
-          ...e, 
-          sourceHandle: dx >= 0 ? "r" : "l", 
-          targetHandle: dx >= 0 ? "l-t" : "r-t" 
+        return {
+          ...e,
+          sourceHandle: dx >= 0 ? "r" : "l",
+          targetHandle: dx >= 0 ? "l-t" : "r-t"
         };
       }
-      return { 
-        ...e, 
-        sourceHandle: dy >= 0 ? "b" : "t", 
-        targetHandle: dy >= 0 ? "t-t" : "b-t" 
+      return {
+        ...e,
+        sourceHandle: dy >= 0 ? "b" : "t",
+        targetHandle: dy >= 0 ? "t-t" : "b-t"
       };
     }
 
@@ -126,7 +126,7 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
 /* ============================================================
    ELK LAYERED (Activity / State / Class / Component)
    ============================================================ */
-function elkOptions(type?: DiagramType): Record<string, string> {
+function elkOptions(type?: DiagramType, direction?: "TB" | "LR"): Record<string, string> {
   const base = {
     "elk.algorithm": "layered",
     "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
@@ -150,19 +150,21 @@ function elkOptions(type?: DiagramType): Record<string, string> {
     "elk.spacing.componentComponent": "140",
   };
 
+  const dir = direction === "LR" ? "RIGHT" : (direction === "TB" ? "DOWN" : null);
+
   switch (type) {
     case "activity":
     case "state":
-      return { ...base, "elk.direction": "DOWN",
+      return { ...base, "elk.direction": dir || "DOWN",
         "elk.layered.spacing.nodeNodeBetweenLayers": "100", "elk.spacing.nodeNode": "80" };
     case "class":
-      return { ...base, "elk.direction": "RIGHT",
+      return { ...base, "elk.direction": dir || "RIGHT",
         "elk.layered.spacing.nodeNodeBetweenLayers": "100", "elk.spacing.nodeNode": "55" };
     case "component":
-      return { ...base, "elk.direction": "RIGHT",
+      return { ...base, "elk.direction": dir || "RIGHT",
         "elk.layered.spacing.nodeNodeBetweenLayers": "90", "elk.spacing.nodeNode": "50" };
     default:
-      return { ...base, "elk.direction": "DOWN",
+      return { ...base, "elk.direction": dir || "DOWN",
         "elk.layered.spacing.nodeNodeBetweenLayers": "80", "elk.spacing.nodeNode": "50" };
   }
 }
@@ -174,7 +176,7 @@ function elkOptions(type?: DiagramType): Record<string, string> {
 export function finalizeLayout(nodes: FlowNode[], edges: FlowEdge[] = []): FlowNode[] {
   const PADDING = 30;
   const packages = nodes.filter((n) => n.type === "package");
-  
+
   // 1. Calculate depth for each package to process from inside-out
   const getDepth = (id: string | undefined): number => {
     if (!id) return 0;
@@ -195,7 +197,7 @@ export function finalizeLayout(nodes: FlowNode[], edges: FlowEdge[] = []): FlowN
     const children = nodes.filter((n) => n.parentId === pkg.id);
     if (children.length > 0) {
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      
+
       for (const child of children) {
         const w = child.width || 150;
         const h = child.height || 100;
@@ -225,16 +227,16 @@ export function finalizeLayout(nodes: FlowNode[], edges: FlowEdge[] = []): FlowN
     if (s && t) {
       const dx = Math.abs(s.position.x - t.position.x);
       const dy = Math.abs(s.position.y - t.position.y);
-      
+
       // Smart Routing Logic:
       if (s.parentId !== t.parentId) {
         edge.type = "smoothstep"; // Use smoothstep for cross-package to né node tốt hơn
-        edge.zIndex = 200; 
+        edge.zIndex = 200;
       } else if (dx < 20 || dy < 20) {
-        edge.type = "straight"; 
+        edge.type = "straight";
         edge.zIndex = 5;
       } else {
-        edge.type = "smoothstep"; 
+        edge.type = "smoothstep";
         edge.zIndex = 5;
       }
     }
@@ -256,7 +258,7 @@ export function finalizeLayout(nodes: FlowNode[], edges: FlowEdge[] = []): FlowN
 }
 
 async function elkLayout(
-  nodes: FlowNode[], edges: FlowEdge[], type?: DiagramType
+    nodes: FlowNode[], edges: FlowEdge[], type?: DiagramType, direction?: "TB" | "LR"
 ): Promise<{ nodes: FlowNode[]; edges: FlowEdge[] }> {
   if (!nodes.length) return { nodes, edges };
 
@@ -297,7 +299,7 @@ async function elkLayout(
   };
 
   const rootGraph = buildElkGraph(undefined);
-  
+
   // Cross-hierarchy edges (edges between nodes in different packages)
   const crossEdges = edges.filter(e => {
     const s = nodes.find(n => n.id === e.source);
@@ -316,14 +318,14 @@ async function elkLayout(
 
   const graph = {
     id: "root",
-    layoutOptions: elkOptions(type),
+    layoutOptions: elkOptions(type, direction),
     children: rootGraph.children,
     edges: [...rootGraph.edges, ...crossEdges],
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await elk.layout(graph as any);
-  
+
   const posMap = new Map<string, { x: number; y: number; width?: number; height?: number }>();
   const flattenResult = (parent: any, offsetX = 0, offsetY = 0) => {
     for (const c of parent.children ?? []) {
@@ -338,19 +340,19 @@ async function elkLayout(
   const layoutedNodes = nodes.map((n) => {
     const pos = posMap.get(n.id);
     if (!pos) return n;
-    return { 
-      ...n, 
-      position: { x: pos.x, y: pos.y }, 
-      width: pos.width ?? n.width, 
+    return {
+      ...n,
+      position: { x: pos.x, y: pos.y },
+      width: pos.width ?? n.width,
       height: pos.height ?? n.height,
-      style: { ...(n.style as object), width: pos.width ?? n.width, height: pos.height ?? n.height } 
+      style: { ...(n.style as object), width: pos.width ?? n.width, height: pos.height ?? n.height }
     };
   });
 
   // Re-run finalizeLayout to fix package sizes and relative positions
   const finalNodes = finalizeLayout(layoutedNodes);
   const layoutedEdges = assignHandles(finalNodes, edges);
-  
+
   return { nodes: finalNodes, edges: layoutedEdges };
 }
 
@@ -381,7 +383,7 @@ function ucGroupMetrics(count: number) {
 }
 
 function resolveOverlaps<T extends { idealY: number }>(
-  items: T[], itemHeight: number, minGap: number
+    items: T[], itemHeight: number, minGap: number
 ): T[] {
   const sorted = [...items].sort((a, b) => a.idealY - b.idealY);
   for (let i = 1; i < sorted.length; i++) {
@@ -392,7 +394,7 @@ function resolveOverlaps<T extends { idealY: number }>(
 }
 
 function layoutUseCase(
-  nodes: FlowNode[], edges: FlowEdge[]
+    nodes: FlowNode[], edges: FlowEdge[]
 ): { nodes: FlowNode[]; edges: FlowEdge[] } {
   const actors = nodes.filter((n) => n.type === "actor");
   const useCases = nodes.filter((n) => n.type === "usecase");
@@ -437,7 +439,7 @@ function layoutUseCase(
   }
 
   const sortedActors = [...actors].sort(
-    (a, b) => (actorToUCs.get(b.id)?.length ?? 0) - (actorToUCs.get(a.id)?.length ?? 0)
+      (a, b) => (actorToUCs.get(b.id)?.length ?? 0) - (actorToUCs.get(a.id)?.length ?? 0)
   );
   const leftActorIds = new Set<string>();
   const rightActorIds = new Set<string>();
@@ -520,7 +522,7 @@ function layoutUseCase(
 
   // 6. Position UCs by actor Y
   const positionUCsByActor = (
-    ucIds: string[], startX: number, sideActors: Set<string>
+      ucIds: string[], startX: number, sideActors: Set<string>
   ): FlowNode[] => {
     if (!ucIds.length) return [];
     const { cols } = ucGroupMetrics(ucIds.length);
@@ -530,8 +532,8 @@ function layoutUseCase(
       let idealY: number;
       if (connected.length) {
         const ys = connected
-          .map((id) => actorCenterY.get(id))
-          .filter((y): y is number => y !== undefined);
+            .map((id) => actorCenterY.get(id))
+            .filter((y): y is number => y !== undefined);
         idealY = ys.length ? ys.reduce((s, y) => s + y, 0) / ys.length - UC_H / 2 : finalCenterY - UC_H / 2;
       } else {
         idealY = finalCenterY - UC_H / 2;
@@ -621,8 +623,8 @@ function layoutUseCase(
    PUBLIC API
    ============================================================ */
 export async function layoutElements(
-  nodes: FlowNode[], edges: FlowEdge[],
-  options: { diagramType?: DiagramType } = {}
+    nodes: FlowNode[], edges: FlowEdge[],
+    options: { diagramType?: DiagramType; direction?: "TB" | "LR" } = {}
 ): Promise<{ nodes: FlowNode[]; edges: FlowEdge[] }> {
   if (!nodes.length) return { nodes, edges };
 
@@ -631,5 +633,5 @@ export async function layoutElements(
   if (options.diagramType === "usecase" || (hasActors && hasUseCases)) {
     return layoutUseCase(nodes, edges);
   }
-  return elkLayout(nodes, edges, options.diagramType);
+  return elkLayout(nodes, edges, options.diagramType, options.direction);
 }
