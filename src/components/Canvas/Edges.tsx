@@ -56,7 +56,7 @@ function EdgeView({ id, path, data, label, sourceX, sourceY, targetX, targetY, s
         <EdgeLabelRenderer>
           <div className="nodrag nopan absolute"
             style={{ transform: `translate(-50%, -50%) translate(${lx}px, ${ly}px)` }}>
-            <span className="whitespace-nowrap rounded-md border border-zinc-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-600 shadow-sm">
+            <span className="whitespace-nowrap bg-white px-1 py-0.5 text-[11px] font-medium text-zinc-700">
               {label}
             </span>
           </div>
@@ -91,7 +91,7 @@ export function OrthogonalEdge(props: EdgeProps) {
       path = `M ${sourceX} ${sourceY} L ${sourceX} ${midY} L ${targetX} ${midY} L ${targetX} ${targetY}`;
     }
   } else {
-    [path] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 8 });
+    [path] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 0 });
   }
 
   return (

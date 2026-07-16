@@ -210,10 +210,10 @@ const UserDashboard: React.FC = () => {
       
       if (response.code === 200) {
         toast.success('Project created successfully');
-        fetchWorkspaces();
         setShowCreateModal(false);
         setNewWsName('');
         setNewWsCategory('general');
+        navigate(`/workspace/${response.result.id}`);
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to create project');
@@ -324,7 +324,7 @@ const UserDashboard: React.FC = () => {
         {/* Create Button */}
         <div className={`px-4 mb-8 transition-all duration-300 ${isSidebarCollapsed ? 'px-2' : ''}`}>
           <button
-            onClick={() => navigate('/canvas')}
+            onClick={() => setShowCreateModal(true)}
             className={`w-full bg-uml-blue text-white rounded font-bold uppercase transition-all flex items-center justify-center gap-2 hover:bg-blue-700 shadow-md active:scale-95 ${isSidebarCollapsed ? 'h-12 w-12 rounded-full p-0' : 'py-3 px-4 text-[13px]'}`}
           >
             <Plus size={isSidebarCollapsed ? 24 : 18} />

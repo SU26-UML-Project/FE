@@ -14,6 +14,7 @@ import ProfilePage from './pages/ProfilePage'
 import OnboardingPage from './pages/OnboardingPage'
 import TemplateDetail from './pages/TemplateDetail'
 import PrebuiltDetail from './pages/PrebuiltDetail'
+import ProjectOverview from './pages/ProjectOverview'
 
 import { Editor } from "./components/Editor"
 import { useAuthStore } from './stores/useAuthStore'
@@ -112,6 +113,7 @@ export default function App() {
   const isAdminPage = location.pathname.startsWith('/admin')
   const isDashboardPage = location.pathname.startsWith('/dashboard')
   const isWorkspacePage = location.pathname.startsWith('/workspace')
+  const isWorkspaceEditorPage = /^\/workspace\/[^/]+\/editor(?:\/|$)/.test(location.pathname)
   const isMarketingPage = location.pathname === '/' || location.pathname === '/pricing' || location.pathname === '/payment-information'
 
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false)
@@ -122,12 +124,12 @@ export default function App() {
   }, [checkAuth])
 
   return (
-    <div className={`min-h-screen flex flex-col ${!isAdminPage && !isDashboardPage && !isWorkspacePage ? 'grid-background' : ''}`}>
+    <div className={`min-h-screen flex flex-col ${!isAdminPage && !isDashboardPage && !isWorkspaceEditorPage ? 'grid-background' : ''}`}>
       <OAuth2Handler />
-      {!isAdminPage && !isWorkspacePage && !isWorkspacePage && <Navbar />}
+      {!isAdminPage && !isWorkspaceEditorPage && <Navbar />}
 
       <div className="flex-1 flex overflow-hidden relative">
-        <main className={`flex-1 transition-all duration-300 ease-in-out ${isAiSidebarOpen && !isAdminPage && !isWorkspacePage && !isMarketingPage && !isDashboardPage ? 'mr-[380px]' : ''}`}>
+        <main className={`min-w-0 flex-1 transition-all duration-300 ease-in-out ${isAiSidebarOpen && !isAdminPage && !isWorkspacePage && !isMarketingPage && !isDashboardPage ? 'mr-[380px]' : ''}`}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/pricing" element={<Pricing />} />
@@ -136,7 +138,13 @@ export default function App() {
               <Route path="/dashboard" element={<UserDashboard />} />
               <Route path="/onboarding" element={<OnboardingPage />} />
               <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/workspace/:id" element={
+              <Route path="/workspace/:id" element={<ProjectOverview />} />
+              <Route path="/workspace/:id/editor" element={
+                <ReactFlowProvider>
+                  <Editor />
+                </ReactFlowProvider>
+              } />
+              <Route path="/workspace/:id/editor/:itemId" element={
                 <ReactFlowProvider>
                   <Editor />
                 </ReactFlowProvider>
