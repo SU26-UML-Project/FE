@@ -48,7 +48,7 @@ export const DIAGRAMS: DiagramDef[] = [
     nodes: [
       P("start", "Initial", { label: "" }, 38, 38),
       P("final", "Final", { label: "" }, 40, 40),
-      P("action", "State", { label: "Idle" }, 150, 56),
+      P("state", "State", { label: "Idle" }, 150, 56),
       P("decision", "Choice", { label: "Guard?" }, 150, 104),
       P("note", "Note", { label: "Note…" }, 170, 80),
     ],
@@ -71,7 +71,7 @@ export const DIAGRAMS: DiagramDef[] = [
     edges: [
       { id: "inherit", label: "Inheritance", markerEnd: M.triangle, dashed: false, path: "smoothstep" },
       { id: "realize", label: "Realization", markerEnd: M.triangle, dashed: true, path: "smoothstep" },
-      { id: "assoc", label: "Association", markerEnd: M.openArrow, dashed: false, path: "smoothstep" },
+      { id: "assoc", label: "Association", markerEnd: M.none, dashed: false, path: "smoothstep" },
       { id: "aggr", label: "Aggregation", markerStart: M.diamondOpenStart, markerEnd: "", dashed: false, path: "smoothstep" },
       { id: "comp", label: "Composition", markerStart: M.diamondFilledStart, markerEnd: "", dashed: false, path: "smoothstep" },
       { id: "depend", label: "Dependency", markerEnd: M.openArrow, dashed: true, path: "smoothstep" },
@@ -85,7 +85,7 @@ export const DIAGRAMS: DiagramDef[] = [
     nodes: [
       P("actor", "Actor", { label: "User" }, 76, 124),
       P("usecase", "Use Case", { label: "Use case" }, 170, 82),
-      P("package", "System", { label: "System" }, 440, 320),
+      P("boundary", "System Boundary", { label: "System" }, 440, 320),
       P("note", "Note", { label: "Note…" }, 170, 80),
     ],
     edges: [
@@ -106,7 +106,7 @@ export const DIAGRAMS: DiagramDef[] = [
       P("note", "Note", { label: "Note…" }, 170, 80),
     ],
     edges: [
-      { id: "assoc", label: "Association", markerEnd: M.openArrow, dashed: false, path: "smoothstep" },
+      { id: "assoc", label: "Association", markerEnd: M.none, dashed: false, path: "smoothstep" },
       { id: "depend", label: "Dependency", markerEnd: M.openArrow, dashed: true, path: "smoothstep" },
       { id: "realize", label: "Realization", markerEnd: M.triangle, dashed: true, path: "smoothstep" },
       { id: "aggr", label: "Aggregation", markerStart: M.diamondOpenStart, markerEnd: "", dashed: false, path: "smoothstep" },
@@ -243,17 +243,17 @@ function act() {
       edge("dec", "a3", { marker: M.arrow, label: "no" }),
       edge("a2", "f", { marker: M.arrow }),
       edge("a3", "dec", { marker: M.arrow, label: "retry", type: "bezier" }),
-      edge("n", "a3", { marker: M.openArrow, dashed: true, type: "bezier" }),
+      edge("n", "a3", { marker: M.none, dashed: true, type: "bezier" }),
     ],
   };
 }
 
 function st() {
   const init = node("start", 40, 150, { label: "" }, 38, 38, "i");
-  const idle = node("action", 130, 142, { label: "Idle" }, 150, 56, "idle");
-  const run = node("action", 350, 142, { label: "Running" }, 150, 56, "run");
+  const idle = node("state", 130, 142, { label: "Idle" }, 150, 56, "idle");
+  const run = node("state", 350, 142, { label: "Running" }, 150, 56, "run");
   const dec = node("decision", 570, 130, { label: "Done?" }, 150, 110, "dec");
-  const done = node("action", 790, 142, { label: "Finished" }, 150, 56, "done");
+  const done = node("state", 790, 142, { label: "Finished" }, 150, 56, "done");
   const fin = node("final", 990, 150, { label: "" }, 40, 40, "f");
   return {
     nodes: [init, idle, run, dec, done, fin],
@@ -287,7 +287,7 @@ function cls() {
 
 function uc() {
   const user = node("actor", 30, 150, { label: "User" }, 76, 124, "user");
-  const sys = node("package", 150, 20, { label: "System" }, 460, 340, "sys");
+  const sys = node("boundary", 150, 20, { label: "System" }, 460, 340, "sys");
   const login = node("usecase", 200, 80, { label: "Log in" }, 160, 76, "login");
   const search = node("usecase", 200, 210, { label: "Search" }, 160, 76, "search");
   const twofa = node("usecase", 420, 60, { label: "2FA verify" }, 160, 76, "2fa");

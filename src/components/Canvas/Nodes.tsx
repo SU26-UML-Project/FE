@@ -167,7 +167,7 @@ export function ActionNode({ id, data, selected, height }: NodeProps) {
   const minH = useContentHeight(contentRef, [d.label]);
   useAutoGrow(id, height as number | undefined, minH);
   return (
-    <div className="relative flex h-full w-full items-center justify-center rounded-[10px] px-4 text-center text-[13px] font-medium text-zinc-900"
+    <div className="relative flex h-full w-full items-center justify-center rounded-[8px] px-4 text-center text-[13px] font-medium text-zinc-900"
       style={{ border: `1.5px solid ${ink}`, background: fillColor(d) }}>
       <Resizer selected={selected} minW={100} minH={minH || 40} />
       <AllHandles />
@@ -234,7 +234,7 @@ export function ForkNode({ data, selected, width, height }: NodeProps) {
         className="absolute inset-0 bg-zinc-900" 
         style={{ 
           background: fillColor(d, "#18181b"), 
-          borderRadius: isHorizontal ? "4px" : "4px" 
+          borderRadius: 0
         }} 
       />
     </div>
@@ -259,7 +259,7 @@ export function ClassNode({ id, data, selected, height }: NodeProps) {
   const minH = useContentHeight(contentRef, [d.label, d.stereotype, d.attributes, d.methods]);
   useAutoGrow(id, height as number | undefined, minH);
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[8px]"
+    <div className="relative flex h-full w-full flex-col overflow-hidden"
       style={{ border: `1.5px solid ${ink}`, background: fillColor(d) }}>
       <Resizer selected={selected} minW={170} minH={minH || 90} />
       <AllHandles />
@@ -288,7 +288,7 @@ export function ComponentNode({ id, data, selected, height }: NodeProps) {
   const minH = useContentHeight(contentRef, [d.label, d.stereotype]);
   useAutoGrow(id, height as number | undefined, minH);
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-[8px]"
+    <div className="relative h-full w-full overflow-hidden"
       style={{ border: `1.5px solid ${ink}`, background: fillColor(d) }}>
       <Resizer selected={selected} minW={140} minH={minH || 64} />
       <AllHandles />
@@ -391,6 +391,45 @@ export function TextNode({ id, data, selected }: NodeProps) {
   );
 }
 
+export function StateNode({ id, data, selected, height }: NodeProps) {
+  const d = data as FlowNodeData;
+  const ink = inkColor(d);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const minH = useContentHeight(contentRef, [d.label, d.attributes]);
+  useAutoGrow(id, height as number | undefined, minH);
+  return (
+    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[8px]"
+      style={{ border: `1.5px solid ${ink}`, background: fillColor(d) }}>
+      <Resizer selected={selected} minW={110} minH={minH || 48} />
+      <AllHandles />
+      <div ref={contentRef} style={{ height: "max-content" }} className="flex w-full flex-col">
+        <div className="break-words px-3 py-2 text-center text-[13px] font-semibold text-zinc-900">
+          <EditableText id={id} field="label" value={d.label} placeholder="State" />
+        </div>
+        {d.attributes && <div className="border-t px-3 py-2 font-mono text-[10.5px] leading-relaxed text-zinc-700" style={{ borderColor: ink }}>
+          <EditableText id={id} field="attributes" value={d.attributes} placeholder="entry / behavior" multiline mono />
+        </div>}
+      </div>
+    </div>
+  );
+}
+
+/** Plain system boundary for Use Case diagrams (not a Package tab). */
+export function SystemBoundaryNode({ id, data, selected }: NodeProps) {
+  const d = data as FlowNodeData;
+  const ink = inkColor(d);
+  return (
+    <div className="relative h-full w-full" style={{ pointerEvents: "none" }}>
+      <div style={{ pointerEvents: "auto" }}><Resizer selected={selected} minW={180} minH={120} /></div>
+      <div className="absolute inset-0" style={{ border: `1.5px solid ${ink}`, background: (d.fill as string) || "transparent", pointerEvents: "none" }} />
+      <div className="absolute left-0 right-0 top-0 z-10 px-3 py-2 text-center text-[12px] font-semibold text-zinc-800" style={{ pointerEvents: "auto" }}>
+        <EditableText id={id} field="label" value={d.label} placeholder="System" />
+      </div>
+      <div className="react-flow__handle-wrap" style={{ pointerEvents: "auto" }}><AllHandles /></div>
+    </div>
+  );
+}
+
 export function PackageNode({ id, data, selected }: NodeProps) {
   const d = data as FlowNodeData;
   const ink = inkColor(d);
@@ -401,7 +440,7 @@ export function PackageNode({ id, data, selected }: NodeProps) {
       </div>
       {/* Tab header — the ONLY clickable part (selects the package) */}
       <div
-        className="absolute left-0 top-0 z-10 h-[24px] cursor-pointer rounded-t-[8px] px-3"
+        className="absolute left-0 top-0 z-10 h-[24px] cursor-pointer px-3"
         style={{
             width: "fit-content",
             minWidth: 90,
@@ -418,7 +457,7 @@ export function PackageNode({ id, data, selected }: NodeProps) {
       </div>
       {/* Body — pointer-events-none so clicks pass THROUGH to nodes inside */}
       <div
-        className="absolute left-0 right-0 bottom-0 top-[24px] rounded-[8px] rounded-tl-none"
+        className="absolute left-0 right-0 bottom-0 top-[24px]"
         style={{
           border: `1.5px solid ${ink}`,
           background: (d.fill as string) || "transparent",
@@ -442,6 +481,7 @@ export function PackageNode({ id, data, selected }: NodeProps) {
 
 export const nodeTypes = {
   action: ActionNode,
+  state: StateNode,
   decision: DecisionNode,
   start: StartNode,
   final: FinalNode,
@@ -453,4 +493,5 @@ export const nodeTypes = {
   note: NoteNode,
   text: TextNode,
   package: PackageNode,
+  boundary: SystemBoundaryNode,
 };

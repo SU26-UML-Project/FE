@@ -145,12 +145,23 @@ export interface ChatSession {
   updatedAt: string;
 }
 
+export interface AiContextRef {
+  type: 'WORKSPACE_MARKDOWN' | 'DIAGRAM' | 'UPLOADED_FILE';
+  itemId?: string;
+  sheetId?: string;
+  fileId?: string;
+  name: string;
+  inlineContent?: string;
+  mimeType?: string;
+}
+
 export interface DiagramChatRequest {
   message: string;
   sessionId?: string;
   sheetId?: string;
   currentNodes?: AiNodeDto[];
   currentEdges?: AiEdgeDto[];
+  contexts?: AiContextRef[];
 }
 
 export interface DiagramChatResponse {

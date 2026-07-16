@@ -27,6 +27,8 @@ export function Toolbar(props: {
   sheetName: string;
   onBackToDashboard: () => void;
   onHelp: () => void;
+  onVersionHistory: () => void;
+  versionHistoryOpen?: boolean;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -93,7 +95,7 @@ export function Toolbar(props: {
   }, [menu, tpl]);
 
   return (
-    <header className="z-20 flex h-14 shrink-0 items-center gap-3 border-b border-[var(--line)] bg-white px-3">
+    <header className="relative z-[120] flex h-14 w-full min-w-0 shrink-0 items-center gap-3 overflow-visible border-b border-[var(--line)] bg-white px-3">
       {/* Brand */}
       <button onClick={props.onBackToDashboard} className="group flex items-center gap-2.5 pl-1 pr-2 hover:opacity-80 transition-opacity">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-uml-blue text-white group-hover:bg-blue-700">
@@ -120,6 +122,9 @@ export function Toolbar(props: {
         className="ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-[14px] font-bold text-admin-secondary transition-colors hover:bg-admin-bg hover:text-admin-primary">
         ?
       </button>
+      <IconBtn label="Version history" active={props.versionHistoryOpen} onClick={props.onVersionHistory}>
+        <I><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></I>
+      </IconBtn>
 
       <div className="ml-auto flex items-center gap-1.5">
         <IconBtn label="Undo (Ctrl+Z)" onClick={props.onUndo} disabled={!props.canUndo}>
@@ -172,7 +177,7 @@ export function Toolbar(props: {
             Templates
           </button>
           {tpl && (
-            <div className="animate-pop absolute right-0 top-9 w-56 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="animate-pop absolute right-0 top-9 z-[140] w-56 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
               <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-admin-secondary/50">Load a template</div>
               {DIAGRAMS.map((d) => (
                 <button key={d.id} onClick={() => { props.onPickTemplate(d.id); setTpl(false); }}
@@ -196,7 +201,7 @@ export function Toolbar(props: {
             Import
           </button>
           {importMenu && (
-            <div className="animate-pop absolute right-0 top-9 w-44 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="animate-pop absolute right-0 top-9 z-[140] w-44 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
               <MenuItem onClick={() => { fileRef.current?.click(); setImportMenu(false); }}>From file</MenuItem>
               <MenuItem onClick={() => { props.onImportCode(); setImportMenu(false); }}>From code</MenuItem>
             </div>
@@ -247,7 +252,7 @@ export function Toolbar(props: {
             Export
           </button>
           {menu && (
-            <div className="animate-pop absolute right-0 top-9 w-48 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="animate-pop absolute right-0 top-9 z-[140] w-48 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
               <MenuItem onClick={() => { props.onExportPng(); setMenu(false); }}>PNG image</MenuItem>
               <MenuItem onClick={() => { props.onExportJson(); setMenu(false); }}>JSON file</MenuItem>
               <div className="mx-3 my-1 border-t border-zinc-100" />

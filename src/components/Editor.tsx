@@ -51,6 +51,14 @@ import { loadSheets, saveSheets, saveActiveId, loadActiveId, createSheet } from 
 import { useCollab } from "../hooks/useCollab";
 import type { CanvasChangeData } from "../services";
 import { useAuthStore } from "../stores/useAuthStore";
+import ProjectExplorer from "./Workspace/ProjectExplorer";
+import MarkdownEditor from "./Workspace/MarkdownEditor";
+import { workspaceFileService } from "../services/workspaceFileService";
+import type { WorkspaceFileItem, WorkspaceTreeState, WorkspaceFileKind } from "../types/workspaceFile";
+import VersionHistoryPanel from "./Workspace/VersionHistoryPanel";
+import { diagramVersionService } from "../services/diagramVersionService";
+import type { DiagramSnapshot, DiagramVersion } from "../types/diagramVersion";
+import WorkspaceTabs, { type WorkspaceTab } from "./Workspace/WorkspaceTabs";
 
 type Snap = { nodes: FlowNode[]; edges: FlowEdge[] };
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -82,7 +90,7 @@ function download(filename: string, content: string) {
 
 export function Editor() {
   const rf = useReactFlow();
-  const { id } = useParams<{ id: string }>();
+  const { id, itemId } = useParams<{ id: string; itemId?: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
@@ -126,7 +134,7 @@ export function Editor() {
   const [importResult, setImportResult] = useState<any | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [typeMenu, setTypeMenu] = useState(false);
   const [aiOpen, setAiOpen] = useState(true);
   const [sheets, setSheets] = useState<Sheet[]>([]);
@@ -134,6 +142,13 @@ export function Editor() {
   const [projectName, setProjectName] = useState<string>("");
   const [projectOwner, setProjectOwner] = useState<string>("");
   const [publicAccess, setPublicAccess] = useState<boolean>(false);
+  const [workspaceTree, setWorkspaceTree] = useState<WorkspaceTreeState>({ items: [], expandedIds: [], activeItemId: null });
+  const [activeWorkspaceItem, setActiveWorkspaceItem] = useState<WorkspaceFileItem | null>(null);
+  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
+  const [previewVersionId, setPreviewVersionId] = useState<string | null>(null);
+  const [workspaceTabs, setWorkspaceTabs] = useState<WorkspaceTab[]>([]);
+  const [explorerCreateRequest, setExplorerCreateRequest] = useState<{ id: number; kind: WorkspaceFileKind } | null>(null);
+  const [contentVisible, setContentVisible] = useState(true);
 
   const sheetsRef = useRef<Sheet[]>([]);
   const projectNameRef = useRef<string>("");
@@ -158,6 +173,8 @@ export function Editor() {
   const dragActiveRef = useRef(false);
   const clipboard = useRef<FlowNode[] | null>(null);
   const skipCollabEmit = useRef(false);
+  const previewBaseRef = useRef<DiagramSnapshot | null>(null);
+  const lastAutoVersionRef = useRef(0);
 
   /* ---------- collab ---------- */
   const onRemoteCanvasChange = useCallback((data: CanvasChangeData) => {
@@ -955,7 +972,22 @@ export function Editor() {
           direction?: "TB" | "LR"
       ) => {
         beginMutation();
+        if (activeSheetId && nodesRef.current.length) {
+          diagramVersionService.create(activeSheetId, {
+            schemaVersion: 1,
+            diagramType,
+            nodes: clone(nodesRef.current),
+            edges: clone(edgesRef.current),
+            viewport: rf.getViewport(),
+          }, { name: "Before import or AI change", source: "BEFORE_IMPORT" });
+        }
         const finalType = type || diagramType;
+        // Older templates/AI contracts used `package` for a Use Case system
+        // boundary. Render it with the dedicated UML boundary notation while
+        // keeping `package` available for actual package/module diagrams.
+        if (finalType === "usecase") {
+          inNodes = inNodes.map(node => node.type === "package" ? { ...node, type: "boundary" } : node);
+        }
         if (type) {
           setDiagramType(type);
           setActiveEdgeId(getDiagram(type).defaultEdge);
@@ -1091,7 +1123,7 @@ export function Editor() {
           emitCanvasChange({ nodes: visibleNodes, edges: visibleEdges, type: "add" });
         }
       },
-      [beginMutation, setNodes, setEdges, emitCanvasChange, diagramType, rf]
+      [beginMutation, setNodes, setEdges, emitCanvasChange, diagramType, rf, activeSheetId]
   );
 
   /* ---------- load / persist (multi-sheet) ---------- */
@@ -1133,7 +1165,7 @@ export function Editor() {
                   return {
                     ...node,
                     id: String(node.id || `node-${Math.random()}`),
-                    type: node.type || 'action',
+                    type: diagramData.diagramType === 'usecase' && node.type === 'package' ? 'boundary' : (node.type || 'action'),
                     position: node.position || { x: Number(node.x || 0), y: Number(node.y || 0) },
                     data
                   };
@@ -1158,50 +1190,43 @@ export function Editor() {
               updatedAt: new Date(s.updatedAt).getTime()
             };
           });
-        } else {
-          // New project: start with a single empty sheet
-          const firstSheet = createSheet([]);
-          try {
-            const newSheetRes = await sheetService.createSheet({
-              name: firstSheet.name,
-              orderIndex: 0,
-              projectId: id,
-              diagramData: JSON.stringify({
-                nodes: firstSheet.nodes,
-                edges: firstSheet.edges,
-                diagramType: firstSheet.diagramType
-              })
-            });
-            all = [{
-              ...firstSheet,
-              id: newSheetRes.result.id
-            }];
-          } catch (e) {
-            console.error("Failed to create initial sheet on server", e);
-            all = [firstSheet];
-          }
         }
 
-        const activeId = loadActiveId() && all.some((s) => s.id === loadActiveId())
-            ? loadActiveId()!
-            : all[0].id;
-        const active = all.find((s) => s.id === activeId) ?? all[0];
-
         setSheets(all);
-        setActiveSheetId(active.id);
-        setDiagramType(active.diagramType);
-        setActiveEdgeId(getDiagram(active.diagramType).defaultEdge);
+        const tree = workspaceFileService.syncDiagrams(id, all.map(sheet => ({ id: sheet.id, name: sheet.name, diagramType: sheet.diagramType })));
+        const requestedItem = itemId ? tree.items.find(item => item.id === itemId) : null;
+        const persistedItem = tree.items.find(item => item.id === tree.activeItemId);
+        const activeItem = requestedItem ?? persistedItem ?? null;
+        const preferredSheetId = activeItem?.sheetId ?? loadActiveId();
+        const active = all.find(sheet => sheet.id === preferredSheetId) ?? all[0];
+        const nextTree = { ...tree, activeItemId: activeItem?.id ?? null };
+        workspaceFileService.saveState(id, nextTree);
+        setWorkspaceTree(nextTree);
+        setActiveWorkspaceItem(activeItem);
+        const tabsKey = `diauml:workspace-tabs:${id}`;
+        let storedTabs: WorkspaceTab[] = [];
+        try { storedTabs = JSON.parse(localStorage.getItem(tabsKey) || "[]"); } catch { storedTabs = []; }
+        storedTabs = storedTabs.filter(tab => tree.items.some(item => item.id === tab.itemId && item.kind !== "folder"));
+        if (activeItem && activeItem.kind !== "folder" && !storedTabs.some(tab => tab.itemId === activeItem.id)) storedTabs.push({ itemId: activeItem.id, pinned: true });
+        setWorkspaceTabs(storedTabs);
+        localStorage.setItem(tabsKey, JSON.stringify(storedTabs));
 
-        const nextNodes = active.nodes;
-        const nextEdges = active.edges;
-        nodesRef.current = nextNodes;
-        edgesRef.current = nextEdges;
-        setNodesState(nextNodes);
-        setEdgesState(nextEdges);
-
-        // Restore viewport
-        if (active.viewport) {
-          rf.setViewport(active.viewport);
+        if (active) {
+          setActiveSheetId(active.id);
+          setDiagramType(active.diagramType);
+          setActiveEdgeId(getDiagram(active.diagramType).defaultEdge);
+          nodesRef.current = active.nodes;
+          edgesRef.current = active.edges;
+          setNodesState(active.nodes);
+          setEdgesState(active.edges);
+          if (active.viewport) rf.setViewport(active.viewport);
+          diagramVersionService.create(active.id, {
+            schemaVersion: 1,
+            diagramType: active.diagramType,
+            nodes: active.nodes,
+            edges: active.edges,
+            viewport: active.viewport,
+          }, { name: "Initial checkpoint", source: "AUTO" });
         }
 
         setLoaded(true);
@@ -1219,11 +1244,13 @@ export function Editor() {
     };
 
     initWorkspace();
-  }, [id, syncHist, navigate]);
+  // Project data is initialized once per project. Tab/file switches use the
+  // already-loaded tree and sheets, avoiding a full API reload and canvas flash.
+  }, [id, syncHist, navigate, rf]);
 
   // Persist the active sheet whenever its content changes.
   useEffect(() => {
-    if (!loaded || !activeSheetId || !id) return;
+    if (!loaded || !activeSheetId || !id || previewVersionId) return;
 
     const t = setTimeout(async () => {
       const currentSheets = sheetsRef.current;
@@ -1263,7 +1290,7 @@ export function Editor() {
 
     setSaved(false);
     return () => clearTimeout(t);
-  }, [nodes, edges, diagramType, loaded, activeSheetId, id, rf]);
+  }, [nodes, edges, diagramType, loaded, activeSheetId, id, rf, previewVersionId]);
 
   const savedRef = useRef(saved);
   useEffect(() => {
@@ -1328,7 +1355,9 @@ export function Editor() {
 
         // 1. Save current sheet first
         if (!saved) {
-          await saveImmediate();
+          // Snapshot/save starts immediately, while the UI switches optimistically.
+          // saveImmediate captures the current sheet payload before awaiting HTTP.
+          void saveImmediate();
         }
 
         // 2. Switch to target sheet
@@ -1360,14 +1389,14 @@ export function Editor() {
       [sheets, activeSheetId, rf, syncHist, saved, saveImmediate]
   );
 
-  const createNewSheet = useCallback(async () => {
+  const createNewSheet = useCallback(async (name?: string, type: DiagramType = "activity", parentId: string | null = null) => {
     // 1. Save current sheet first
     if (!saved) {
       await saveImmediate();
     }
 
     // 2. Create local temp sheet to get initial values
-    const tempSheet = createSheet(sheets);
+    const tempSheet = { ...createSheet(sheets), name: name || createSheet(sheets).name, diagramType: type };
 
     // 3. Create on server to get real UUID
     try {
@@ -1392,6 +1421,25 @@ export function Editor() {
 
       const next = [...sheets, newSheet];
       setSheets(next);
+      if (id) {
+        const item = workspaceFileService.create(id, {
+          id: `diagram:${newSheet.id}`,
+          name: newSheet.name,
+          kind: "diagram",
+          parentId,
+          sheetId: newSheet.id,
+          diagramType: newSheet.diagramType,
+        });
+        const nextTree = workspaceFileService.load(id);
+        setWorkspaceTree(nextTree);
+        setActiveWorkspaceItem(item);
+        setWorkspaceTabs(previous => {
+          const tabs = [...previous.filter(tab => tab.itemId !== item.id), { itemId: item.id, pinned: true }];
+          localStorage.setItem(`diauml:workspace-tabs:${id}`, JSON.stringify(tabs));
+          return tabs;
+        });
+        navigate(`/workspace/${id}/editor/${encodeURIComponent(item.id)}`, { replace: true });
+      }
 
       // 4. Switch to new sheet
       saveActiveId(newSheet.id);
@@ -1469,6 +1517,240 @@ export function Editor() {
       },
       [sheets, activeSheetId, switchSheet]
   );
+
+  const refreshWorkspaceTree = useCallback((active?: WorkspaceFileItem | null) => {
+    if (!id) return;
+    const tree = workspaceFileService.load(id);
+    setWorkspaceTree(tree);
+    if (active !== undefined) setActiveWorkspaceItem(active);
+  }, [id]);
+
+  const selectWorkspaceItem = useCallback(async (item: WorkspaceFileItem, pinned = false, manageTab = true) => {
+    if (!id || item.kind === "folder") return;
+    const changingFile = activeWorkspaceItem?.id !== item.id;
+    if (changingFile) setContentVisible(false);
+    if (changingFile && item.kind === "diagram" && item.sheetId) {
+      await switchSheet(item.sheetId);
+    } else if (changingFile && !saved) {
+      void saveImmediate();
+    }
+    if (manageTab) {
+      setWorkspaceTabs(previous => {
+        const existing = previous.find(tab => tab.itemId === item.id);
+        let next: WorkspaceTab[];
+        if (existing) next = previous.map(tab => tab.itemId === item.id && pinned ? { ...tab, pinned: true } : tab);
+        else if (pinned) next = [...previous, { itemId: item.id, pinned: true }];
+        else next = [...previous.filter(tab => tab.pinned), { itemId: item.id, pinned: false }];
+        localStorage.setItem(`diauml:workspace-tabs:${id}`, JSON.stringify(next));
+        return next;
+      });
+    }
+    workspaceFileService.saveState(id, { activeItemId: item.id });
+    setWorkspaceTree(prev => ({ ...prev, activeItemId: item.id }));
+    setActiveWorkspaceItem(item);
+    navigate(`/workspace/${id}/editor/${encodeURIComponent(item.id)}`, { replace: true });
+    if (changingFile) requestAnimationFrame(() => requestAnimationFrame(() => setContentVisible(true)));
+  }, [id, saved, saveImmediate, switchSheet, navigate, activeWorkspaceItem?.id]);
+
+  const selectWorkspaceTab = useCallback((itemId: string) => {
+    const item = workspaceTree.items.find(value => value.id === itemId);
+    if (item) void selectWorkspaceItem(item, workspaceTabs.find(tab => tab.itemId === itemId)?.pinned ?? true);
+  }, [workspaceTree.items, workspaceTabs, selectWorkspaceItem]);
+
+  const reorderWorkspaceTabs = useCallback((sourceId: string, targetId: string) => {
+    if (!id) return;
+    setWorkspaceTabs(previous => {
+      const sourceIndex = previous.findIndex(tab => tab.itemId === sourceId);
+      const targetIndex = previous.findIndex(tab => tab.itemId === targetId);
+      if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return previous;
+      const next = [...previous];
+      const [moved] = next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, moved);
+      localStorage.setItem(`diauml:workspace-tabs:${id}`, JSON.stringify(next));
+      return next;
+    });
+  }, [id]);
+
+  const closeWorkspaceTabs = useCallback((itemIds: string[]) => {
+    if (!id || !itemIds.length) return;
+    const removed = new Set(itemIds);
+    const activeIndex = workspaceTabs.findIndex(tab => tab.itemId === activeWorkspaceItem?.id);
+    const next = workspaceTabs.filter(tab => !removed.has(tab.itemId));
+    setWorkspaceTabs(next);
+    localStorage.setItem(`diauml:workspace-tabs:${id}`, JSON.stringify(next));
+    if (!activeWorkspaceItem || !removed.has(activeWorkspaceItem.id)) return;
+    const fallback = next[Math.min(Math.max(activeIndex, 0), next.length - 1)] ?? next[next.length - 1];
+    if (fallback) {
+      const item = workspaceTree.items.find(value => value.id === fallback.itemId);
+      if (item) void selectWorkspaceItem(item, fallback.pinned, false);
+    } else {
+      setActiveWorkspaceItem(null);
+      setWorkspaceTree(previous => ({ ...previous, activeItemId: null }));
+      workspaceFileService.saveState(id, { activeItemId: null });
+      navigate(`/workspace/${id}/editor`, { replace: true });
+    }
+  }, [id, workspaceTabs, activeWorkspaceItem, workspaceTree.items, selectWorkspaceItem, navigate]);
+
+  const closeWorkspaceTab = useCallback((itemId: string) => closeWorkspaceTabs([itemId]), [closeWorkspaceTabs]);
+
+  const createWorkspaceItem = useCallback(async (kind: WorkspaceFileKind, name: string, parentId: string | null, type?: DiagramType) => {
+    if (!id) return;
+    if (kind === "diagram") {
+      await createNewSheet(name, type || "activity", parentId);
+      return;
+    }
+    const item = workspaceFileService.create(id, { name, kind, parentId, content: kind === "markdown" ? "" : undefined });
+    refreshWorkspaceTree(item);
+    if (kind === "markdown") await selectWorkspaceItem(item, true);
+  }, [id, createNewSheet, refreshWorkspaceTree, selectWorkspaceItem]);
+
+  const renameWorkspaceItem = useCallback(async (item: WorkspaceFileItem, name: string) => {
+    if (!id) return;
+    workspaceFileService.update(id, item.id, { name });
+    if (item.kind === "diagram" && item.sheetId) await renameSheet(item.sheetId, name);
+    const updated = { ...item, name };
+    refreshWorkspaceTree(activeWorkspaceItem?.id === item.id ? updated : undefined);
+  }, [id, renameSheet, refreshWorkspaceTree, activeWorkspaceItem]);
+
+  const duplicateWorkspaceItem = useCallback(async (source: WorkspaceFileItem, parentId: string | null) => {
+    if (!id) return;
+    const uniqueName = (name: string, targetParentId: string | null) => {
+      const state = workspaceFileService.load(id);
+      const dot = name.toLowerCase().endsWith('.md') ? name.length - 3 : -1;
+      const stem = dot >= 0 ? name.slice(0, dot) : name;
+      const extension = dot >= 0 ? name.slice(dot) : '';
+      const taken = new Set(state.items.filter(item => item.parentId === targetParentId).map(item => item.name.toLowerCase()));
+      if (!taken.has(name.toLowerCase())) return name;
+      let index = 1;
+      while (taken.has(`${stem} (${index})${extension}`.toLowerCase())) index++;
+      return `${stem} (${index})${extension}`;
+    };
+    const duplicate = async (item: WorkspaceFileItem, targetParentId: string | null): Promise<WorkspaceFileItem> => {
+      const name = uniqueName(item.name, targetParentId);
+      if (item.kind === 'folder') {
+        const folder = workspaceFileService.create(id, { name, kind: 'folder', parentId: targetParentId });
+        const children = workspaceFileService.load(id).items.filter(child => child.parentId === item.id && child.id !== folder.id);
+        for (const child of children) await duplicate(child, folder.id);
+        return folder;
+      }
+      if (item.kind === 'markdown') return workspaceFileService.create(id, { name, kind: 'markdown', parentId: targetParentId, content: item.content || '' });
+      const sourceSheet = sheetsRef.current.find(sheet => sheet.id === item.sheetId);
+      if (!sourceSheet) throw new Error('Diagram source is unavailable.');
+      const response = await sheetService.createSheet({
+        name,
+        orderIndex: sheetsRef.current.length,
+        projectId: id,
+        diagramData: JSON.stringify({ nodes: sourceSheet.nodes.map(node => ({ ...node, selected: false })), edges: sourceSheet.edges.map(edge => ({ ...edge, selected: false })), diagramType: sourceSheet.diagramType, viewport: sourceSheet.viewport || { x: 0, y: 0, zoom: 1 } })
+      });
+      const copiedSheet: Sheet = { ...clone(sourceSheet), id: response.result.id, name, updatedAt: Date.now() };
+      setSheets(previous => [...previous, copiedSheet]);
+      return workspaceFileService.create(id, { id: `diagram:${response.result.id}`, name, kind: 'diagram', parentId: targetParentId, sheetId: response.result.id, diagramType: sourceSheet.diagramType });
+    };
+    try {
+      const copy = await duplicate(source, parentId);
+      refreshWorkspaceTree();
+      toast.success(`Created “${copy.name}”`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to paste item');
+    }
+  }, [id, refreshWorkspaceTree]);
+
+  const deleteWorkspaceItem = useCallback(async (item: WorkspaceFileItem) => {
+    if (!id) return;
+    const removedIds = new Set<string>([item.id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      workspaceTree.items.forEach(candidate => {
+        if (candidate.parentId && removedIds.has(candidate.parentId) && !removedIds.has(candidate.id)) {
+          removedIds.add(candidate.id);
+          changed = true;
+        }
+      });
+    }
+    const diagrams = workspaceTree.items.filter(candidate => removedIds.has(candidate.id) && candidate.kind === "diagram" && candidate.sheetId);
+    if (diagrams.length >= sheets.length) {
+      toast.error("Keep at least one diagram while the current backend still requires a sheet.");
+      return;
+    }
+    for (const diagramItem of diagrams) await deleteSheet(diagramItem.sheetId!);
+    const deletedSheetIds = new Set(diagrams.map(diagram => diagram.sheetId));
+    setSheets(prev => prev.filter(sheet => !deletedSheetIds.has(sheet.id)));
+    workspaceFileService.remove(id, item.id);
+    refreshWorkspaceTree(activeWorkspaceItem && removedIds.has(activeWorkspaceItem.id) ? null : undefined);
+  }, [id, workspaceTree.items, sheets.length, deleteSheet, refreshWorkspaceTree, activeWorkspaceItem]);
+
+  const updateMarkdown = useCallback((content: string) => {
+    if (!id || !activeWorkspaceItem || activeWorkspaceItem.kind !== "markdown") return;
+    workspaceFileService.update(id, activeWorkspaceItem.id, { content });
+    setActiveWorkspaceItem(prev => prev ? { ...prev, content } : prev);
+    setWorkspaceTree(prev => ({ ...prev, items: prev.items.map(item => item.id === activeWorkspaceItem.id ? { ...item, content } : item) }));
+  }, [id, activeWorkspaceItem]);
+
+  const currentVersionSnapshot = useCallback((): DiagramSnapshot => ({
+    schemaVersion: 1,
+    diagramType,
+    nodes: clone(nodesRef.current.map(node => ({ ...node, selected: false }))),
+    edges: clone(edgesRef.current.map(edge => ({ ...edge, selected: false }))),
+    viewport: rf.getViewport(),
+  }), [diagramType, rf]);
+
+  const createManualVersion = useCallback((name: string, note: string) => {
+    if (!activeSheetId) return;
+    const created = diagramVersionService.create(activeSheetId, currentVersionSnapshot(), { name, note, source: "MANUAL", force: true });
+    if (created) toast.success(`Saved ${created.name}`);
+  }, [activeSheetId, currentVersionSnapshot]);
+
+  const previewVersion = useCallback((version: DiagramVersion | null) => {
+    if (!version) {
+      const base = previewBaseRef.current;
+      if (base) {
+        setDiagramType(base.diagramType);
+        setNodes(base.nodes);
+        setEdges(base.edges);
+        if (base.viewport) rf.setViewport(base.viewport);
+      }
+      previewBaseRef.current = null;
+      setPreviewVersionId(null);
+      return;
+    }
+    if (!previewBaseRef.current) previewBaseRef.current = currentVersionSnapshot();
+    skipRec.current = true;
+    setDiagramType(version.snapshot.diagramType);
+    setNodes(version.snapshot.nodes);
+    setEdges(version.snapshot.edges);
+    if (version.snapshot.viewport) rf.setViewport(version.snapshot.viewport);
+    setPreviewVersionId(version.id);
+    setTimeout(() => { skipRec.current = false }, 0);
+  }, [currentVersionSnapshot, rf, setNodes, setEdges]);
+
+  const restoreVersion = useCallback((version: DiagramVersion) => {
+    if (!activeSheetId) return;
+    const current = previewBaseRef.current ?? currentVersionSnapshot();
+    diagramVersionService.create(activeSheetId, current, { name: "Backup before restore", source: "BEFORE_RESTORE", force: true });
+    const restored = clone(version.snapshot);
+    previewBaseRef.current = null;
+    setPreviewVersionId(null);
+    beginMutation();
+    setDiagramType(restored.diagramType);
+    setActiveEdgeId(getDiagram(restored.diagramType).defaultEdge);
+    setNodes(restored.nodes);
+    setEdges(restored.edges);
+    if (restored.viewport) rf.setViewport(restored.viewport);
+    diagramVersionService.create(activeSheetId, restored, { name: `Restored from ${version.name}`, source: "RESTORE", restoredFromVersionId: version.id, force: true });
+    emitCanvasChange({ nodes: restored.nodes, edges: restored.edges, type: "update" });
+    toast.success("Version restored. The previous state was backed up.");
+  }, [activeSheetId, currentVersionSnapshot, beginMutation, setNodes, setEdges, rf, emitCanvasChange]);
+
+  useEffect(() => {
+    if (!loaded || !activeSheetId || previewVersionId) return;
+    const timer = setTimeout(() => {
+      if (Date.now() - lastAutoVersionRef.current < 5 * 60 * 1000) return;
+      const created = diagramVersionService.create(activeSheetId, currentVersionSnapshot(), { name: "Auto checkpoint", source: "AUTO" });
+      if (created) lastAutoVersionRef.current = Date.now();
+    }, 5 * 60 * 1000);
+    return () => clearTimeout(timer);
+  }, [nodes, edges, diagramType, loaded, activeSheetId, previewVersionId, currentVersionSnapshot]);
 
   useEffect(() => {
     if (loaded) {
@@ -1682,7 +1964,7 @@ export function Editor() {
 
   return (
       <EditorContext.Provider value={{ updateNodeData, growNode }}>
-        <div className="flex h-screen flex-col overflow-hidden bg-white text-admin-on-surface">
+        <div className="flex h-screen w-full min-w-0 max-w-full flex-col overflow-hidden bg-white text-admin-on-surface">
           <Toolbar
               diagramType={diagramType}
               sheetName={sheets.find((s) => s.id === activeSheetId)?.name ?? ""}
@@ -1690,10 +1972,12 @@ export function Editor() {
                 if (!saved) {
                   setConfirmExit(true);
                 } else {
-                  navigate("/dashboard");
+                  navigate(`/workspace/${id}`);
                 }
               }}
               onHelp={() => setHelpOpen(true)}
+              onVersionHistory={() => setVersionHistoryOpen(value => !value)}
+              versionHistoryOpen={versionHistoryOpen}
               onUndo={undo}
               onRedo={redo}
               canUndo={hist.undo}
@@ -1742,8 +2026,61 @@ export function Editor() {
                 }
               }}
           />
-
           <div className="flex min-h-0 flex-1">
+            <ProjectExplorer
+                projectName={projectName}
+                items={workspaceTree.items}
+                activeId={activeWorkspaceItem?.id ?? null}
+                expandedIds={workspaceTree.expandedIds}
+                onExpandedChange={(expandedIds) => {
+                  if (id) workspaceFileService.saveState(id, { expandedIds });
+                  setWorkspaceTree(prev => ({ ...prev, expandedIds }));
+                }}
+                onSelect={selectWorkspaceItem}
+                onCreate={createWorkspaceItem}
+                createRequest={explorerCreateRequest}
+                onRename={renameWorkspaceItem}
+                onDelete={deleteWorkspaceItem}
+                onDuplicate={duplicateWorkspaceItem}
+                onMove={(itemId, parentId) => {
+                  if (!id) return;
+                  try {
+                    workspaceFileService.move(id, itemId, parentId);
+                    refreshWorkspaceTree();
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : "Unable to move item");
+                  }
+                }}
+            />
+
+            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+              <WorkspaceTabs tabs={workspaceTabs} items={workspaceTree.items} activeId={activeWorkspaceItem?.id ?? null} onSelect={selectWorkspaceTab} onClose={closeWorkspaceTab} onCloseMany={closeWorkspaceTabs} onReorder={reorderWorkspaceTabs}/>
+              <div className={`flex min-h-0 flex-1 transform-gpu transition-[opacity,transform] duration-150 ease-out ${contentVisible ? 'translate-y-0 opacity-100' : 'translate-y-[2px] opacity-0'}`}>
+            {activeWorkspaceItem?.kind === "markdown" && (
+              <MarkdownEditor name={activeWorkspaceItem.name} value={activeWorkspaceItem.content || ""} onChange={updateMarkdown} />
+            )}
+            {(activeWorkspaceItem?.kind === "folder" || !activeWorkspaceItem) && (
+              <div className="flex min-w-0 flex-1 items-center justify-center overflow-auto bg-admin-bg/30 p-8">
+                <div className="w-full max-w-2xl text-center">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-uml-blue/20 bg-uml-blue/10 text-uml-blue shadow-sm">
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h5l2 2h6A1.5 1.5 0 0 1 20 7.5v10a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><path d="M9 12h6M12 9v6"/></svg>
+                  </div>
+                  <h2 className="mt-5 text-2xl font-black tracking-tight text-admin-on-surface">{projectName || "Project workspace"}</h2>
+                  <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-admin-secondary">Open a file from Project Explorer, restore a recent tab, or create something new. The workspace stays open even when no tabs are active.</p>
+                  <div className="mt-6 flex flex-wrap justify-center gap-2">
+                    <button onClick={() => setExplorerCreateRequest({ id: Date.now(), kind: "diagram" })} className="rounded-lg bg-uml-blue px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700">New diagram</button>
+                    <button onClick={() => setExplorerCreateRequest({ id: Date.now(), kind: "markdown" })} className="rounded-lg border border-admin-outline bg-white px-4 py-2.5 text-xs font-bold text-admin-on-surface hover:border-uml-blue hover:text-uml-blue">New Markdown</button>
+                    <button onClick={() => setExplorerCreateRequest({ id: Date.now(), kind: "folder" })} className="rounded-lg border border-admin-outline bg-white px-4 py-2.5 text-xs font-bold text-admin-on-surface hover:border-uml-blue hover:text-uml-blue">New folder</button>
+                  </div>
+                  {workspaceTree.items.some(item => item.kind !== "folder") && <div className="mx-auto mt-8 max-w-lg rounded-xl border border-admin-outline bg-white p-3 text-left shadow-sm">
+                    <p className="mb-2 px-2 text-[9px] font-black uppercase tracking-[0.16em] text-admin-secondary">Recent files</p>
+                    {workspaceTree.items.filter(item => item.kind !== "folder").sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4).map(item => <button key={item.id} onClick={() => void selectWorkspaceItem(item, true)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-admin-bg"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-uml-blue/10 text-uml-blue">{item.kind === "markdown" ? "M" : "D"}</span><span className="min-w-0 flex-1"><b className="block truncate text-xs">{item.name}</b><small className="text-[9px] uppercase tracking-wider text-admin-secondary">{item.kind}</small></span><span className="text-admin-outline">→</span></button>)}
+                  </div>}
+                  <div className="mt-6 flex justify-center gap-5 text-[10px] font-medium text-admin-secondary"><span><kbd className="rounded border border-admin-outline bg-white px-1.5 py-0.5">Ctrl N</kbd> create</span><span><kbd className="rounded border border-admin-outline bg-white px-1.5 py-0.5">F2</kbd> rename</span><span><kbd className="rounded border border-admin-outline bg-white px-1.5 py-0.5">Double-click</kbd> pin tab</span></div>
+                </div>
+              </div>
+            )}
+            <div className={`${activeWorkspaceItem?.kind === "diagram" ? "flex" : "hidden"} min-h-0 min-w-0 flex-1`} aria-hidden={activeWorkspaceItem?.kind !== "diagram"}>
             <Sidebar
                 diagram={diagram}
                 diagramType={diagramType}
@@ -1794,6 +2131,9 @@ export function Editor() {
               <ReactFlow
                   nodes={nodes}
                   edges={edges}
+                  nodesDraggable={!previewVersionId}
+                  nodesConnectable={!previewVersionId}
+                  elementsSelectable={!previewVersionId}
                   nodeTypes={nodeTypes}
                   edgeTypes={edgeTypes}
                   onNodesChange={onNodesChange}
@@ -1898,25 +2238,33 @@ export function Editor() {
                 />
             )}
 
-            <AIChat
-                open={aiOpen}
-                onToggle={() => setAiOpen((v) => !v)}
-                diagramType={diagramType}
-                activeSheetId={activeSheetId}
-                currentNodes={nodes}
-                currentEdges={edges}
-                onImport={importCanvas}
-            />
-          </div>
+            </div>
+              </div>
+            </div>
 
-          <SheetBar
-              sheets={sheets}
-              activeId={activeSheetId}
-              onSelect={switchSheet}
-              onCreate={createNewSheet}
-              onRename={renameSheet}
-              onDelete={deleteSheet}
-          />
+            {activeWorkspaceItem?.kind === "diagram" && <>
+              <AIChat
+                  open={aiOpen && !versionHistoryOpen}
+                  onToggle={() => setAiOpen((v) => !v)}
+                  diagramType={diagramType}
+                  activeSheetId={activeSheetId}
+                  currentNodes={nodes}
+                  currentEdges={edges}
+                  workspaceItems={workspaceTree.items}
+                  onOpenWorkspaceItem={(itemId) => selectWorkspaceTab(itemId)}
+                  onImport={importCanvas}
+              />
+              {versionHistoryOpen && activeSheetId && <VersionHistoryPanel
+                  sheetId={activeSheetId}
+                  current={previewBaseRef.current ?? currentVersionSnapshot()}
+                  previewingId={previewVersionId}
+                  onPreview={previewVersion}
+                  onCreate={createManualVersion}
+                  onRestore={restoreVersion}
+                  onClose={() => { previewVersion(null); setVersionHistoryOpen(false) }}
+              />}
+            </>}
+          </div>
         </div>
 
         {ctxMenu && (
@@ -2008,11 +2356,11 @@ export function Editor() {
                 onConfirm={async () => {
                   await saveImmediate();
                   setConfirmExit(false);
-                  navigate("/dashboard");
+                  navigate(`/workspace/${id}`);
                 }}
                 onCancel={() => {
                   setConfirmExit(false);
-                  navigate("/dashboard");
+                  navigate(`/workspace/${id}`);
                 }}
             />
         )}
