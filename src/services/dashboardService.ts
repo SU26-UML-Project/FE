@@ -45,6 +45,7 @@ export interface AiModelStats {
   /** Error rate (%) = errorCount / totalRequests × 100 */
   errorRate: number;
   totalCostUsd: number;
+  totalTokens: number;
 }
 
 export interface TopProject {
