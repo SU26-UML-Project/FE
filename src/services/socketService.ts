@@ -33,6 +33,8 @@ export interface ServerToClientEvents {
   "canvas:update": (data: CanvasChangeData) => void;
   "user:joined": (data: { userId: string; userName: string }) => void;
   "user:left": (data: { userId: string }) => void;
+  // Cây file workspace thay đổi (BE phát sau khi DB commit) → client refetch tree
+  "workspace:update": (data: { projectId: string }) => void;
 }
 
 export interface ClientToServerEvents {
@@ -77,6 +79,15 @@ class SocketService {
 
   leaveRoom(sheetId: string) {
     this.socket?.emit("room:leave", sheetId);
+  }
+
+  // Room theo project cho sự kiện cây file (room:join của BE nhận chuỗi bất kỳ)
+  joinProjectRoom(projectId: string) {
+    this.socket?.emit("room:join", `project:${projectId}`);
+  }
+
+  leaveProjectRoom(projectId: string) {
+    this.socket?.emit("room:leave", `project:${projectId}`);
   }
 }
 

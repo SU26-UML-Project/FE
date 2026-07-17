@@ -49,7 +49,7 @@ import { QuestionCard } from "./overlays/QuestionBox";
 import { TypeMenu } from "./overlays/TypeMenu";
 import { loadSheets, saveSheets, saveActiveId, loadActiveId, createSheet } from "../store/sheetStore";
 import { useCollab } from "../hooks/useCollab";
-import type { CanvasChangeData } from "../services";
+import { socketService, type CanvasChangeData } from "../services";
 import { useAuthStore } from "../stores/useAuthStore";
 import ProjectExplorer from "./Workspace/ProjectExplorer";
 import MarkdownEditor from "./Workspace/MarkdownEditor";
@@ -973,13 +973,13 @@ export function Editor() {
       ) => {
         beginMutation();
         if (activeSheetId && nodesRef.current.length) {
-          diagramVersionService.create(activeSheetId, {
+          void diagramVersionService.create(activeSheetId, {
             schemaVersion: 1,
             diagramType,
             nodes: clone(nodesRef.current),
             edges: clone(edgesRef.current),
             viewport: rf.getViewport(),
-          }, { name: "Before import or AI change", source: "BEFORE_IMPORT" });
+          }, { name: "Before import or AI change", source: "BEFORE_IMPORT" }).catch(() => { /* checkpoint best-effort */ });
         }
         const finalType = type || diagramType;
         // Older templates/AI contracts used `package` for a Use Case system
@@ -1193,7 +1193,8 @@ export function Editor() {
         }
 
         setSheets(all);
-        const tree = workspaceFileService.syncDiagrams(id, all.map(sheet => ({ id: sheet.id, name: sheet.name, diagramType: sheet.diagramType })));
+        // Cây file lấy từ server (workspace-items API); diagram item được backend đảm bảo 1-1 với sheet
+        const tree = await workspaceFileService.fetchTree(id);
         const requestedItem = itemId ? tree.items.find(item => item.id === itemId) : null;
         const persistedItem = tree.items.find(item => item.id === tree.activeItemId);
         const activeItem = requestedItem ?? persistedItem ?? null;
@@ -1220,13 +1221,13 @@ export function Editor() {
           setNodesState(active.nodes);
           setEdgesState(active.edges);
           if (active.viewport) rf.setViewport(active.viewport);
-          diagramVersionService.create(active.id, {
+          void diagramVersionService.create(active.id, {
             schemaVersion: 1,
             diagramType: active.diagramType,
             nodes: active.nodes,
             edges: active.edges,
             viewport: active.viewport,
-          }, { name: "Initial checkpoint", source: "AUTO" });
+          }, { name: "Initial checkpoint", source: "AUTO" }).catch(() => { /* checkpoint best-effort */ });
         }
 
         setLoaded(true);
@@ -1398,12 +1399,13 @@ export function Editor() {
     // 2. Create local temp sheet to get initial values
     const tempSheet = { ...createSheet(sheets), name: name || createSheet(sheets).name, diagramType: type };
 
-    // 3. Create on server to get real UUID
+    // 3. Create on server: workspace-items API tạo sheet + diagram item trong 1 transaction
     try {
-      const response = await sheetService.createSheet({
+      const item = await workspaceFileService.create(id!, {
         name: tempSheet.name,
-        orderIndex: sheets.length,
-        projectId: id!,
+        kind: "diagram",
+        parentId,
+        diagramType: type,
         diagramData: JSON.stringify({
           nodes: tempSheet.nodes,
           edges: tempSheet.edges,
@@ -1414,24 +1416,17 @@ export function Editor() {
 
       const newSheet: Sheet = {
         ...tempSheet,
-        id: response.result.id,
+        id: item.sheetId!,
         viewport: { x: 0, y: 0, zoom: 1 },
-        updatedAt: new Date(response.result.updatedAt).getTime()
+        updatedAt: item.updatedAt
       };
 
       const next = [...sheets, newSheet];
       setSheets(next);
       if (id) {
-        const item = workspaceFileService.create(id, {
-          id: `diagram:${newSheet.id}`,
-          name: newSheet.name,
-          kind: "diagram",
-          parentId,
-          sheetId: newSheet.id,
-          diagramType: newSheet.diagramType,
-        });
-        const nextTree = workspaceFileService.load(id);
-        setWorkspaceTree(nextTree);
+        const nextTree = await workspaceFileService.fetchTree(id);
+        setWorkspaceTree({ ...nextTree, activeItemId: item.id });
+        workspaceFileService.saveState(id, { activeItemId: item.id });
         setActiveWorkspaceItem(item);
         setWorkspaceTabs(previous => {
           const tabs = [...previous.filter(tab => tab.itemId !== item.id), { itemId: item.id, pinned: true }];
@@ -1467,68 +1462,84 @@ export function Editor() {
     }
   }, [sheets, rf, syncHist, saved, saveImmediate, id]);
 
-  const renameSheet = useCallback(
-      async (targetId: string, name: string) => {
-        const idx = sheetsRef.current.findIndex(s => s.id === targetId);
-        if (idx === -1) return;
-
-        setSheets((prev) => {
-          const next = prev.map((s) => (s.id === targetId ? { ...s, name } : s));
-          return next;
-        });
-
-        try {
-          await sheetService.updateSheet(targetId, {
-            name,
-            orderIndex: idx,
-            projectId: id!,
-            diagramData: JSON.stringify({
-              nodes: sheetsRef.current[idx].nodes,
-              edges: sheetsRef.current[idx].edges,
-              diagramType: sheetsRef.current[idx].diagramType,
-              viewport: sheetsRef.current[idx].viewport
-            })
-          });
-        } catch (e) {
-          console.error("Failed to rename sheet on server", e);
-          toast.error("Failed to rename sheet on server");
-        }
-      },
-      [id]
-  );
-
-  const deleteSheet = useCallback(
-      async (targetId: string) => {
-        if (sheets.length <= 1) return;
-        const idx = sheets.findIndex((s) => s.id === targetId);
-        const next = sheets.filter((s) => s.id !== targetId);
-
-        try {
-          await sheetService.deleteSheet(targetId);
-          setSheets(next);
-          if (targetId === activeSheetId) {
-            const target = next[Math.max(0, idx - 1)];
-            switchSheet(target.id);
-          }
-        } catch (e) {
-          console.error("Failed to delete sheet on server", e);
-          toast.error("Failed to delete sheet on server");
-        }
-      },
-      [sheets, activeSheetId, switchSheet]
-  );
-
-  const refreshWorkspaceTree = useCallback((active?: WorkspaceFileItem | null) => {
+  const refreshWorkspaceTree = useCallback(async (active?: WorkspaceFileItem | null) => {
     if (!id) return;
-    const tree = workspaceFileService.load(id);
-    setWorkspaceTree(tree);
-    if (active !== undefined) setActiveWorkspaceItem(active);
+    try {
+      const tree = await workspaceFileService.fetchTree(id);
+      setWorkspaceTree(tree);
+      if (active !== undefined) setActiveWorkspaceItem(active);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to refresh workspace tree");
+    }
   }, [id]);
+
+  // Collab: người khác sửa cây file (BE phát workspace:update sau commit) → refetch tree.
+  // Chỉ chạy khi project public — socket collab cũng chỉ bật ở chế độ đó.
+  useEffect(() => {
+    if (!id || !publicAccess) return;
+    socketService.connect();
+    socketService.joinProjectRoom(id);
+    const socket = socketService.socket;
+    if (!socket) return;
+    const onWorkspaceUpdate = (data: { projectId: string }) => {
+      if (data.projectId === id) void refreshWorkspaceTree();
+    };
+    socket.on("workspace:update", onWorkspaceUpdate);
+    return () => {
+      socket.off("workspace:update", onWorkspaceUpdate);
+      socketService.leaveProjectRoom(id);
+    };
+  }, [id, publicAccess, refreshWorkspaceTree]);
+
+  // Sheet mới xuất hiện trên server (vd sau duplicate diagram/folder) → nạp bổ sung vào state local
+  const mergeServerSheets = useCallback(async () => {
+    if (!id) return;
+    try {
+      const response = await sheetService.getSheetsByProject(id);
+      const existing = new Set(sheetsRef.current.map(sheet => sheet.id));
+      const added: Sheet[] = (response.result || []).filter(s => !existing.has(s.id)).map(s => {
+        let data: any = { nodes: [], edges: [], diagramType: "activity" };
+        try {
+          const parsed = JSON.parse(s.diagramData);
+          if (parsed && typeof parsed === "object") data = parsed;
+        } catch { /* giữ default */ }
+        return {
+          id: s.id,
+          name: s.name,
+          diagramType: (data.diagramType || "activity") as DiagramType,
+          nodes: Array.isArray(data.nodes) ? data.nodes : [],
+          edges: Array.isArray(data.edges) ? data.edges : [],
+          viewport: data.viewport || { x: 0, y: 0, zoom: 1 },
+          updatedAt: new Date(s.updatedAt).getTime(),
+        };
+      });
+      if (added.length) setSheets(prev => [...prev, ...added]);
+    } catch { /* cây vẫn đúng; sheet sẽ có sau khi reload trang */ }
+  }, [id]);
+
+  /* ---------- markdown autosave (debounce như sheet autosave) ---------- */
+  const markdownPendingRef = useRef<{ itemId: string; content: string; timer: ReturnType<typeof setTimeout> | null } | null>(null);
+
+  const flushMarkdownSave = useCallback(() => {
+    const pending = markdownPendingRef.current;
+    if (!pending || !id) return;
+    if (pending.timer) clearTimeout(pending.timer);
+    markdownPendingRef.current = null;
+    workspaceFileService.update(id, pending.itemId, { content: pending.content }).catch(error => {
+      toast.error(error instanceof Error ? error.message : "Failed to save document");
+    });
+  }, [id]);
+
+  // Flush nội dung markdown còn nợ khi rời editor (đổi trang, unmount)
+  useEffect(() => flushMarkdownSave, [flushMarkdownSave]);
 
   const selectWorkspaceItem = useCallback(async (item: WorkspaceFileItem, pinned = false, manageTab = true) => {
     if (!id || item.kind === "folder") return;
     const changingFile = activeWorkspaceItem?.id !== item.id;
-    if (changingFile) setContentVisible(false);
+    if (changingFile) {
+      setContentVisible(false);
+      flushMarkdownSave();
+    }
     if (changingFile && item.kind === "diagram" && item.sheetId) {
       await switchSheet(item.sheetId);
     } else if (changingFile && !saved) {
@@ -1550,7 +1561,7 @@ export function Editor() {
     setActiveWorkspaceItem(item);
     navigate(`/workspace/${id}/editor/${encodeURIComponent(item.id)}`, { replace: true });
     if (changingFile) requestAnimationFrame(() => requestAnimationFrame(() => setContentVisible(true)));
-  }, [id, saved, saveImmediate, switchSheet, navigate, activeWorkspaceItem?.id]);
+  }, [id, saved, saveImmediate, switchSheet, navigate, activeWorkspaceItem?.id, flushMarkdownSave]);
 
   const selectWorkspaceTab = useCallback((itemId: string) => {
     const item = workspaceTree.items.find(value => value.id === itemId);
@@ -1599,61 +1610,41 @@ export function Editor() {
       await createNewSheet(name, type || "activity", parentId);
       return;
     }
-    const item = workspaceFileService.create(id, { name, kind, parentId, content: kind === "markdown" ? "" : undefined });
-    refreshWorkspaceTree(item);
-    if (kind === "markdown") await selectWorkspaceItem(item, true);
+    try {
+      const item = await workspaceFileService.create(id, { name, kind, parentId, content: kind === "markdown" ? "" : undefined });
+      await refreshWorkspaceTree(item);
+      if (kind === "markdown") await selectWorkspaceItem(item, true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to create item");
+    }
   }, [id, createNewSheet, refreshWorkspaceTree, selectWorkspaceItem]);
 
   const renameWorkspaceItem = useCallback(async (item: WorkspaceFileItem, name: string) => {
     if (!id) return;
-    workspaceFileService.update(id, item.id, { name });
-    if (item.kind === "diagram" && item.sheetId) await renameSheet(item.sheetId, name);
-    const updated = { ...item, name };
-    refreshWorkspaceTree(activeWorkspaceItem?.id === item.id ? updated : undefined);
-  }, [id, renameSheet, refreshWorkspaceTree, activeWorkspaceItem]);
+    try {
+      // Backend tự sync tên sheet cho diagram — chỉ cần cập nhật state sheet local
+      const updated = await workspaceFileService.update(id, item.id, { name });
+      if (item.kind === "diagram" && item.sheetId) {
+        setSheets(prev => prev.map(sheet => sheet.id === item.sheetId ? { ...sheet, name: updated.name } : sheet));
+      }
+      await refreshWorkspaceTree(activeWorkspaceItem?.id === item.id ? updated : undefined);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to rename item");
+    }
+  }, [id, refreshWorkspaceTree, activeWorkspaceItem]);
 
   const duplicateWorkspaceItem = useCallback(async (source: WorkspaceFileItem, parentId: string | null) => {
     if (!id) return;
-    const uniqueName = (name: string, targetParentId: string | null) => {
-      const state = workspaceFileService.load(id);
-      const dot = name.toLowerCase().endsWith('.md') ? name.length - 3 : -1;
-      const stem = dot >= 0 ? name.slice(0, dot) : name;
-      const extension = dot >= 0 ? name.slice(dot) : '';
-      const taken = new Set(state.items.filter(item => item.parentId === targetParentId).map(item => item.name.toLowerCase()));
-      if (!taken.has(name.toLowerCase())) return name;
-      let index = 1;
-      while (taken.has(`${stem} (${index})${extension}`.toLowerCase())) index++;
-      return `${stem} (${index})${extension}`;
-    };
-    const duplicate = async (item: WorkspaceFileItem, targetParentId: string | null): Promise<WorkspaceFileItem> => {
-      const name = uniqueName(item.name, targetParentId);
-      if (item.kind === 'folder') {
-        const folder = workspaceFileService.create(id, { name, kind: 'folder', parentId: targetParentId });
-        const children = workspaceFileService.load(id).items.filter(child => child.parentId === item.id && child.id !== folder.id);
-        for (const child of children) await duplicate(child, folder.id);
-        return folder;
-      }
-      if (item.kind === 'markdown') return workspaceFileService.create(id, { name, kind: 'markdown', parentId: targetParentId, content: item.content || '' });
-      const sourceSheet = sheetsRef.current.find(sheet => sheet.id === item.sheetId);
-      if (!sourceSheet) throw new Error('Diagram source is unavailable.');
-      const response = await sheetService.createSheet({
-        name,
-        orderIndex: sheetsRef.current.length,
-        projectId: id,
-        diagramData: JSON.stringify({ nodes: sourceSheet.nodes.map(node => ({ ...node, selected: false })), edges: sourceSheet.edges.map(edge => ({ ...edge, selected: false })), diagramType: sourceSheet.diagramType, viewport: sourceSheet.viewport || { x: 0, y: 0, zoom: 1 } })
-      });
-      const copiedSheet: Sheet = { ...clone(sourceSheet), id: response.result.id, name, updatedAt: Date.now() };
-      setSheets(previous => [...previous, copiedSheet]);
-      return workspaceFileService.create(id, { id: `diagram:${response.result.id}`, name, kind: 'diagram', parentId: targetParentId, sheetId: response.result.id, diagramType: sourceSheet.diagramType });
-    };
     try {
-      const copy = await duplicate(source, parentId);
-      refreshWorkspaceTree();
+      // Server nhân bản atomic (folder đệ quy, diagram tạo sheet mới, tự đặt tên "X (2)")
+      const copy = await workspaceFileService.duplicate(id, source.id, parentId);
+      await mergeServerSheets();
+      await refreshWorkspaceTree();
       toast.success(`Created “${copy.name}”`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to paste item');
     }
-  }, [id, refreshWorkspaceTree]);
+  }, [id, mergeServerSheets, refreshWorkspaceTree]);
 
   const deleteWorkspaceItem = useCallback(async (item: WorkspaceFileItem) => {
     if (!id) return;
@@ -1668,24 +1659,35 @@ export function Editor() {
         }
       });
     }
-    const diagrams = workspaceTree.items.filter(candidate => removedIds.has(candidate.id) && candidate.kind === "diagram" && candidate.sheetId);
-    if (diagrams.length >= sheets.length) {
-      toast.error("Keep at least one diagram while the current backend still requires a sheet.");
+    try {
+      // Server xóa đệ quy subtree + sheet liên kết trong 1 transaction
+      await workspaceFileService.remove(id, [item.id], true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to delete item");
       return;
     }
-    for (const diagramItem of diagrams) await deleteSheet(diagramItem.sheetId!);
-    const deletedSheetIds = new Set(diagrams.map(diagram => diagram.sheetId));
+    const deletedSheetIds = new Set(workspaceTree.items
+        .filter(candidate => removedIds.has(candidate.id) && candidate.kind === "diagram" && candidate.sheetId)
+        .map(diagram => diagram.sheetId));
     setSheets(prev => prev.filter(sheet => !deletedSheetIds.has(sheet.id)));
-    workspaceFileService.remove(id, item.id);
-    refreshWorkspaceTree(activeWorkspaceItem && removedIds.has(activeWorkspaceItem.id) ? null : undefined);
-  }, [id, workspaceTree.items, sheets.length, deleteSheet, refreshWorkspaceTree, activeWorkspaceItem]);
+    await refreshWorkspaceTree(activeWorkspaceItem && removedIds.has(activeWorkspaceItem.id) ? null : undefined);
+  }, [id, workspaceTree.items, refreshWorkspaceTree, activeWorkspaceItem]);
 
   const updateMarkdown = useCallback((content: string) => {
     if (!id || !activeWorkspaceItem || activeWorkspaceItem.kind !== "markdown") return;
-    workspaceFileService.update(id, activeWorkspaceItem.id, { content });
     setActiveWorkspaceItem(prev => prev ? { ...prev, content } : prev);
     setWorkspaceTree(prev => ({ ...prev, items: prev.items.map(item => item.id === activeWorkspaceItem.id ? { ...item, content } : item) }));
-  }, [id, activeWorkspaceItem]);
+
+    const pending = markdownPendingRef.current;
+    if (pending?.timer) clearTimeout(pending.timer);
+    // Đang nợ save của item khác (edge case) → đẩy đi ngay trước khi ghi đè
+    if (pending && pending.itemId !== activeWorkspaceItem.id) {
+      markdownPendingRef.current = pending;
+      flushMarkdownSave();
+    }
+    const timer = setTimeout(flushMarkdownSave, 1000);
+    markdownPendingRef.current = { itemId: activeWorkspaceItem.id, content, timer };
+  }, [id, activeWorkspaceItem, flushMarkdownSave]);
 
   const currentVersionSnapshot = useCallback((): DiagramSnapshot => ({
     schemaVersion: 1,
@@ -1695,10 +1697,14 @@ export function Editor() {
     viewport: rf.getViewport(),
   }), [diagramType, rf]);
 
-  const createManualVersion = useCallback((name: string, note: string) => {
+  const createManualVersion = useCallback(async (name: string, note: string) => {
     if (!activeSheetId) return;
-    const created = diagramVersionService.create(activeSheetId, currentVersionSnapshot(), { name, note, source: "MANUAL", force: true });
-    if (created) toast.success(`Saved ${created.name}`);
+    try {
+      const created = await diagramVersionService.create(activeSheetId, currentVersionSnapshot(), { name, note, source: "MANUAL", force: true });
+      toast.success(`Saved ${created.name}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save version");
+    }
   }, [activeSheetId, currentVersionSnapshot]);
 
   const previewVersion = useCallback((version: DiagramVersion | null) => {
@@ -1714,6 +1720,7 @@ export function Editor() {
       setPreviewVersionId(null);
       return;
     }
+    if (!version.snapshot) return; // panel chỉ gọi preview khi snapshot đã lazy-load xong
     if (!previewBaseRef.current) previewBaseRef.current = currentVersionSnapshot();
     skipRec.current = true;
     setDiagramType(version.snapshot.diagramType);
@@ -1724,10 +1731,15 @@ export function Editor() {
     setTimeout(() => { skipRec.current = false }, 0);
   }, [currentVersionSnapshot, rf, setNodes, setEdges]);
 
-  const restoreVersion = useCallback((version: DiagramVersion) => {
-    if (!activeSheetId) return;
-    const current = previewBaseRef.current ?? currentVersionSnapshot();
-    diagramVersionService.create(activeSheetId, current, { name: "Backup before restore", source: "BEFORE_RESTORE", force: true });
+  const restoreVersion = useCallback(async (version: DiagramVersion) => {
+    if (!activeSheetId || !version.snapshot) return;
+    try {
+      // Server làm cả 3 bước trong 1 transaction: backup BEFORE_RESTORE → ghi sheet → bản ghi RESTORE
+      await diagramVersionService.restore(activeSheetId, version.id);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to restore version");
+      return;
+    }
     const restored = clone(version.snapshot);
     previewBaseRef.current = null;
     setPreviewVersionId(null);
@@ -1737,17 +1749,19 @@ export function Editor() {
     setNodes(restored.nodes);
     setEdges(restored.edges);
     if (restored.viewport) rf.setViewport(restored.viewport);
-    diagramVersionService.create(activeSheetId, restored, { name: `Restored from ${version.name}`, source: "RESTORE", restoredFromVersionId: version.id, force: true });
     emitCanvasChange({ nodes: restored.nodes, edges: restored.edges, type: "update" });
     toast.success("Version restored. The previous state was backed up.");
-  }, [activeSheetId, currentVersionSnapshot, beginMutation, setNodes, setEdges, rf, emitCanvasChange]);
+  }, [activeSheetId, beginMutation, setNodes, setEdges, rf, emitCanvasChange]);
 
   useEffect(() => {
     if (!loaded || !activeSheetId || previewVersionId) return;
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       if (Date.now() - lastAutoVersionRef.current < 5 * 60 * 1000) return;
-      const created = diagramVersionService.create(activeSheetId, currentVersionSnapshot(), { name: "Auto checkpoint", source: "AUTO" });
-      if (created) lastAutoVersionRef.current = Date.now();
+      try {
+        // Server dedupe theo content hash — nội dung không đổi thì không thêm bản ghi
+        await diagramVersionService.create(activeSheetId, currentVersionSnapshot(), { name: "Auto checkpoint", source: "AUTO" });
+        lastAutoVersionRef.current = Date.now();
+      } catch { /* checkpoint best-effort */ }
     }, 5 * 60 * 1000);
     return () => clearTimeout(timer);
   }, [nodes, edges, diagramType, loaded, activeSheetId, previewVersionId, currentVersionSnapshot]);
@@ -2042,11 +2056,12 @@ export function Editor() {
                 onRename={renameWorkspaceItem}
                 onDelete={deleteWorkspaceItem}
                 onDuplicate={duplicateWorkspaceItem}
-                onMove={(itemId, parentId) => {
+                onMove={async (itemId, parentId) => {
                   if (!id) return;
                   try {
-                    workspaceFileService.move(id, itemId, parentId);
-                    refreshWorkspaceTree();
+                    // Cycle/cross-project do server chặn (WORKSPACE_TREE_CYCLE...)
+                    await workspaceFileService.move(id, itemId, parentId);
+                    await refreshWorkspaceTree();
                   } catch (error) {
                     toast.error(error instanceof Error ? error.message : "Unable to move item");
                   }
