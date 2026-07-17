@@ -759,7 +759,7 @@ export default function Intelligence() {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-[16px] font-semibold text-slate-900">AnythingLLM Engine</h2>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-soft-pulse" /> Connected</span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-soft-pulse" /> Đã kết nối</span>
             </div>
             <p className="mt-0.5 truncate font-mono text-[12px] text-slate-500" title={`${sysConfig?.anythingLlmBaseUrl || "http://localhost:3001/api"} · ${versionInfo?.version || "—"}${versionInfo?.environment ? ` · ${versionInfo.environment}` : ""}${sysConfig?.hasApiKey ? " · Bearer ••••" : ""}`}>
               {sysConfig?.anythingLlmBaseUrl || "http://localhost:3001/api"} · {versionInfo?.version || "—"}
@@ -772,7 +772,7 @@ export default function Intelligence() {
           <div className="hidden grid-cols-3 gap-5 sm:grid">
             {[
               { l: "Độ trễ", v: latencyStr },
-              { l: "Version", v: versionInfo?.version || "—" },
+              { l: "Phiên bản", v: versionInfo?.version || "—" },
               { l: "Workspace", v: String(wsCount) },
             ].map((x) => (
               <div key={x.l} className="text-center">
@@ -785,7 +785,7 @@ export default function Intelligence() {
             {testTimestamp && <span className="text-[11px] text-slate-400">Cập nhật {testTimestamp}</span>}
             <button onClick={testConnection} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50">
               {test === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : test === "ok" ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <RefreshCw className="h-4 w-4" />}
-              Test
+              Kiểm tra
             </button>
           </div>
         </div>
@@ -800,7 +800,7 @@ export default function Intelligence() {
             { label: "LLM", value: model || sysConfig?.model || "—", color: "bg-violet-500", mono: true },
             { label: "Embedding", value: emb || sysConfig?.embeddingModel || "—", color: "bg-amber-500", mono: true },
             { label: "Vector DB", value: sysConfig?.vectorDb || "—", color: "bg-cyan-500" },
-            { label: "Chunk size", value: sysConfig?.documentChunkSize ? String(sysConfig.documentChunkSize) : "—", color: "bg-rose-400" },
+            { label: "Kích thước đoạn", value: sysConfig?.documentChunkSize ? String(sysConfig.documentChunkSize) : "—", color: "bg-rose-400" },
           ].map((s) => (
             <div key={s.label} className="flex items-center gap-2.5">
               <span className={`h-2 w-2 shrink-0 rounded-full ${s.color}`} />
@@ -1009,7 +1009,7 @@ export default function Intelligence() {
                       {(wsTabDetail.baseUrl ?? wsTabDetail.llmProvider ?? wsTabDetail.model) && (
                         <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2.5">
                           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-slate-600">
-                            <span className="font-medium text-slate-700">🔧 System:</span>
+                            <span className="font-medium text-slate-700">🔧 Hệ thống:</span>
                             <span className="inline-flex items-center gap-1">
                               <Cpu className="h-3.5 w-3.5" />
                               {wsTabDetail.llmProvider ?? "—"}
@@ -1029,7 +1029,7 @@ export default function Intelligence() {
                         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Mô hình</p>
                         <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
                           <div className="min-w-0">
-                            <Field label="Chat Model">
+                            <Field label="Mô hình chat">
                               <div className="flex items-stretch gap-2">
                                 <div className="min-w-0 flex-1">
                                   <SmartSelect
@@ -1059,7 +1059,7 @@ export default function Intelligence() {
                             </Field>
                           </div>
                           <div className="min-w-0">
-                            <Field label="Chat Provider">
+                            <Field label="Nhà cung cấp chat">
                               <SmartSelect
                                 value={wsTabDirty?.chatProvider ?? wsTabDetail.chatProvider ?? ""}
                                 onChange={(v) => updateWsTabField("chatProvider", v || null)}
@@ -1069,7 +1069,7 @@ export default function Intelligence() {
                             </Field>
                           </div>
                           <div className="min-w-0">
-                            <Field label="Chat Mode">
+                            <Field label="Chế độ chat">
                               <SmartSelect
                                 value={wsTabDirty?.chatMode ?? wsTabDetail.chatMode ?? ""}
                                 onChange={(v) => updateWsTabField("chatMode", v || null)}
@@ -1125,7 +1125,7 @@ export default function Intelligence() {
                           <Field label="System Prompt">
                             <textarea rows={3} value={wsTabDirty?.openAiPrompt ?? wsTabDetail.openAiPrompt ?? ""} onChange={(e) => updateWsTabField("openAiPrompt", e.target.value)} placeholder="Để trống = dùng mặc định của system" className={cn(inputCls, "resize-y font-mono text-[12px] leading-relaxed")} />
                           </Field>
-                          <Field label="Query Refusal Response">
+                          <Field label="Phản hồi từ chối truy vấn">
                             <textarea rows={2} value={wsTabDirty?.queryRefusalResponse ?? wsTabDetail.queryRefusalResponse ?? ""} onChange={(e) => updateWsTabField("queryRefusalResponse", e.target.value)} placeholder="Phản hồi từ chối truy vấn (nếu có)" className={cn(inputCls, "resize-y font-mono text-[12px] leading-relaxed")} />
                           </Field>
                         </div>
@@ -1202,7 +1202,7 @@ export default function Intelligence() {
                                 </div>
                               )}
                               <div className="min-w-0">
-                                <Field label="Chat Model">
+                                <Field label="Mô hình chat">
                                   <div className="flex items-stretch gap-2">
                                     <div className="min-w-0 flex-1"><SmartSelect value={model} onChange={setModel} options={llmOptions} searchable /></div>
                                     <button onClick={autoDetectLlm} disabled={detectingLlm} className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40" title="Quét lại mô hình">
@@ -1296,7 +1296,7 @@ export default function Intelligence() {
                         })()}
                         <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}>
                           <div className="min-w-0">
-                            <Field label="Embedding Model">
+                            <Field label="Mô hình Embedding">
                             <div className="flex items-stretch gap-2">
                               <div className="min-w-0 flex-1"><SmartSelect value={emb} onChange={setEmb} options={embOptions} searchable /></div>
                               <button onClick={autoDetectEmb} disabled={detectingEmb} className="shrink-0 rounded-lg border border-slate-200 px-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40" title="Quét lại mô hình">

@@ -12,13 +12,13 @@ import { useAuthStore } from "../stores/useAuthStore";
 import type { SectionId } from "../components/admin/data";
 
 const meta: Record<SectionId, { title: string; subtitle: string }> = {
-  dashboard: { title: "Dashboard", subtitle: "Tổng quan hệ thống UML" },
-  users: { title: "Management", subtitle: "Quản lý người dùng" },
-  projects: { title: "Management", subtitle: "Quản lý dự án toàn hệ thống" },
-  intelligence: { title: "Intelligence", subtitle: "Cấu hình AI Engine · AnythingLLM" },
-  operation: { title: "Operation", subtitle: "Mẫu Workspace & Knowledge" },
-  subscription: { title: "Operation", subtitle: "Gói Subscription" },
-  audit: { title: "System", subtitle: "Nhật ký thao tác quản trị" },
+  dashboard: { title: "Bảng điều khiển", subtitle: "Tổng quan hệ thống UML" },
+  users: { title: "Quản lý", subtitle: "Quản lý người dùng" },
+  projects: { title: "Quản lý", subtitle: "Quản lý dự án toàn hệ thống" },
+  intelligence: { title: "Trí tuệ nhân tạo", subtitle: "Cấu hình AI Engine · AnythingLLM" },
+  operation: { title: "Vận hành", subtitle: "Mẫu Workspace & Knowledge" },
+  subscription: { title: "Vận hành", subtitle: "Gói Subscription" },
+  audit: { title: "Hệ thống", subtitle: "Nhật ký thao tác quản trị" },
 };
 
 function useCollapsed() {

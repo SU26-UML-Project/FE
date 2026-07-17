@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { UserCircle, LayoutDashboard, Shield, LogOut, ChevronDown } from 'lucide-react'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useClickOutside } from '../../hooks/useClickOutside'
+import { planService } from '../../services/planService'
 import LogoutConfirmModal from './LogoutConfirmModal'
 
 /**
@@ -15,10 +16,38 @@ const UserMenu = () => {
   const { user } = useAuthStore()
   const [open, setOpen] = useState(false)
   const [logoutModalOpen, setLogoutModalOpen] = useState(false)
+  const [planName, setPlanName] = useState<string | null>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Lazy-load: chỉ resolve tên gói khi user mở dropdown lần đầu.
+  const planLoaded = useRef(false)
 
   const role = user ? (typeof user.role === 'string' ? user.role : user.role.roleName) : null
+
+  // Reset khi đổi user / đổi gói để lần mở tới nạp lại.
+  useEffect(() => {
+    planLoaded.current = false
+    setPlanName(null)
+  }, [user?.id, user?.currentPlanId])
+
+  useEffect(() => {
+    if (!open || !user || planLoaded.current) return
+    planLoaded.current = true
+    // Không có gói → Free, khỏi gọi API.
+    if (!user.currentPlanId) {
+      setPlanName('Free')
+      return
+    }
+    planService
+      .getPublicPlans()
+      .then((plans) => {
+        const found = plans.find((p) => p.id === user.currentPlanId)
+        setPlanName(found?.name ?? 'Free')
+      })
+      .catch(() => {
+        planLoaded.current = false // cho phép thử lại lần mở sau
+      })
+  }, [open, user])
   const displayName = user?.fullName || user?.email.split('@')[0] || 'User'
   const initial = (user?.fullName || user?.email || '?').charAt(0).toUpperCase()
 
@@ -95,22 +124,27 @@ const UserMenu = () => {
                     {role}
                   </span>
                 )}
+                {planName && (
+                  <span className="inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border border-amber-200">
+                    {planName}
+                  </span>
+                )}
               </div>
             </div>
 
             {/* Items */}
             <div className="py-1.5">
-              <MenuItem icon={<UserCircle size={17} />} label="Profile" onClick={() => go('/profile')} />
-              <MenuItem icon={<LayoutDashboard size={17} />} label="Dashboard" onClick={() => go('/dashboard')} />
+              <MenuItem icon={<UserCircle size={17} />} label="Trang cá nhân" onClick={() => go('/profile')} />
+              <MenuItem icon={<LayoutDashboard size={17} />} label="Bảng điều khiển" onClick={() => go('/dashboard')} />
               {role === 'ADMIN' && (
-                <MenuItem icon={<Shield size={17} />} label="Admin Panel" onClick={() => go('/admin')} />
+                <MenuItem icon={<Shield size={17} />} label="Trang quản trị" onClick={() => go('/admin')} />
               )}
             </div>
 
             <div className="border-t border-gray-100 py-1.5">
               <MenuItem
                 icon={<LogOut size={17} />}
-                label="Log out"
+                label="Đăng xuất"
                 danger
                 onClick={() => {
                   setOpen(false)

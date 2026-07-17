@@ -48,7 +48,7 @@ export default function Topbar({
             {subtitle}
           </h1>
           <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-slate-400">
-            <span>Console</span>
+            <span>Trang quản trị</span>
             <span className="text-slate-300">/</span>
             <span className="font-medium text-slate-500">{title}</span>
           </div>

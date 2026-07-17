@@ -27,9 +27,9 @@ const INPUT_CLASS =
 type Step = 'current' | 'otp' | 'new'
 
 const STEPS: { id: Step; title: string }[] = [
-  { id: 'current', title: 'Verify' },
+  { id: 'current', title: 'Xác minh' },
   { id: 'otp', title: 'OTP' },
-  { id: 'new', title: 'New password' },
+  { id: 'new', title: 'Mật khẩu mới' },
 ]
 
 interface ChangePasswordModalProps {
@@ -67,9 +67,9 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
       setStep('otp')
       setOtpCode('')
       startOtpCountdown(OTP_TTL_SECONDS)
-      toast.success('A verification OTP has been sent to your email')
+      toast.success('Mã OTP xác minh đã được gửi tới email của bạn')
     } catch (e) {
-      apiError(e, 'Unable to verify your current password')
+      apiError(e, 'Không thể xác minh mật khẩu hiện tại')
     } finally {
       setSubmitting(false)
     }
@@ -82,9 +82,9 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
     try {
       await authService.verifyOtp({ email, otpCode })
       setStep('new')
-      toast.success('OTP verified — set your new password')
+      toast.success('Xác minh OTP thành công — đặt mật khẩu mới')
     } catch (e) {
-      apiError(e, 'Invalid or expired OTP')
+      apiError(e, 'Mã OTP không hợp lệ hoặc đã hết hạn')
     } finally {
       setSubmitting(false)
     }
@@ -97,9 +97,9 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
       await authService.initChangePassword({ currentPassword })
       setOtpCode('')
       startOtpCountdown(OTP_TTL_SECONDS)
-      toast.success('A new OTP has been sent to your email')
+      toast.success('Mã OTP mới đã được gửi tới email của bạn')
     } catch (e) {
-      apiError(e, 'Unable to resend OTP')
+      apiError(e, 'Không thể gửi lại OTP')
     } finally {
       setSubmitting(false)
     }
@@ -111,11 +111,11 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
     setSubmitting(true)
     try {
       await authService.confirmChangePassword({ otpCode, newPassword, confirmPassword })
-      toast.success('Password changed successfully')
+      toast.success('Đổi mật khẩu thành công')
       onSuccess?.()
       onClose()
     } catch (e) {
-      apiError(e, 'Unable to change password')
+      apiError(e, 'Không thể đổi mật khẩu')
     } finally {
       setSubmitting(false)
     }
@@ -143,7 +143,7 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-black transition"
-            aria-label="Close"
+            aria-label="Đóng"
           >
             <X size={20} />
           </button>
@@ -153,15 +153,15 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-uml-blue/10 text-uml-blue mb-3">
               <ShieldCheck size={24} />
             </div>
-            <h2 className="text-[22px] font-black tracking-tight text-black leading-tight">Change Password</h2>
+            <h2 className="text-[22px] font-black tracking-tight text-black leading-tight">Đổi mật khẩu</h2>
             <p className="mt-1.5 text-[13px] text-gray-500 font-medium">
-              {step === 'current' && 'Confirm your current password to continue.'}
+              {step === 'current' && 'Xác nhận mật khẩu hiện tại để tiếp tục.'}
               {step === 'otp' && (
                 <>
-                  Enter the 6-digit code sent to <span className="font-bold text-gray-700">{email}</span>
+                  Nhập mã 6 chữ số đã gửi tới <span className="font-bold text-gray-700">{email}</span>
                 </>
               )}
-              {step === 'new' && 'Choose a strong new password.'}
+              {step === 'new' && 'Chọn một mật khẩu mới đủ mạnh.'}
             </p>
           </div>
 
@@ -206,7 +206,7 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
                 transition={{ duration: 0.18 }}
                 className="space-y-5"
               >
-                <Field label="Current Password" icon={<Lock size={20} strokeWidth={1.5} />}>
+                <Field label="Mật khẩu hiện tại" icon={<Lock size={20} strokeWidth={1.5} />}>
                   <input
                     type={showCurrent ? 'text' : 'password'}
                     value={currentPassword}
@@ -226,7 +226,7 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
                   disabled={!currentPassword || submitting}
                   className="w-full h-[54px] bg-uml-blue text-white font-bold text-[16px] rounded-[14px] hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                 >
-                  {submitting ? <Loader2 size={20} className="animate-spin" /> : <>Send OTP <ArrowRight size={18} /></>}
+                  {submitting ? <Loader2 size={20} className="animate-spin" /> : <>Gửi OTP <ArrowRight size={18} /></>}
                 </button>
               </motion.div>
             )}
@@ -241,7 +241,7 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
                 transition={{ duration: 0.18 }}
                 className="space-y-5"
               >
-                <Field label="Verification Code" icon={<KeyRound size={20} strokeWidth={1.5} />}>
+                <Field label="Mã xác minh" icon={<KeyRound size={20} strokeWidth={1.5} />}>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -259,10 +259,10 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
                   <span className="text-gray-500 font-medium">
                     {secondsLeft > 0 ? (
                       <>
-                        Code expires in <span className="font-bold text-gray-700">{secondsLeft}s</span>
+                        Mã hết hạn sau <span className="font-bold text-gray-700">{secondsLeft}s</span>
                       </>
                     ) : (
-                      'Code expired'
+                      'Mã đã hết hạn'
                     )}
                   </span>
                   <button
@@ -271,7 +271,7 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
                     disabled={secondsLeft > 0 || submitting}
                     className="font-bold text-uml-blue hover:underline disabled:text-gray-300 disabled:no-underline transition"
                   >
-                    Resend code
+                    Gửi lại mã
                   </button>
                 </div>
 
@@ -282,7 +282,7 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
                     disabled={submitting}
                     className="h-[54px] px-5 border-[1.5px] border-black/80 rounded-[14px] font-bold text-[15px] text-black hover:bg-gray-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    <ArrowLeft size={18} /> Back
+                    <ArrowLeft size={18} /> Quay lại
                   </button>
                   <button
                     type="button"
@@ -290,7 +290,7 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
                     disabled={otpCode.length !== 6 || submitting}
                     className="flex-1 h-[54px] bg-uml-blue text-white font-bold text-[16px] rounded-[14px] hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                   >
-                    {submitting ? <Loader2 size={20} className="animate-spin" /> : <>Verify <ArrowRight size={18} /></>}
+                    {submitting ? <Loader2 size={20} className="animate-spin" /> : <>Xác minh <ArrowRight size={18} /></>}
                   </button>
                 </div>
               </motion.div>
@@ -306,7 +306,7 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
                 transition={{ duration: 0.18 }}
                 className="space-y-5"
               >
-                <Field label="New Password" icon={<Lock size={20} strokeWidth={1.5} />}>
+                <Field label="Mật khẩu mới" icon={<Lock size={20} strokeWidth={1.5} />}>
                   <input
                     type={showNew ? 'text' : 'password'}
                     value={newPassword}
@@ -357,9 +357,9 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
                 )}
 
                 <Field
-                  label="Confirm New Password"
+                  label="Xác nhận mật khẩu mới"
                   icon={<Lock size={20} strokeWidth={1.5} />}
-                  error={confirmPassword.length > 0 && !passwordsMatch ? 'Passwords do not match' : undefined}
+                  error={confirmPassword.length > 0 && !passwordsMatch ? 'Mật khẩu không khớp' : undefined}
                 >
                   <input
                     type={showConfirm ? 'text' : 'password'}
@@ -379,7 +379,7 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
                   disabled={!newPasswordValid || submitting}
                   className="w-full h-[54px] bg-uml-blue text-white font-bold text-[16px] rounded-[14px] hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                 >
-                  {submitting ? <Loader2 size={20} className="animate-spin" /> : 'Change Password'}
+                  {submitting ? <Loader2 size={20} className="animate-spin" /> : 'Đổi mật khẩu'}
                 </button>
               </motion.div>
             )}
@@ -395,7 +395,7 @@ const EyeToggle = ({ shown, onClick }: { shown: boolean; onClick: () => void }) 
     type="button"
     onClick={onClick}
     className="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-black transition-colors"
-    aria-label={shown ? 'Hide password' : 'Show password'}
+    aria-label={shown ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
   >
     {shown ? <EyeOff size={20} strokeWidth={1.5} /> : <Eye size={20} strokeWidth={1.5} />}
   </button>

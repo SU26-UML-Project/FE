@@ -37,16 +37,16 @@ const MAX_AVATAR_SIZE = 2 * 1024 * 1024 // 2MB
 const formatDate = (iso?: string) => {
   if (!iso) return '—'
   try {
-    return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    return new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
   } catch {
     return iso
   }
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  ACTIVE: 'Active',
-  LOCKED: 'Locked',
-  PENDING_DELETE: 'Pending deletion',
+  ACTIVE: 'Đang hoạt động',
+  LOCKED: 'Đã khoá',
+  PENDING_DELETE: 'Chờ xoá',
 }
 
 const ProfilePage = () => {
@@ -108,7 +108,7 @@ const ProfilePage = () => {
       })
       .catch(() => {
         if (storeUser) hydrate(storeUser)
-        else toast.error('Unable to load profile')
+        else toast.error('Không thể tải hồ sơ')
       })
       .finally(() => mounted && setLoading(false))
     return () => {
@@ -168,11 +168,11 @@ const ProfilePage = () => {
     e.target.value = '' // allow re-selecting the same file later
     if (!file) return
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-      toast.error('Only JPG, PNG or WEBP images are accepted')
+      toast.error('Chỉ chấp nhận ảnh JPG, PNG hoặc WEBP')
       return
     }
     if (file.size > MAX_AVATAR_SIZE) {
-      toast.error('Avatar must not exceed 2MB')
+      toast.error('Ảnh đại diện không được vượt quá 2MB')
       return
     }
     if (avatarPreview) URL.revokeObjectURL(avatarPreview)
@@ -183,7 +183,7 @@ const ProfilePage = () => {
   /** Save profile fields and, if a new avatar was picked, upload it first. */
   const persistChanges = async () => {
     if (phone && !/^[0-9]{10,11}$/.test(phone)) {
-      toast.error('Phone number must be 10–11 digits')
+      toast.error('Số điện thoại phải có 10–11 chữ số')
       return false
     }
     setSaving(true)
@@ -203,10 +203,10 @@ const ProfilePage = () => {
       hydrate(res.result)
       setAuth(res.result) // keep navbar / store in sync
       clearAvatarSelection()
-      toast.success('Profile updated successfully')
+      toast.success('Cập nhật hồ sơ thành công')
       return true
     } catch (e: any) {
-      toast.error(e?.message || 'Failed to update profile')
+      toast.error(e?.message || 'Cập nhật hồ sơ thất bại')
       return false
     } finally {
       setSaving(false)
@@ -242,9 +242,9 @@ const ProfilePage = () => {
       await authService.requestDeleteAccount()
       setProfile((p) => (p ? { ...p, status: 'PENDING_DELETE' } : p))
       setDeleteConfirmOpen(false)
-      toast.success('Account deletion requested (30 days)')
+      toast.success('Đã gửi yêu cầu xoá tài khoản (30 ngày)')
     } catch (e: any) {
-      toast.error(e?.message || 'Unable to submit account deletion request')
+      toast.error(e?.message || 'Không thể gửi yêu cầu xoá tài khoản')
     } finally {
       setActing(false)
     }
@@ -255,9 +255,9 @@ const ProfilePage = () => {
     try {
       await authService.restoreAccount()
       setProfile((p) => (p ? { ...p, status: 'ACTIVE' } : p))
-      toast.success('Account restored')
+      toast.success('Đã khôi phục tài khoản')
     } catch (e: any) {
-      toast.error(e?.message || 'Unable to restore account')
+      toast.error(e?.message || 'Không thể khôi phục tài khoản')
     } finally {
       setActing(false)
     }
@@ -279,12 +279,12 @@ const ProfilePage = () => {
           onClick={() => attemptLeave(() => navigate('/dashboard'))}
           className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-uml-blue transition-colors mb-6"
         >
-          <ArrowLeft size={16} /> Back to Dashboard
+          <ArrowLeft size={16} /> Về bảng điều khiển
         </button>
 
         <div className="mb-8">
-          <h1 className="text-4xl font-black tracking-tight text-black mb-1">My Profile</h1>
-          <p className="text-admin-on-surface-variant">View and update your personal information.</p>
+          <h1 className="text-4xl font-black tracking-tight text-black mb-1">Trang cá nhân</h1>
+          <p className="text-admin-on-surface-variant">Xem và cập nhật thông tin cá nhân của bạn.</p>
         </div>
 
         {/* Identity header card.
@@ -338,7 +338,7 @@ const ProfilePage = () => {
                       }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-uml-blue transition-colors disabled:opacity-40 disabled:hover:bg-white"
                     >
-                      <Eye size={16} className="text-gray-400" /> View photo
+                      <Eye size={16} className="text-gray-400" /> Xem ảnh
                     </button>
                     <button
                       role="menuitem"
@@ -348,7 +348,7 @@ const ProfilePage = () => {
                       }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-uml-blue transition-colors"
                     >
-                      <Upload size={16} className="text-gray-400" /> Upload photo
+                      <Upload size={16} className="text-gray-400" /> Tải ảnh lên
                     </button>
                   </motion.div>
                 )}
@@ -370,7 +370,7 @@ const ProfilePage = () => {
               </p>
               {avatarFile && (
                 <p className="text-[11px] text-amber-600 font-bold mt-1">
-                  New photo selected — click “Save Changes” to apply.
+                  Đã chọn ảnh mới — nhấn “Lưu thay đổi” để áp dụng.
                 </p>
               )}
             </div>
@@ -392,21 +392,21 @@ const ProfilePage = () => {
             className="lg:col-span-2 bg-white border border-admin-outline rounded-xl p-6"
           >
             <h3 className="text-xs font-black uppercase tracking-widest text-admin-secondary mb-5">
-              Personal Information
+              Thông tin cá nhân
             </h3>
 
             <div className="space-y-5">
-              <Field label="Full Name" icon={<UserIcon size={15} />}>
+              <Field label="Họ và tên" icon={<UserIcon size={15} />}>
                 <input
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   maxLength={255}
-                  placeholder="John Doe"
+                  placeholder="Nguyễn Văn A"
                   className={INPUT_CLASS}
                 />
               </Field>
 
-              <Field label="Email" icon={<Mail size={15} />} hint="Email cannot be changed">
+              <Field label="Email" icon={<Mail size={15} />} hint="Không thể thay đổi email">
                 <input
                   value={profile?.email || ''}
                   disabled
@@ -415,7 +415,7 @@ const ProfilePage = () => {
               </Field>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <Field label="Phone Number" icon={<Phone size={15} />}>
+                <Field label="Số điện thoại" icon={<Phone size={15} />}>
                   <input
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
@@ -424,7 +424,7 @@ const ProfilePage = () => {
                     className={INPUT_CLASS}
                   />
                 </Field>
-                <Field label="Date of Birth" icon={<Calendar size={15} />}>
+                <Field label="Ngày sinh" icon={<Calendar size={15} />}>
                   <input
                     type="date"
                     value={dob}
@@ -442,7 +442,7 @@ const ProfilePage = () => {
                 disabled={!dirty || saving}
                 className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-black transition disabled:opacity-40"
               >
-                Reset
+                Đặt lại
               </button>
               <button
                 onClick={persistChanges}
@@ -450,7 +450,7 @@ const ProfilePage = () => {
                 className="px-5 py-2.5 bg-uml-blue text-white font-bold rounded-lg text-sm hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-50"
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                Save Changes
+                Lưu thay đổi
               </button>
             </div>
           </motion.div>
@@ -463,23 +463,23 @@ const ProfilePage = () => {
             className="space-y-6"
           >
             <div className="bg-white border border-admin-outline rounded-xl p-6">
-              <h3 className="text-xs font-black uppercase tracking-widest text-admin-secondary mb-4">Account</h3>
-              <MetaRow label="Joined" value={formatDate(profile?.createdAt)} />
-              <MetaRow label="Role" value={role || '—'} />
-              <MetaRow label="Status" value={STATUS_LABEL[status] || status} />
+              <h3 className="text-xs font-black uppercase tracking-widest text-admin-secondary mb-4">Tài khoản</h3>
+              <MetaRow label="Ngày tham gia" value={formatDate(profile?.createdAt)} />
+              <MetaRow label="Vai trò" value={role || '—'} />
+              <MetaRow label="Trạng thái" value={STATUS_LABEL[status] || status} />
             </div>
 
             <div className="bg-white border border-admin-outline rounded-xl p-6">
-              <h3 className="text-xs font-black uppercase tracking-widest text-admin-secondary mb-4">Security</h3>
+              <h3 className="text-xs font-black uppercase tracking-widest text-admin-secondary mb-4">Bảo mật</h3>
               <p className="text-xs text-gray-500 mb-3">
-                Change your password. We'll verify it with an OTP sent to your email.
+                Đổi mật khẩu. Chúng tôi sẽ xác minh bằng mã OTP gửi tới email của bạn.
               </p>
               <button
                 onClick={() => setChangePwOpen(true)}
                 disabled={!profile?.email}
                 className="w-full px-4 py-2 text-sm font-bold text-uml-blue border border-uml-blue/30 rounded-lg hover:bg-uml-blue/5 transition flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <KeyRound size={15} /> Change Password
+                <KeyRound size={15} /> Đổi mật khẩu
               </button>
             </div>
 
@@ -487,10 +487,10 @@ const ProfilePage = () => {
             {status === 'PENDING_DELETE' ? (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
                 <h3 className="text-xs font-black uppercase tracking-widest text-amber-700 mb-2 flex items-center gap-1.5">
-                  <AlertTriangle size={14} /> Pending Deletion
+                  <AlertTriangle size={14} /> Chờ xoá
                 </h3>
                 <p className="text-xs text-amber-700/80 mb-4">
-                  This account is pending deletion. You can restore it within 30 days.
+                  Tài khoản đang chờ xoá. Bạn có thể khôi phục trong vòng 30 ngày.
                 </p>
                 <button
                   onClick={handleRestore}
@@ -498,16 +498,16 @@ const ProfilePage = () => {
                   className="w-full px-4 py-2 text-sm font-bold text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {acting ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={15} />}
-                  Restore Account
+                  Khôi phục tài khoản
                 </button>
               </div>
             ) : (
               <div className="bg-white border border-red-200 rounded-xl p-6">
                 <h3 className="text-xs font-black uppercase tracking-widest text-red-600 mb-2 flex items-center gap-1.5">
-                  <AlertTriangle size={14} /> Danger Zone
+                  <AlertTriangle size={14} /> Vùng nguy hiểm
                 </h3>
                 <p className="text-xs text-gray-500 mb-4">
-                  Request account deletion. You have 30 days to change your mind before it's permanently deleted.
+                  Yêu cầu xoá tài khoản. Bạn có 30 ngày để đổi ý trước khi tài khoản bị xoá vĩnh viễn.
                 </p>
                 <button
                   onClick={() => setDeleteConfirmOpen(true)}
@@ -515,7 +515,7 @@ const ProfilePage = () => {
                   className="w-full px-4 py-2 text-sm font-bold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {acting ? <Loader2 size={16} className="animate-spin" /> : <AlertTriangle size={15} />}
-                  Request Account Deletion
+                  Yêu cầu xoá tài khoản
                 </button>
               </div>
             )}
@@ -536,7 +536,7 @@ const ProfilePage = () => {
             <button
               onClick={() => setLightboxOpen(false)}
               className="absolute top-6 right-6 p-2 text-white/80 hover:text-white transition"
-              aria-label="Close"
+              aria-label="Đóng"
             >
               <X size={26} />
             </button>
@@ -575,9 +575,9 @@ const ProfilePage = () => {
                   <AlertTriangle size={20} className="text-amber-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-black">You have unsaved changes</h3>
+                  <h3 className="text-lg font-black text-black">Bạn có thay đổi chưa lưu</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    Do you want to save your changes before leaving the profile page?
+                    Bạn có muốn lưu thay đổi trước khi rời khỏi trang cá nhân không?
                   </p>
                 </div>
               </div>
@@ -587,7 +587,7 @@ const ProfilePage = () => {
                   disabled={saving}
                   className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-black transition disabled:opacity-50"
                 >
-                  Discard
+                  Bỏ thay đổi
                 </button>
                 <button
                   onClick={handleLeaveSave}
@@ -595,7 +595,7 @@ const ProfilePage = () => {
                   className="px-5 py-2.5 bg-uml-blue text-white font-bold rounded-lg text-sm hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-50"
                 >
                   {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  Save Changes
+                  Lưu thay đổi
                 </button>
               </div>
             </motion.div>
@@ -632,10 +632,10 @@ const ProfilePage = () => {
                   <Trash2 size={20} className="text-red-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-black">Request account deletion?</h3>
+                  <h3 className="text-lg font-black text-black">Yêu cầu xoá tài khoản?</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    Your account will be scheduled for permanent deletion in <b>30 days</b>. You can restore it any
-                    time before then from this page.
+                    Tài khoản của bạn sẽ được lên lịch xoá vĩnh viễn sau <b>30 ngày</b>. Bạn có thể khôi phục bất cứ
+                    lúc nào trước thời hạn đó ngay tại trang này.
                   </p>
                 </div>
               </div>
@@ -645,7 +645,7 @@ const ProfilePage = () => {
                   disabled={acting}
                   className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-black transition disabled:opacity-50"
                 >
-                  Cancel
+                  Huỷ
                 </button>
                 <button
                   onClick={handleDeactivate}
@@ -653,7 +653,7 @@ const ProfilePage = () => {
                   className="px-5 py-2.5 bg-red-600 text-white font-bold rounded-lg text-sm hover:bg-red-700 transition flex items-center gap-2 disabled:opacity-50"
                 >
                   {acting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                  Request Deletion
+                  Yêu cầu xoá
                 </button>
               </div>
             </motion.div>

@@ -30,7 +30,7 @@ function Logo({ collapsed }: { collapsed: boolean }) {
       {!collapsed && (
         <div className="leading-tight">
           <p className="text-[14px] font-semibold tracking-tight text-slate-900">DiaUML Studio</p>
-          <p className="text-[11px] text-slate-400">Admin Console</p>
+          <p className="text-[11px] text-slate-400">Trang quản trị</p>
         </div>
       )}
     </Link>
@@ -155,7 +155,7 @@ export default function Sidebar({
         <div className="border-t border-slate-200 p-3">
           <button
             onClick={() => onNavigate("intelligence")}
-            title={collapsed ? "AI Engine · Online" : undefined}
+            title={collapsed ? "AI Engine · Trực tuyến" : undefined}
             className={cn(
               "group relative transition",
               collapsed
@@ -170,7 +170,7 @@ export default function Sidebar({
                   <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white" />
                 </span>
                 <span className="pointer-events-none absolute left-full ml-3 z-50 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[12px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
-                  AI Engine · Online
+                  AI Engine · Trực tuyến
                 </span>
               </>
             ) : (
@@ -180,7 +180,7 @@ export default function Sidebar({
                     <Sparkles className="h-3.5 w-3.5 text-indigo-600" /> AI Engine
                   </span>
                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-soft-pulse" /> Online
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-soft-pulse" /> Trực tuyến
                   </span>
                 </div>
                 <p className="mt-1.5 truncate font-mono text-[10.5px] text-slate-400">localhost:3001/api</p>
