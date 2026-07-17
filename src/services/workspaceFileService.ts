@@ -1,120 +1,186 @@
-import type { WorkspaceFileItem, WorkspaceTreeState } from '../types/workspaceFile'
+import { workspaceItemService } from './workspaceItemService'
+import type {
+  WorkspaceFileItem,
+  WorkspaceFileKind,
+  WorkspaceItemKindApi,
+  WorkspaceItemResponse,
+  WorkspaceTreeState,
+} from '../types/workspaceFile'
 
-const key = (projectId: string) => `diauml:workspace-tree:${projectId}`
-const now = () => Date.now()
-const makeId = () => crypto.randomUUID()
+/**
+ * Adapter cho cây file workspace. Items giờ là dữ liệu server (workspace-items API);
+ * localStorage chỉ còn giữ UI state (expandedIds/activeItemId) + dữ liệu prototype cũ
+ * để one-time import lên backend.
+ */
 
-const empty = (): WorkspaceTreeState => ({ items: [], expandedIds: [], activeItemId: null })
+const uiKey = (projectId: string) => `diauml:workspace-tree:${projectId}`
+const importedKey = (projectId: string) => `diauml:workspace-tree-imported:${projectId}`
 
-function read(projectId: string): WorkspaceTreeState {
+const toApiKind = (kind: WorkspaceFileKind): WorkspaceItemKindApi =>
+  kind.toUpperCase() as WorkspaceItemKindApi
+
+function fromResponse(item: WorkspaceItemResponse): WorkspaceFileItem {
+  return {
+    id: item.id,
+    projectId: item.projectId,
+    parentId: item.parentId ?? null,
+    name: item.name,
+    kind: item.kind.toLowerCase() as WorkspaceFileKind,
+    orderIndex: item.orderIndex,
+    content: item.content,
+    sheetId: item.sheetId,
+    diagramType: item.diagramType,
+    version: item.version,
+    createdAt: new Date(item.createdAt).getTime(),
+    updatedAt: new Date(item.updatedAt).getTime(),
+  }
+}
+
+interface StoredUiState {
+  items?: WorkspaceFileItem[]
+  expandedIds?: string[]
+  activeItemId?: string | null
+}
+
+function readStored(projectId: string): StoredUiState {
   try {
-    const value = JSON.parse(localStorage.getItem(key(projectId)) || 'null')
-    return value && Array.isArray(value.items) ? value : empty()
+    return JSON.parse(localStorage.getItem(uiKey(projectId)) || 'null') || {}
   } catch {
-    return empty()
+    return {}
   }
 }
 
-function write(projectId: string, state: WorkspaceTreeState) {
-  localStorage.setItem(key(projectId), JSON.stringify(state))
-  return state
+function writeUiState(projectId: string, expandedIds: string[], activeItemId: string | null) {
+  localStorage.setItem(uiKey(projectId), JSON.stringify({ expandedIds, activeItemId }))
 }
 
-function descendants(items: WorkspaceFileItem[], id: string): Set<string> {
-  const found = new Set<string>([id])
-  let changed = true
-  while (changed) {
-    changed = false
-    items.forEach(item => {
-      if (item.parentId && found.has(item.parentId) && !found.has(item.id)) {
-        found.add(item.id)
-        changed = true
+/**
+ * One-time import: đẩy folder/markdown của prototype localStorage lên backend và
+ * di chuyển các diagram item (match theo sheetId) vào đúng folder cũ.
+ * Best-effort: item lỗi (vd trùng tên) bị bỏ qua, không chặn việc load cây.
+ */
+async function importLocalPrototype(projectId: string, serverItems: WorkspaceFileItem[]): Promise<boolean> {
+  const legacyItems = readStored(projectId).items
+  if (!Array.isArray(legacyItems) || !legacyItems.length) return false
+
+  const hasStructure = legacyItems.some(item => item.kind !== 'diagram' || item.parentId)
+  if (!hasStructure) return false
+
+  const byParent = new Map<string | null, WorkspaceFileItem[]>()
+  legacyItems.forEach(item => {
+    const list = byParent.get(item.parentId) || []
+    list.push(item)
+    byParent.set(item.parentId, list)
+  })
+  const serverBySheet = new Map(serverItems.filter(item => item.sheetId).map(item => [item.sheetId!, item]))
+  let migrated = false
+
+  const walk = async (localParentId: string | null, serverParentId: string | null) => {
+    const children = (byParent.get(localParentId) || []).sort((a, b) => a.orderIndex - b.orderIndex)
+    for (const item of children) {
+      if (item.kind === 'folder') {
+        try {
+          const created = await workspaceItemService.create(projectId, {
+            name: item.name, kind: 'FOLDER', parentId: serverParentId,
+          })
+          migrated = true
+          await walk(item.id, created.result.id)
+        } catch {
+          // Folder tạo lỗi (thường do trùng tên): con của nó rơi về folder cha hiện tại
+          await walk(item.id, serverParentId)
+        }
+      } else if (item.kind === 'markdown') {
+        try {
+          await workspaceItemService.create(projectId, {
+            name: item.name, kind: 'MARKDOWN', parentId: serverParentId, content: item.content || '',
+          })
+          migrated = true
+        } catch { /* bỏ qua item lỗi */ }
+      } else if (item.sheetId && serverParentId) {
+        const server = serverBySheet.get(item.sheetId)
+        if (server && server.parentId !== serverParentId) {
+          try {
+            await workspaceItemService.move(server.id, { parentId: serverParentId })
+            migrated = true
+          } catch { /* bỏ qua item lỗi */ }
+        }
       }
-    })
+    }
   }
-  return found
+
+  await walk(null, null)
+  return migrated
 }
 
 export const workspaceFileService = {
-  load(projectId: string) {
-    return read(projectId)
-  },
+  /** Tải cây từ server (kèm one-time import prototype) và merge UI state local. */
+  async fetchTree(projectId: string): Promise<WorkspaceTreeState> {
+    let response = await workspaceItemService.list(projectId)
+    let items = (response.result || []).map(fromResponse)
 
-  saveState(projectId: string, patch: Partial<WorkspaceTreeState>) {
-    return write(projectId, { ...read(projectId), ...patch })
-  },
-
-  syncDiagrams(projectId: string, sheets: Array<{ id: string; name: string; diagramType: string }>) {
-    const state = read(projectId)
-    const sheetIds = new Set(sheets.map(sheet => sheet.id))
-    const local = state.items.filter(item => item.kind !== 'diagram' || (item.sheetId && sheetIds.has(item.sheetId)))
-    const bySheet = new Map(local.filter(item => item.sheetId).map(item => [item.sheetId!, item]))
-    const items = [...local]
-    sheets.forEach((sheet, index) => {
-      const current = bySheet.get(sheet.id)
-      if (current) {
-        current.name = sheet.name
-        current.diagramType = sheet.diagramType
-        current.updatedAt = now()
-      } else {
-        items.push({
-          id: `diagram:${sheet.id}`,
-          projectId,
-          parentId: null,
-          name: sheet.name,
-          kind: 'diagram',
-          sheetId: sheet.id,
-          diagramType: sheet.diagramType,
-          orderIndex: index,
-          createdAt: now(),
-          updatedAt: now(),
-        })
+    if (!localStorage.getItem(importedKey(projectId))) {
+      const migrated = await importLocalPrototype(projectId, items)
+      localStorage.setItem(importedKey(projectId), '1')
+      if (migrated) {
+        response = await workspaceItemService.list(projectId)
+        items = (response.result || []).map(fromResponse)
       }
-    })
-    return write(projectId, { ...state, items })
+    }
+
+    const stored = readStored(projectId)
+    const validIds = new Set(items.map(item => item.id))
+    const expandedIds = (stored.expandedIds || []).filter(value => validIds.has(value))
+    const activeItemId = stored.activeItemId && validIds.has(stored.activeItemId) ? stored.activeItemId : null
+    writeUiState(projectId, expandedIds, activeItemId)
+    return { items, expandedIds, activeItemId }
   },
 
-  create(projectId: string, input: Pick<WorkspaceFileItem, 'name' | 'kind' | 'parentId'> & Partial<WorkspaceFileItem>) {
-    const state = read(projectId)
-    const siblings = state.items.filter(item => item.parentId === input.parentId)
-    const item: WorkspaceFileItem = {
-      id: input.id || makeId(),
+  /** Chỉ persist UI state (expandedIds/activeItemId) — items là dữ liệu server. */
+  saveState(projectId: string, patch: Partial<Pick<WorkspaceTreeState, 'expandedIds' | 'activeItemId'>>) {
+    const stored = readStored(projectId)
+    writeUiState(
       projectId,
+      patch.expandedIds ?? stored.expandedIds ?? [],
+      patch.activeItemId !== undefined ? patch.activeItemId : stored.activeItemId ?? null,
+    )
+  },
+
+  /** Tạo folder / markdown / diagram (diagram: backend tạo sheet + item atomic). */
+  async create(
+    projectId: string,
+    input: Pick<WorkspaceFileItem, 'name' | 'kind' | 'parentId'> & { content?: string; diagramType?: string; diagramData?: string },
+  ): Promise<WorkspaceFileItem> {
+    const response = await workspaceItemService.create(projectId, {
       parentId: input.parentId,
       name: input.name.trim(),
-      kind: input.kind,
-      content: input.content,
-      sheetId: input.sheetId,
-      diagramType: input.diagramType,
-      orderIndex: siblings.length,
-      createdAt: now(),
-      updatedAt: now(),
-    }
-    write(projectId, { ...state, items: [...state.items, item], activeItemId: item.id })
-    return item
-  },
-
-  update(projectId: string, id: string, patch: Partial<WorkspaceFileItem>) {
-    const state = read(projectId)
-    const items = state.items.map(item => item.id === id ? { ...item, ...patch, updatedAt: now() } : item)
-    return write(projectId, { ...state, items })
-  },
-
-  move(projectId: string, id: string, parentId: string | null) {
-    const state = read(projectId)
-    const blocked = descendants(state.items, id)
-    if (parentId && blocked.has(parentId)) throw new Error('A folder cannot be moved into itself.')
-    return this.update(projectId, id, { parentId })
-  },
-
-  remove(projectId: string, id: string) {
-    const state = read(projectId)
-    const removed = descendants(state.items, id)
-    return write(projectId, {
-      ...state,
-      items: state.items.filter(item => !removed.has(item.id)),
-      expandedIds: state.expandedIds.filter(value => !removed.has(value)),
-      activeItemId: removed.has(state.activeItemId || '') ? null : state.activeItemId,
+      kind: toApiKind(input.kind),
+      content: input.kind === 'markdown' ? input.content ?? '' : undefined,
+      diagramType: input.kind === 'diagram' ? input.diagramType : undefined,
+      diagramData: input.kind === 'diagram' ? input.diagramData : undefined,
     })
+    return fromResponse(response.result)
+  },
+
+  /** Đổi tên / cập nhật nội dung markdown. Backend tự sync tên sheet cho diagram. */
+  async update(_projectId: string, id: string, patch: { name?: string; content?: string; expectedVersion?: number }): Promise<WorkspaceFileItem> {
+    const response = await workspaceItemService.update(id, patch)
+    return fromResponse(response.result)
+  },
+
+  /** Di chuyển item sang folder khác (null = gốc). Cycle do server chặn (WORKSPACE_TREE_CYCLE). */
+  async move(_projectId: string, id: string, parentId: string | null): Promise<WorkspaceFileItem> {
+    const response = await workspaceItemService.move(id, { parentId })
+    return fromResponse(response.result)
+  },
+
+  /** Nhân bản item (folder đệ quy, diagram tạo sheet mới) — atomic phía server. */
+  async duplicate(_projectId: string, id: string, parentId: string | null): Promise<WorkspaceFileItem> {
+    const response = await workspaceItemService.duplicate(id, { parentId })
+    return fromResponse(response.result)
+  },
+
+  /** Xóa 1..n item; server xóa đệ quy subtree + sheet liên kết trong 1 transaction. */
+  async remove(_projectId: string, ids: string[], recursive = true): Promise<void> {
+    await workspaceItemService.remove(ids, recursive)
   },
 }

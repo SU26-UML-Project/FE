@@ -17,10 +17,35 @@ export interface DiagramVersion {
   name: string
   note?: string
   source: DiagramVersionSource
-  snapshot: DiagramSnapshot
+  /** Danh sách từ server không kèm snapshot (payload lớn) — lazy-load qua get() khi chọn. */
+  snapshot?: DiagramSnapshot
   contentHash: string
   createdAt: number
   restoredFromVersionId?: string
+}
+
+/* ─── Backend contract (/sheets/{sheetId}/versions) ─── */
+
+export interface DiagramVersionResponse {
+  id: string
+  sheetId: string
+  versionNumber: number
+  name: string
+  note?: string
+  source: DiagramVersionSource
+  diagramData?: string
+  contentHash: string
+  schemaVersion: number
+  restoredFromVersionId?: string
+  createdAt: string
+}
+
+export interface DiagramVersionCreateRequest {
+  name?: string
+  note?: string
+  source: DiagramVersionSource
+  diagramData: string
+  force?: boolean
 }
 
 export interface DiagramDiff {

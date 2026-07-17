@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, ChevronRight, Clock3, FileText, Folder, FolderOpen, Grid2X2, List, Loader2, MoreHorizontal, Plus, Search, Trash2, Workflow, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { projectService, sheetService } from '../services'
+import { projectService } from '../services'
 import { workspaceFileService } from '../services/workspaceFileService'
 import type { DiagramType } from '../types'
 import type { WorkspaceFileItem, WorkspaceFileKind, WorkspaceTreeState } from '../types/workspaceFile'
@@ -40,14 +40,10 @@ export default function ProjectOverview() {
     if (!id) return
     setLoading(true)
     try {
-      const [projectRes, sheetsRes] = await Promise.all([projectService.getProjectById(id), sheetService.getSheetsByProject(id)])
+      // Cây file giờ là dữ liệu server (workspace-items API) — không còn dựng từ sheets + localStorage
+      const [projectRes, treeState] = await Promise.all([projectService.getProjectById(id), workspaceFileService.fetchTree(id)])
       setProject({ name: projectRes.result.projectName, category: projectRes.result.description || 'general', updatedAt: projectRes.result.updatedAt })
-      const sheets = (sheetsRes.result || []).map(sheet => {
-        let type: DiagramType = 'activity'
-        try { type = JSON.parse(sheet.diagramData)?.diagramType || 'activity' } catch { /* keep fallback */ }
-        return { id: sheet.id, name: sheet.name, diagramType: type }
-      })
-      setTree(workspaceFileService.syncDiagrams(id, sheets))
+      setTree(treeState)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to load project')
       navigate('/dashboard')
@@ -149,8 +145,8 @@ export default function ProjectOverview() {
       </section>
     </div>
     {blankMenu && <div onPointerDown={event => event.stopPropagation()} className="fixed z-[160] w-48 rounded-lg border border-admin-outline bg-white p-1.5 shadow-[0_16px_50px_rgba(15,23,42,.18)]" style={{ left: Math.min(blankMenu.x, window.innerWidth - 205), top: Math.min(blankMenu.y, window.innerHeight - 180) }}><p className="px-2.5 py-1.5 text-[9px] font-black uppercase tracking-widest text-admin-secondary">Create in this folder</p><button onClick={() => showCreate('markdown')} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-xs hover:bg-admin-bg"><FileText size={14}/> New Markdown</button><button onClick={() => showCreate('diagram')} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-xs hover:bg-admin-bg"><Workflow size={14}/> New Diagram</button><button onClick={() => showCreate('folder')} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-xs hover:bg-admin-bg"><Folder size={14}/> New Folder</button></div>}
-    {createOpen && <CreateModal initialKind={createKind} projectId={id!} parentId={folderId} items={tree.items} onClose={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); setTree(workspaceFileService.load(id!)); refresh() }}/>} 
-    {action && <ActionModal projectId={id!} action={action} onClose={() => setAction(null)} onDone={() => { setAction(null); setTree(workspaceFileService.load(id!)); refresh() }}/>} 
+    {createOpen && <CreateModal initialKind={createKind} projectId={id!} parentId={folderId} items={tree.items} onClose={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); refresh() }}/>}
+    {action && <ActionModal projectId={id!} action={action} onClose={() => setAction(null)} onDone={() => { setAction(null); refresh() }}/>}
     {bulkDeleteOpen && <BulkDeleteModal projectId={id!} items={tree.items} selectedIds={selectedIds} onClose={() => setBulkDeleteOpen(false)} onDone={() => { setBulkDeleteOpen(false); setSelectionMode(false); setSelectedIds(new Set()); refresh() }}/>} 
   </div>
 }
@@ -187,7 +183,7 @@ function useDelayedOpen(onOpen: () => void, onRename: () => void) {
 function CreateModal({ initialKind, projectId, parentId, items, onClose, onCreated }: { initialKind: WorkspaceFileKind; projectId: string; parentId: string | null; items: WorkspaceFileItem[]; onClose: () => void; onCreated: () => void }) {
   const [kind, setKind] = useState<WorkspaceFileKind>(initialKind); const [name, setName] = useState(''); const [type, setType] = useState<DiagramType>('activity'); const [busy, setBusy] = useState(false)
   const normalized = kind === 'markdown' ? `${name.trim().replace(/(?:\.md)+$/i, '')}.md` : name.trim(); const duplicate = items.some(x => x.parentId === parentId && x.name.toLowerCase() === normalized.toLowerCase())
-  const submit = async () => { if (!normalized || duplicate || busy) return; setBusy(true); try { if (kind === 'diagram') { const response = await sheetService.createSheet({ name: normalized, projectId, orderIndex: items.filter(x => x.kind === 'diagram').length, diagramData: JSON.stringify({ nodes: [], edges: [], diagramType: type, viewport: { x: 0, y: 0, zoom: 1 } }) }); workspaceFileService.create(projectId, { id: `diagram:${response.result.id}`, name: normalized, kind, parentId, sheetId: response.result.id, diagramType: type }) } else workspaceFileService.create(projectId, { name: normalized, kind, parentId, content: kind === 'markdown' ? '' : undefined }); toast.success(`${kind} created`); onCreated() } catch (error) { toast.error(error instanceof Error ? error.message : 'Unable to create item') } finally { setBusy(false) } }
+  const submit = async () => { if (!normalized || duplicate || busy) return; setBusy(true); try { await workspaceFileService.create(projectId, { name: normalized, kind, parentId, content: kind === 'markdown' ? '' : undefined, diagramType: kind === 'diagram' ? type : undefined, diagramData: kind === 'diagram' ? JSON.stringify({ nodes: [], edges: [], diagramType: type, viewport: { x: 0, y: 0, zoom: 1 } }) : undefined }); toast.success(`${kind} created`); onCreated() } catch (error) { toast.error(error instanceof Error ? error.message : 'Unable to create item') } finally { setBusy(false) } }
   return <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm" onMouseDown={e => e.target === e.currentTarget && onClose()}><div className="w-full max-w-xl overflow-hidden rounded-xl border border-admin-outline bg-white shadow-2xl"><header className="flex items-start justify-between border-b border-admin-outline p-5"><div><h2 className="text-lg font-bold">Create new item</h2><p className="mt-1 text-xs text-admin-secondary">Add content to your project workspace.</p></div><button onClick={onClose}><X size={18}/></button></header><div className="max-h-[65vh] overflow-auto p-5"><div className="grid grid-cols-3 gap-2">{(['diagram','markdown','folder'] as WorkspaceFileKind[]).map(value => <button key={value} onClick={() => setKind(value)} className={`rounded-lg border p-3 text-left ${kind === value ? 'border-uml-blue bg-uml-blue/5 ring-1 ring-uml-blue' : 'border-admin-outline hover:bg-admin-bg'}`}><b className="text-xs capitalize">{value}</b><small className="mt-1 block text-[10px] text-admin-secondary">{value === 'diagram' ? 'Visual model' : value === 'markdown' ? 'Documentation' : 'Organize files'}</small></button>)}</div><label className="mb-2 mt-5 block text-[10px] font-black uppercase tracking-widest text-admin-secondary">Name</label><input autoFocus value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} className={`h-10 w-full rounded-lg border px-3 text-sm outline-none focus:ring-2 focus:ring-uml-blue/10 ${duplicate ? 'border-red-400' : 'border-admin-outline focus:border-uml-blue'}`} placeholder={kind === 'diagram' ? 'Authentication flow' : kind === 'markdown' ? 'requirements.md' : 'Architecture'}/>{duplicate && <p className="mt-1 text-[11px] text-red-600">This name already exists in the current folder.</p>}{kind === 'diagram' && <><label className="mb-2 mt-5 block text-[10px] font-black uppercase tracking-widest text-admin-secondary">Diagram type</label><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{diagramTypes.map(option => <button key={option.id} onClick={() => setType(option.id)} className={`rounded-lg border p-3 text-left ${type === option.id ? 'border-uml-blue bg-uml-blue/5 ring-1 ring-uml-blue' : 'border-admin-outline hover:bg-admin-bg'}`}><b className="text-xs">{option.label}</b><small className="mt-1 block text-[10px] text-admin-secondary">{option.hint}</small></button>)}</div></>}</div><footer className="flex justify-end gap-2 border-t border-admin-outline bg-admin-bg/50 p-4"><button onClick={onClose} className="rounded-lg border border-admin-outline bg-white px-4 py-2 text-xs font-bold">Cancel</button><button disabled={!normalized || duplicate || busy} onClick={submit} className="rounded-lg bg-uml-blue px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{busy ? 'Creating…' : `Create ${kind}`}</button></footer></div></div>
 }
 
@@ -199,15 +195,11 @@ function ActionModal({ projectId, action, onClose, onDone }: { projectId: string
     setBusy(true)
     try {
       if (action.mode === 'rename') {
-        workspaceFileService.update(projectId, action.item.id, { name: name.trim() })
-        if (action.item.kind === 'diagram' && action.item.sheetId) await sheetService.updateSheet(action.item.sheetId, { name: name.trim(), projectId })
+        // Backend tự sync tên sheet cho diagram — không cần gọi sheet API riêng
+        await workspaceFileService.update(projectId, action.item.id, { name: name.trim() })
       } else {
-        const state = workspaceFileService.load(projectId)
-        const removed = new Set([action.item.id]); let changed = true
-        while (changed) { changed = false; state.items.forEach(item => { if (item.parentId && removed.has(item.parentId) && !removed.has(item.id)) { removed.add(item.id); changed = true } }) }
-        const diagrams = state.items.filter(item => removed.has(item.id) && item.kind === 'diagram' && item.sheetId)
-        for (const diagram of diagrams) await sheetService.deleteSheet(diagram.sheetId!)
-        workspaceFileService.remove(projectId, action.item.id)
+        // Server xóa đệ quy subtree + sheet liên kết trong 1 transaction
+        await workspaceFileService.remove(projectId, [action.item.id], true)
       }
       toast.success(action.mode === 'rename' ? 'Item renamed' : 'Item deleted')
       onDone()
@@ -222,13 +214,8 @@ function BulkDeleteModal({ projectId, items, selectedIds, onClose, onDone }: { p
   const remove = async () => {
     setBusy(true)
     try {
-      const removed = new Set<string>()
-      roots.forEach(root => removed.add(root.id))
-      let changed = true
-      while (changed) { changed = false; items.forEach(item => { if (item.parentId && removed.has(item.parentId) && !removed.has(item.id)) { removed.add(item.id); changed = true } }) }
-      const diagrams = items.filter(item => removed.has(item.id) && item.kind === 'diagram' && item.sheetId)
-      for (const diagram of diagrams) await sheetService.deleteSheet(diagram.sheetId!)
-      roots.forEach(root => workspaceFileService.remove(projectId, root.id))
+      // 1 request bulk — server xóa đệ quy con cháu + sheet liên kết atomic
+      await workspaceFileService.remove(projectId, roots.map(root => root.id), true)
       toast.success(`${selectedIds.size} item${selectedIds.size === 1 ? '' : 's'} deleted`)
       onDone()
     } catch (error) { toast.error(error instanceof Error ? error.message : 'Unable to delete selected items') } finally { setBusy(false) }

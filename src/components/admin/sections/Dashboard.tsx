@@ -391,6 +391,7 @@ export default function Dashboard() {
                     <th className="pb-2 pr-4 text-right">Req</th>
                     <th className="pb-2 pr-4 text-right">Err</th>
                     <th className="pb-2 pr-4 text-right">Rate</th>
+                    <th className="pb-2 pr-4 text-right">Tokens</th>
                     <th className="pb-2 text-right">Cost</th>
                   </tr>
                 </thead>
@@ -410,6 +411,7 @@ export default function Dashboard() {
                           {m.errorRate}%
                         </span>
                       </td>
+                      <td className="py-2.5 pr-4 text-right text-slate-900">{m.totalTokens.toLocaleString("vi-VN")}</td>
                       <td className="py-2.5 text-right text-slate-900">${m.totalCostUsd.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
                   ))}
