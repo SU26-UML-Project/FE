@@ -1,30 +1,50 @@
-import type { DiagramDiff, DiagramSnapshot, DiagramVersion, DiagramVersionSource } from '../types/diagramVersion'
+import apiClient from './apiClient'
+import type { ApiResponse } from '../types/api'
+import type {
+  DiagramDiff,
+  DiagramSnapshot,
+  DiagramVersion,
+  DiagramVersionCreateRequest,
+  DiagramVersionResponse,
+  DiagramVersionSource,
+} from '../types/diagramVersion'
 
-const key = (sheetId: string) => `diauml:diagram-versions:${sheetId}`
-const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value))
+/**
+ * Version history giờ lưu trên backend (/sheets/{sheetId}/versions).
+ * diff() vẫn là hàm thuần chạy client-side — server chỉ lưu/truy xuất snapshot.
+ */
+
 const stable = (value: unknown) => JSON.stringify(value, Object.keys((value || {}) as object).sort())
 
-function normalized(snapshot: DiagramSnapshot) {
-  return {
-    schemaVersion: snapshot.schemaVersion,
-    diagramType: snapshot.diagramType,
-    nodes: snapshot.nodes.map(node => ({ ...node, selected: undefined, dragging: undefined })).sort((a, b) => a.id.localeCompare(b.id)),
-    edges: snapshot.edges.map(edge => ({ ...edge, selected: undefined })).sort((a, b) => a.id.localeCompare(b.id)),
+function parseSnapshot(diagramData?: string): DiagramSnapshot | undefined {
+  if (!diagramData) return undefined
+  try {
+    const parsed = JSON.parse(diagramData)
+    return {
+      schemaVersion: 1,
+      diagramType: parsed.diagramType || 'activity',
+      nodes: Array.isArray(parsed.nodes) ? parsed.nodes : [],
+      edges: Array.isArray(parsed.edges) ? parsed.edges : [],
+      viewport: parsed.viewport,
+    }
+  } catch {
+    return undefined
   }
 }
 
-function hash(snapshot: DiagramSnapshot) {
-  const input = JSON.stringify(normalized(snapshot))
-  let value = 2166136261
-  for (let index = 0; index < input.length; index++) value = Math.imul(value ^ input.charCodeAt(index), 16777619)
-  return (value >>> 0).toString(36)
-}
-
-function read(sheetId: string): DiagramVersion[] {
-  try {
-    const value = JSON.parse(localStorage.getItem(key(sheetId)) || '[]')
-    return Array.isArray(value) ? value : []
-  } catch { return [] }
+function fromResponse(item: DiagramVersionResponse): DiagramVersion {
+  return {
+    id: item.id,
+    sheetId: item.sheetId,
+    versionNumber: item.versionNumber,
+    name: item.name,
+    note: item.note,
+    source: item.source,
+    snapshot: parseSnapshot(item.diagramData),
+    contentHash: item.contentHash,
+    createdAt: new Date(item.createdAt).getTime(),
+    restoredFromVersionId: item.restoredFromVersionId,
+  }
 }
 
 function changedFields(before: Record<string, unknown>, after: Record<string, unknown>, includePosition: boolean) {
@@ -33,19 +53,43 @@ function changedFields(before: Record<string, unknown>, after: Record<string, un
 }
 
 export const diagramVersionService = {
-  list(sheetId: string) { return read(sheetId).sort((a, b) => b.versionNumber - a.versionNumber) },
-  create(sheetId: string, snapshot: DiagramSnapshot, options?: { name?: string; note?: string; source?: DiagramVersionSource; restoredFromVersionId?: string; force?: boolean }) {
-    const versions = read(sheetId)
-    const contentHash = hash(snapshot)
-    if (!options?.force && versions.some(version => version.contentHash === contentHash)) return null
-    const version: DiagramVersion = {
-      id: crypto.randomUUID(), sheetId, versionNumber: Math.max(0, ...versions.map(item => item.versionNumber)) + 1,
-      name: options?.name?.trim() || `Version ${versions.length + 1}`, note: options?.note?.trim() || undefined,
-      source: options?.source || 'AUTO', snapshot: clone(snapshot), contentHash, createdAt: Date.now(), restoredFromVersionId: options?.restoredFromVersionId,
-    }
-    localStorage.setItem(key(sheetId), JSON.stringify([...versions, version]))
-    return version
+  /** Danh sách version (mới nhất trước), KHÔNG kèm snapshot — gọi get() khi cần nội dung. */
+  async list(sheetId: string): Promise<DiagramVersion[]> {
+    const response = await apiClient.get<any, ApiResponse<DiagramVersionResponse[]>>(`/sheets/${sheetId}/versions`)
+    return (response.result || []).map(fromResponse)
   },
+
+  /** Chi tiết một version kèm snapshot đầy đủ. */
+  async get(sheetId: string, versionId: string): Promise<DiagramVersion> {
+    const response = await apiClient.get<any, ApiResponse<DiagramVersionResponse>>(`/sheets/${sheetId}/versions/${versionId}`)
+    return fromResponse(response.result)
+  },
+
+  /**
+   * Tạo checkpoint. Không force: nội dung trùng hash → server trả version đã có (không thêm bản ghi).
+   * AUTO được server giới hạn số lượng mỗi sheet.
+   */
+  async create(sheetId: string, snapshot: DiagramSnapshot, options?: { name?: string; note?: string; source?: DiagramVersionSource; force?: boolean }): Promise<DiagramVersion> {
+    const body: DiagramVersionCreateRequest = {
+      name: options?.name?.trim() || undefined,
+      note: options?.note?.trim() || undefined,
+      source: options?.source || 'AUTO',
+      diagramData: JSON.stringify(snapshot),
+      force: options?.force,
+    }
+    const response = await apiClient.post<any, ApiResponse<DiagramVersionResponse>>(`/sheets/${sheetId}/versions`, body)
+    return fromResponse(response.result)
+  },
+
+  /**
+   * Restore phía server (1 transaction: backup BEFORE_RESTORE → ghi sheet → bản ghi RESTORE).
+   * Trả về bản ghi RESTORE kèm snapshot để áp lên canvas.
+   */
+  async restore(sheetId: string, versionId: string): Promise<DiagramVersion> {
+    const response = await apiClient.post<any, ApiResponse<DiagramVersionResponse>>(`/sheets/${sheetId}/versions/${versionId}/restore`)
+    return fromResponse(response.result)
+  },
+
   diff(before: DiagramSnapshot, after: DiagramSnapshot, includePosition = false): DiagramDiff {
     const beforeNodes = new Map(before.nodes.map(item => [item.id, item])); const afterNodes = new Map(after.nodes.map(item => [item.id, item]))
     const beforeEdges = new Map(before.edges.map(item => [item.id, item])); const afterEdges = new Map(after.edges.map(item => [item.id, item]))
