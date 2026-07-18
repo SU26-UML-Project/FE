@@ -447,6 +447,45 @@ export function Editor() {
       [beginMutation, setNodes, emitCanvasChange]
   );
 
+  const updateNodeParent = useCallback(
+      (id: string, parentId: string | undefined) => {
+        beginMutation();
+        setNodes((prev) => {
+          // Find the target node to preserve its absolute position
+          const targetNode = prev.find((n) => n.id === id);
+          if (!targetNode) return prev;
+
+          // Calculate its absolute position before parent change
+          const oldParent = targetNode.parentId ? prev.find((p) => p.id === targetNode.parentId) : null;
+          const oldParentX = oldParent ? oldParent.position.x : 0;
+          const oldParentY = oldParent ? oldParent.position.y : 0;
+          const absX = oldParentX + targetNode.position.x;
+          const absY = oldParentY + targetNode.position.y;
+
+          // Calculate its new relative position to the new parent
+          const newParent = parentId ? prev.find((p) => p.id === parentId) : null;
+          const newParentX = newParent ? newParent.position.x : 0;
+          const newParentY = newParent ? newParent.position.y : 0;
+          const newRelX = absX - newParentX;
+          const newRelY = absY - newParentY;
+
+          const next = prev.map((n) =>
+              n.id === id ? {
+                ...n,
+                parentId,
+                extent: parentId ? "parent" : undefined,
+                position: { x: newRelX, y: newRelY }
+              } : n
+          );
+          if (!skipCollabEmit.current) {
+            emitCanvasChange({ nodes: next, type: "update" });
+          }
+          return next;
+        });
+      },
+      [beginMutation, setNodes, emitCanvasChange]
+  );
+
   /** Enlarge a node so it never clips its text. Not recorded in history. */
   const growNode = useCallback(
       (id: string, minW: number, minH: number) => {
@@ -2367,6 +2406,8 @@ export function Editor() {
                           selNodes={selNodes}
                           selEdges={selEdges}
                           diagramType={diagramType}
+                          allNodes={nodes}
+                          onUpdateNodeParent={updateNodeParent}
                           onUpdateNode={updateNodeData}
                           onUpdateEdge={updateEdge}
                           onDelete={deleteSelected}
