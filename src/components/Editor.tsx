@@ -473,7 +473,7 @@ export function Editor() {
               n.id === id ? {
                 ...n,
                 parentId,
-                extent: parentId ? "parent" : undefined,
+                extent: undefined,
                 position: { x: newRelX, y: newRelY }
               } : n
           );
@@ -588,7 +588,7 @@ export function Editor() {
           width: item.width,
           height: item.height,
           style: { width: item.width, height: item.height },
-          ...(parentId ? { parentId, extent: "parent" } : {}),
+          ...(parentId ? { parentId, extent: undefined } : {}),
         };
         setNodes((prev) => {
           const next = parentId ? sortParentBeforeChild(prev.concat(node)) : prev.concat(node);
@@ -777,7 +777,7 @@ export function Editor() {
               return {
                 ...n,
                 parentId: target.id,
-                extent: "parent" as const,
+                extent: undefined,
                 position: { x: pos.x - target.x, y: pos.y - target.y },
               };
             }
