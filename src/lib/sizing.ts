@@ -46,11 +46,8 @@ export function componentMinSize(d: FlowNodeData): { w: number; h: number } {
   };
 }
 
-/** Default size for an Activity swimlane (UML partition). Horizontal lanes are
- *  wide & short; vertical lanes are tall & narrow. finalizeLayout / ELK will
- *  grow the lane to fit its child nodes. */
-export function swimlaneMinSize(d: FlowNodeData): { w: number; h: number } {
-  const vertical = d.variant === "vertical";
-  if (vertical) return { w: 150, h: 380 };
+/** Default size for an Activity swimlane (UML partition). Always horizontal.
+ *  finalizeLayout / ELK will grow the lane to fit its child nodes. */
+export function swimlaneMinSize(_d: FlowNodeData): { w: number; h: number } {
   return { w: 480, h: 130 };
 }

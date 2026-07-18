@@ -174,6 +174,13 @@ function exportMermaidClass(nodes: FlowNode[], edges: FlowEdge[]): string {
 function exportMermaidUseCase(nodes: FlowNode[], edges: FlowEdge[]): string {
   const lines: string[] = ["flowchart LR"];
 
+  // Safe, Mermaid-valid aliases for node ids (nanoid ids may start with a digit).
+  const idMap = new Map<string, string>();
+  const mid = (id: string): string => {
+    if (!idMap.has(id)) idMap.set(id, safeId(id));
+    return idMap.get(id)!;
+  };
+
   // Build hierarchy (use-case system boundaries are stored as `boundary`)
   const pkgKids = new Map<string, FlowNode[]>();
   const standalone: FlowNode[] = [];
@@ -191,8 +198,8 @@ function exportMermaidUseCase(nodes: FlowNode[], edges: FlowEdge[]): string {
 
   const writeNode = (n: FlowNode) => {
     const label = (n.data as FlowNodeData).label || n.id;
-    if (n.type === "actor")  lines.push(`    ${n.id}["👤 ${escM(label)}"]`);
-    if (n.type === "usecase") lines.push(`    ${n.id}([${escM(label)}])`);
+    if (n.type === "actor")  lines.push(`    ${mid(n.id)}["👤 ${escM(label)}"]`);
+    if (n.type === "usecase") lines.push(`    ${mid(n.id)}([${escM(label)}])`);
   };
 
   // Write standalone nodes
@@ -202,7 +209,7 @@ function exportMermaidUseCase(nodes: FlowNode[], edges: FlowEdge[]): string {
   for (const [pid, kids] of pkgKids) {
     const pkg = pkgMap.get(pid);
     if (!pkg) { for (const k of kids) writeNode(k); continue; }
-    lines.push(`    subgraph ${pid}["${escM(pkg.data.label || pkg.id)}"]`);
+    lines.push(`    subgraph ${mid(pid)}["${escM(pkg.data.label || pkg.id)}"]`);
     for (const k of kids) writeNode(k);
     lines.push(`    end`);
   }
@@ -215,11 +222,11 @@ function exportMermaidUseCase(nodes: FlowNode[], edges: FlowEdge[]): string {
     const label = (e.label ?? "") as string;
     const rel = detectRelation(e);
     if (rel.hasStereotypeLabel) {
-      lines.push(`    ${e.source} ${rel.mermaidToken}|"${label}"| ${e.target}`);
+      lines.push(`    ${mid(e.source)} ${rel.mermaidToken}|"${label}"| ${mid(e.target)}`);
     } else if (label) {
-      lines.push(`    ${e.source} ${rel.mermaidToken}|"${escM(label)}"| ${e.target}`);
+      lines.push(`    ${mid(e.source)} ${rel.mermaidToken}|"${escM(label)}"| ${mid(e.target)}`);
     } else {
-      lines.push(`    ${e.source} ${rel.mermaidToken} ${e.target}`);
+      lines.push(`    ${mid(e.source)} ${rel.mermaidToken} ${mid(e.target)}`);
     }
   }
 
@@ -411,14 +418,14 @@ function exportMermaidState(nodes: FlowNode[], edges: FlowEdge[]): string {
   }
 
   const writeState = (n: FlowNode) => {
-    if (n.type !== "action" && n.type !== "decision") return;
+    if (n.type !== "state" && n.type !== "action" && n.type !== "decision") return;
     const label = (n.data as FlowNodeData).label || n.id;
-    lines.push(`    state "${escM(label)}" as ${n.id}`);
+    lines.push(`    state "${escM(label)}" as ${safeId(n.id)}`);
   };
 
   for (const n of nodes) {
     if (n.type === "package") {
-      lines.push(`    state "${escM(n.data.label || n.id)}" as ${n.id} {`);
+      lines.push(`    state "${escM(n.data.label || n.id)}" as ${safeId(n.id)} {`);
       const kids = pkgKids.get(n.id) ?? [];
       for (const k of kids) writeState(k);
       lines.push(`    }`);
@@ -433,8 +440,8 @@ function exportMermaidState(nodes: FlowNode[], edges: FlowEdge[]): string {
     const tn = nodes.find(x => x.id === e.target);
     if (!sn || !tn) continue;
     const label = (e.label ?? "") as string;
-    const from = sn.type === "start" ? "[*]" : sn.id;
-    const to = tn.type === "final" ? "[*]" : tn.id;
+    const from = sn.type === "start" ? "[*]" : safeId(sn.id);
+    const to = tn.type === "final" ? "[*]" : safeId(tn.id);
     if (label) lines.push(`    ${from} --> ${to} : ${escM(label)}`);
     else lines.push(`    ${from} --> ${to}`);
   }
@@ -795,9 +802,9 @@ function exportPlantUmlState(nodes: FlowNode[], edges: FlowEdge[]): string {
   const lines: string[] = ["@startuml"];
 
   for (const n of nodes) {
-    if (n.type !== "action" && n.type !== "decision") continue;
+    if (n.type !== "state" && n.type !== "action" && n.type !== "decision") continue;
     const label = (n.data as FlowNodeData).label || n.id;
-    lines.push(`state "${esc(label)}" as ${n.id}`);
+    lines.push(`state "${esc(label)}" as ${safeId(n.id)}`);
   }
 
   for (const e of edges) {
@@ -805,8 +812,8 @@ function exportPlantUmlState(nodes: FlowNode[], edges: FlowEdge[]): string {
     const tn = nodes.find(x => x.id === e.target);
     if (!sn || !tn) continue;
     const label = (e.label ?? "") as string;
-    const from = sn.type === "start" ? "[*]" : sn.id;
-    const to = tn.type === "final" ? "[*]" : tn.id;
+    const from = sn.type === "start" ? "[*]" : safeId(sn.id);
+    const to = tn.type === "final" ? "[*]" : safeId(tn.id);
     if (label) lines.push(`${from} --> ${to} : ${esc(label)}`);
     else lines.push(`${from} --> ${to}`);
   }

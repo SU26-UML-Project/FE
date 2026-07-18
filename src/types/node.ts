@@ -6,7 +6,8 @@ export interface FlowNodeData {
   stereotype?: string; // «interface», «entity»…
   attributes?: string; // multiline — one attribute per line (class)
   methods?: string; // multiline — one method per line (class)
-  variant?: "horizontal" | "vertical";
+  /** order index of swimlane (UML Activity partition) - set during PlantUML parse */
+  laneIndex?: number;
   /** border / stroke colour override */
   color?: string;
   /** fill colour override */
