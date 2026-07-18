@@ -91,6 +91,8 @@ export interface RelOpts {
   fromName?: string;
   toName?: string;
   color?: string;
+  multiplicitySource?: string;
+  multiplicityTarget?: string;
 }
 
 function mkNode(
@@ -126,6 +128,8 @@ function mkEdge(s: string, t: string, o: RelOpts): FlowEdge {
       fromName: o.fromName,
       toName: o.toName,
       color: o.color,
+      multiplicitySource: o.multiplicitySource,
+      multiplicityTarget: o.multiplicityTarget,
     },
   };
 }
@@ -493,13 +497,6 @@ function parseRelLine(line: string):
   const rightMulti = rightM1 || rightM2;
   const label = decodeMermaid(labelRaw?.trim() ?? "");
 
-  // Combine multiplicity into the label if present
-  let finalLabel = label;
-  if (leftMulti || rightMulti) {
-    const multiStr = `${leftMulti ? leftMulti + " " : ""}${rightMulti ? " " + rightMulti : ""}`.trim();
-    finalLabel = label ? `${multiStr} : ${label}` : multiStr;
-  }
-
   let leftFirst = true;
   let opts: Parameters<typeof mkEdge>[2] = {};
   switch (token) {
@@ -548,7 +545,12 @@ function parseRelLine(line: string):
       leftFirst = true;
   }
 
-  if (finalLabel) opts.label = finalLabel;
+  // Multiplicities live in dedicated fields; the label keeps only the name.
+  if (label) opts.label = label;
+  const srcMulti = leftFirst ? leftMulti : rightMulti;
+  const tgtMulti = leftFirst ? rightMulti : leftMulti;
+  if (srcMulti) opts.multiplicitySource = srcMulti;
+  if (tgtMulti) opts.multiplicityTarget = tgtMulti;
   const from = leftFirst ? leftId : rightId;
   const to = leftFirst ? rightId : leftId;
 

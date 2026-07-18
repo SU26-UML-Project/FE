@@ -467,6 +467,8 @@ export function Editor() {
             dashed?: boolean;
             color?: string;
             flip?: boolean;
+            multiplicitySource?: string;
+            multiplicityTarget?: string;
           }
       ) => {
         beginMutation();
@@ -484,6 +486,8 @@ export function Editor() {
               // "" clears the override → falls back to default ink
               data.color = patch.color || undefined;
             }
+            if (patch.multiplicitySource !== undefined) data.multiplicitySource = patch.multiplicitySource;
+            if (patch.multiplicityTarget !== undefined) data.multiplicityTarget = patch.multiplicityTarget;
             if (patch.flip) {
               // swap the two caps to visually reverse the arrow direction
               const a = (data.marker as string) ?? "";
@@ -1245,8 +1249,8 @@ export function Editor() {
     };
 
     initWorkspace();
-  // Project data is initialized once per project. Tab/file switches use the
-  // already-loaded tree and sheets, avoiding a full API reload and canvas flash.
+    // Project data is initialized once per project. Tab/file switches use the
+    // already-loaded tree and sheets, avoiding a full API reload and canvas flash.
   }, [id, syncHist, navigate, rf]);
 
   // Persist the active sheet whenever its content changes.
@@ -2071,189 +2075,189 @@ export function Editor() {
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
               <WorkspaceTabs tabs={workspaceTabs} items={workspaceTree.items} activeId={activeWorkspaceItem?.id ?? null} onSelect={selectWorkspaceTab} onClose={closeWorkspaceTab} onCloseMany={closeWorkspaceTabs} onReorder={reorderWorkspaceTabs}/>
               <div className={`flex min-h-0 flex-1 transform-gpu transition-[opacity,transform] duration-150 ease-out ${contentVisible ? 'translate-y-0 opacity-100' : 'translate-y-[2px] opacity-0'}`}>
-            {activeWorkspaceItem?.kind === "markdown" && (
-              <MarkdownEditor name={activeWorkspaceItem.name} value={activeWorkspaceItem.content || ""} onChange={updateMarkdown} />
-            )}
-            {(activeWorkspaceItem?.kind === "folder" || !activeWorkspaceItem) && (
-              <div className="flex min-w-0 flex-1 items-center justify-center overflow-auto bg-admin-bg/30 p-8">
-                <div className="w-full max-w-2xl text-center">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-uml-blue/20 bg-uml-blue/10 text-uml-blue shadow-sm">
-                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h5l2 2h6A1.5 1.5 0 0 1 20 7.5v10a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><path d="M9 12h6M12 9v6"/></svg>
-                  </div>
-                  <h2 className="mt-5 text-2xl font-black tracking-tight text-admin-on-surface">{projectName || "Project workspace"}</h2>
-                  <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-admin-secondary">Open a file from Project Explorer, restore a recent tab, or create something new. The workspace stays open even when no tabs are active.</p>
-                  <div className="mt-6 flex flex-wrap justify-center gap-2">
-                    <button onClick={() => setExplorerCreateRequest({ id: Date.now(), kind: "diagram" })} className="rounded-lg bg-uml-blue px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700">New diagram</button>
-                    <button onClick={() => setExplorerCreateRequest({ id: Date.now(), kind: "markdown" })} className="rounded-lg border border-admin-outline bg-white px-4 py-2.5 text-xs font-bold text-admin-on-surface hover:border-uml-blue hover:text-uml-blue">New Markdown</button>
-                    <button onClick={() => setExplorerCreateRequest({ id: Date.now(), kind: "folder" })} className="rounded-lg border border-admin-outline bg-white px-4 py-2.5 text-xs font-bold text-admin-on-surface hover:border-uml-blue hover:text-uml-blue">New folder</button>
-                  </div>
-                  {workspaceTree.items.some(item => item.kind !== "folder") && <div className="mx-auto mt-8 max-w-lg rounded-xl border border-admin-outline bg-white p-3 text-left shadow-sm">
-                    <p className="mb-2 px-2 text-[9px] font-black uppercase tracking-[0.16em] text-admin-secondary">Recent files</p>
-                    {workspaceTree.items.filter(item => item.kind !== "folder").sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4).map(item => <button key={item.id} onClick={() => void selectWorkspaceItem(item, true)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-admin-bg"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-uml-blue/10 text-uml-blue">{item.kind === "markdown" ? "M" : "D"}</span><span className="min-w-0 flex-1"><b className="block truncate text-xs">{item.name}</b><small className="text-[9px] uppercase tracking-wider text-admin-secondary">{item.kind}</small></span><span className="text-admin-outline">→</span></button>)}
-                  </div>}
-                  <div className="mt-6 flex justify-center gap-5 text-[10px] font-medium text-admin-secondary"><span><kbd className="rounded border border-admin-outline bg-white px-1.5 py-0.5">Ctrl N</kbd> create</span><span><kbd className="rounded border border-admin-outline bg-white px-1.5 py-0.5">F2</kbd> rename</span><span><kbd className="rounded border border-admin-outline bg-white px-1.5 py-0.5">Double-click</kbd> pin tab</span></div>
-                </div>
-              </div>
-            )}
-            <div className={`${activeWorkspaceItem?.kind === "diagram" ? "flex" : "hidden"} min-h-0 min-w-0 flex-1`} aria-hidden={activeWorkspaceItem?.kind !== "diagram"}>
-            <Sidebar
-                diagram={diagram}
-                diagramType={diagramType}
-                onDiagramChange={onDiagramChange}
-                activeEdgeId={activeEdgeId}
-                onPickEdge={setActiveEdgeId}
-                onAddNode={(item) => addNode(item)}
-                open={sidebarOpen}
-                onToggle={() => setSidebarOpen((v) => !v)}
-            />
-
-            <div
-                ref={canvasRef}
-                className="relative h-full min-w-0 flex-1"
-                onDrop={onDrop}
-                onDragOver={onDragOver}
-                onDoubleClick={onCanvasDoubleClick}
-                onMouseMove={(e) => {
-                  const flowPos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-                  emitCursorMove(flowPos.x, flowPos.y);
-                }}
-                onContextMenu={(e) => e.preventDefault()}
-            >
-              <MarkerDefs />
-              <SmartGuides guides={guides} />
-              {nodes.length === 0 && (
-                  <div className="pointer-events-none absolute inset-0 z-[8] flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-3 text-center">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-admin-outline/30 text-admin-outline/50">
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                          <rect x="14" y="14" width="7" height="7" rx="1.5" />
-                          <path d="M10 6.5h4a3 3 0 0 1 3 3V14" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-[14px] font-bold text-admin-on-surface">
-                          Your canvas is empty
-                        </p>
-                        <p className="mt-0.5 text-[12.5px] text-admin-secondary/60 font-medium">
-                          Double-click anywhere to add a shape, or drag one from the
-                          left.
-                        </p>
+                {activeWorkspaceItem?.kind === "markdown" && (
+                    <MarkdownEditor name={activeWorkspaceItem.name} value={activeWorkspaceItem.content || ""} onChange={updateMarkdown} />
+                )}
+                {(activeWorkspaceItem?.kind === "folder" || !activeWorkspaceItem) && (
+                    <div className="flex min-w-0 flex-1 items-center justify-center overflow-auto bg-admin-bg/30 p-8">
+                      <div className="w-full max-w-2xl text-center">
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-uml-blue/20 bg-uml-blue/10 text-uml-blue shadow-sm">
+                          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h5l2 2h6A1.5 1.5 0 0 1 20 7.5v10a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><path d="M9 12h6M12 9v6"/></svg>
+                        </div>
+                        <h2 className="mt-5 text-2xl font-black tracking-tight text-admin-on-surface">{projectName || "Project workspace"}</h2>
+                        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-admin-secondary">Open a file from Project Explorer, restore a recent tab, or create something new. The workspace stays open even when no tabs are active.</p>
+                        <div className="mt-6 flex flex-wrap justify-center gap-2">
+                          <button onClick={() => setExplorerCreateRequest({ id: Date.now(), kind: "diagram" })} className="rounded-lg bg-uml-blue px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700">New diagram</button>
+                          <button onClick={() => setExplorerCreateRequest({ id: Date.now(), kind: "markdown" })} className="rounded-lg border border-admin-outline bg-white px-4 py-2.5 text-xs font-bold text-admin-on-surface hover:border-uml-blue hover:text-uml-blue">New Markdown</button>
+                          <button onClick={() => setExplorerCreateRequest({ id: Date.now(), kind: "folder" })} className="rounded-lg border border-admin-outline bg-white px-4 py-2.5 text-xs font-bold text-admin-on-surface hover:border-uml-blue hover:text-uml-blue">New folder</button>
+                        </div>
+                        {workspaceTree.items.some(item => item.kind !== "folder") && <div className="mx-auto mt-8 max-w-lg rounded-xl border border-admin-outline bg-white p-3 text-left shadow-sm">
+                          <p className="mb-2 px-2 text-[9px] font-black uppercase tracking-[0.16em] text-admin-secondary">Recent files</p>
+                          {workspaceTree.items.filter(item => item.kind !== "folder").sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4).map(item => <button key={item.id} onClick={() => void selectWorkspaceItem(item, true)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-admin-bg"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-uml-blue/10 text-uml-blue">{item.kind === "markdown" ? "M" : "D"}</span><span className="min-w-0 flex-1"><b className="block truncate text-xs">{item.name}</b><small className="text-[9px] uppercase tracking-wider text-admin-secondary">{item.kind}</small></span><span className="text-admin-outline">→</span></button>)}
+                        </div>}
+                        <div className="mt-6 flex justify-center gap-5 text-[10px] font-medium text-admin-secondary"><span><kbd className="rounded border border-admin-outline bg-white px-1.5 py-0.5">Ctrl N</kbd> create</span><span><kbd className="rounded border border-admin-outline bg-white px-1.5 py-0.5">F2</kbd> rename</span><span><kbd className="rounded border border-admin-outline bg-white px-1.5 py-0.5">Double-click</kbd> pin tab</span></div>
                       </div>
                     </div>
-                  </div>
-              )}
-              <ReactFlow
-                  nodes={nodes}
-                  edges={edges}
-                  nodesDraggable={!previewVersionId}
-                  nodesConnectable={!previewVersionId}
-                  elementsSelectable={!previewVersionId}
-                  nodeTypes={nodeTypes}
-                  edgeTypes={edgeTypes}
-                  onNodesChange={onNodesChange}
-                  onEdgesChange={onEdgesChange}
-                  onConnect={onConnect}
-                  onSelectionChange={onSelectionChange}
-                  onSelectionDragStop={snapOnStop}
-                  onNodeContextMenu={onNodeCtx}
-                  onNodeDragStop={snapOnStop}
-                  onEdgeDoubleClick={onEdgeDoubleClick}
-                  onPaneContextMenu={onPaneCtx}
-                  onMove={(_, vp) => setZoom(vp.zoom)}
-                  connectionMode={ConnectionMode.Loose}
-                  deleteKeyCode={null}
-                  selectionOnDrag
-                  selectionMode={SelectionMode.Partial}
-                  panOnDrag={[1, 2]}
-                  panOnScroll
-                  zoomOnDoubleClick={false}
-                  minZoom={0.2}
-                  maxZoom={3}
-                  snapToGrid={snap}
-                  snapGrid={[16, 16]}
-                  defaultEdgeOptions={{
-                    type: "smoothstep",
-                    zIndex: 10 // Ensure new edges are above packages
-                  }}
-                  proOptions={{ hideAttribution: true }}
-                  onlyRenderVisibleElements={false}
-                  nodeDragThreshold={1.5}
-                  className="bg-white"
-              >
-                <RemoteCursors cursors={remoteCursors} />
-                {showGrid && (
-                    <Background
-                        variant={BackgroundVariant.Dots}
-                        gap={18}
-                        size={1.6}
-                        color="#c3c6d7"
-                    />
                 )}
-                <Controls showInteractive={false} position="bottom-left" />
-                {showMinimap && (
-                    <MiniMap
-                        pannable
-                        zoomable
-                        position="bottom-right"
-                        style={{ background: "#ffffff" }}
-                        nodeColor={() => "#eceef0"}
-                        nodeStrokeColor={() => "#c3c6d7"}
-                        nodeBorderRadius={4}
-                        maskColor="rgba(0,74,198,0.03)"
-                    />
-                )}
-                <Panel position="top-right" className="m-3">
-                  <div className="pointer-events-none flex items-center gap-1.5 rounded-lg border border-admin-outline/30 bg-white/90 px-2.5 py-1.5 shadow-[0_1px_2px_rgba(0,74,198,0.04)] backdrop-blur">
+                <div className={`${activeWorkspaceItem?.kind === "diagram" ? "flex" : "hidden"} min-h-0 min-w-0 flex-1`} aria-hidden={activeWorkspaceItem?.kind !== "diagram"}>
+                  <Sidebar
+                      diagram={diagram}
+                      diagramType={diagramType}
+                      onDiagramChange={onDiagramChange}
+                      activeEdgeId={activeEdgeId}
+                      onPickEdge={setActiveEdgeId}
+                      onAddNode={(item) => addNode(item)}
+                      open={sidebarOpen}
+                      onToggle={() => setSidebarOpen((v) => !v)}
+                  />
+
+                  <div
+                      ref={canvasRef}
+                      className="relative h-full min-w-0 flex-1"
+                      onDrop={onDrop}
+                      onDragOver={onDragOver}
+                      onDoubleClick={onCanvasDoubleClick}
+                      onMouseMove={(e) => {
+                        const flowPos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+                        emitCursorMove(flowPos.x, flowPos.y);
+                      }}
+                      onContextMenu={(e) => e.preventDefault()}
+                  >
+                    <MarkerDefs />
+                    <SmartGuides guides={guides} />
+                    {nodes.length === 0 && (
+                        <div className="pointer-events-none absolute inset-0 z-[8] flex items-center justify-center">
+                          <div className="flex flex-col items-center gap-3 text-center">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-admin-outline/30 text-admin-outline/50">
+                              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                                <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                                <path d="M10 6.5h4a3 3 0 0 1 3 3V14" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-[14px] font-bold text-admin-on-surface">
+                                Your canvas is empty
+                              </p>
+                              <p className="mt-0.5 text-[12.5px] text-admin-secondary/60 font-medium">
+                                Double-click anywhere to add a shape, or drag one from the
+                                left.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                    )}
+                    <ReactFlow
+                        nodes={nodes}
+                        edges={edges}
+                        nodesDraggable={!previewVersionId}
+                        nodesConnectable={!previewVersionId}
+                        elementsSelectable={!previewVersionId}
+                        nodeTypes={nodeTypes}
+                        edgeTypes={edgeTypes}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={onEdgesChange}
+                        onConnect={onConnect}
+                        onSelectionChange={onSelectionChange}
+                        onSelectionDragStop={snapOnStop}
+                        onNodeContextMenu={onNodeCtx}
+                        onNodeDragStop={snapOnStop}
+                        onEdgeDoubleClick={onEdgeDoubleClick}
+                        onPaneContextMenu={onPaneCtx}
+                        onMove={(_, vp) => setZoom(vp.zoom)}
+                        connectionMode={ConnectionMode.Loose}
+                        deleteKeyCode={null}
+                        selectionOnDrag
+                        selectionMode={SelectionMode.Partial}
+                        panOnDrag={[1, 2]}
+                        panOnScroll
+                        zoomOnDoubleClick={false}
+                        minZoom={0.2}
+                        maxZoom={3}
+                        snapToGrid={snap}
+                        snapGrid={[16, 16]}
+                        defaultEdgeOptions={{
+                          type: "smoothstep",
+                          zIndex: 10 // Ensure new edges are above packages
+                        }}
+                        proOptions={{ hideAttribution: true }}
+                        onlyRenderVisibleElements={false}
+                        nodeDragThreshold={1.5}
+                        className="bg-white"
+                    >
+                      <RemoteCursors cursors={remoteCursors} />
+                      {showGrid && (
+                          <Background
+                              variant={BackgroundVariant.Dots}
+                              gap={18}
+                              size={1.6}
+                              color="#c3c6d7"
+                          />
+                      )}
+                      <Controls showInteractive={false} position="bottom-left" />
+                      {showMinimap && (
+                          <MiniMap
+                              pannable
+                              zoomable
+                              position="bottom-right"
+                              style={{ background: "#ffffff" }}
+                              nodeColor={() => "#eceef0"}
+                              nodeStrokeColor={() => "#c3c6d7"}
+                              nodeBorderRadius={4}
+                              maskColor="rgba(0,74,198,0.03)"
+                          />
+                      )}
+                      <Panel position="top-right" className="m-3">
+                        <div className="pointer-events-none flex items-center gap-1.5 rounded-lg border border-admin-outline/30 bg-white/90 px-2.5 py-1.5 shadow-[0_1px_2px_rgba(0,74,198,0.04)] backdrop-blur">
                   <span
                       className={`h-1.5 w-1.5 rounded-full ${
                           saved ? "bg-admin-primary" : "animate-pulse bg-admin-outline/50"
                       }`}
                   />
-                    <span className="text-[11.5px] font-bold text-admin-secondary">
+                          <span className="text-[11.5px] font-bold text-admin-secondary">
                     {saved ? "Saved" : "Saving…"}
                   </span>
+                        </div>
+                      </Panel>
+                    </ReactFlow>
+
+                    {!inspectorOpen && (
+                        <button
+                            onClick={() => {
+                              setInspectorOpen(true);
+                              setInspectorManualOpen(true);
+                            }}
+                            title="Show properties"
+                            className="animate-fade-in absolute right-0 top-1/2 z-20 flex h-20 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-admin-outline/30 bg-white text-admin-secondary/40 shadow-[-4px_0_12px_rgba(0,74,198,0.06)] transition-colors hover:bg-admin-bg hover:text-admin-primary"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M15 6l-6 6 6 6" />
+                          </svg>
+                        </button>
+                    )}
                   </div>
-                </Panel>
-              </ReactFlow>
 
-              {!inspectorOpen && (
-                  <button
-                      onClick={() => {
-                        setInspectorOpen(true);
-                        setInspectorManualOpen(true);
-                      }}
-                      title="Show properties"
-                      className="animate-fade-in absolute right-0 top-1/2 z-20 flex h-20 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-admin-outline/30 bg-white text-admin-secondary/40 shadow-[-4px_0_12px_rgba(0,74,198,0.06)] transition-colors hover:bg-admin-bg hover:text-admin-primary"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M15 6l-6 6 6 6" />
-                    </svg>
-                  </button>
-              )}
-            </div>
+                  {inspectorOpen && (
+                      <Inspector
+                          nodesLen={nodes.length}
+                          edgesLen={edges.length}
+                          activeConnectorName={activeConnectorName}
+                          selNodes={selNodes}
+                          selEdges={selEdges}
+                          diagramType={diagramType}
+                          onUpdateNode={updateNodeData}
+                          onUpdateEdge={updateEdge}
+                          onDelete={deleteSelected}
+                          onDuplicate={duplicateSelected}
+                          onAlign={alignSelection}
+                          onClose={() => {
+                            setInspectorOpen(false);
+                            setInspectorManualOpen(false);
+                          }}
+                      />
+                  )}
 
-            {inspectorOpen && (
-                <Inspector
-                    nodesLen={nodes.length}
-                    edgesLen={edges.length}
-                    activeConnectorName={activeConnectorName}
-                    selNodes={selNodes}
-                    selEdges={selEdges}
-                    diagramType={diagramType}
-                    onUpdateNode={updateNodeData}
-                    onUpdateEdge={updateEdge}
-                    onDelete={deleteSelected}
-                    onDuplicate={duplicateSelected}
-                    onAlign={alignSelection}
-                    onClose={() => {
-                      setInspectorOpen(false);
-                      setInspectorManualOpen(false);
-                    }}
-                />
-            )}
-
-            </div>
+                </div>
               </div>
             </div>
 

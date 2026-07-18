@@ -24,6 +24,10 @@ export interface FlowEdgeData {
   /** Metadata for ambiguous relation resolution */
   fromName?: string;
   toName?: string;
+  /** UML class association multiplicity at the source (start) end, e.g. "1", "0..*" */
+  multiplicitySource?: string;
+  /** UML class association multiplicity at the target end */
+  multiplicityTarget?: string;
   [key: string]: unknown;
 }
 

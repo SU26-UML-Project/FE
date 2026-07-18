@@ -33,7 +33,8 @@ function estimateSize(node: FlowNode): { width: number; height: number } {
       return { width: Math.max(150, maxLen * 10 + 40), height: Math.max(104, lines.length * 20 + 40) };
     }
     case "fork": return { width: 130, height: 14 };
-    case "package": return { width: 400, height: 300 };
+    case "package":
+    case "boundary": return { width: 400, height: 300 };
     default: return { width: 150, height: 60 };
   }
 }
@@ -175,7 +176,9 @@ function elkOptions(type?: DiagramType, direction?: "TB" | "LR"): Record<string,
  */
 export function finalizeLayout(nodes: FlowNode[], edges: FlowEdge[] = []): FlowNode[] {
   const PADDING = 30;
-  const packages = nodes.filter((n) => n.type === "package");
+  // Both `package` (module/namespace) and `boundary` (use-case system
+  // boundary) are container nodes that wrap their children.
+  const packages = nodes.filter((n) => n.type === "package" || n.type === "boundary");
 
   // 1. Calculate depth for each package to process from inside-out
   const getDepth = (id: string | undefined): number => {
@@ -398,8 +401,10 @@ function layoutUseCase(
 ): { nodes: FlowNode[]; edges: FlowEdge[] } {
   const actors = nodes.filter((n) => n.type === "actor");
   const useCases = nodes.filter((n) => n.type === "usecase");
-  const packages = nodes.filter((n) => n.type === "package");
-  const others = nodes.filter((n) => n.type !== "actor" && n.type !== "usecase" && n.type !== "package");
+  // Use-case system boundaries are stored as `boundary` (not `package`) so they
+  // render with the dedicated UML boundary notation. Treat both as containers.
+  const packages = nodes.filter((n) => n.type === "package" || n.type === "boundary");
+  const others = nodes.filter((n) => n.type !== "actor" && n.type !== "usecase" && n.type !== "package" && n.type !== "boundary");
 
   if (!useCases.length && !actors.length) {
     return { nodes, edges: assignHandles(nodes, edges) };
@@ -599,12 +604,19 @@ function layoutUseCase(
       width: sz.width, height: sz.height, zIndex: 5 };
   });
 
+  // IMPORTANT: the boundary (parent) MUST come BEFORE its children in the
+  // nodes array. React Flow (@xyflow/system `adoptUserNodes`) computes each
+  // node's absolute position by looking up its parent in `nodeLookup`, which is
+  // built incrementally in array order. If the parent is listed AFTER its
+  // children, the lookup misses it and the children are positioned at their
+  // relative coordinates as if absolute -> they end up shifted outside the
+  // boundary. Parsers emit the boundary first; we must keep that invariant here.
   const allNodes = [
+    ...packages.map(p => ({ ...p, zIndex: -1 })), // parent boundary FIRST
     ...posLeftActors.map((n) => ({ ...n, zIndex: 5 })),
     ...posRightActors.map((n) => ({ ...n, zIndex: 5 })),
     ...allUCNodes.map((n) => ({ ...n, zIndex: 5 })),
     ...positionedOthers,
-    ...packages.map(p => ({ ...p, zIndex: -1 })) // Include packages for finalizeLayout
   ];
 
   // Use finalizeLayout to wrap packages around their children
