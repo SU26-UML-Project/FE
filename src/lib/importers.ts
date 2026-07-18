@@ -1785,7 +1785,11 @@ function parsePlantActivity(lines: string[]): ParseResult {
   const rawEdges: { from: string; to: string; label?: string }[] = [];
   const nodeMap = new Map<string, string>();
 
-  const ensureNode = (id: string, label: string, type: string) => {
+  let lastIds: string[] = [];
+  let currentLaneId: string | null = null;
+  const laneByLabel = new Map<string, string>();
+
+  const ensureNode = (id: string, label: string, type: string, parentIdArg?: string) => {
     if (!nodeMap.has(id)) {
       const uid = nanoid(8);
       nodeMap.set(id, uid);
@@ -1793,14 +1797,18 @@ function parsePlantActivity(lines: string[]): ParseResult {
       if (type === "start" || type === "final") { w = 40; h = 40; }
       else if (type === "decision") { w = 150; h = 92; }
       else if (type === "fork") { w = 100; h = 8; }
+      else if (type === "swimlane") { w = 480; h = 130; }
       else if (type === "note") { w = 150; h = 60; }
-      nodes.push(mkNode(type, 0, 0, { label }, w, h, undefined, uid));
+      // Real nesting: an action/decision/… is parented to the active swimlane
+      // (its `parentId` links to the lane's uid). Only nodes after a `|Lane|`
+      // declaration get nested; the lane itself is never nested.
+      const parentId = parentIdArg !== undefined
+          ? parentIdArg
+          : (currentLaneId && type !== "swimlane" ? nodeMap.get(currentLaneId) : undefined);
+      nodes.push(mkNode(type, 0, 0, { label }, w, h, parentId, uid));
     }
     return nodeMap.get(id)!;
   };
-
-  let lastIds: string[] = [];
-  let currentLane: string | null = null;
   const forkStack: { forkId: string; branchEnds: string[] }[] = [];
   const ifStack: { decisionId: string; yesBranchEnds: string[] }[] = [];
   /** Stores label to apply to the NEXT sequential edge — used by "else" */
@@ -1813,7 +1821,14 @@ function parsePlantActivity(lines: string[]): ParseResult {
     // Swimlane: |Lane Name| or |#Color|Lane Name|
     const laneMatch = ln.match(/^\|(?:#\w+\|)?([^|]+)\|$/);
     if (laneMatch) {
-      currentLane = laneMatch[1].trim();
+      const label = laneMatch[1].trim();
+      let lid = laneByLabel.get(label);
+      if (!lid) {
+        lid = "lane-" + nanoid(6);
+        laneByLabel.set(label, lid);
+        ensureNode(lid, label, "swimlane");
+      }
+      currentLaneId = lid;
       continue;
     }
 
@@ -1837,7 +1852,6 @@ function parsePlantActivity(lines: string[]): ParseResult {
       let label = ln.slice(1);
       if (label.endsWith(";")) label = label.slice(0, -1);
       label = label.trim();
-      if (currentLane) label = `[${currentLane}] ${label}`;
 
       const id = nanoid(6);
       ensureNode(id, label, "action");
@@ -1972,7 +1986,7 @@ function parsePlantActivity(lines: string[]): ParseResult {
       .filter(Boolean) as FlowEdge[];
 
   const posMap = layeredLayout(
-      nodes.map(n => n.id),
+      nodes.filter(n => n.type !== "swimlane").map(n => n.id),
       edges.map(e => ({ source: e.source, target: e.target })),
       "TB"
   );

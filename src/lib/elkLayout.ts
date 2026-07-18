@@ -1,7 +1,7 @@
 import ELK from "elkjs/lib/elk.bundled.js";
 import type { FlowEdge, FlowNode, FlowNodeData, DiagramType } from "../types";
 import {
-  classMinSize, actionMinSize, noteMinSize, componentMinSize,
+  classMinSize, actionMinSize, noteMinSize, componentMinSize, swimlaneMinSize,
 } from "./sizing";
 
 const elk = new ELK();
@@ -34,7 +34,8 @@ function estimateSize(node: FlowNode): { width: number; height: number } {
     }
     case "fork": return { width: 130, height: 14 };
     case "package":
-    case "boundary": return { width: 400, height: 300 };
+    case "boundary":
+    case "swimlane": { const s = swimlaneMinSize(d); return { width: s.w, height: s.h }; }
     default: return { width: 150, height: 60 };
   }
 }
@@ -177,8 +178,9 @@ function elkOptions(type?: DiagramType, direction?: "TB" | "LR"): Record<string,
 export function finalizeLayout(nodes: FlowNode[], edges: FlowEdge[] = []): FlowNode[] {
   const PADDING = 30;
   // Both `package` (module/namespace) and `boundary` (use-case system
-  // boundary) are container nodes that wrap their children.
-  const packages = nodes.filter((n) => n.type === "package" || n.type === "boundary");
+  // boundary) are container nodes that wrap their children. `swimlane` is the
+  // UML Activity partition container.
+  const packages = nodes.filter((n) => n.type === "package" || n.type === "boundary" || n.type === "swimlane");
 
   // 1. Calculate depth for each package to process from inside-out
   const getDepth = (id: string | undefined): number => {
@@ -270,7 +272,7 @@ async function elkLayout(
     const children = nodes.filter(n => n.parentId === parentId);
     const elkChildren: any[] = children.map(n => {
       const sz = estimateSize(n);
-      if (n.type === "package") {
+      if (n.type === "package" || n.type === "swimlane") {
         return {
           id: n.id,
           width: sz.width,

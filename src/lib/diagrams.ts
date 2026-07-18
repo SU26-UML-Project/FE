@@ -13,11 +13,11 @@ const M = {
 
 /* ---------------- palette helpers ---------------- */
 const P = (
-  type: string,
-  label: string,
-  data: FlowNodeData,
-  width: number,
-  height: number
+    type: string,
+    label: string,
+    data: FlowNodeData,
+    width: number,
+    height: number
 ) => ({ type, label, data, width, height });
 
 /* ---------------- diagram catalogue ---------------- */
@@ -33,6 +33,7 @@ export const DIAGRAMS: DiagramDef[] = [
       P("action", "Action", { label: "Action" }, 150, 54),
       P("decision", "Decision", { label: "Condition?" }, 150, 104),
       P("fork", "Fork / Join", { label: "" }, 130, 12),
+      P("swimlane", "Swimlane", { label: "Lane", variant: "horizontal" }, 480, 130),
       P("note", "Note", { label: "A note…" }, 170, 90),
     ],
     edges: [
@@ -116,11 +117,11 @@ export const DIAGRAMS: DiagramDef[] = [
 ];
 
 export const getDiagram = (id: string): DiagramDef =>
-  DIAGRAMS.find((d) => d.id === id) ?? DIAGRAMS[0];
+    DIAGRAMS.find((d) => d.id === id) ?? DIAGRAMS[0];
 
 export const getEdgeOption = (diagramId: string, optId: string) =>
-  getDiagram(diagramId).edges.find((e) => e.id === optId) ??
-  getDiagram(diagramId).edges[0];
+    getDiagram(diagramId).edges.find((e) => e.id === optId) ??
+    getDiagram(diagramId).edges[0];
 
 /** Stereotype labels that connectors may stamp automatically. */
 const STEREOTYPES = ["«include»", "«extend»"];
@@ -132,8 +133,8 @@ const STEREOTYPES = ["«include»", "«extend»"];
  * up with a misleading «include» on, say, an association line.
  */
 export function patchFromOption(
-  opt: EdgeOption,
-  prevLabel?: string
+    opt: EdgeOption,
+    prevLabel?: string
 ): {
   marker: string;
   markerStart: string;
@@ -161,13 +162,14 @@ let c = 0;
 const uid = (p: string) => `${p}-${++c}-${Math.random().toString(36).slice(2, 6)}`;
 
 function node(
-  type: string,
-  x: number,
-  y: number,
-  data: FlowNodeData,
-  w: number,
-  h: number,
-  id?: string
+    type: string,
+    x: number,
+    y: number,
+    data: FlowNodeData,
+    w: number,
+    h: number,
+    id?: string,
+    parentId?: string
 ): FlowNode {
   return {
     id: id ?? uid(type),
@@ -176,22 +178,24 @@ function node(
     data,
     width: w,
     height: h,
+    parentId,
+    extent: parentId ? "parent" : undefined,
     style: { width: w, height: h },
   };
 }
 
 function edge(
-  s: string,
-  t: string,
-  o: {
-    marker?: string;
-    markerStart?: string;
-    dashed?: boolean;
-    label?: string;
-    type?: string;
-    sh?: string;
-    th?: string;
-  }
+    s: string,
+    t: string,
+    o: {
+      marker?: string;
+      markerStart?: string;
+      dashed?: boolean;
+      label?: string;
+      type?: string;
+      sh?: string;
+      th?: string;
+    }
 ): FlowEdge {
   return {
     id: uid("e"),
@@ -234,8 +238,11 @@ function act() {
   const a3 = node("action", 570, 290, { label: "Show login" }, 150, 54, "a3");
   const fin = node("final", 800, 67, { label: "" }, 40, 40, "f");
   const note = node("note", 800, 250, { label: "Retry on failure" }, 160, 70, "n");
+  // Demonstrate a UML swimlane (partition) with a nested action.
+  const lane = node("swimlane", 40, 420, { label: "Customer", variant: "horizontal" }, 520, 130, "lane");
+  const laneAct = node("action", 90, 452, { label: "Browse products" }, 170, 54, "la", "lane");
   return {
-    nodes: [start, a1, dec, a2, a3, fin, note],
+    nodes: [start, a1, dec, a2, a3, fin, note, lane, laneAct],
     edges: [
       edge("s", "a1", { marker: M.arrow }),
       edge("a1", "dec", { marker: M.arrow }),

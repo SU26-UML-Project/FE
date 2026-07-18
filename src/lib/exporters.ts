@@ -250,15 +250,15 @@ function exportMermaidActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
   const idMap = new Map<string, string>();
   let counter = 0;
   for (const n of nodes) {
-    if (n.type === "package") idMap.set(n.id, `sg${counter++}`);
+    if (n.type === "package" || n.type === "swimlane") idMap.set(n.id, `sg${counter++}`);
     else idMap.set(n.id, `n${counter++}`);
   }
 
-  // Build hierarchy
+  // Build hierarchy (swimlanes are Activity partitions / containers)
   const pkgKids = new Map<string, FlowNode[]>();
   const standalone: FlowNode[] = [];
   for (const n of nodes) {
-    if (n.type === "package") continue;
+    if (n.type === "package" || n.type === "swimlane") continue;
     if (n.parentId) {
       const arr = pkgKids.get(n.parentId) ?? [];
       arr.push(n);
@@ -267,7 +267,7 @@ function exportMermaidActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
       standalone.push(n);
     }
   }
-  const pkgMap = new Map(nodes.filter(n => n.type === "package").map(n => [n.id, n]));
+  const pkgMap = new Map(nodes.filter(n => n.type === "package" || n.type === "swimlane").map(n => [n.id, n]));
 
   const writeNode = (n: FlowNode) => {
     const sid = idMap.get(n.id)!;
@@ -288,9 +288,9 @@ function exportMermaidActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
     lines.push(`    end`);
   }
 
-  // Empty packages
+  // Empty packages / swimlanes
   for (const n of nodes) {
-    if (n.type === "package" && !pkgKids.has(n.id)) {
+    if ((n.type === "package" || n.type === "swimlane") && !pkgKids.has(n.id)) {
       const sid = idMap.get(n.id)!;
       lines.push(`    subgraph ${sid}["${escM(n.data.label || n.id)}"]\n    end`);
     }
@@ -605,6 +605,14 @@ function exportPlantUmlActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
     }
   }
 
+  // Swimlane (UML partition) handling: emit `|Lane|` before a node that
+  // belongs to a swimlane so PlantUML nests it inside that partition.
+  const swimlaneMap = new Map(
+      nodes.filter(n => n.type === "swimlane").map(n => [n.id, (n.data as FlowNodeData).label || n.id])
+  );
+  const laneLines = (n: FlowNode): string[] =>
+      n.parentId && swimlaneMap.has(n.parentId) ? [`|${esc(swimlaneMap.get(n.parentId)!)}|`] : [];
+
   const walk = (nodeId: string, stopAtMerge: boolean = false): string[] => {
     if (visited.has(nodeId)) return [];
     if (stopAtMerge && mergeNodes.has(nodeId)) return [];
@@ -622,7 +630,7 @@ function exportPlantUmlActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
     } else if (n.type === "final") {
       res.push("stop");
     } else if (n.type === "action") {
-      res.push(`:${esc(n.data.label || "")};`);
+      res.push(...laneLines(n), `:${esc(n.data.label || "")};`);
       const out = edges.filter(e => e.source === nodeId);
       if (out.length > 0) res.push(...walk(out[0].target, stopAtMerge));
     } else if (n.type === "decision") {
@@ -635,7 +643,7 @@ function exportPlantUmlActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
         }) || out[0];
         const noEdge = out.find(e => e !== yesEdge) || out[1];
 
-        res.push(`if (${esc(cond)}) then (${yesEdge?.label || "yes"})`);
+        res.push(...laneLines(n), `if (${esc(cond)}) then (${yesEdge?.label || "yes"})`);
         res.push(...walk(yesEdge.target, true)); // stop at merge node
         res.push(`else (${noEdge?.label || "no"})`);
         res.push(...walk(noEdge.target, true)); // stop at merge node
@@ -646,7 +654,7 @@ function exportPlantUmlActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
           res.push(...walk(reachableMerge, stopAtMerge));
         }
       } else if (out.length === 1) {
-        res.push(`if (${esc(cond)}) then`);
+        res.push(...laneLines(n), `if (${esc(cond)}) then`);
         res.push(...walk(out[0].target, stopAtMerge));
         res.push(`endif`);
       }
@@ -658,7 +666,7 @@ function exportPlantUmlActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
         if (out.length > 0) res.push(...walk(out[0].target, stopAtMerge));
       } else {
         // Fork node
-        res.push("fork");
+        res.push(...laneLines(n), "fork");
         const out = edges.filter(e => e.source === nodeId);
         if (out.length > 0) {
           res.push(...walk(out[0].target, true));
@@ -675,7 +683,7 @@ function exportPlantUmlActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
         }
       }
     } else if (n.type === "note") {
-      res.push(`note right\n  ${esc(n.data.label || "")}\nend note`);
+      res.push(...laneLines(n), `note right\n  ${esc(n.data.label || "")}\nend note`);
       const out = edges.filter(e => e.source === nodeId);
       if (out.length > 0) res.push(...walk(out[0].target, stopAtMerge));
     }
@@ -692,12 +700,12 @@ function exportPlantUmlActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
   for (const n of nodes) {
     if (!visited.has(n.id)) {
       if (n.type === "action") {
-        lines.push(`:${esc(n.data.label || "")};`);
+        lines.push(...laneLines(n), `:${esc(n.data.label || "")};`);
       } else if (n.type === "decision") {
-        lines.push(`if (${esc(n.data.label || "Condition?")}) then`);
+        lines.push(...laneLines(n), `if (${esc(n.data.label || "Condition?")}) then`);
         lines.push(`endif`);
       } else if (n.type === "note") {
-        lines.push(`note right\n  ${esc(n.data.label || "")}\nend note`);
+        lines.push(...laneLines(n), `note right\n  ${esc(n.data.label || "")}\nend note`);
       }
     }
   }

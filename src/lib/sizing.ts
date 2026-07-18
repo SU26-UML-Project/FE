@@ -21,9 +21,9 @@ export function classMinSize(d: FlowNodeData): { w: number; h: number } {
 export function actionMinSize(label: string): { w: number; h: number } {
   const lines = (label || "").split("\n");
   const maxLen = Math.max(4, ...lines.map((l) => (l || "").length));
-  return { 
-    w: Math.max(90, Math.ceil(maxLen * SANS_CHAR_W) + 48), 
-    h: Math.max(40, lines.length * 18 + 20) 
+  return {
+    w: Math.max(90, Math.ceil(maxLen * SANS_CHAR_W) + 48),
+    h: Math.max(40, lines.length * 18 + 20)
   };
 }
 
@@ -44,4 +44,13 @@ export function componentMinSize(d: FlowNodeData): { w: number; h: number } {
     w: Math.min(320, Math.max(150, Math.ceil(maxLen * SANS_CHAR_W) + 56)),
     h: Math.max(74, stereo ? 78 : 64),
   };
+}
+
+/** Default size for an Activity swimlane (UML partition). Horizontal lanes are
+ *  wide & short; vertical lanes are tall & narrow. finalizeLayout / ELK will
+ *  grow the lane to fit its child nodes. */
+export function swimlaneMinSize(d: FlowNodeData): { w: number; h: number } {
+  const vertical = d.variant === "vertical";
+  if (vertical) return { w: 150, h: 380 };
+  return { w: 480, h: 130 };
 }

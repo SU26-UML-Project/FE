@@ -63,6 +63,23 @@ import WorkspaceTabs, { type WorkspaceTab } from "./Workspace/WorkspaceTabs";
 type Snap = { nodes: FlowNode[]; edges: FlowEdge[] };
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 
+/**
+ * Stable-sort nodes so that any parent always precedes its children in the
+ * array. React Flow's `adoptUserNodes` builds its `nodeLookup` in array order
+ * and resolves a child's absolute position by looking up its parent — if the
+ * parent appears AFTER the child the lookup misses and nesting breaks on the
+ * next magic-layout / reload. Swimlane reparenting therefore must re-sort.
+ */
+function sortParentBeforeChild(list: FlowNode[]): FlowNode[] {
+  const byId = new Map(list.map((n) => [n.id, n]));
+  const depth = (n: FlowNode): number => {
+    if (!n.parentId) return 0;
+    const p = byId.get(n.parentId);
+    return p ? 1 + depth(p) : 0;
+  };
+  return [...list].sort((a, b) => depth(a) - depth(b));
+}
+
 /** Convert a marker URL to its "start" (source) form. */
 function endpointStart(id: string): string {
   if (!id) return "";
@@ -508,7 +525,7 @@ export function Editor() {
   );
 
   const addNode = useCallback(
-      (item: PaletteItem, pos?: XYPosition) => {
+      (item: PaletteItem, pos?: XYPosition, parentId?: string) => {
         beginMutation();
         let position = pos;
         if (!position) {
@@ -532,9 +549,10 @@ export function Editor() {
           width: item.width,
           height: item.height,
           style: { width: item.width, height: item.height },
+          ...(parentId ? { parentId, extent: "parent" } : {}),
         };
         setNodes((prev) => {
-          const next = prev.concat(node);
+          const next = parentId ? sortParentBeforeChild(prev.concat(node)) : prev.concat(node);
           if (!skipCollabEmit.current) {
             emitCanvasChange({ nodes: next, type: "add" });
           }
@@ -552,7 +570,27 @@ export function Editor() {
         try {
           const item = JSON.parse(raw) as PaletteItem;
           const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-          addNode(item, { x: p.x - item.width / 2, y: p.y - item.height / 2 });
+          const left = p.x - item.width / 2;
+          const top = p.y - item.height / 2;
+          // If the drop point lands inside a (top-level) swimlane, nest the new
+          // node under that lane with a position relative to the lane. A lane
+          // itself is never dropped inside another lane.
+          const lane =
+              item.type !== "swimlane"
+                  ? nodesRef.current.find((n) =>
+                      n.type === "swimlane" &&
+                      !n.parentId &&
+                      left >= n.position.x &&
+                      left <= n.position.x + (n.width ?? 0) &&
+                      top >= n.position.y &&
+                      top <= n.position.y + (n.height ?? 0)
+                  )
+                  : undefined;
+          if (lane) {
+            addNode(item, { x: left - lane.position.x, y: top - lane.position.y }, lane.id);
+          } else {
+            addNode(item, { x: left, y: top });
+          }
         } catch {
           /* ignore */
         }
@@ -646,6 +684,90 @@ export function Editor() {
       return next;
     });
   }, [snap, setNodes, emitCanvasChange]);
+
+  /**
+   * Reparent a node into / out of a UML swimlane (Activity partition) when the
+   * user drops it. We read the node's absolute centre from React Flow's
+   * internal store (robust against relative-vs-absolute coordinate quirks),
+   * find a top-level swimlane whose bounds contain it, and — if needed — set the
+   * new parent + relative position. Dropping a node outside any lane un-parents
+   * it (keeping its absolute position). After any reparent we stable-sort so
+   * each lane precedes its children (see sortParentBeforeChild).
+   */
+  const reparentOnDragStop = useCallback(
+      (id: string) => {
+        const dragged = nodesRef.current.find((n) => n.id === id);
+        if (!dragged || dragged.type === "swimlane") return;
+
+        const intNode = rf.getInternalNode(id);
+        if (!intNode) return;
+        const pos = intNode.internals.positionAbsolute;
+        const w = (intNode.measured?.width ?? dragged.width ?? 0) as number;
+        const h = (intNode.measured?.height ?? dragged.height ?? 0) as number;
+        const cx = pos.x + w / 2;
+        const cy = pos.y + h / 2;
+
+        // Top-level swimlanes only (a lane can't be nested inside a lane).
+        const lanes = nodesRef.current.filter(
+            (n) => n.type === "swimlane" && !n.parentId
+        );
+        let target: { id: string; x: number; y: number; w: number; h: number } | null = null;
+        for (const lane of lanes) {
+          const li = rf.getInternalNode(lane.id);
+          const lx = li ? li.internals.positionAbsolute.x : lane.position.x;
+          const ly = li ? li.internals.positionAbsolute.y : lane.position.y;
+          const lw = (li?.measured?.width ?? lane.width ?? 0) as number;
+          const lh = (li?.measured?.height ?? lane.height ?? 0) as number;
+          if (cx >= lx && cx <= lx + lw && cy >= ly && cy <= ly + lh) {
+            target = { id: lane.id, x: lx, y: ly, w: lw, h: lh };
+            break;
+          }
+        }
+
+        const prevParent = dragged.parentId;
+        const nesting = target && target.id !== prevParent;
+        const unparenting = !target && prevParent;
+
+        if (!nesting && !unparenting) return;
+
+        beginMutation();
+        setNodes((prev) => {
+          const next = prev.map((n) => {
+            if (n.id !== id) return n;
+            if (nesting && target) {
+              return {
+                ...n,
+                parentId: target.id,
+                extent: "parent" as const,
+                position: { x: pos.x - target.x, y: pos.y - target.y },
+              };
+            }
+            // un-parent: keep absolute position, clear parent linkage
+            return {
+              ...n,
+              parentId: undefined,
+              extent: undefined,
+              position: { x: pos.x, y: pos.y },
+            };
+          });
+          const sorted = sortParentBeforeChild(next);
+          if (!skipCollabEmit.current) {
+            emitCanvasChange({ nodes: sorted, type: "update" });
+          }
+          return sorted;
+        });
+      },
+      [rf, setNodes, beginMutation, emitCanvasChange]
+  );
+
+  /** Snap to guides on release, THEN reparent into/out of a swimlane. */
+  const handleNodeDragStop = useCallback(
+      (_e: MouseEvent | TouchEvent, node: FlowNode) => {
+        snapOnStop();
+        reparentOnDragStop(node.id);
+      },
+      [snapOnStop, reparentOnDragStop]
+  );
 
   const bringToFront = useCallback(() => {
     if (!nodesRef.current.some((n) => n.selected)) return;
@@ -2161,7 +2283,7 @@ export function Editor() {
                         onSelectionChange={onSelectionChange}
                         onSelectionDragStop={snapOnStop}
                         onNodeContextMenu={onNodeCtx}
-                        onNodeDragStop={snapOnStop}
+                        onNodeDragStop={handleNodeDragStop}
                         onEdgeDoubleClick={onEdgeDoubleClick}
                         onPaneContextMenu={onPaneCtx}
                         onMove={(_, vp) => setZoom(vp.zoom)}
