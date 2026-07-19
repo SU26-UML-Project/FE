@@ -326,7 +326,25 @@ export function AIChat({
 
         // Nếu là diagram, apply kết quả (kể cả rỗng - ví dụ lệnh "xóa hết")
         if (res.kind === 'diagram') {
-            onImport(parsed.nodes, parsed.edges, parsed.type);
+            // [DEBUG-TEMP] Log trước khi import
+            console.log("[AI-DEBUG-IMPORT] About to onImport:", {
+                nodeCount: parsed.nodes.length,
+                edgeCount: parsed.edges.length,
+                type: parsed.type,
+                sampleNode: parsed.nodes[0],
+                sampleEdge: parsed.edges[0],
+                nestedNodes: parsed.nodes.filter(n => n.parentId).map(n => ({ id: n.id, parentId: n.parentId, type: n.type })),
+            });
+            try {
+                onImport(parsed.nodes, parsed.edges, parsed.type);
+                console.log("[AI-DEBUG-IMPORT] onImport completed OK");
+            } catch (err) {
+                console.error("[AI-DEBUG-IMPORT-ERROR] onImport threw:", err, {
+                    nodes: parsed.nodes,
+                    edges: parsed.edges,
+                });
+                toast.error("Lỗi khi áp dụng sơ đồ: " + (err instanceof Error ? err.message : String(err)));
+            }
         }
     };
 

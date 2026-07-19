@@ -2255,10 +2255,14 @@ import type { AINode, AIEdge, AINodeType, RelationKind } from "../types/aiContra
 export function aiResponseToCanvas(res: DiagramChatResponse, existingEdges?: FlowEdge[]): ParseResult {
     const dto = res as any; // widen for dynamic fields
     const nodes: FlowNode[] = (dto.nodes ?? []).map((n: any) => {
+        // Defensive alias: AI/BE có thể trả "class" (đầy đủ) thay vì "cls" (alias
+        // mà frontend registry dùng). Map về "cls" để React Flow tìm được component.
+        const rawType = (n.type || "cls").toLowerCase();
+        const normalizedType = rawType === "class" ? "cls" : rawType;
         // Convert DiagramChatResponse's node to AINode format
         const aiNode: AINode = {
             id: n.id,
-            type: (n.type || "cls").toLowerCase() as AINodeType,
+            type: normalizedType as AINodeType,
             label: n.label,
             stereotype: n.stereotype,
             attributes: Array.isArray(n.attributes) ? n.attributes : typeof n.attributes === "string" ? n.attributes.split("\n") : undefined,
@@ -2269,18 +2273,31 @@ export function aiResponseToCanvas(res: DiagramChatResponse, existingEdges?: Flo
         return { ...flowNode, parentId: n.parentId, extent: n.parentId ? "parent" : undefined };
     });
 
-    // Smart diagram type detection from nodes if not explicitly provided
-    let detectedType = dto.diagramType as DiagramType;
+    // E-06: validate node.type ngay tại FE để báo lỗi sớm (BE đã check ở Lô 2 nhưng
+    // nếu response cache cũ / bypass BE thì FE vẫn phải tự bảo vệ).
+    const VALID_NODE_TYPES = new Set<string>([
+        "action", "decision", "start", "final", "fork",
+        "cls", "component", "usecase", "actor", "note", "package",
+    ]);
+    for (const n of (dto.nodes ?? [])) {
+        const t = (n?.type ?? "").toLowerCase();
+        if (t && !VALID_NODE_TYPES.has(t)) {
+            throw new Error(`Invalid node type from AI: "${n?.type}". Allowed: ${[...VALID_NODE_TYPES].join(", ")}`);
+        }
+    }
+
+    // E-07 / E-09: Smart type detection ưu tiên diagramType từ AI. Trước đây code đoán
+    // lại từ summary (vd "use case" trong text) đè cả khi AI đã trả diagramType rõ ràng →
+    // bug khó chịu. Giờ chỉ fallback khi AI không trả diagramType.
+    let detectedType = (dto.diagramType as DiagramType) || "";
     if (!detectedType) {
-        const nodeTypes = new Set(res.nodes?.map(n => n.type.toLowerCase()));
-        if (nodeTypes.has("start") || nodeTypes.has("final") || nodeTypes.has("decision")) {
+        const nodeTypes = new Set<string>((res.nodes ?? []).map((n: any) => (n.type ?? "").toLowerCase()));
+        if (nodeTypes.has("start") || nodeTypes.has("final") || nodeTypes.has("decision") || nodeTypes.has("fork")) {
             detectedType = "activity";
         } else if (nodeTypes.has("actor") || nodeTypes.has("usecase")) {
             detectedType = "usecase";
         } else if (nodeTypes.has("component")) {
             detectedType = "component";
-        } else if (res.summary?.toLowerCase().includes("use case")) {
-            detectedType = "usecase";
         } else {
             detectedType = "class";
         }
@@ -2303,6 +2320,17 @@ export function aiResponseToCanvas(res: DiagramChatResponse, existingEdges?: Flo
             label: edgeLabel,
         };
         const flowEdge = aiEdgeToFlow(aiEdge);
+
+        // Map multiplicity (tách khỏi label) vào data của edge.
+        // Frontend đã có sẵn 2 input riêng (multiplicitySource / multiplicityTarget)
+        // lưu trong flowEdge.data và hiển thị ở form Inspector.
+        if (e.multiplicitySource || e.multiplicityTarget) {
+            flowEdge.data = {
+                ...(flowEdge.data as object),
+                multiplicitySource: e.multiplicitySource,
+                multiplicityTarget: e.multiplicityTarget,
+            };
+        }
 
         // Use Case specific: remove arrows for associations between Actor and UseCase
         if (detectedType === "usecase" && aiEdge.relation === "association") {
