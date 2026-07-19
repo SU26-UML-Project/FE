@@ -38,11 +38,11 @@ export type NavSection = {
 export const navSections: NavSection[] = [
   {
     id: "overview",
-    hint: "Overview",
+    hint: "Tổng quan",
     items: [
       {
         id: "dashboard",
-        label: "Dashboard",
+        label: "Bảng điều khiển",
         sub: "Trung tâm điều khiển",
         icon: LayoutDashboard,
       },
@@ -50,7 +50,7 @@ export const navSections: NavSection[] = [
   },
   {
     id: "manage",
-    hint: "Management",
+    hint: "Quản lý",
     items: [
       { id: "users", label: "Người dùng", sub: "Users", icon: Users },
       { id: "projects", label: "Dự án", sub: "Projects", icon: FolderKanban },
@@ -58,7 +58,7 @@ export const navSections: NavSection[] = [
   },
   {
     id: "intel",
-    hint: "Intelligence",
+    hint: "Trí tuệ nhân tạo",
     items: [
       {
         id: "intelligence",
@@ -70,7 +70,7 @@ export const navSections: NavSection[] = [
   },
   {
     id: "ops",
-    hint: "Operation",
+    hint: "Vận hành",
     items: [
       {
         id: "operation",
@@ -88,7 +88,7 @@ export const navSections: NavSection[] = [
   },
   {
     id: "system",
-    hint: "System",
+    hint: "Hệ thống",
     items: [
       {
         id: "audit",

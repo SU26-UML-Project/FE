@@ -3,7 +3,7 @@ import dagre from "dagre";
 import type { DiagramType, FlowEdge, FlowEdgeData, FlowNode, FlowNodeData } from "../types";
 import { classMinSize } from "./sizing";
 import type { DiagramChatResponse, AiQuestionDto } from "../types/ai";
-import { finalizeLayout } from "./elkLayout";
+import { finalizeLayout, layoutActivityWithSwimlanes } from "./elkLayout";
 
 /* Marker URL constants (must match src/lib/markers.tsx ids). */
 const MARK = {
@@ -91,6 +91,8 @@ export interface RelOpts {
   fromName?: string;
   toName?: string;
   color?: string;
+  multiplicitySource?: string;
+  multiplicityTarget?: string;
 }
 
 function mkNode(
@@ -126,6 +128,8 @@ function mkEdge(s: string, t: string, o: RelOpts): FlowEdge {
       fromName: o.fromName,
       toName: o.toName,
       color: o.color,
+      multiplicitySource: o.multiplicitySource,
+      multiplicityTarget: o.multiplicityTarget,
     },
   };
 }
@@ -493,13 +497,6 @@ function parseRelLine(line: string):
   const rightMulti = rightM1 || rightM2;
   const label = decodeMermaid(labelRaw?.trim() ?? "");
 
-  // Combine multiplicity into the label if present
-  let finalLabel = label;
-  if (leftMulti || rightMulti) {
-    const multiStr = `${leftMulti ? leftMulti + " " : ""}${rightMulti ? " " + rightMulti : ""}`.trim();
-    finalLabel = label ? `${multiStr} : ${label}` : multiStr;
-  }
-
   let leftFirst = true;
   let opts: Parameters<typeof mkEdge>[2] = {};
   switch (token) {
@@ -548,7 +545,12 @@ function parseRelLine(line: string):
       leftFirst = true;
   }
 
-  if (finalLabel) opts.label = finalLabel;
+  // Multiplicities live in dedicated fields; the label keeps only the name.
+  if (label) opts.label = label;
+  const srcMulti = leftFirst ? leftMulti : rightMulti;
+  const tgtMulti = leftFirst ? rightMulti : leftMulti;
+  if (srcMulti) opts.multiplicitySource = srcMulti;
+  if (tgtMulti) opts.multiplicityTarget = tgtMulti;
   const from = leftFirst ? leftId : rightId;
   const to = leftFirst ? rightId : leftId;
 
@@ -1783,7 +1785,12 @@ function parsePlantActivity(lines: string[]): ParseResult {
   const rawEdges: { from: string; to: string; label?: string }[] = [];
   const nodeMap = new Map<string, string>();
 
-  const ensureNode = (id: string, label: string, type: string) => {
+  let lastIds: string[] = [];
+  let currentLaneId: string | null = null;
+  const laneByLabel = new Map<string, string>();
+  let laneIndex = 0; // Track declaration order for horizontal swimlane layout
+
+  const ensureNode = (id: string, label: string, type: string, parentIdArg?: string, extraData?: Partial<FlowNodeData>) => {
     if (!nodeMap.has(id)) {
       const uid = nanoid(8);
       nodeMap.set(id, uid);
@@ -1791,16 +1798,20 @@ function parsePlantActivity(lines: string[]): ParseResult {
       if (type === "start" || type === "final") { w = 40; h = 40; }
       else if (type === "decision") { w = 150; h = 92; }
       else if (type === "fork") { w = 100; h = 8; }
+      else if (type === "swimlane") { w = 480; h = 130; }
       else if (type === "note") { w = 150; h = 60; }
-      nodes.push(mkNode(type, 0, 0, { label }, w, h, undefined, uid));
+      // Real nesting: an action/decision/… is parented to the active swimlane
+      // (its `parentId` links to the lane's uid). Only nodes after a `|Lane|`
+      // declaration get nested; the lane itself is never nested.
+      const parentId = parentIdArg !== undefined
+          ? parentIdArg
+          : (currentLaneId && type !== "swimlane" ? nodeMap.get(currentLaneId) : undefined);
+      nodes.push(mkNode(type, 0, 0, { label, ...extraData }, w, h, parentId, uid));
     }
     return nodeMap.get(id)!;
   };
-
-  let lastIds: string[] = [];
-  let currentLane: string | null = null;
   const forkStack: { forkId: string; branchEnds: string[] }[] = [];
-  const ifStack: { decisionId: string; yesBranchEnds: string[] }[] = [];
+  const ifStack: { decisionId: string; yesBranchEnds: string[]; laneId: string | null }[] = [];
   /** Stores label to apply to the NEXT sequential edge — used by "else" */
   let pendingEdgeLabel: string | null = null;
 
@@ -1811,7 +1822,16 @@ function parsePlantActivity(lines: string[]): ParseResult {
     // Swimlane: |Lane Name| or |#Color|Lane Name|
     const laneMatch = ln.match(/^\|(?:#\w+\|)?([^|]+)\|$/);
     if (laneMatch) {
-      currentLane = laneMatch[1].trim();
+      const label = laneMatch[1].trim();
+      let lid = laneByLabel.get(label);
+      if (!lid) {
+        lid = "lane-" + nanoid(6);
+        laneByLabel.set(label, lid);
+        // Track declaration order via laneIndex for horizontal sorting
+        ensureNode(lid, label, "swimlane", undefined, { laneIndex });
+        laneIndex++;
+      }
+      currentLaneId = lid;
       continue;
     }
 
@@ -1835,7 +1855,6 @@ function parsePlantActivity(lines: string[]): ParseResult {
       let label = ln.slice(1);
       if (label.endsWith(";")) label = label.slice(0, -1);
       label = label.trim();
-      if (currentLane) label = `[${currentLane}] ${label}`;
 
       const id = nanoid(6);
       ensureNode(id, label, "action");
@@ -1856,7 +1875,7 @@ function parsePlantActivity(lines: string[]): ParseResult {
         rawEdges.push({ from: lId, to: id, label: pendingEdgeLabel || undefined });
       });
       pendingEdgeLabel = null;
-      ifStack.push({ decisionId: id, yesBranchEnds: [] });
+      ifStack.push({ decisionId: id, yesBranchEnds: [], laneId: currentLaneId });
       lastIds = [id];
       // Set pending label for YES branch (e.g. "yes" from "then (yes)")
       if (m && m[2]) pendingEdgeLabel = m[2].trim() || "yes";
@@ -1867,6 +1886,9 @@ function parsePlantActivity(lines: string[]): ParseResult {
       if (currentIf) {
         // Save the current YES/previous branch ends
         currentIf.yesBranchEnds = [...currentIf.yesBranchEnds, ...lastIds];
+
+        // Restore the lane ID to what it was before the if block!
+        currentLaneId = currentIf.laneId;
 
         const m = ln.match(/(?:else|elseif)\s*\(([^)]+)\)(?:\s+then\s*\(([^)]+)\))?/i);
         const label = m ? m[2] || m[1] : "No";
@@ -1891,6 +1913,8 @@ function parsePlantActivity(lines: string[]): ParseResult {
       const currentIf = ifStack.pop();
       if (currentIf) {
         lastIds = [...currentIf.yesBranchEnds, ...lastIds];
+        // Restore the lane ID to what it was before the if block!
+        currentLaneId = currentIf.laneId;
       }
       pendingEdgeLabel = null;
       continue;
@@ -1969,19 +1993,13 @@ function parsePlantActivity(lines: string[]): ParseResult {
       })
       .filter(Boolean) as FlowEdge[];
 
-  const posMap = layeredLayout(
-      nodes.map(n => n.id),
-      edges.map(e => ({ source: e.source, target: e.target })),
-      "TB"
-  );
-
-  for (const n of nodes) {
-    const p = posMap.get(n.id) ?? { x: 0, y: 0 };
-    n.position = { x: p.x - (n.width ?? 0) / 2, y: p.y - (n.height ?? 0) / 2 };
-  }
-
-  const nodesOut = finalizeLayout(nodes, edges);
-  return { nodes: nodesOut, edges, type: "activity", preLayouted: true };
+  // Band-aware layout: keep each lane's children inside its partition and
+  // stack the lanes in a stable order (instead of one flat dagre pass that
+  // interleaves every lane's nodes).
+  const laid = layoutActivityWithSwimlanes(nodes, edges, "TB");
+  const nodesOut = laid ? laid.nodes : finalizeLayout(nodes, edges);
+  const edgesOut = laid ? laid.edges : edges;
+  return { nodes: nodesOut, edges: edgesOut, type: "activity", preLayouted: true };
 }
 
 function parsePlantComponent(lines: string[]): ParseResult {

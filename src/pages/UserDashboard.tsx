@@ -42,13 +42,13 @@ interface PrebuiltMeta {
 const formatRelativeTime = (iso: string): string => {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'Just now'
-  if (mins < 60) return `${mins} min ago`
+  if (mins < 1) return 'Vừa xong'
+  if (mins < 60) return `${mins} phút trước`
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours} hr ago`
+  if (hours < 24) return `${hours} giờ trước`
   const days = Math.floor(hours / 24)
-  if (days < 7) return `${days} day ago`
-  return new Date(iso).toLocaleDateString()
+  if (days < 7) return `${days} ngày trước`
+  return new Date(iso).toLocaleDateString('vi-VN')
 }
 
 const UserDashboard: React.FC = () => {
@@ -144,7 +144,7 @@ const UserDashboard: React.FC = () => {
       
       setWorkspaces(projectWithSheets);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load projects');
+      toast.error(error.message || 'Không thể tải dự án');
       setWorkspaces([]);
     } finally {
       setWorkspacesLoading(false);
@@ -183,7 +183,7 @@ const UserDashboard: React.FC = () => {
 
       setDrafts(draftsWithSheets);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load drafts');
+      toast.error(error.message || 'Không thể tải bản nháp');
       setDrafts([]);
     } finally {
       setDraftsLoading(false);
@@ -209,14 +209,14 @@ const UserDashboard: React.FC = () => {
       });
       
       if (response.code === 200) {
-        toast.success('Project created successfully');
+        toast.success('Tạo dự án thành công');
         setShowCreateModal(false);
         setNewWsName('');
         setNewWsCategory('general');
         navigate(`/workspace/${response.result.id}`);
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create project');
+      toast.error(error.message || 'Không thể tạo dự án');
     }
   }
 
@@ -247,12 +247,12 @@ const UserDashboard: React.FC = () => {
     setShowConfirm(false);
     try {
       await projectService.deleteProjects([...selectedIds]);
-      toast.success(`${selectedIds.size} project(s) deleted`);
+      toast.success(`Đã xoá ${selectedIds.size} dự án`);
       setSelectedIds(new Set());
       setSelectionMode(false);
       fetchWorkspaces();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete projects');
+      toast.error(error.message || 'Không thể xoá dự án');
     }
   }
 
@@ -283,12 +283,12 @@ const UserDashboard: React.FC = () => {
     setShowDraftConfirm(false);
     try {
       await projectService.deleteProjects([...draftSelectedIds]);
-      toast.success(`${draftSelectedIds.size} draft(s) deleted`);
+      toast.success(`Đã xoá ${draftSelectedIds.size} bản nháp`);
       setDraftSelectedIds(new Set());
       setDraftSelectionMode(false);
       fetchDrafts();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete drafts');
+      toast.error(error.message || 'Không thể xoá bản nháp');
     }
   }
 
@@ -315,8 +315,8 @@ const UserDashboard: React.FC = () => {
           </div>
           {!isSidebarCollapsed && (
             <div className="overflow-hidden whitespace-nowrap">
-              <h2 className="font-bold text-[13px] uppercase tracking-widest text-black">Project Workspace</h2>
-              <p className="text-[10px] text-admin-secondary font-bold uppercase tracking-wider">Technical Design</p>
+              <h2 className="font-bold text-[13px] uppercase tracking-widest text-black">Workspace dự án</h2>
+              <p className="text-[10px] text-admin-secondary font-bold uppercase tracking-wider">Thiết kế kỹ thuật</p>
             </div>
           )}
         </div>
@@ -328,36 +328,36 @@ const UserDashboard: React.FC = () => {
             className={`w-full bg-uml-blue text-white rounded font-bold uppercase transition-all flex items-center justify-center gap-2 hover:bg-blue-700 shadow-md active:scale-95 ${isSidebarCollapsed ? 'h-12 w-12 rounded-full p-0' : 'py-3 px-4 text-[13px]'}`}
           >
             <Plus size={isSidebarCollapsed ? 24 : 18} />
-            {!isSidebarCollapsed && "Create New Diagram"}
+            {!isSidebarCollapsed && "Tạo Diagram mới"}
           </button>
         </div>
 
         {/* Navigation */}
         <nav className={`flex-1 px-4 space-y-1 ${isSidebarCollapsed ? 'px-2' : ''}`}>
           <SidebarItem 
-            icon={<Folder size={20} />} 
-            label="All Projects" 
+            icon={<Folder size={20} />}
+            label="Tất cả dự án"
             active={activeTab === 'all'} 
             onClick={() => setActiveTab('all')} 
             collapsed={isSidebarCollapsed}
           />
           <SidebarItem 
-            icon={<PenTool size={20} />} 
-            label="Drafts" 
+            icon={<PenTool size={20} />}
+            label="Bản nháp"
             active={activeTab === 'drafts'} 
             onClick={() => setActiveTab('drafts')} 
             collapsed={isSidebarCollapsed}
           />
           <SidebarItem 
-            icon={<Users size={20} />} 
-            label="Shared with Me" 
+            icon={<Users size={20} />}
+            label="Được chia sẻ với tôi"
             active={activeTab === 'shared'} 
             onClick={() => setActiveTab('shared')} 
             collapsed={isSidebarCollapsed}
           />
           <SidebarItem 
-            icon={<LayoutGrid size={20} />} 
-            label="Templates" 
+            icon={<LayoutGrid size={20} />}
+            label="Mẫu"
             active={activeTab === 'templates'} 
             onClick={() => { setActiveTab('templates'); setTemplateKind('knowledge'); }} 
             collapsed={isSidebarCollapsed}
@@ -365,27 +365,27 @@ const UserDashboard: React.FC = () => {
           {!isSidebarCollapsed && activeTab === 'templates' && (
             <div className="ml-8 mt-0.5 border-l-2 border-gray-200 pl-3 space-y-0.5">
               <SubSidebarItem
-                label="UML Library"
+                label="Thư viện UML"
                 active={templateKind === 'knowledge'}
                 onClick={() => setTemplateKind('knowledge')}
               />
               <SubSidebarItem
-                label="Prebuilt Templates"
+                label="Mẫu dựng sẵn"
                 active={templateKind === 'sample'}
                 onClick={() => setTemplateKind('sample')}
               />
             </div>
           )}
           <SidebarItem 
-            icon={<Archive size={20} />} 
-            label="Archived" 
+            icon={<Archive size={20} />}
+            label="Lưu trữ"
             active={activeTab === 'archived'} 
             onClick={() => setActiveTab('archived')} 
             collapsed={isSidebarCollapsed}
           />
           <SidebarItem 
-            icon={<Trash2 size={20} />} 
-            label="Trash" 
+            icon={<Trash2 size={20} />}
+            label="Thùng rác"
             active={activeTab === 'trash'} 
             onClick={() => setActiveTab('trash')} 
             collapsed={isSidebarCollapsed}
@@ -394,8 +394,8 @@ const UserDashboard: React.FC = () => {
 
         {/* Bottom Navigation */}
         <div className={`px-4 mt-auto pt-6 border-t border-admin-outline space-y-1 ${isSidebarCollapsed ? 'px-2' : ''}`}>
-          <SidebarItem icon={<HelpCircle size={18} />} label="Support" small collapsed={isSidebarCollapsed} />
-          <SidebarItem icon={<CheckCircle2 size={18} />} label="System Status" small collapsed={isSidebarCollapsed} />
+          <SidebarItem icon={<HelpCircle size={18} />} label="Hỗ trợ" small collapsed={isSidebarCollapsed} />
+          <SidebarItem icon={<CheckCircle2 size={18} />} label="Trạng thái hệ thống" small collapsed={isSidebarCollapsed} />
         </div>
       </aside>
 
@@ -409,39 +409,39 @@ const UserDashboard: React.FC = () => {
                 <div>
                   {activeTab === 'templates' ? (
                     <>
-                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Templates</h1>
+                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Mẫu</h1>
                       <p className="text-lg text-admin-on-surface-variant">
                         {templateKind === 'knowledge'
-                          ? 'Learn about each UML diagram type — purpose, elements, when to use, and comparisons.'
-                          : 'Pre-built diagram templates tied to real-world projects. Use as a starting point.'}
+                          ? 'Tìm hiểu từng loại UML diagram — mục đích, thành phần, thời điểm sử dụng và so sánh.'
+                          : 'Các mẫu diagram dựng sẵn gắn với dự án thực tế. Dùng làm điểm khởi đầu.'}
                       </p>
                     </>
                   ) : activeTab === 'all' ? (
                     <>
-                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">All Projects</h1>
-                      <p className="text-lg text-admin-on-surface-variant">Create and manage your architectural design workspaces.</p>
+                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Tất cả dự án</h1>
+                      <p className="text-lg text-admin-on-surface-variant">Tạo và quản lý các Workspace thiết kế kiến trúc của bạn.</p>
                     </>
                   ) : activeTab === 'drafts' ? (
                     <>
-                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Drafts</h1>
+                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Bản nháp</h1>
                       <p className="text-lg text-admin-on-surface-variant">
-                        Quick diagrams saved as standalone drafts. Open and continue editing anytime.
+                        Các diagram nhanh được lưu dưới dạng bản nháp độc lập. Mở và tiếp tục chỉnh sửa bất cứ lúc nào.
                       </p>
                     </>
                   ) : activeTab === 'archived' ? (
                     <>
-                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Archived</h1>
-                      <p className="text-lg text-admin-on-surface-variant">View your archived projects.</p>
+                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Lưu trữ</h1>
+                      <p className="text-lg text-admin-on-surface-variant">Xem các dự án đã lưu trữ của bạn.</p>
                     </>
                   ) : activeTab === 'trash' ? (
                     <>
-                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Trash</h1>
-                      <p className="text-lg text-admin-on-surface-variant">Deleted projects can be recovered here.</p>
+                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Thùng rác</h1>
+                      <p className="text-lg text-admin-on-surface-variant">Các dự án đã xoá có thể được khôi phục tại đây.</p>
                     </>
                   ) : (
                     <>
-                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Shared with Me</h1>
-                      <p className="text-lg text-admin-on-surface-variant">Projects shared with you by other users.</p>
+                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Được chia sẻ với tôi</h1>
+                      <p className="text-lg text-admin-on-surface-variant">Các dự án được người dùng khác chia sẻ với bạn.</p>
                     </>
                   )}
                 </div>
@@ -455,7 +455,7 @@ const UserDashboard: React.FC = () => {
                       className="px-4 py-2 bg-uml-blue text-white font-bold rounded-md text-sm hover:bg-blue-700 transition flex items-center gap-2"
                     >
                       <Plus size={16} />
-                      New Workspace
+                      Workspace mới
                     </button>
                   )}
                   <div className="flex bg-gray-100 p-1 rounded-lg">
@@ -485,7 +485,7 @@ const UserDashboard: React.FC = () => {
                       : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
                   }`}
                 >
-                  All
+                  Tất cả
                 </button>
                 {[...new Set(templates.map(t => t.group))].map(g => (
                   <button
@@ -497,7 +497,7 @@ const UserDashboard: React.FC = () => {
                         : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
                     }`}
                   >
-                    {g === 'structural' ? 'Structural' : g === 'behavioral' ? 'Behavioral' : 'C4 Model'}
+                    {g === 'structural' ? 'Cấu trúc' : g === 'behavioral' ? 'Hành vi' : 'Mô hình C4'}
                   </button>
                 ))}
               </div>
@@ -512,14 +512,14 @@ const UserDashboard: React.FC = () => {
               ) : templates.length === 0 ? (
                 <div className="text-center py-20">
                   <Layers size={48} className="text-gray-200 mx-auto mb-4" />
-                  <h3 className="text-lg font-bold text-gray-400 mb-1">No templates yet</h3>
-                  <p className="text-sm text-gray-300">Templates are being prepared.</p>
+                  <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có mẫu nào</h3>
+                  <p className="text-sm text-gray-300">Các mẫu đang được chuẩn bị.</p>
                 </div>
               ) : filterLoading ? (
                 <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
                   <div className="text-center">
                     <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                    <p className="text-sm text-gray-400 font-medium">Filtering...</p>
+                    <p className="text-sm text-gray-400 font-medium">Đang lọc...</p>
                   </div>
                 </div>
               ) : (
@@ -549,9 +549,9 @@ const UserDashboard: React.FC = () => {
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
-                              <th className="py-4 px-6">Template Name</th>
-                              <th className="py-4 px-6">Type</th>
-                              <th className="py-4 px-6">Category</th>
+                              <th className="py-4 px-6">Tên mẫu</th>
+                              <th className="py-4 px-6">Loại</th>
+                              <th className="py-4 px-6">Danh mục</th>
                               <th className="py-4 px-6 text-right">Nodes</th>
                             </tr>
                           </thead>
@@ -570,7 +570,7 @@ const UserDashboard: React.FC = () => {
               <section className="mb-12">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold text-black">
-                    Drafts
+                    Bản nháp
                     <span className="ml-2 text-sm font-normal text-gray-400">({drafts.length})</span>
                   </h2>
                   <motion.div
@@ -596,14 +596,14 @@ const UserDashboard: React.FC = () => {
                               disabled={draftSelectedIds.size === 0}
                               className={`h-full font-bold text-xs whitespace-nowrap flex-[7] flex items-center justify-center ${draftSelectedIds.size === 0 ? 'text-gray-400' : 'text-white'}`}
                             >
-                              Delete
+                              Xoá
                             </button>
                             <div className="w-[1px] h-5 bg-white/80 shrink-0" />
                             <button
                               onClick={handleAllDraftsClick}
                               className="h-full font-bold text-xs whitespace-nowrap flex-[3] flex items-center justify-center text-white"
                             >
-                              All
+                              Tất cả
                             </button>
                           </div>
                         </motion.div>
@@ -616,9 +616,9 @@ const UserDashboard: React.FC = () => {
                           ? 'px-3 py-1 text-gray-500 hover:text-gray-700'
                           : 'w-9 h-9 text-gray-400 hover:text-red-500 hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]'
                       }`}
-                      title="Delete drafts"
+                      title="Xoá bản nháp"
                     >
-                      {draftSelectionMode ? 'Cancel' : <Trash2 size={16} />}
+                      {draftSelectionMode ? 'Huỷ' : <Trash2 size={16} />}
                     </button>
                   </motion.div>
                 </div>
@@ -629,8 +629,8 @@ const UserDashboard: React.FC = () => {
                 ) : drafts.length === 0 ? (
                   <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
                     <PenTool size={48} className="text-gray-200 mx-auto mb-3" />
-                    <h3 className="text-lg font-bold text-gray-400 mb-1">No drafts yet</h3>
-                    <p className="text-sm text-gray-300">Create a diagram from the canvas and save as a draft.</p>
+                    <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có bản nháp nào</h3>
+                    <p className="text-sm text-gray-300">Tạo diagram từ canvas và lưu dưới dạng bản nháp.</p>
                   </div>
                 ) : viewMode === 'grid' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -649,9 +649,9 @@ const UserDashboard: React.FC = () => {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
-                          <th className="py-4 px-6">Draft Name</th>
-                          <th className="py-4 px-6">Category</th>
-                          <th className="py-4 px-6">Last Edited</th>
+                          <th className="py-4 px-6">Tên bản nháp</th>
+                          <th className="py-4 px-6">Danh mục</th>
+                          <th className="py-4 px-6">Chỉnh sửa lần cuối</th>
                           <th className="py-4 px-6 text-right">Diagrams</th>
                         </tr>
                       </thead>
@@ -676,7 +676,7 @@ const UserDashboard: React.FC = () => {
                 <section className="mb-12">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-bold text-black">
-                      My Workspaces
+                      Workspace của tôi
                       <span className="ml-2 text-sm font-normal text-gray-400">({workspaces.length})</span>
                     </h2>
                     <motion.div
@@ -702,14 +702,14 @@ const UserDashboard: React.FC = () => {
                                 disabled={selectedIds.size === 0}
                                 className={`h-full font-bold text-xs whitespace-nowrap flex-[7] flex items-center justify-center ${selectedIds.size === 0 ? 'text-gray-400' : 'text-white'}`}
                               >
-                                Delete
+                                Xoá
                               </button>
                               <div className="w-[1px] h-5 bg-white/80 shrink-0" />
                               <button
                                 onClick={handleAllClick}
                                 className="h-full font-bold text-xs whitespace-nowrap flex-[3] flex items-center justify-center text-white"
                               >
-                                All
+                                Tất cả
                               </button>
                             </div>
                           </motion.div>
@@ -723,9 +723,9 @@ const UserDashboard: React.FC = () => {
                             ? 'px-3 py-1 text-gray-500 hover:text-gray-700'
                             : 'w-9 h-9 text-gray-400 hover:text-red-500 hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]'
                         }`}
-                        title="Delete projects"
+                        title="Xoá dự án"
                       >
-                        {selectionMode ? 'Cancel' : <Trash2 size={16} />}
+                        {selectionMode ? 'Huỷ' : <Trash2 size={16} />}
                       </button>
                     </motion.div>
                   </div>
@@ -736,13 +736,13 @@ const UserDashboard: React.FC = () => {
                   ) : workspaces.length === 0 ? (
                     <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
                       <Folder size={48} className="text-gray-200 mx-auto mb-3" />
-                      <h3 className="text-lg font-bold text-gray-400 mb-1">No workspaces yet</h3>
-                      <p className="text-sm text-gray-300 mb-4">Create your first workspace to get started.</p>
+                      <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có Workspace nào</h3>
+                      <p className="text-sm text-gray-300 mb-4">Tạo Workspace đầu tiên của bạn để bắt đầu.</p>
                       <button
                         onClick={() => setShowCreateModal(true)}
                         className="px-4 py-2 bg-uml-blue text-white font-bold rounded-md text-sm hover:bg-blue-700 transition"
                       >
-                        Create Workspace
+                        Tạo Workspace
                       </button>
                     </div>
                   ) : viewMode === 'grid' ? (
@@ -762,9 +762,9 @@ const UserDashboard: React.FC = () => {
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
-                            <th className="py-4 px-6">Workspace Name</th>
-                            <th className="py-4 px-6">Category</th>
-                            <th className="py-4 px-6">Last Edited</th>
+                            <th className="py-4 px-6">Tên Workspace</th>
+                            <th className="py-4 px-6">Danh mục</th>
+                            <th className="py-4 px-6">Chỉnh sửa lần cuối</th>
                             <th className="py-4 px-6 text-right">Diagrams</th>
                           </tr>
                         </thead>
@@ -788,15 +788,15 @@ const UserDashboard: React.FC = () => {
                 <section>
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-bold text-black">
-                      Prebuilt Projects
+                      Dự án dựng sẵn
                       <span className="ml-2 text-sm font-normal text-gray-400">({prebuilts.length})</span>
                     </h2>
                   </div>
                   {prebuilts.length === 0 ? (
                     <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
                       <Copy size={48} className="text-gray-200 mx-auto mb-3" />
-                      <h3 className="text-lg font-bold text-gray-400 mb-1">No prebuilt projects</h3>
-                      <p className="text-sm text-gray-300">Check back later for ready-made project templates.</p>
+                      <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có dự án dựng sẵn</h3>
+                      <p className="text-sm text-gray-300">Hãy quay lại sau để xem các mẫu dự án dựng sẵn.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -836,22 +836,22 @@ const UserDashboard: React.FC = () => {
               transition={{ type: 'spring', stiffness: 250, damping: 25 }}
               className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4"
             >
-              <h3 className="text-lg font-bold text-black mb-2">Delete projects?</h3>
+              <h3 className="text-lg font-bold text-black mb-2">Xoá dự án?</h3>
               <p className="text-sm text-gray-500 mb-6">
-                Are you sure you want to delete {selectedIds.size} project(s)? This action cannot be undone.
+                Bạn có chắc muốn xoá {selectedIds.size} dự án? Hành động này không thể hoàn tác.
               </p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => { setShowConfirm(false); setSelectedIds(new Set()); setSelectionMode(false); }}
                   className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 rounded-md transition"
                 >
-                  Cancel
+                  Huỷ
                 </button>
                 <button
                   onClick={handleConfirmDelete}
                   className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition"
                 >
-                  Delete
+                  Xoá
                 </button>
               </div>
             </motion.div>
@@ -874,22 +874,22 @@ const UserDashboard: React.FC = () => {
               transition={{ type: 'spring', stiffness: 250, damping: 25 }}
               className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4"
             >
-              <h3 className="text-lg font-bold text-black mb-2">Delete drafts?</h3>
+              <h3 className="text-lg font-bold text-black mb-2">Xoá bản nháp?</h3>
               <p className="text-sm text-gray-500 mb-6">
-                Are you sure you want to delete {draftSelectedIds.size} draft(s)? This action cannot be undone.
+                Bạn có chắc muốn xoá {draftSelectedIds.size} bản nháp? Hành động này không thể hoàn tác.
               </p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => { setShowDraftConfirm(false); setDraftSelectedIds(new Set()); setDraftSelectionMode(false); }}
                   className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 rounded-md transition"
                 >
-                  Cancel
+                  Huỷ
                 </button>
                 <button
                   onClick={handleConfirmDraftDelete}
                   className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition"
                 >
-                  Delete
+                  Xoá
                 </button>
               </div>
             </motion.div>
@@ -1041,7 +1041,7 @@ const DraftCard = ({ draft, selectionMode, selected, onToggleSelect }: { draft: 
         <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
         <div className="absolute top-3 right-3 flex gap-1.5">
           <span className="px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border bg-amber-100 text-amber-700 border-amber-200">
-            Draft
+            Bản nháp
           </span>
         </div>
       </div>
@@ -1108,7 +1108,7 @@ const DraftListRow = ({ draft, selectionMode, selected, onToggleSelect }: { draf
       </td>
       <td className="py-4 px-6">
         <span className="px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest border bg-amber-100 text-amber-700 border-amber-200">
-          Draft
+          Bản nháp
         </span>
       </td>
       <td className="py-4 px-6 text-admin-on-surface-variant font-bold text-[12px] uppercase">{formatRelativeTime(draft.updatedAt)}</td>
@@ -1292,33 +1292,33 @@ const CreateWorkspaceModal = ({
         onClick={e => e.stopPropagation()}
         className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4"
       >
-        <h2 className="text-xl font-black text-black mb-2">Create New Workspace</h2>
-        <p className="text-sm text-gray-500 mb-6">A workspace contains diagrams, documents, and AI context for your project.</p>
+        <h2 className="text-xl font-black text-black mb-2">Tạo Workspace mới</h2>
+        <p className="text-sm text-gray-500 mb-6">Workspace chứa các diagram, tài liệu và ngữ cảnh AI cho dự án của bạn.</p>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Workspace Name</label>
+            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Tên Workspace</label>
             <input
               value={name}
               onChange={e => onNameChange(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') onCreate() }}
-              placeholder="e.g., E-Commerce Platform"
+              placeholder="VD: Nền tảng thương mại điện tử"
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-uml-blue focus:ring-1 focus:ring-uml-blue/20"
               autoFocus
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Category</label>
+            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Danh mục</label>
             <select
               value={category}
               onChange={e => onCategoryChange(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-uml-blue focus:ring-1 focus:ring-uml-blue/20 bg-white"
             >
-              <option value="general">General</option>
-              <option value="e-commerce">E-Commerce</option>
-              <option value="healthcare">Healthcare</option>
-              <option value="fintech">Fintech</option>
-              <option value="education">Education</option>
-              <option value="enterprise">Enterprise</option>
+              <option value="general">Chung</option>
+              <option value="e-commerce">Thương mại điện tử</option>
+              <option value="healthcare">Y tế</option>
+              <option value="fintech">Công nghệ tài chính</option>
+              <option value="education">Giáo dục</option>
+              <option value="enterprise">Doanh nghiệp</option>
             </select>
           </div>
         </div>
@@ -1327,14 +1327,14 @@ const CreateWorkspaceModal = ({
             onClick={onClose}
             className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-black transition"
           >
-            Cancel
+            Huỷ
           </button>
           <button
             onClick={onCreate}
             disabled={!name.trim()}
             className="px-5 py-2 bg-uml-blue text-white font-bold rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50"
           >
-            Create Workspace
+            Tạo Workspace
           </button>
         </div>
       </motion.div>

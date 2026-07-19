@@ -6,7 +6,8 @@ export interface FlowNodeData {
   stereotype?: string; // «interface», «entity»…
   attributes?: string; // multiline — one attribute per line (class)
   methods?: string; // multiline — one method per line (class)
-  variant?: "horizontal" | "vertical";
+  /** order index of swimlane (UML Activity partition) - set during PlantUML parse */
+  laneIndex?: number;
   /** border / stroke colour override */
   color?: string;
   /** fill colour override */
@@ -24,6 +25,10 @@ export interface FlowEdgeData {
   /** Metadata for ambiguous relation resolution */
   fromName?: string;
   toName?: string;
+  /** UML class association multiplicity at the source (start) end, e.g. "1", "0..*" */
+  multiplicitySource?: string;
+  /** UML class association multiplicity at the target end */
+  multiplicityTarget?: string;
   [key: string]: unknown;
 }
 

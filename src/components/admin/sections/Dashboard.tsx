@@ -253,7 +253,7 @@ export default function Dashboard() {
       <Card className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <Badge tone="brand" className="mb-2">
-            <Sparkles className="h-3 w-3" /> Hệ thống UML · AI Agent
+            <Sparkles className="h-3 w-3" /> Hệ thống UML · Trợ lý AI
           </Badge>
           <h2 className="text-[22px] font-semibold tracking-tight text-slate-900">Xin chào, {user?.fullName ?? "Admin"} 👋</h2>
           <p className="mt-1 max-w-lg text-[14px] leading-relaxed text-slate-500">
@@ -354,7 +354,7 @@ export default function Dashboard() {
             <OverviewStat icon={Zap} label={`Tỷ lệ DAU/MAU`} value={`${overview.users.mau > 0 ? ((overview.users.dau / overview.users.mau) * 100).toFixed(1) : 0}%`} color="#10b981" />
             <OverviewStat icon={DollarSign} label="MRR" value={`${overview.revenue.mrr.toLocaleString("vi-VN", { minimumFractionDigits: 2 })} ₫`} color="#1E40AF" />
             <OverviewStat icon={TrendingUp} label="ARPU" value={`${overview.revenue.arpu.toLocaleString("vi-VN", { minimumFractionDigits: 2 })} ₫`} color="#D97706" />
-            <OverviewStat icon={Activity} label="Churn rate" value={`${overview.revenue.churnRate}%`} color="#DC2626" />
+            <OverviewStat icon={Activity} label="Tỉ lệ rời bỏ" value={`${overview.revenue.churnRate}%`} color="#DC2626" />
           </div>
         </Card>
       )}
@@ -379,20 +379,20 @@ export default function Dashboard() {
           <Card className="p-5">
             <div className="mb-3 flex items-center gap-2">
               <Zap className="h-4 w-4 text-slate-400" />
-              <h3 className="text-[14px] font-semibold text-slate-900">AI Model Stats</h3>
-              <span className="text-[12px] text-slate-400">· Provider / Model</span>
+              <h3 className="text-[14px] font-semibold text-slate-900">Thống kê mô hình AI</h3>
+              <span className="text-[12px] text-slate-400">· Nhà cung cấp / Mô hình</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-[11.5px] font-semibold uppercase tracking-wider text-slate-400">
-                    <th className="pb-2 pr-4">Provider</th>
-                    <th className="pb-2 pr-4">Model</th>
-                    <th className="pb-2 pr-4 text-right">Req</th>
-                    <th className="pb-2 pr-4 text-right">Err</th>
-                    <th className="pb-2 pr-4 text-right">Rate</th>
-                    <th className="pb-2 pr-4 text-right">Tokens</th>
-                    <th className="pb-2 text-right">Cost</th>
+                    <th className="pb-2 pr-4">Nhà cung cấp</th>
+                    <th className="pb-2 pr-4">Mô hình</th>
+                    <th className="pb-2 pr-4 text-right">Yêu cầu</th>
+                    <th className="pb-2 pr-4 text-right">Lỗi</th>
+                    <th className="pb-2 pr-4 text-right">Tỉ lệ</th>
+                    <th className="pb-2 pr-4 text-right">Token</th>
+                    <th className="pb-2 text-right">Chi phí</th>
                   </tr>
                 </thead>
                 <tbody>

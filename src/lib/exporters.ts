@@ -16,6 +16,7 @@
  */
 
 import type { FlowEdge, FlowNode, FlowNodeData, DiagramType } from "../types";
+import { resolveEdgeMultiplicity } from "../utils/edgeMultiplicity";
 
 /* ════════════════════════════════════════════════════════════
    HELPERS
@@ -147,21 +148,8 @@ function exportMermaidClass(nodes: FlowNode[], edges: FlowEdge[]): string {
     const sL = mermaidClassName((sn.data as FlowNodeData).label || sn.id);
     const tL = mermaidClassName((tn.data as FlowNodeData).label || tn.id);
     const rel = detectRelation(e);
-    const label = (e.label ?? "") as string;
+    const { name: finalLabel, source: leftMulti, target: rightMulti } = resolveEdgeMultiplicity(e.data, e.label);
     const tok = rel.mermaidToken;
-
-    const parts = label.split(":");
-    let finalLabel = label;
-    let leftMulti = "";
-    let rightMulti = "";
-    if (parts.length > 1) {
-      const multis = parts[0].trim().split(/\s+/);
-      if (multis.length === 2) {
-        leftMulti = multis[0];
-        rightMulti = multis[1];
-        finalLabel = parts.slice(1).join(":").trim();
-      }
-    }
 
     if (leftMulti || rightMulti) {
       if (finalLabel) {
@@ -170,8 +158,8 @@ function exportMermaidClass(nodes: FlowNode[], edges: FlowEdge[]): string {
         lines.push(`${sL} "${leftMulti}" ${tok} "${rightMulti}" ${tL}`);
       }
     } else {
-      if (rel.hasStereotypeLabel) lines.push(`${sL} ${tok} ${tL} : ${label}`);
-      else if (label) lines.push(`${sL} ${tok} ${tL} : ${escM(label)}`);
+      if (rel.hasStereotypeLabel) lines.push(`${sL} ${tok} ${tL} : ${finalLabel}`);
+      else if (finalLabel) lines.push(`${sL} ${tok} ${tL} : ${escM(finalLabel)}`);
       else lines.push(`${sL} ${tok} ${tL}`);
     }
   }
@@ -186,11 +174,18 @@ function exportMermaidClass(nodes: FlowNode[], edges: FlowEdge[]): string {
 function exportMermaidUseCase(nodes: FlowNode[], edges: FlowEdge[]): string {
   const lines: string[] = ["flowchart LR"];
 
-  // Build hierarchy
+  // Safe, Mermaid-valid aliases for node ids (nanoid ids may start with a digit).
+  const idMap = new Map<string, string>();
+  const mid = (id: string): string => {
+    if (!idMap.has(id)) idMap.set(id, safeId(id));
+    return idMap.get(id)!;
+  };
+
+  // Build hierarchy (use-case system boundaries are stored as `boundary`)
   const pkgKids = new Map<string, FlowNode[]>();
   const standalone: FlowNode[] = [];
   for (const n of nodes) {
-    if (n.type === "package") continue;
+    if (n.type === "package" || n.type === "boundary") continue;
     if (n.parentId) {
       const arr = pkgKids.get(n.parentId) ?? [];
       arr.push(n);
@@ -199,12 +194,12 @@ function exportMermaidUseCase(nodes: FlowNode[], edges: FlowEdge[]): string {
       standalone.push(n);
     }
   }
-  const pkgMap = new Map(nodes.filter(n => n.type === "package").map(n => [n.id, n]));
+  const pkgMap = new Map(nodes.filter(n => n.type === "package" || n.type === "boundary").map(n => [n.id, n]));
 
   const writeNode = (n: FlowNode) => {
     const label = (n.data as FlowNodeData).label || n.id;
-    if (n.type === "actor")  lines.push(`    ${n.id}["👤 ${escM(label)}"]`);
-    if (n.type === "usecase") lines.push(`    ${n.id}([${escM(label)}])`);
+    if (n.type === "actor")  lines.push(`    ${mid(n.id)}["👤 ${escM(label)}"]`);
+    if (n.type === "usecase") lines.push(`    ${mid(n.id)}([${escM(label)}])`);
   };
 
   // Write standalone nodes
@@ -214,7 +209,7 @@ function exportMermaidUseCase(nodes: FlowNode[], edges: FlowEdge[]): string {
   for (const [pid, kids] of pkgKids) {
     const pkg = pkgMap.get(pid);
     if (!pkg) { for (const k of kids) writeNode(k); continue; }
-    lines.push(`    subgraph ${pid}["${escM(pkg.data.label || pkg.id)}"]`);
+    lines.push(`    subgraph ${mid(pid)}["${escM(pkg.data.label || pkg.id)}"]`);
     for (const k of kids) writeNode(k);
     lines.push(`    end`);
   }
@@ -227,11 +222,11 @@ function exportMermaidUseCase(nodes: FlowNode[], edges: FlowEdge[]): string {
     const label = (e.label ?? "") as string;
     const rel = detectRelation(e);
     if (rel.hasStereotypeLabel) {
-      lines.push(`    ${e.source} ${rel.mermaidToken}|"${label}"| ${e.target}`);
+      lines.push(`    ${mid(e.source)} ${rel.mermaidToken}|"${label}"| ${mid(e.target)}`);
     } else if (label) {
-      lines.push(`    ${e.source} ${rel.mermaidToken}|"${escM(label)}"| ${e.target}`);
+      lines.push(`    ${mid(e.source)} ${rel.mermaidToken}|"${escM(label)}"| ${mid(e.target)}`);
     } else {
-      lines.push(`    ${e.source} ${rel.mermaidToken} ${e.target}`);
+      lines.push(`    ${mid(e.source)} ${rel.mermaidToken} ${mid(e.target)}`);
     }
   }
 
@@ -262,15 +257,15 @@ function exportMermaidActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
   const idMap = new Map<string, string>();
   let counter = 0;
   for (const n of nodes) {
-    if (n.type === "package") idMap.set(n.id, `sg${counter++}`);
+    if (n.type === "package" || n.type === "swimlane") idMap.set(n.id, `sg${counter++}`);
     else idMap.set(n.id, `n${counter++}`);
   }
 
-  // Build hierarchy
+  // Build hierarchy (swimlanes are Activity partitions / containers)
   const pkgKids = new Map<string, FlowNode[]>();
   const standalone: FlowNode[] = [];
   for (const n of nodes) {
-    if (n.type === "package") continue;
+    if (n.type === "package" || n.type === "swimlane") continue;
     if (n.parentId) {
       const arr = pkgKids.get(n.parentId) ?? [];
       arr.push(n);
@@ -279,7 +274,7 @@ function exportMermaidActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
       standalone.push(n);
     }
   }
-  const pkgMap = new Map(nodes.filter(n => n.type === "package").map(n => [n.id, n]));
+  const pkgMap = new Map(nodes.filter(n => n.type === "package" || n.type === "swimlane").map(n => [n.id, n]));
 
   const writeNode = (n: FlowNode) => {
     const sid = idMap.get(n.id)!;
@@ -300,9 +295,9 @@ function exportMermaidActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
     lines.push(`    end`);
   }
 
-  // Empty packages
+  // Empty packages / swimlanes
   for (const n of nodes) {
-    if (n.type === "package" && !pkgKids.has(n.id)) {
+    if ((n.type === "package" || n.type === "swimlane") && !pkgKids.has(n.id)) {
       const sid = idMap.get(n.id)!;
       lines.push(`    subgraph ${sid}["${escM(n.data.label || n.id)}"]\n    end`);
     }
@@ -362,10 +357,19 @@ function exportMermaidComponent(nodes: FlowNode[], edges: FlowEdge[]): string {
     const d = n.data as FlowNodeData;
     const label = d.label || n.id;
     const stereo = d.stereotype ?? "";
+    const stereoLower = stereo.toLowerCase();
 
-    // Per spec: [[ ]] for component, [()] for database, [/ /] for queue, (( )) for interface
-    if (stereo.includes("interface")) {
+    // Per spec: [[ ]] for component, [()] for database, (( )) for interface, {{ }} for cloud, ["🖥️ "] for node
+    if (stereoLower.includes("interface")) {
       lines.push(`    ${sid}(("${escM(label)}"))`);
+    } else if (stereoLower.includes("database")) {
+      lines.push(`    ${sid}[("${escM(label)}")]`); // DATABASE cylinder shape!
+    } else if (stereoLower.includes("node")) {
+      lines.push(`    ${sid}["🖥️ ${escM(label)}"]`); // Node shape with computer emoji
+    } else if (stereoLower.includes("cloud")) {
+      lines.push(`    ${sid}{{"${escM(label)}"}}`); // Cloud-like hexagon shape!
+    } else if (stereoLower.includes("storage")) {
+      lines.push(`    ${sid}[("${escM(label)}")]`); // Use database cylinder for storage
     } else if (n.type === "component" || n.type === "cls") {
       lines.push(`    ${sid}[["${escM(label)}"]]`);
     } else if (n.type === "note") {
@@ -423,14 +427,14 @@ function exportMermaidState(nodes: FlowNode[], edges: FlowEdge[]): string {
   }
 
   const writeState = (n: FlowNode) => {
-    if (n.type !== "action" && n.type !== "decision") return;
+    if (n.type !== "state" && n.type !== "action" && n.type !== "decision") return;
     const label = (n.data as FlowNodeData).label || n.id;
-    lines.push(`    state "${escM(label)}" as ${n.id}`);
+    lines.push(`    state "${escM(label)}" as ${safeId(n.id)}`);
   };
 
   for (const n of nodes) {
     if (n.type === "package") {
-      lines.push(`    state "${escM(n.data.label || n.id)}" as ${n.id} {`);
+      lines.push(`    state "${escM(n.data.label || n.id)}" as ${safeId(n.id)} {`);
       const kids = pkgKids.get(n.id) ?? [];
       for (const k of kids) writeState(k);
       lines.push(`    }`);
@@ -445,8 +449,8 @@ function exportMermaidState(nodes: FlowNode[], edges: FlowEdge[]): string {
     const tn = nodes.find(x => x.id === e.target);
     if (!sn || !tn) continue;
     const label = (e.label ?? "") as string;
-    const from = sn.type === "start" ? "[*]" : sn.id;
-    const to = tn.type === "final" ? "[*]" : tn.id;
+    const from = sn.type === "start" ? "[*]" : safeId(sn.id);
+    const to = tn.type === "final" ? "[*]" : safeId(tn.id);
     if (label) lines.push(`    ${from} --> ${to} : ${escM(label)}`);
     else lines.push(`    ${from} --> ${to}`);
   }
@@ -523,21 +527,8 @@ function exportPlantUmlClass(nodes: FlowNode[], edges: FlowEdge[]): string {
     const sId = safeId(e.source);
     const tId = safeId(e.target);
     const rel = detectRelation(e);
-    const label = (e.label ?? "") as string;
+    const { name: finalLabel, source: leftMulti, target: rightMulti } = resolveEdgeMultiplicity(e.data, e.label);
     const tok = rel.plantToken;
-
-    const parts = label.split(":");
-    let finalLabel = label;
-    let leftMulti = "";
-    let rightMulti = "";
-    if (parts.length > 1) {
-      const multis = parts[0].trim().split(/\s+/);
-      if (multis.length === 2) {
-        leftMulti = multis[0];
-        rightMulti = multis[1];
-        finalLabel = parts.slice(1).join(":").trim();
-      }
-    }
 
     if (leftMulti || rightMulti) {
       if (finalLabel) {
@@ -546,8 +537,8 @@ function exportPlantUmlClass(nodes: FlowNode[], edges: FlowEdge[]): string {
         lines.push(`${sId} "${leftMulti}" ${tok} "${rightMulti}" ${tId}`);
       }
     } else {
-      if (rel.hasStereotypeLabel) lines.push(`${sId} ${tok} ${tId} : ${label}`);
-      else if (label) lines.push(`${sId} ${tok} ${tId} : ${esc(label)}`);
+      if (rel.hasStereotypeLabel) lines.push(`${sId} ${tok} ${tId} : ${finalLabel}`);
+      else if (finalLabel) lines.push(`${sId} ${tok} ${tId} : ${esc(finalLabel)}`);
       else lines.push(`${sId} ${tok} ${tId}`);
     }
   }
@@ -566,7 +557,7 @@ function exportPlantUmlUseCase(nodes: FlowNode[], edges: FlowEdge[]): string {
   const pkgKids = new Map<string, FlowNode[]>();
   const standalone: FlowNode[] = [];
   for (const n of nodes) {
-    if (n.type === "package") continue;
+    if (n.type === "package" || n.type === "boundary") continue;
     if (n.parentId) {
       const arr = pkgKids.get(n.parentId) ?? [];
       arr.push(n);
@@ -575,7 +566,7 @@ function exportPlantUmlUseCase(nodes: FlowNode[], edges: FlowEdge[]): string {
       standalone.push(n);
     }
   }
-  const pkgMap = new Map(nodes.filter(n => n.type === "package").map(n => [n.id, n]));
+  const pkgMap = new Map(nodes.filter(n => n.type === "package" || n.type === "boundary").map(n => [n.id, n]));
 
   const writeNode = (n: FlowNode) => {
     const label = (n.data as FlowNodeData).label || n.id;
@@ -630,6 +621,19 @@ function exportPlantUmlActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
     }
   }
 
+  let activeLaneId: string | null = null;
+
+  const getLaneSwitch = (n: FlowNode): string[] => {
+    if (n.parentId && n.parentId !== activeLaneId) {
+      const lane = nodes.find(x => x.id === n.parentId);
+      if (lane && lane.type === "swimlane") {
+        activeLaneId = n.parentId;
+        return [`|${lane.data.label || lane.id}|`];
+      }
+    }
+    return [];
+  };
+
   const walk = (nodeId: string, stopAtMerge: boolean = false): string[] => {
     if (visited.has(nodeId)) return [];
     if (stopAtMerge && mergeNodes.has(nodeId)) return [];
@@ -639,6 +643,9 @@ function exportPlantUmlActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
     if (!n) return [];
 
     const res: string[] = [];
+
+    // Check and prepend swimlane switch if needed
+    res.push(...getLaneSwitch(n));
 
     if (n.type === "start") {
       res.push("start");
@@ -715,7 +722,8 @@ function exportPlantUmlActivity(nodes: FlowNode[], edges: FlowEdge[]): string {
 
   // Fallback for unvisited nodes
   for (const n of nodes) {
-    if (!visited.has(n.id)) {
+    if (!visited.has(n.id) && n.type !== "swimlane") {
+      lines.push(...getLaneSwitch(n));
       if (n.type === "action") {
         lines.push(`:${esc(n.data.label || "")};`);
       } else if (n.type === "decision") {
@@ -812,9 +820,9 @@ function exportPlantUmlState(nodes: FlowNode[], edges: FlowEdge[]): string {
   const lines: string[] = ["@startuml"];
 
   for (const n of nodes) {
-    if (n.type !== "action" && n.type !== "decision") continue;
+    if (n.type !== "state" && n.type !== "action" && n.type !== "decision") continue;
     const label = (n.data as FlowNodeData).label || n.id;
-    lines.push(`state "${esc(label)}" as ${n.id}`);
+    lines.push(`state "${esc(label)}" as ${safeId(n.id)}`);
   }
 
   for (const e of edges) {
@@ -822,8 +830,8 @@ function exportPlantUmlState(nodes: FlowNode[], edges: FlowEdge[]): string {
     const tn = nodes.find(x => x.id === e.target);
     if (!sn || !tn) continue;
     const label = (e.label ?? "") as string;
-    const from = sn.type === "start" ? "[*]" : sn.id;
-    const to = tn.type === "final" ? "[*]" : tn.id;
+    const from = sn.type === "start" ? "[*]" : safeId(sn.id);
+    const to = tn.type === "final" ? "[*]" : safeId(tn.id);
     if (label) lines.push(`${from} --> ${to} : ${esc(label)}`);
     else lines.push(`${from} --> ${to}`);
   }

@@ -89,7 +89,7 @@ const Hero = () => {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="text-5xl md:text-6xl font-priego-extrabold text-black uppercase mb-6"
         >
-          THIẾT KẾ HỆ THỐNG<br />PHỨC TẠP, ĐƠN GIẢN.
+          ĐƠN GIẢN HÓA MỌI<br />HỆ THỐNG PHỨC TẠP
         </motion.h1>
         <motion.p
           initial={{ y: 20, opacity: 0 }}
@@ -97,7 +97,7 @@ const Hero = () => {
           transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
           className="text-xl text-gray-700 mb-10 max-w-2xl leading-relaxed"
         >
-          Trực quan hóa kiến trúc phần mềm, quy trình và hệ thống bằng các sơ đồ UML chuẩn, trực quan. Được xây dựng cho các đội ngũ kỹ thuật.
+          Trực quan hóa kiến trúc phần mềm và quy trình bằng các sơ đồ UML chuẩn xác. Giải pháp thiết kế tối ưu dành riêng cho các đội ngũ kỹ sư.
         </motion.p>
         <motion.div
           initial={{ y: 20, opacity: 0 }}
