@@ -1,10 +1,24 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { ChevronRight, FolderKanban, LayoutGrid, List, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronRight, FolderKanban, LayoutGrid, List, Loader2, Plus } from "lucide-react";
 import { projectService } from "../../../services/projectService";
-import type { ProjectResponse } from "../../../types/project";
+import type { OwnerGroup, ProjectResponse, ProjectStats } from "../../../types/project";
 import { Avatar, Badge, Card, Segmented, Skeleton } from "../ui";
 import { Pagination } from "../Pagination";
 import { cn } from "../../../utils/cn";
+
+const OWNERS_PAGE_SIZE = 10;
+const PROJECTS_PAGE_SIZE = 5;
+
+// State phân trang TẦNG TRONG cho từng owner (lazy-load + load-more, cộng dồn).
+interface OwnerProjectsState {
+  items: ProjectResponse[];
+  page: number;
+  totalPages: number;
+  totalElements: number;
+  loading: boolean;
+}
+
+const EMPTY_OWNER_STATE: OwnerProjectsState = { items: [], page: 0, totalPages: 1, totalElements: 0, loading: false };
 
 function getInitials(name?: string) {
   if (!name) return "?";
@@ -43,60 +57,161 @@ function StatCard({ label, value, delta }: { label: string; value: string; delta
   );
 }
 
+// Thẻ dự án (grid). showOwner=true để hiện chủ sở hữu ở chế độ "Tất cả dự án".
+function ProjectCard({ p, showOwner = false }: { p: ProjectResponse; showOwner?: boolean }) {
+  return (
+    <div className="group rounded-xl border border-slate-200 bg-white p-4 shadow-soft hover-lift hover:border-slate-300">
+      <div className="flex items-start justify-between">
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+          <FolderKanban className="h-5 w-5" />
+        </span>
+        {p.isDraft && <Badge tone="slate">Bản nháp</Badge>}
+      </div>
+      <h4 className="mt-3 text-[14.5px] font-semibold text-slate-900">{p.projectName}</h4>
+      <p className="text-[12px] text-slate-400">{p.description ?? "—"}</p>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="rounded-lg bg-slate-50 p-2">
+          <p className="text-[11px] text-slate-400">Sơ đồ</p>
+          <p className="text-[15px] font-semibold text-slate-900">{p.diagramCount ?? "—"}</p>
+        </div>
+        <div className="rounded-lg bg-slate-50 p-2">
+          <p className="text-[11px] text-slate-400">Cập nhật</p>
+          <p className="text-[12.5px] font-medium text-slate-600">{relativeTime(p.updatedAt)}</p>
+        </div>
+      </div>
+      {showOwner && (
+        <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">
+          {p.ownerName ? (
+            <>
+              <Avatar initials={getInitials(p.ownerName)} color={hashColor(p.ownerName)} size="h-6 w-6" />
+              <span className="text-[12px] text-slate-500">{p.ownerName}</span>
+            </>
+          ) : (
+            <span className="text-[12px] text-slate-400">—</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Projects() {
-  const [view, setView] = useState<"grid" | "table">("grid");
-  const [projects, setProjects] = useState<ProjectResponse[]>([]);
+  // Toggle grid/table cạnh nút "Tạo dự án" điều khiển 2 chế độ:
+  //   grid  = danh sách phẳng TẤT CẢ dự án
+  //   table = gom nhóm theo chủ sở hữu (phân trang 2 tầng)
+  const [view, setView] = useState<"grid" | "table">("table");
+
+  // 1) Stats toàn hệ thống (độc lập phân trang)
+  const [stats, setStats] = useState<ProjectStats | null>(null);
+
+  // Chế độ "Tất cả dự án" — danh sách phẳng phân trang (endpoint /projects/admin/all)
+  const [allProjects, setAllProjects] = useState<ProjectResponse[]>([]);
+  const [allPage, setAllPage] = useState(0);
+  const [allTotalPages, setAllTotalPages] = useState(1);
+  const [allTotalElements, setAllTotalElements] = useState(0);
+  const [allLoading, setAllLoading] = useState(false);
+
+  // 2) Owners — phân trang TẦNG NGOÀI
+  const [owners, setOwners] = useState<OwnerGroup[]>([]);
+  const [ownersPage, setOwnersPage] = useState(0);
+  const [ownersTotalPages, setOwnersTotalPages] = useState(1);
+  const [ownersTotalElements, setOwnersTotalElements] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 3) Projects theo owner — phân trang TẦNG TRONG (lazy per owner)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [ownerData, setOwnerData] = useState<Record<string, OwnerProjectsState>>({});
+
   useEffect(() => {
-    const fetch = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await projectService.getAllProjectsForAdmin();
-        setProjects(res.result);
-      } catch {
-        setError("Không thể tải danh sách dự án");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
+    projectService.getAdminProjectStats().then((r) => setStats(r.result)).catch(() => {});
   }, []);
 
-  const onTrack = projects.filter((p) => !p.isDraft).length;
-  const draftCount = projects.filter((p) => p.isDraft).length;
+  // Nạp danh sách phẳng khi ở chế độ "Tất cả dự án" (view = grid)
+  useEffect(() => {
+    if (view !== "grid") return;
+    let cancelled = false;
+    setAllLoading(true);
+    projectService
+      .getAllProjectsForAdmin(allPage, 12)
+      .then((r) => {
+        if (cancelled) return;
+        setAllProjects(r.result.content);
+        setAllTotalPages(r.result.totalPages);
+        setAllTotalElements(r.result.totalElements);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setAllLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [view, allPage]);
 
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [page, setPage] = useState(0);
-  const PAGE_SIZE = 10;
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    projectService
+      .getAdminProjectOwners(ownersPage, OWNERS_PAGE_SIZE)
+      .then((r) => {
+        if (cancelled) return;
+        setOwners(r.result.content);
+        setOwnersTotalPages(r.result.totalPages);
+        setOwnersTotalElements(r.result.totalElements);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Không thể tải danh sách dự án");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ownersPage]);
 
-  // Gộp dự án theo chủ sở hữu (ưu tiên userId để không nhầm khi trùng tên).
-  const groups = useMemo(() => {
-    const map = new Map<string, { key: string; name: string; projects: ProjectResponse[] }>();
-    for (const p of projects) {
-      const key = p.userId ?? p.ownerEmail ?? p.ownerName ?? "—";
-      let g = map.get(key);
-      if (!g) {
-        g = { key, name: p.ownerName ?? p.ownerEmail ?? "Không rõ", projects: [] };
-        map.set(key, g);
-      }
-      g.projects.push(p);
+  const loadOwnerProjects = async (ownerId: string, page: number) => {
+    setOwnerData((prev) => ({
+      ...prev,
+      [ownerId]: { ...(prev[ownerId] ?? EMPTY_OWNER_STATE), loading: true },
+    }));
+    try {
+      const r = await projectService.getAdminProjectsByOwner(ownerId, page, PROJECTS_PAGE_SIZE);
+      setOwnerData((prev) => {
+        const existing = prev[ownerId]?.items ?? [];
+        const items = page === 0 ? r.result.content : [...existing, ...r.result.content];
+        return {
+          ...prev,
+          [ownerId]: {
+            items,
+            page: r.result.page,
+            totalPages: r.result.totalPages,
+            totalElements: r.result.totalElements,
+            loading: false,
+          },
+        };
+      });
+    } catch {
+      setOwnerData((prev) => ({
+        ...prev,
+        [ownerId]: { ...(prev[ownerId] ?? EMPTY_OWNER_STATE), loading: false },
+      }));
     }
-    return Array.from(map.values()).sort((a, b) => b.projects.length - a.projects.length);
-  }, [projects]);
+  };
 
-  const pageCount = Math.max(1, Math.ceil(groups.length / PAGE_SIZE));
-  const pageGroups = groups.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-
-  const toggleOwner = (key: string) =>
+  const toggleOwner = (ownerId: string) => {
+    const isOpen = expanded.has(ownerId);
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (isOpen) next.delete(ownerId);
+      else next.add(ownerId);
       return next;
     });
+    // Lazy-load trang đầu khi mở lần đầu
+    if (!isOpen && !ownerData[ownerId]) loadOwnerProjects(ownerId, 0);
+  };
 
   return (
     <div className="flex h-full flex-col gap-5 overflow-hidden">
@@ -113,178 +228,162 @@ export default function Projects() {
           <Card className="p-5">
             <div className="mb-4 flex items-center justify-between">
               <Skeleton className="h-4 w-28" />
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-9 w-20 rounded-lg" />
-                <Skeleton className="h-9 w-32 rounded-lg" />
-              </div>
+              <Skeleton className="h-9 w-32 rounded-lg" />
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="rounded-xl border border-slate-200 p-4">
-                  <div className="flex items-start justify-between">
-                    <Skeleton className="h-10 w-10 rounded-lg" />
-                    <Skeleton className="h-6 w-20 rounded-full" />
-                  </div>
-                  <div className="mt-3 space-y-1">
-                    <Skeleton className="h-4 w-36" />
-                    <Skeleton className="h-3 w-full" />
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-2">
-                    <Skeleton className="h-4 w-12" />
-                    <Skeleton className="h-4 w-12" />
-                  </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-6 w-6 rounded-full" />
-                      <Skeleton className="h-3 w-20" />
-                    </div>
-                    <Skeleton className="h-3 w-16" />
-                  </div>
-                </div>
+                <Skeleton key={i} className="h-12 w-full rounded-xl" />
               ))}
             </div>
           </Card>
         </div>
       ) : (
         <div className="flex-1 min-h-0 space-y-5 overflow-y-auto">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Tổng dự án" value={projects.length.toLocaleString("vi-VN")} />
-        <StatCard label="Đúng tiến độ" value={onTrack.toLocaleString("vi-VN")} />
-        <StatCard label="Cần chú ý" value="0" />
-        <StatCard label="Bản nháp" value={draftCount.toLocaleString("vi-VN")} />
-      </div>
-
-      <Card className="relative p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <p className="text-[14px] font-semibold text-slate-900">Tất cả dự án</p>
-          <div className="flex items-center gap-2">
-            <Segmented
-              value={view}
-              onChange={setView}
-              options={[
-                { id: "grid", label: "", icon: <LayoutGrid className="h-4 w-4" /> },
-                { id: "table", label: "", icon: <List className="h-4 w-4" /> },
-              ]}
-            />
-            <button className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-slate-700">
-              <Plus className="h-4 w-4" /> Tạo dự án
-            </button>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <StatCard label="Tổng dự án" value={(stats?.total ?? 0).toLocaleString("vi-VN")} />
+            <StatCard label="Đúng tiến độ" value={(stats?.onTrack ?? 0).toLocaleString("vi-VN")} />
+            <StatCard label="Cần chú ý" value={(stats?.needAttention ?? 0).toLocaleString("vi-VN")} />
+            <StatCard label="Bản nháp" value={(stats?.drafts ?? 0).toLocaleString("vi-VN")} />
           </div>
-        </div>
 
-        {error ? (
-          <p className="py-10 text-center text-[13px] text-rose-500">{error}</p>
-        ) : projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-4 py-16">
-            <svg viewBox="0 0 120 120" className="h-28 w-28 text-slate-300" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 30h38l8 12h42v52H16z" strokeDasharray="4 3" />
-              <path d="M36 60h48M36 74h36" />
-              <circle cx="90" cy="44" r="3" />
-            </svg>
-            <p className="text-[15px] font-medium text-slate-400">Không có dự án nào</p>
-            <p className="text-[13px] text-slate-400">Danh sách dự án sẽ hiển thị tại đây khi có dữ liệu.</p>
-          </div>
-        ) : view === "grid" ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {projects.map((p) => (
-              <div key={p.id} className="group rounded-xl border border-slate-200 bg-white p-4 shadow-soft hover-lift hover:border-slate-300">
-                <div className="flex items-start justify-between">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-                    <FolderKanban className="h-5 w-5" />
-                  </span>
-                </div>
-                <h4 className="mt-3 text-[14.5px] font-semibold text-slate-900">{p.projectName}</h4>
-                <p className="text-[12px] text-slate-400">{p.description ?? "—"}</p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <div className="rounded-lg bg-slate-50 p-2">
-                    <p className="text-[11px] text-slate-400">Sơ đồ</p>
-                    <p className="text-[15px] font-semibold text-slate-900">{p.diagramCount ?? "—"}</p>
-                  </div>
-                  <div className="rounded-lg bg-slate-50 p-2">
-                    <p className="text-[11px] text-slate-400">Thành viên</p>
-                    <p className="text-[15px] font-semibold text-slate-900">—</p>
-                  </div>
-                </div>
-                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-                  <div className="flex items-center gap-2">
-                    {p.ownerName ? (
-                      <>
-                        <Avatar initials={getInitials(p.ownerName)} color={hashColor(p.ownerName)} size="h-6 w-6" />
-                        <span className="text-[12px] text-slate-500">{p.ownerName}</span>
-                      </>
-                    ) : (
-                      <span className="text-[12px] text-slate-400">—</span>
-                    )}
-                  </div>
-                  <span className="text-[11.5px] text-slate-400">{relativeTime(p.updatedAt)}</span>
-                </div>
+          <Card className="relative p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[14px] font-semibold text-slate-900">
+                {view === "grid" ? "Tất cả dự án" : "Dự án theo chủ sở hữu"}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Segmented
+                  value={view}
+                  onChange={setView}
+                  options={[
+                    { id: "grid", label: "", icon: <LayoutGrid className="h-4 w-4" /> },
+                    { id: "table", label: "", icon: <List className="h-4 w-4" /> },
+                  ]}
+                />
+                <button className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-slate-700">
+                  <Plus className="h-4 w-4" /> Tạo dự án
+                </button>
               </div>
-            ))}
-          </div>
-        ) : (
-          <>
-          <div className="-mx-2 overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse text-left">
-              <thead>
-                <tr className="border-b border-slate-100 text-[11px] uppercase tracking-wide text-slate-400">
-                  <th className="px-3 py-2 font-semibold">Dự án</th>
-                  <th className="px-3 py-2 text-right font-semibold">Sơ đồ</th>
-                  <th className="px-3 py-2 text-right font-semibold">Thành viên</th>
-                  <th className="px-3 py-2 font-semibold">Cập nhật</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageGroups.map((g) => {
-                  const isOpen = expanded.has(g.key);
+            </div>
+
+            {view === "grid" ? (
+              allLoading && allProjects.length === 0 ? (
+                <div className="flex items-center justify-center py-16 text-slate-400">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : allProjects.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-16">
+                  <p className="text-[15px] font-medium text-slate-400">Không có dự án nào</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {allProjects.map((p) => (
+                    <ProjectCard key={p.id} p={p} showOwner />
+                  ))}
+                </div>
+              )
+            ) : error ? (
+              <p className="py-10 text-center text-[13px] text-rose-500">{error}</p>
+            ) : owners.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-4 py-16">
+                <svg viewBox="0 0 120 120" className="h-28 w-28 text-slate-300" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 30h38l8 12h42v52H16z" strokeDasharray="4 3" />
+                  <path d="M36 60h48M36 74h36" />
+                  <circle cx="90" cy="44" r="3" />
+                </svg>
+                <p className="text-[15px] font-medium text-slate-400">Không có dự án nào</p>
+                <p className="text-[13px] text-slate-400">Danh sách dự án sẽ hiển thị tại đây khi có dữ liệu.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {owners.map((owner) => {
+                  const name = owner.ownerName ?? owner.ownerEmail ?? "Không rõ";
+                  const isOpen = expanded.has(owner.ownerId);
+                  const data = ownerData[owner.ownerId];
+                  const remaining = data ? data.totalElements - data.items.length : owner.projectCount;
                   return (
-                    <Fragment key={g.key}>
-                      {/* Dòng cha: chủ sở hữu */}
-                      <tr
-                        onClick={() => toggleOwner(g.key)}
-                        className="cursor-pointer border-b border-slate-100 bg-slate-50/50 transition hover:bg-slate-100/70"
+                    <div key={owner.ownerId} className="overflow-hidden rounded-xl border border-slate-200">
+                      <button
+                        onClick={() => toggleOwner(owner.ownerId)}
+                        className="flex w-full items-center gap-2.5 bg-slate-50/60 px-4 py-3 text-left transition hover:bg-slate-100/70"
                       >
-                        <td colSpan={4} className="px-3 py-2.5">
-                          <div className="flex items-center gap-2.5">
-                            <ChevronRight className={cn("h-4 w-4 shrink-0 text-slate-400 transition-transform", isOpen && "rotate-90")} />
-                            <Avatar initials={getInitials(g.name)} color={hashColor(g.name)} size="h-7 w-7" />
-                            <span className="text-[13px] font-semibold text-slate-900">{g.name}</span>
-                            <Badge tone="slate">{g.projects.length} dự án</Badge>
-                          </div>
-                        </td>
-                      </tr>
-                      {/* Dòng con: các dự án của chủ sở hữu */}
-                      {isOpen && g.projects.map((p) => (
-                        <tr key={p.id} className="border-b border-slate-50 transition hover:bg-slate-50">
-                          <td className="px-3 py-2.5 pl-11">
-                            <div className="flex items-center gap-2.5">
-                              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><FolderKanban className="h-4 w-4" /></span>
-                              <div>
-                                <p className="text-[13px] font-medium text-slate-900">{p.projectName}</p>
-                                <p className="text-[11.5px] text-slate-400">{p.description ?? "—"}</p>
-                              </div>
+                        <ChevronRight className={cn("h-4 w-4 shrink-0 text-slate-400 transition-transform", isOpen && "rotate-90")} />
+                        <Avatar initials={getInitials(name)} color={hashColor(name)} size="h-7 w-7" />
+                        <span className="text-[13px] font-semibold text-slate-900">{name}</span>
+                        {owner.ownerEmail && owner.ownerName && (
+                          <span className="text-[11.5px] text-slate-400">{owner.ownerEmail}</span>
+                        )}
+                        <Badge tone="slate">{owner.projectCount} dự án</Badge>
+                      </button>
+
+                      {isOpen && (
+                        <div className="border-t border-slate-100 p-4">
+                          {data?.loading && data.items.length === 0 ? (
+                            <div className="flex items-center justify-center py-6 text-slate-400">
+                              <Loader2 className="h-5 w-5 animate-spin" />
                             </div>
-                          </td>
-                          <td className="px-3 py-2.5 text-right text-[13px] font-semibold text-slate-900">{p.diagramCount ?? "—"}</td>
-                          <td className="px-3 py-2.5 text-right text-[13px] text-slate-600">—</td>
-                          <td className="px-3 py-2.5 text-[12px] text-slate-400">{relativeTime(p.updatedAt)}</td>
-                        </tr>
-                      ))}
-                    </Fragment>
+                          ) : (
+                            // Xem theo cá nhân: dự án bên trong luôn là bảng gọn (không dùng card bự)
+                            <div className="-mx-2 overflow-x-auto">
+                              <table className="w-full min-w-[560px] border-collapse text-left">
+                                <thead>
+                                  <tr className="border-b border-slate-100 text-[11px] uppercase tracking-wide text-slate-400">
+                                    <th className="px-3 py-2 font-semibold">Dự án</th>
+                                    <th className="px-3 py-2 text-right font-semibold">Sơ đồ</th>
+                                    <th className="px-3 py-2 font-semibold">Cập nhật</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(data?.items ?? []).map((p) => (
+                                    <tr key={p.id} className="border-b border-slate-50 transition hover:bg-slate-50">
+                                      <td className="px-3 py-2.5">
+                                        <div className="flex items-center gap-2.5">
+                                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><FolderKanban className="h-4 w-4" /></span>
+                                          <div>
+                                            <p className="text-[13px] font-medium text-slate-900">{p.projectName}</p>
+                                            <p className="text-[11.5px] text-slate-400">{p.description ?? "—"}</p>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="px-3 py-2.5 text-right text-[13px] font-semibold text-slate-900">{p.diagramCount ?? "—"}</td>
+                                      <td className="px-3 py-2.5 text-[12px] text-slate-400">{relativeTime(p.updatedAt)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+
+                          {data && remaining > 0 && (
+                            <div className="mt-3 flex justify-center">
+                              <button
+                                onClick={() => loadOwnerProjects(owner.ownerId, data.page + 1)}
+                                disabled={data.loading}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-1.5 text-[13px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                              >
+                                {data.loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                                Tải thêm (còn {remaining})
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            )}
 
-          {pageCount > 1 && (
-            <Pagination page={page} totalPages={pageCount} totalElements={groups.length} onChange={setPage} />
-          )}
-          </>
-        )}
-      </Card>
-      </div>
+            {view === "grid"
+              ? allTotalPages > 1 && (
+                  <Pagination page={allPage} totalPages={allTotalPages} totalElements={allTotalElements} onChange={setAllPage} />
+                )
+              : !error && ownersTotalPages > 1 && (
+                  <Pagination page={ownersPage} totalPages={ownersTotalPages} totalElements={ownersTotalElements} onChange={setOwnersPage} />
+                )}
+          </Card>
+        </div>
       )}
     </div>
   );
 }
-

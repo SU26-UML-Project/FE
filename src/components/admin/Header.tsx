@@ -1,8 +1,5 @@
-import { useEffect, useState } from "react";
-import { Bell, Menu, Search } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import type { User } from "../../types/auth";
-import { notificationService } from "../../services/notificationService";
-import NotificationPanel from "./NotificationPanel";
 
 export default function Topbar({
   title,
@@ -15,24 +12,6 @@ export default function Topbar({
   onOpenSidebar: () => void;
   user: User | null;
 }) {
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  const fetchUnreadCount = async () => {
-    try {
-      const res = await notificationService.getAll({ page: 0, size: 1, read: false });
-      setUnreadCount(res.totalElements);
-    } catch {
-      /* ignore */
-    }
-  };
-
-  useEffect(() => {
-    fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
       <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
@@ -69,21 +48,8 @@ export default function Topbar({
 
         <div className="ml-auto flex items-center gap-2 md:ml-0">
           <span className="hidden text-[13px] font-medium text-slate-600 md:inline">{user?.fullName ?? user?.username ?? "Admin"}</span>
-          <button
-            onClick={() => setNotifOpen(true)}
-            className="relative rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
-          >
-            <Bell className="h-[18px] w-[18px]" />
-            {unreadCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
-            )}
-          </button>
         </div>
       </div>
-
-      <NotificationPanel open={notifOpen} onClose={() => { setNotifOpen(false); fetchUnreadCount(); }} />
     </header>
   );
 }

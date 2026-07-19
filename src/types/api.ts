@@ -19,3 +19,15 @@ export interface Page<T> {
   first: boolean;
   last: boolean;
 }
+
+/**
+ * Envelope phân trang chuẩn của BE (dto.response.PagedResponse) — khác Page<T> của Spring:
+ * dùng `page` (không phải `number`) và không có first/last.
+ */
+export interface PagedResponse<T> {
+  content: T[];
+  page: number;          // trang hiện tại (0-based)
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
