@@ -477,10 +477,11 @@ export function Editor() {
                 position: { x: newRelX, y: newRelY }
               } : n
           );
+          const sorted = sortParentBeforeChild(next);
           if (!skipCollabEmit.current) {
-            emitCanvasChange({ nodes: next, type: "update" });
+            emitCanvasChange({ nodes: sorted, type: "update" });
           }
-          return next;
+          return sorted;
         });
       },
       [beginMutation, setNodes, emitCanvasChange]
@@ -1091,7 +1092,7 @@ export function Editor() {
           const { nodes: l1, edges: e1 } = await layoutElements(
               nodesRef.current,
               edgesRef.current,
-              { diagramType }
+              { diagramType, direction: _direction as "TB" | "LR" }
           );
           setNodes(l1);
           setEdges(e1);
@@ -1104,7 +1105,7 @@ export function Editor() {
           const { nodes: finalNodes, edges: finalEdges } = await layoutElements(
               nodesRef.current,
               edgesRef.current,
-              { diagramType }
+              { diagramType, direction: _direction as "TB" | "LR" }
           );
 
           // Fade in with opacity:1
@@ -2327,6 +2328,9 @@ export function Editor() {
                         onPaneContextMenu={onPaneCtx}
                         onMove={(_, vp) => setZoom(vp.zoom)}
                         connectionMode={ConnectionMode.Loose}
+                        connectionRadius={24}
+                        connectionLineType="straight"
+                        connectionLineStyle={{ stroke: "#2563eb", strokeWidth: 2, strokeDasharray: "5,5" }}
                         deleteKeyCode={null}
                         selectionOnDrag
                         selectionMode={SelectionMode.Partial}

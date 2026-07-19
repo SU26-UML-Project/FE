@@ -259,7 +259,7 @@ export function ClassNode({ id, data, selected, height }: NodeProps) {
     const minH = useContentHeight(contentRef, [d.label, d.stereotype, d.attributes, d.methods]);
     useAutoGrow(id, height as number | undefined, minH);
     return (
-        <div className="relative flex h-full w-full flex-col overflow-hidden"
+        <div className="relative flex h-full w-full flex-col"
              style={{ border: `1.5px solid ${ink}`, background: fillColor(d) }}>
             <Resizer selected={selected} minW={170} minH={minH || 90} />
             <AllHandles />
@@ -288,7 +288,7 @@ export function ComponentNode({ id, data, selected, height }: NodeProps) {
     const minH = useContentHeight(contentRef, [d.label, d.stereotype]);
     useAutoGrow(id, height as number | undefined, minH);
     return (
-        <div className="relative h-full w-full overflow-hidden"
+        <div className="relative h-full w-full"
              style={{ border: `1.5px solid ${ink}`, background: fillColor(d) }}>
             <Resizer selected={selected} minW={140} minH={minH || 64} />
             <AllHandles />
@@ -398,7 +398,7 @@ export function StateNode({ id, data, selected, height }: NodeProps) {
     const minH = useContentHeight(contentRef, [d.label, d.attributes]);
     useAutoGrow(id, height as number | undefined, minH);
     return (
-        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[8px]"
+        <div className="relative flex h-full w-full flex-col rounded-[8px]"
              style={{ border: `1.5px solid ${ink}`, background: fillColor(d) }}>
             <Resizer selected={selected} minW={110} minH={minH || 48} />
             <AllHandles />

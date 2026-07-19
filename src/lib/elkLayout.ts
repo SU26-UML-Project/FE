@@ -248,7 +248,7 @@ export function finalizeLayout(nodes: FlowNode[], edges: FlowEdge[] = []): FlowN
       pkg.position = { x: pkgX, y: pkgY };
       pkg.width = pkgW;
       pkg.height = pkgH;
-      pkg.style = { ...pkg.style, width: pkgW, height: pkgH };
+      pkg.style = { ...pkg.style, width: pkgW, height: pkgH, pointerEvents: "none" };
       pkg.zIndex = -1; // Ensure package is behind everything
     }
   }
@@ -295,6 +295,10 @@ async function elkLayout(
 ): Promise<{ nodes: FlowNode[]; edges: FlowEdge[] }> {
   if (!nodes.length) return { nodes, edges };
 
+  // Filter out any dangling edges whose source or target node is missing from nodes list!
+  const nodeIds = new Set(nodes.map(n => n.id));
+  const validEdges = edges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target));
+
   // Helper to build ELK hierarchy
   const buildElkGraph = (parentId?: string) => {
     const children = nodes.filter(n => n.parentId === parentId);
@@ -313,7 +317,7 @@ async function elkLayout(
       return { id: n.id, width: sz.width, height: sz.height };
     });
 
-    const elkEdges = edges.filter(e => {
+    const elkEdges = validEdges.filter(e => {
       const s = nodes.find(n => n.id === e.source);
       const t = nodes.find(n => n.id === e.target);
       return s?.parentId === parentId && t?.parentId === parentId;
@@ -334,7 +338,7 @@ async function elkLayout(
   const rootGraph = buildElkGraph(undefined);
 
   // Cross-hierarchy edges (edges between nodes in different packages)
-  const crossEdges = edges.filter(e => {
+  const crossEdges = validEdges.filter(e => {
     const s = nodes.find(n => n.id === e.source);
     const t = nodes.find(n => n.id === e.target);
     return s?.parentId !== t?.parentId;
@@ -885,7 +889,7 @@ export function layoutActivityWithSwimlanes(
     lane.width = info.width;
     lane.height = maxHeight;
     lane.position = { x: info.x, y: 0 };
-    lane.style = { ...(lane.style as object), width: info.width, height: maxHeight };
+    lane.style = { ...(lane.style as object), width: info.width, height: maxHeight, pointerEvents: "none" };
   }
 
   // ============================================
