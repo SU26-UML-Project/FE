@@ -81,7 +81,9 @@ const PaymentInformationPage = () => {
     setLoading(true)
     try {
       const planId = plan?.id ?? '33333333-3333-3333-3333-333333333333'
-      const response = await apiClient.post('/payments/create', { planId });
+      const returnUrl = window.location.origin + '/'
+      const cancelUrl = window.location.origin + '/'
+      const response = await apiClient.post('/payments/create', { planId, returnUrl, cancelUrl });
       const checkoutUrl = response?.result?.checkoutUrl ?? response?.checkoutUrl;
 
       if (checkoutUrl) {
