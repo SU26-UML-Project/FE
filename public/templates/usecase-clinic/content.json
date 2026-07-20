@@ -31,7 +31,7 @@
   ],
   "previewImage": "/examples/templates/usecase-clinic.svg",
   "nodeCount": 10,
-  "edgeCount": 8,
+  "edgeCount": 7,
   "createdFor": "Sample Library",
   "canvasData": {
     "diagramType": "usecase",
@@ -41,24 +41,24 @@
         "type": "boundary",
         "position": {
           "x": 150,
-          "y": 20
+          "y": 30
         },
         "data": {
           "label": "Clinic System"
         },
-        "width": 680,
-        "height": 390,
+        "width": 660,
+        "height": 465,
         "style": {
-          "width": 680,
-          "height": 390
+          "width": 660,
+          "height": 465
         }
       },
       {
         "id": "a0",
         "type": "actor",
         "position": {
-          "x": 20,
-          "y": 70
+          "x": 35,
+          "y": 95
         },
         "data": {
           "label": "Patient"
@@ -74,8 +74,8 @@
         "id": "a1",
         "type": "actor",
         "position": {
-          "x": 860,
-          "y": 70
+          "x": 35,
+          "y": 265
         },
         "data": {
           "label": "Receptionist"
@@ -91,8 +91,8 @@
         "id": "a2",
         "type": "actor",
         "position": {
-          "x": 20,
-          "y": 260
+          "x": 35,
+          "y": 435
         },
         "data": {
           "label": "Doctor"
@@ -108,8 +108,8 @@
         "id": "u0",
         "type": "usecase",
         "position": {
-          "x": 210,
-          "y": 80
+          "x": 55,
+          "y": 75
         },
         "data": {
           "label": "Book Appointment"
@@ -119,14 +119,16 @@
         "style": {
           "width": 170,
           "height": 80
-        }
+        },
+        "parentId": "system",
+        "extent": "parent"
       },
       {
         "id": "u1",
         "type": "usecase",
         "position": {
-          "x": 420,
-          "y": 80
+          "x": 265,
+          "y": 75
         },
         "data": {
           "label": "Confirm Appointment"
@@ -136,14 +138,16 @@
         "style": {
           "width": 170,
           "height": 80
-        }
+        },
+        "parentId": "system",
+        "extent": "parent"
       },
       {
         "id": "u2",
         "type": "usecase",
         "position": {
-          "x": 630,
-          "y": 80
+          "x": 475,
+          "y": 75
         },
         "data": {
           "label": "Check In"
@@ -153,14 +157,16 @@
         "style": {
           "width": 170,
           "height": 80
-        }
+        },
+        "parentId": "system",
+        "extent": "parent"
       },
       {
         "id": "u3",
         "type": "usecase",
         "position": {
-          "x": 210,
-          "y": 225
+          "x": 55,
+          "y": 200
         },
         "data": {
           "label": "View Medical Record"
@@ -170,14 +176,16 @@
         "style": {
           "width": 170,
           "height": 80
-        }
+        },
+        "parentId": "system",
+        "extent": "parent"
       },
       {
         "id": "u4",
         "type": "usecase",
         "position": {
-          "x": 420,
-          "y": 225
+          "x": 265,
+          "y": 200
         },
         "data": {
           "label": "Cancel Appointment"
@@ -187,14 +195,16 @@
         "style": {
           "width": 170,
           "height": 80
-        }
+        },
+        "parentId": "system",
+        "extent": "parent"
       },
       {
         "id": "u5",
         "type": "usecase",
         "position": {
-          "x": 630,
-          "y": 225
+          "x": 475,
+          "y": 200
         },
         "data": {
           "label": "Send Reminder"
@@ -204,7 +214,9 @@
         "style": {
           "width": 170,
           "height": 80
-        }
+        },
+        "parentId": "system",
+        "extent": "parent"
       }
     ],
     "edges": [
@@ -212,6 +224,18 @@
         "id": "e-a0-u0",
         "source": "a0",
         "target": "u0",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-a0-u4",
+        "source": "a0",
+        "target": "u4",
         "type": "bezier",
         "label": "",
         "data": {
@@ -233,8 +257,8 @@
         }
       },
       {
-        "id": "e-a2-u2",
-        "source": "a2",
+        "id": "e-a1-u2",
+        "source": "a1",
         "target": "u2",
         "type": "bezier",
         "label": "",
@@ -245,8 +269,8 @@
         }
       },
       {
-        "id": "e-a0-u3",
-        "source": "a0",
+        "id": "e-a2-u3",
+        "source": "a2",
         "target": "u3",
         "type": "bezier",
         "label": "",
@@ -257,34 +281,10 @@
         }
       },
       {
-        "id": "e-a1-u4",
-        "source": "a1",
-        "target": "u4",
-        "type": "bezier",
-        "label": "",
-        "data": {
-          "marker": "",
-          "markerStart": "",
-          "dashed": false
-        }
-      },
-      {
-        "id": "e-a2-u5",
-        "source": "a2",
+        "id": "e-u0-u5",
+        "source": "u0",
         "target": "u5",
         "type": "bezier",
-        "label": "",
-        "data": {
-          "marker": "",
-          "markerStart": "",
-          "dashed": false
-        }
-      },
-      {
-        "id": "e-u3-u4",
-        "source": "u3",
-        "target": "u4",
-        "type": "smoothstep",
         "label": "«include»",
         "data": {
           "marker": "url(#m-arrow-open)",
@@ -293,10 +293,10 @@
         }
       },
       {
-        "id": "e-u5-u4",
-        "source": "u5",
-        "target": "u4",
-        "type": "smoothstep",
+        "id": "e-u4-u1",
+        "source": "u4",
+        "target": "u1",
+        "type": "bezier",
         "label": "«extend»",
         "data": {
           "marker": "url(#m-arrow-open)",

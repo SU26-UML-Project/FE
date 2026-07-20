@@ -30,7 +30,7 @@
     }
   ],
   "previewImage": "/examples/templates/usecase-marketplace.svg",
-  "nodeCount": 10,
+  "nodeCount": 11,
   "edgeCount": 8,
   "createdFor": "Sample Library",
   "canvasData": {
@@ -41,24 +41,24 @@
         "type": "boundary",
         "position": {
           "x": 150,
-          "y": 20
+          "y": 30
         },
         "data": {
           "label": "Marketplace System"
         },
-        "width": 680,
-        "height": 390,
+        "width": 660,
+        "height": 465,
         "style": {
-          "width": 680,
-          "height": 390
+          "width": 660,
+          "height": 465
         }
       },
       {
         "id": "a0",
         "type": "actor",
         "position": {
-          "x": 20,
-          "y": 70
+          "x": 35,
+          "y": 95
         },
         "data": {
           "label": "Customer"
@@ -74,8 +74,8 @@
         "id": "a1",
         "type": "actor",
         "position": {
-          "x": 860,
-          "y": 70
+          "x": 35,
+          "y": 265
         },
         "data": {
           "label": "Seller"
@@ -91,8 +91,8 @@
         "id": "a2",
         "type": "actor",
         "position": {
-          "x": 20,
-          "y": 260
+          "x": 875,
+          "y": 170
         },
         "data": {
           "label": "Payment Gateway"
@@ -108,8 +108,8 @@
         "id": "u0",
         "type": "usecase",
         "position": {
-          "x": 210,
-          "y": 80
+          "x": 55,
+          "y": 75
         },
         "data": {
           "label": "Browse Catalog"
@@ -119,14 +119,16 @@
         "style": {
           "width": 170,
           "height": 80
-        }
+        },
+        "parentId": "system",
+        "extent": "parent"
       },
       {
         "id": "u1",
         "type": "usecase",
         "position": {
-          "x": 420,
-          "y": 80
+          "x": 265,
+          "y": 75
         },
         "data": {
           "label": "Manage Cart"
@@ -136,14 +138,16 @@
         "style": {
           "width": 170,
           "height": 80
-        }
+        },
+        "parentId": "system",
+        "extent": "parent"
       },
       {
         "id": "u2",
         "type": "usecase",
         "position": {
-          "x": 630,
-          "y": 80
+          "x": 475,
+          "y": 75
         },
         "data": {
           "label": "Checkout"
@@ -153,14 +157,16 @@
         "style": {
           "width": 170,
           "height": 80
-        }
+        },
+        "parentId": "system",
+        "extent": "parent"
       },
       {
         "id": "u3",
         "type": "usecase",
         "position": {
-          "x": 210,
-          "y": 225
+          "x": 55,
+          "y": 200
         },
         "data": {
           "label": "Process Payment"
@@ -170,14 +176,16 @@
         "style": {
           "width": 170,
           "height": 80
-        }
+        },
+        "parentId": "system",
+        "extent": "parent"
       },
       {
         "id": "u4",
         "type": "usecase",
         "position": {
-          "x": 420,
-          "y": 225
+          "x": 265,
+          "y": 200
         },
         "data": {
           "label": "Track Order"
@@ -187,14 +195,16 @@
         "style": {
           "width": 170,
           "height": 80
-        }
+        },
+        "parentId": "system",
+        "extent": "parent"
       },
       {
         "id": "u5",
         "type": "usecase",
         "position": {
-          "x": 630,
-          "y": 225
+          "x": 475,
+          "y": 200
         },
         "data": {
           "label": "Manage Products"
@@ -204,7 +214,28 @@
         "style": {
           "width": 170,
           "height": 80
-        }
+        },
+        "parentId": "system",
+        "extent": "parent"
+      },
+      {
+        "id": "u6",
+        "type": "usecase",
+        "position": {
+          "x": 55,
+          "y": 325
+        },
+        "data": {
+          "label": "Apply Promotion"
+        },
+        "width": 170,
+        "height": 80,
+        "style": {
+          "width": 170,
+          "height": 80
+        },
+        "parentId": "system",
+        "extent": "parent"
       }
     ],
     "edges": [
@@ -221,8 +252,8 @@
         }
       },
       {
-        "id": "e-a1-u1",
-        "source": "a1",
+        "id": "e-a0-u1",
+        "source": "a0",
         "target": "u1",
         "type": "bezier",
         "label": "",
@@ -233,8 +264,8 @@
         }
       },
       {
-        "id": "e-a2-u2",
-        "source": "a2",
+        "id": "e-a0-u2",
+        "source": "a0",
         "target": "u2",
         "type": "bezier",
         "label": "",
@@ -245,20 +276,8 @@
         }
       },
       {
-        "id": "e-a0-u3",
+        "id": "e-a0-u4",
         "source": "a0",
-        "target": "u3",
-        "type": "bezier",
-        "label": "",
-        "data": {
-          "marker": "",
-          "markerStart": "",
-          "dashed": false
-        }
-      },
-      {
-        "id": "e-a1-u4",
-        "source": "a1",
         "target": "u4",
         "type": "bezier",
         "label": "",
@@ -269,8 +288,8 @@
         }
       },
       {
-        "id": "e-a2-u5",
-        "source": "a2",
+        "id": "e-a1-u5",
+        "source": "a1",
         "target": "u5",
         "type": "bezier",
         "label": "",
@@ -281,10 +300,22 @@
         }
       },
       {
-        "id": "e-u3-u4",
-        "source": "u3",
-        "target": "u4",
-        "type": "smoothstep",
+        "id": "e-a2-u3",
+        "source": "a2",
+        "target": "u3",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-u2-u3",
+        "source": "u2",
+        "target": "u3",
+        "type": "bezier",
         "label": "«include»",
         "data": {
           "marker": "url(#m-arrow-open)",
@@ -293,10 +324,10 @@
         }
       },
       {
-        "id": "e-u5-u4",
-        "source": "u5",
-        "target": "u4",
-        "type": "smoothstep",
+        "id": "e-u6-u2",
+        "source": "u6",
+        "target": "u2",
+        "type": "bezier",
         "label": "«extend»",
         "data": {
           "marker": "url(#m-arrow-open)",

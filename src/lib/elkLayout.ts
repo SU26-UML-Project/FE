@@ -44,7 +44,7 @@ function estimateSize(node: FlowNode): { width: number; height: number } {
 /* ============================================================
    HANDLE ASSIGNMENT — multi-point (25/50/75) per side
    ============================================================ */
-function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
+function assignHandles(nodes: FlowNode[], edges: FlowEdge[], diagramType?: DiagramType): FlowEdge[] {
     const nodeById = new Map(nodes.map(node => [node.id, node]));
     const absolutePosition = (node: FlowNode): { x: number; y: number } => {
         let x = node.position.x, y = node.position.y;
@@ -88,7 +88,10 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
 
     const clamp = (v: number) => Math.max(0, Math.min(100, v));
 
-    const isActivity = nodes.some(n => n.type === "swimlane" || n.type === "start" || n.type === "final" || n.type === "decision");
+    // State Machines also use Initial/Final pseudostates. Infer Activity only
+    // from the explicit diagram type so State transitions can use side handles
+    // for branches instead of being forced into a bottom-to-top flow.
+    const isActivity = diagramType === "activity";
 
     return edges.map((e) => {
         const s = posMap.get(e.source);
@@ -432,7 +435,10 @@ async function elkLayout(
 
     // Re-run finalizeLayout to fix package sizes and relative positions
     const finalNodes = finalizeLayout(layoutedNodes);
-    const layoutedEdges = assignHandles(finalNodes, edges);
+    // State branches must remain orthogonal. A straight diagonal can cross the
+    // main lifecycle and makes terminal states difficult to follow.
+    const routedEdges = type === "state" ? edges.map(edge => ({ ...edge, type: "smoothstep" })) : edges;
+    const layoutedEdges = assignHandles(finalNodes, routedEdges, type);
 
     return { nodes: finalNodes, edges: layoutedEdges };
 }
@@ -485,7 +491,7 @@ function layoutUseCase(
     const others = nodes.filter((n) => n.type !== "actor" && n.type !== "usecase" && n.type !== "package" && n.type !== "boundary");
 
     if (!useCases.length && !actors.length) {
-        return { nodes, edges: assignHandles(nodes, edges) };
+        return { nodes, edges: assignHandles(nodes, edges, "usecase") };
     }
 
     // 1. Build adjacency
@@ -717,7 +723,7 @@ function layoutUseCase(
     // Use finalizeLayout to wrap packages around their children
     const finalNodes = finalizeLayout(allNodes);
 
-    const layoutedEdges = assignHandles(finalNodes, edges).map((e) => ({
+    const layoutedEdges = assignHandles(finalNodes, edges, "usecase").map((e) => ({
         ...e,
         type: "bezier",
         zIndex: 10,
@@ -997,7 +1003,7 @@ export function layoutActivityWithSwimlanes(
         return e;
     });
 
-    const finalEdges = assignHandles(nodes, layoutedEdges as FlowEdge[]);
+    const finalEdges = assignHandles(nodes, layoutedEdges as FlowEdge[], "activity");
     return { nodes, edges: finalEdges };
 }
 

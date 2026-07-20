@@ -30,8 +30,8 @@
     }
   ],
   "previewImage": "/examples/templates/state-order.svg",
-  "nodeCount": 8,
-  "edgeCount": 8,
+  "nodeCount": 9,
+  "edgeCount": 10,
   "createdFor": "Sample Library",
   "canvasData": {
     "diagramType": "state",
@@ -40,8 +40,8 @@
         "id": "start",
         "type": "start",
         "position": {
-          "x": 30,
-          "y": 150
+          "x": 40,
+          "y": 90
         },
         "data": {
           "label": ""
@@ -57,110 +57,127 @@
         "id": "s0",
         "type": "state",
         "position": {
-          "x": 110,
-          "y": 140
+          "x": 130,
+          "y": 160
         },
         "data": {
           "label": "Draft"
         },
-        "width": 145,
-        "height": 62,
+        "width": 170,
+        "height": 64,
         "style": {
-          "width": 145,
-          "height": 62
+          "width": 170,
+          "height": 64
         }
       },
       {
         "id": "s1",
         "type": "state",
         "position": {
-          "x": 280,
-          "y": 140
+          "x": 130,
+          "y": 265
         },
         "data": {
           "label": "Pending Payment"
         },
-        "width": 145,
-        "height": 62,
+        "width": 170,
+        "height": 64,
         "style": {
-          "width": 145,
-          "height": 62
+          "width": 170,
+          "height": 64
         }
       },
       {
         "id": "s2",
         "type": "state",
         "position": {
-          "x": 450,
-          "y": 140
+          "x": 130,
+          "y": 370
         },
         "data": {
           "label": "Paid"
         },
-        "width": 145,
-        "height": 62,
+        "width": 170,
+        "height": 64,
         "style": {
-          "width": 145,
-          "height": 62
+          "width": 170,
+          "height": 64
         }
       },
       {
         "id": "s3",
         "type": "state",
         "position": {
-          "x": 620,
-          "y": 140
+          "x": 130,
+          "y": 475
         },
         "data": {
           "label": "Processing"
         },
-        "width": 145,
-        "height": 62,
+        "width": 170,
+        "height": 64,
         "style": {
-          "width": 145,
-          "height": 62
+          "width": 170,
+          "height": 64
         }
       },
       {
         "id": "s4",
         "type": "state",
         "position": {
-          "x": 790,
-          "y": 140
+          "x": 130,
+          "y": 580
         },
         "data": {
           "label": "Shipped"
         },
-        "width": 145,
-        "height": 62,
+        "width": 170,
+        "height": 64,
         "style": {
-          "width": 145,
-          "height": 62
+          "width": 170,
+          "height": 64
         }
       },
       {
         "id": "s5",
         "type": "state",
         "position": {
-          "x": 960,
-          "y": 140
+          "x": 130,
+          "y": 685
         },
         "data": {
           "label": "Delivered"
         },
-        "width": 145,
-        "height": 62,
+        "width": 170,
+        "height": 64,
         "style": {
-          "width": 145,
-          "height": 62
+          "width": 170,
+          "height": 64
+        }
+      },
+      {
+        "id": "terminal",
+        "type": "state",
+        "position": {
+          "x": 420,
+          "y": 460
+        },
+        "data": {
+          "label": "Cancelled"
+        },
+        "width": 170,
+        "height": 64,
+        "style": {
+          "width": 170,
+          "height": 64
         }
       },
       {
         "id": "end",
         "type": "final",
         "position": {
-          "x": 1150,
-          "y": 150
+          "x": 680,
+          "y": 340
         },
         "data": {
           "label": ""
@@ -179,7 +196,7 @@
         "source": "start",
         "target": "s0",
         "type": "smoothstep",
-        "label": "",
+        "label": "create",
         "data": {
           "marker": "url(#m-arrow)",
           "markerStart": "",
@@ -191,7 +208,7 @@
         "source": "s0",
         "target": "s1",
         "type": "smoothstep",
-        "label": "next",
+        "label": "checkout",
         "data": {
           "marker": "url(#m-arrow)",
           "markerStart": "",
@@ -203,7 +220,7 @@
         "source": "s1",
         "target": "s2",
         "type": "smoothstep",
-        "label": "next",
+        "label": "[paid]",
         "data": {
           "marker": "url(#m-arrow)",
           "markerStart": "",
@@ -215,7 +232,7 @@
         "source": "s2",
         "target": "s3",
         "type": "smoothstep",
-        "label": "next",
+        "label": "fulfill",
         "data": {
           "marker": "url(#m-arrow)",
           "markerStart": "",
@@ -227,7 +244,7 @@
         "source": "s3",
         "target": "s4",
         "type": "smoothstep",
-        "label": "next",
+        "label": "ship",
         "data": {
           "marker": "url(#m-arrow)",
           "markerStart": "",
@@ -239,7 +256,7 @@
         "source": "s4",
         "target": "s5",
         "type": "smoothstep",
-        "label": "next",
+        "label": "deliver",
         "data": {
           "marker": "url(#m-arrow)",
           "markerStart": "",
@@ -259,11 +276,35 @@
         }
       },
       {
-        "id": "e-s1-s0",
+        "id": "e-terminal-end",
+        "source": "terminal",
+        "target": "end",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s0-terminal",
+        "source": "s0",
+        "target": "terminal",
+        "type": "smoothstep",
+        "label": "[cancelled]",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s1-terminal",
         "source": "s1",
-        "target": "s0",
-        "type": "bezier",
-        "label": "cancel",
+        "target": "terminal",
+        "type": "smoothstep",
+        "label": "[payment failed]",
         "data": {
           "marker": "url(#m-arrow)",
           "markerStart": "",

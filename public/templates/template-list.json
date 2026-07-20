@@ -84,7 +84,7 @@
     "kind": "sample",
     "description": "Xác định actors và các chức năng chính trong luồng checkout marketplace.",
     "shortDescription": "Xác định actors và các chức năng chính trong luồng checkout marketplace.",
-    "nodeCount": 10,
+    "nodeCount": 11,
     "edgeCount": 8,
     "createdFor": "Sample Library",
     "previewImage": "/examples/templates/usecase-marketplace.svg"
@@ -100,7 +100,7 @@
     "description": "Mô tả chức năng đặt và quản lý lịch hẹn phòng khám.",
     "shortDescription": "Mô tả chức năng đặt và quản lý lịch hẹn phòng khám.",
     "nodeCount": 10,
-    "edgeCount": 8,
+    "edgeCount": 7,
     "createdFor": "Sample Library",
     "previewImage": "/examples/templates/usecase-clinic.svg"
   },
@@ -114,8 +114,8 @@
     "kind": "sample",
     "description": "Mô tả workflow xử lý đơn hàng từ checkout đến giao hàng.",
     "shortDescription": "Mô tả workflow xử lý đơn hàng từ checkout đến giao hàng.",
-    "nodeCount": 8,
-    "edgeCount": 8,
+    "nodeCount": 9,
+    "edgeCount": 9,
     "createdFor": "Sample Library",
     "previewImage": "/examples/templates/activity-fulfillment.svg"
   },
@@ -129,8 +129,8 @@
     "kind": "sample",
     "description": "Mô tả workflow kiểm tra và xử lý chuyển tiền.",
     "shortDescription": "Mô tả workflow kiểm tra và xử lý chuyển tiền.",
-    "nodeCount": 8,
-    "edgeCount": 8,
+    "nodeCount": 9,
+    "edgeCount": 9,
     "createdFor": "Sample Library",
     "previewImage": "/examples/templates/activity-transfer.svg"
   },

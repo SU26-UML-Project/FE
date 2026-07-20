@@ -47,24 +47,24 @@
               "type": "boundary",
               "position": {
                 "x": 150,
-                "y": 20
+                "y": 30
               },
               "data": {
                 "label": "Digital Banking Platform"
               },
-              "width": 680,
-              "height": 390,
+              "width": 660,
+              "height": 465,
               "style": {
-                "width": 680,
-                "height": 390
+                "width": 660,
+                "height": 465
               }
             },
             {
               "id": "a0",
               "type": "actor",
               "position": {
-                "x": 20,
-                "y": 70
+                "x": 35,
+                "y": 95
               },
               "data": {
                 "label": "Customer"
@@ -80,8 +80,8 @@
               "id": "a1",
               "type": "actor",
               "position": {
-                "x": 860,
-                "y": 70
+                "x": 35,
+                "y": 265
               },
               "data": {
                 "label": "Banking Staff"
@@ -97,8 +97,8 @@
               "id": "a2",
               "type": "actor",
               "position": {
-                "x": 20,
-                "y": 260
+                "x": 35,
+                "y": 435
               },
               "data": {
                 "label": "Admin"
@@ -114,8 +114,8 @@
               "id": "a3",
               "type": "actor",
               "position": {
-                "x": 860,
-                "y": 260
+                "x": 875,
+                "y": 170
               },
               "data": {
                 "label": "Fraud Service"
@@ -131,8 +131,8 @@
               "id": "u0",
               "type": "usecase",
               "position": {
-                "x": 210,
-                "y": 80
+                "x": 55,
+                "y": 75
               },
               "data": {
                 "label": "Authenticate"
@@ -142,14 +142,16 @@
               "style": {
                 "width": 170,
                 "height": 80
-              }
+              },
+              "parentId": "system",
+              "extent": "parent"
             },
             {
               "id": "u1",
               "type": "usecase",
               "position": {
-                "x": 420,
-                "y": 80
+                "x": 265,
+                "y": 75
               },
               "data": {
                 "label": "View Balance"
@@ -159,14 +161,16 @@
               "style": {
                 "width": 170,
                 "height": 80
-              }
+              },
+              "parentId": "system",
+              "extent": "parent"
             },
             {
               "id": "u2",
               "type": "usecase",
               "position": {
-                "x": 630,
-                "y": 80
+                "x": 475,
+                "y": 75
               },
               "data": {
                 "label": "Transfer Funds"
@@ -176,14 +180,16 @@
               "style": {
                 "width": 170,
                 "height": 80
-              }
+              },
+              "parentId": "system",
+              "extent": "parent"
             },
             {
               "id": "u3",
               "type": "usecase",
               "position": {
-                "x": 210,
-                "y": 225
+                "x": 55,
+                "y": 200
               },
               "data": {
                 "label": "Validate Transfer"
@@ -193,14 +199,16 @@
               "style": {
                 "width": 170,
                 "height": 80
-              }
+              },
+              "parentId": "system",
+              "extent": "parent"
             },
             {
               "id": "u4",
               "type": "usecase",
               "position": {
-                "x": 420,
-                "y": 225
+                "x": 265,
+                "y": 200
               },
               "data": {
                 "label": "Manage Beneficiary"
@@ -210,14 +218,16 @@
               "style": {
                 "width": 170,
                 "height": 80
-              }
+              },
+              "parentId": "system",
+              "extent": "parent"
             },
             {
               "id": "u5",
               "type": "usecase",
               "position": {
-                "x": 630,
-                "y": 225
+                "x": 475,
+                "y": 200
               },
               "data": {
                 "label": "Freeze Card"
@@ -227,7 +237,9 @@
               "style": {
                 "width": 170,
                 "height": 80
-              }
+              },
+              "parentId": "system",
+              "extent": "parent"
             }
           ],
           "edges": [
@@ -244,8 +256,8 @@
               }
             },
             {
-              "id": "e-a1-u1",
-              "source": "a1",
+              "id": "e-a0-u1",
+              "source": "a0",
               "target": "u1",
               "type": "bezier",
               "label": "",
@@ -256,21 +268,9 @@
               }
             },
             {
-              "id": "e-a2-u2",
-              "source": "a2",
+              "id": "e-a0-u2",
+              "source": "a0",
               "target": "u2",
-              "type": "bezier",
-              "label": "",
-              "data": {
-                "marker": "",
-                "markerStart": "",
-                "dashed": false
-              }
-            },
-            {
-              "id": "e-a3-u3",
-              "source": "a3",
-              "target": "u3",
               "type": "bezier",
               "label": "",
               "data": {
@@ -292,8 +292,8 @@
               }
             },
             {
-              "id": "e-a1-u5",
-              "source": "a1",
+              "id": "e-a0-u5",
+              "source": "a0",
               "target": "u5",
               "type": "bezier",
               "label": "",
@@ -304,23 +304,47 @@
               }
             },
             {
-              "id": "e-u3-u4",
-              "source": "u3",
-              "target": "u4",
-              "type": "smoothstep",
-              "label": "«include»",
+              "id": "e-a1-u3",
+              "source": "a1",
+              "target": "u3",
+              "type": "bezier",
+              "label": "",
               "data": {
-                "marker": "url(#m-arrow-open)",
+                "marker": "",
                 "markerStart": "",
-                "dashed": true
+                "dashed": false
               }
             },
             {
-              "id": "e-u5-u4",
-              "source": "u5",
-              "target": "u4",
-              "type": "smoothstep",
-              "label": "«extend»",
+              "id": "e-a3-u3",
+              "source": "a3",
+              "target": "u3",
+              "type": "bezier",
+              "label": "",
+              "data": {
+                "marker": "",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-a2-u5",
+              "source": "a2",
+              "target": "u5",
+              "type": "bezier",
+              "label": "",
+              "data": {
+                "marker": "",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-u2-u3",
+              "source": "u2",
+              "target": "u3",
+              "type": "bezier",
+              "label": "«include»",
               "data": {
                 "marker": "url(#m-arrow-open)",
                 "markerStart": "",
@@ -348,7 +372,7 @@
               "type": "start",
               "position": {
                 "x": 40,
-                "y": 150
+                "y": 80
               },
               "data": {
                 "label": ""
@@ -365,15 +389,15 @@
               "type": "action",
               "position": {
                 "x": 120,
-                "y": 140
+                "y": 150
               },
               "data": {
                 "label": "Authenticate customer"
               },
-              "width": 155,
+              "width": 180,
               "height": 58,
               "style": {
-                "width": 155,
+                "width": 180,
                 "height": 58
               }
             },
@@ -381,16 +405,16 @@
               "id": "a1",
               "type": "action",
               "position": {
-                "x": 310,
-                "y": 140
+                "x": 120,
+                "y": 250
               },
               "data": {
                 "label": "Validate beneficiary"
               },
-              "width": 155,
+              "width": 180,
               "height": 58,
               "style": {
-                "width": 155,
+                "width": 180,
                 "height": 58
               }
             },
@@ -398,16 +422,16 @@
               "id": "a2",
               "type": "action",
               "position": {
-                "x": 500,
-                "y": 140
+                "x": 120,
+                "y": 350
               },
               "data": {
                 "label": "Run fraud check"
               },
-              "width": 155,
+              "width": 180,
               "height": 58,
               "style": {
-                "width": 155,
+                "width": 180,
                 "height": 58
               }
             },
@@ -415,16 +439,16 @@
               "id": "a3",
               "type": "action",
               "position": {
-                "x": 690,
-                "y": 140
+                "x": 120,
+                "y": 450
               },
               "data": {
                 "label": "Process transfer"
               },
-              "width": 155,
+              "width": 180,
               "height": 58,
               "style": {
-                "width": 155,
+                "width": 180,
                 "height": 58
               }
             },
@@ -432,33 +456,50 @@
               "id": "decision",
               "type": "decision",
               "position": {
-                "x": 880,
-                "y": 115
+                "x": 140,
+                "y": 550
               },
               "data": {
-                "label": "Approved?"
+                "label": "Transfer approved?"
               },
-              "width": 140,
+              "width": 150,
               "height": 105,
               "style": {
-                "width": 140,
+                "width": 150,
                 "height": 105
               }
             },
             {
-              "id": "retry",
+              "id": "approved",
               "type": "action",
               "position": {
-                "x": 450,
-                "y": 310
+                "x": 360,
+                "y": 480
               },
               "data": {
-                "label": "Notify and retry"
+                "label": "Send confirmation"
               },
-              "width": 160,
+              "width": 180,
               "height": 58,
               "style": {
-                "width": 160,
+                "width": 180,
+                "height": 58
+              }
+            },
+            {
+              "id": "rejected",
+              "type": "action",
+              "position": {
+                "x": 360,
+                "y": 640
+              },
+              "data": {
+                "label": "Send rejection notice"
+              },
+              "width": 180,
+              "height": 58,
+              "style": {
+                "width": 180,
                 "height": 58
               }
             },
@@ -466,8 +507,8 @@
               "id": "end",
               "type": "final",
               "position": {
-                "x": 1070,
-                "y": 150
+                "x": 620,
+                "y": 575
               },
               "data": {
                 "label": ""
@@ -542,11 +583,35 @@
               }
             },
             {
-              "id": "e-decision-end",
+              "id": "e-decision-approved",
               "source": "decision",
+              "target": "approved",
+              "type": "smoothstep",
+              "label": "[approved]",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-decision-rejected",
+              "source": "decision",
+              "target": "rejected",
+              "type": "smoothstep",
+              "label": "[rejected]",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-approved-end",
+              "source": "approved",
               "target": "end",
               "type": "smoothstep",
-              "label": "yes",
+              "label": "",
               "data": {
                 "marker": "url(#m-arrow)",
                 "markerStart": "",
@@ -554,23 +619,11 @@
               }
             },
             {
-              "id": "e-decision-retry",
-              "source": "decision",
-              "target": "retry",
+              "id": "e-rejected-end",
+              "source": "rejected",
+              "target": "end",
               "type": "smoothstep",
-              "label": "no",
-              "data": {
-                "marker": "url(#m-arrow)",
-                "markerStart": "",
-                "dashed": false
-              }
-            },
-            {
-              "id": "e-retry-a0",
-              "source": "retry",
-              "target": "a0",
-              "type": "bezier",
-              "label": "retry",
+              "label": "",
               "data": {
                 "marker": "url(#m-arrow)",
                 "markerStart": "",
@@ -789,8 +842,8 @@
               "id": "start",
               "type": "start",
               "position": {
-                "x": 30,
-                "y": 150
+                "x": 40,
+                "y": 90
               },
               "data": {
                 "label": ""
@@ -806,93 +859,110 @@
               "id": "s0",
               "type": "state",
               "position": {
-                "x": 110,
-                "y": 140
+                "x": 130,
+                "y": 160
               },
               "data": {
                 "label": "Draft"
               },
-              "width": 145,
-              "height": 62,
+              "width": 170,
+              "height": 64,
               "style": {
-                "width": 145,
-                "height": 62
+                "width": 170,
+                "height": 64
               }
             },
             {
               "id": "s1",
               "type": "state",
               "position": {
-                "x": 280,
-                "y": 140
+                "x": 130,
+                "y": 265
               },
               "data": {
                 "label": "Pending Validation"
               },
-              "width": 145,
-              "height": 62,
+              "width": 170,
+              "height": 64,
               "style": {
-                "width": 145,
-                "height": 62
+                "width": 170,
+                "height": 64
               }
             },
             {
               "id": "s2",
               "type": "state",
               "position": {
-                "x": 450,
-                "y": 140
+                "x": 130,
+                "y": 370
               },
               "data": {
                 "label": "Pending Review"
               },
-              "width": 145,
-              "height": 62,
+              "width": 170,
+              "height": 64,
               "style": {
-                "width": 145,
-                "height": 62
+                "width": 170,
+                "height": 64
               }
             },
             {
               "id": "s3",
               "type": "state",
               "position": {
-                "x": 620,
-                "y": 140
+                "x": 130,
+                "y": 475
               },
               "data": {
                 "label": "Processing"
               },
-              "width": 145,
-              "height": 62,
+              "width": 170,
+              "height": 64,
               "style": {
-                "width": 145,
-                "height": 62
+                "width": 170,
+                "height": 64
               }
             },
             {
               "id": "s4",
               "type": "state",
               "position": {
-                "x": 790,
-                "y": 140
+                "x": 130,
+                "y": 580
               },
               "data": {
                 "label": "Completed"
               },
-              "width": 145,
-              "height": 62,
+              "width": 170,
+              "height": 64,
               "style": {
-                "width": 145,
-                "height": 62
+                "width": 170,
+                "height": 64
+              }
+            },
+            {
+              "id": "terminal",
+              "type": "state",
+              "position": {
+                "x": 420,
+                "y": 460
+              },
+              "data": {
+                "label": "Rejected"
+              },
+              "width": 170,
+              "height": 64,
+              "style": {
+                "width": 170,
+                "height": 64
               }
             },
             {
               "id": "end",
               "type": "final",
               "position": {
-                "x": 980,
-                "y": 150
+                "x": 680,
+                "y": 340
               },
               "data": {
                 "label": ""
@@ -911,7 +981,7 @@
               "source": "start",
               "target": "s0",
               "type": "smoothstep",
-              "label": "",
+              "label": "create",
               "data": {
                 "marker": "url(#m-arrow)",
                 "markerStart": "",
@@ -923,7 +993,7 @@
               "source": "s0",
               "target": "s1",
               "type": "smoothstep",
-              "label": "next",
+              "label": "submit",
               "data": {
                 "marker": "url(#m-arrow)",
                 "markerStart": "",
@@ -935,7 +1005,7 @@
               "source": "s1",
               "target": "s2",
               "type": "smoothstep",
-              "label": "next",
+              "label": "[valid]",
               "data": {
                 "marker": "url(#m-arrow)",
                 "markerStart": "",
@@ -947,7 +1017,7 @@
               "source": "s2",
               "target": "s3",
               "type": "smoothstep",
-              "label": "next",
+              "label": "[approved]",
               "data": {
                 "marker": "url(#m-arrow)",
                 "markerStart": "",
@@ -959,7 +1029,7 @@
               "source": "s3",
               "target": "s4",
               "type": "smoothstep",
-              "label": "next",
+              "label": "settle",
               "data": {
                 "marker": "url(#m-arrow)",
                 "markerStart": "",
@@ -979,11 +1049,35 @@
               }
             },
             {
-              "id": "e-s1-s0",
+              "id": "e-terminal-end",
+              "source": "terminal",
+              "target": "end",
+              "type": "smoothstep",
+              "label": "",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-s1-terminal",
               "source": "s1",
-              "target": "s0",
-              "type": "bezier",
-              "label": "cancel",
+              "target": "terminal",
+              "type": "smoothstep",
+              "label": "[invalid]",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-s2-terminal",
+              "source": "s2",
+              "target": "terminal",
+              "type": "smoothstep",
+              "label": "[rejected]",
               "data": {
                 "marker": "url(#m-arrow)",
                 "markerStart": "",

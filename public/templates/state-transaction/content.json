@@ -30,8 +30,8 @@
     }
   ],
   "previewImage": "/examples/templates/state-transaction.svg",
-  "nodeCount": 7,
-  "edgeCount": 7,
+  "nodeCount": 8,
+  "edgeCount": 9,
   "createdFor": "Sample Library",
   "canvasData": {
     "diagramType": "state",
@@ -40,8 +40,8 @@
         "id": "start",
         "type": "start",
         "position": {
-          "x": 30,
-          "y": 150
+          "x": 40,
+          "y": 90
         },
         "data": {
           "label": ""
@@ -57,93 +57,110 @@
         "id": "s0",
         "type": "state",
         "position": {
-          "x": 110,
-          "y": 140
+          "x": 130,
+          "y": 160
         },
         "data": {
           "label": "Draft"
         },
-        "width": 145,
-        "height": 62,
+        "width": 170,
+        "height": 64,
         "style": {
-          "width": 145,
-          "height": 62
+          "width": 170,
+          "height": 64
         }
       },
       {
         "id": "s1",
         "type": "state",
         "position": {
-          "x": 280,
-          "y": 140
+          "x": 130,
+          "y": 265
         },
         "data": {
           "label": "Pending Validation"
         },
-        "width": 145,
-        "height": 62,
+        "width": 170,
+        "height": 64,
         "style": {
-          "width": 145,
-          "height": 62
+          "width": 170,
+          "height": 64
         }
       },
       {
         "id": "s2",
         "type": "state",
         "position": {
-          "x": 450,
-          "y": 140
+          "x": 130,
+          "y": 370
         },
         "data": {
           "label": "Pending Review"
         },
-        "width": 145,
-        "height": 62,
+        "width": 170,
+        "height": 64,
         "style": {
-          "width": 145,
-          "height": 62
+          "width": 170,
+          "height": 64
         }
       },
       {
         "id": "s3",
         "type": "state",
         "position": {
-          "x": 620,
-          "y": 140
+          "x": 130,
+          "y": 475
         },
         "data": {
           "label": "Processing"
         },
-        "width": 145,
-        "height": 62,
+        "width": 170,
+        "height": 64,
         "style": {
-          "width": 145,
-          "height": 62
+          "width": 170,
+          "height": 64
         }
       },
       {
         "id": "s4",
         "type": "state",
         "position": {
-          "x": 790,
-          "y": 140
+          "x": 130,
+          "y": 580
         },
         "data": {
           "label": "Completed"
         },
-        "width": 145,
-        "height": 62,
+        "width": 170,
+        "height": 64,
         "style": {
-          "width": 145,
-          "height": 62
+          "width": 170,
+          "height": 64
+        }
+      },
+      {
+        "id": "terminal",
+        "type": "state",
+        "position": {
+          "x": 420,
+          "y": 460
+        },
+        "data": {
+          "label": "Rejected"
+        },
+        "width": 170,
+        "height": 64,
+        "style": {
+          "width": 170,
+          "height": 64
         }
       },
       {
         "id": "end",
         "type": "final",
         "position": {
-          "x": 980,
-          "y": 150
+          "x": 680,
+          "y": 340
         },
         "data": {
           "label": ""
@@ -162,7 +179,7 @@
         "source": "start",
         "target": "s0",
         "type": "smoothstep",
-        "label": "",
+        "label": "create",
         "data": {
           "marker": "url(#m-arrow)",
           "markerStart": "",
@@ -174,7 +191,7 @@
         "source": "s0",
         "target": "s1",
         "type": "smoothstep",
-        "label": "next",
+        "label": "submit",
         "data": {
           "marker": "url(#m-arrow)",
           "markerStart": "",
@@ -186,7 +203,7 @@
         "source": "s1",
         "target": "s2",
         "type": "smoothstep",
-        "label": "next",
+        "label": "[valid]",
         "data": {
           "marker": "url(#m-arrow)",
           "markerStart": "",
@@ -198,7 +215,7 @@
         "source": "s2",
         "target": "s3",
         "type": "smoothstep",
-        "label": "next",
+        "label": "[approved]",
         "data": {
           "marker": "url(#m-arrow)",
           "markerStart": "",
@@ -210,7 +227,7 @@
         "source": "s3",
         "target": "s4",
         "type": "smoothstep",
-        "label": "next",
+        "label": "settle",
         "data": {
           "marker": "url(#m-arrow)",
           "markerStart": "",
@@ -230,11 +247,35 @@
         }
       },
       {
-        "id": "e-s1-s0",
+        "id": "e-terminal-end",
+        "source": "terminal",
+        "target": "end",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s1-terminal",
         "source": "s1",
-        "target": "s0",
-        "type": "bezier",
-        "label": "cancel",
+        "target": "terminal",
+        "type": "smoothstep",
+        "label": "[invalid]",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s2-terminal",
+        "source": "s2",
+        "target": "terminal",
+        "type": "smoothstep",
+        "label": "[rejected]",
         "data": {
           "marker": "url(#m-arrow)",
           "markerStart": "",
