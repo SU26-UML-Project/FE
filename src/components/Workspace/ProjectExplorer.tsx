@@ -111,6 +111,14 @@ export default function ProjectExplorer(props: Props) {
   const moveItem = (itemId: string, parentId: string | null) => {
     const item = props.items.find(value => value.id === itemId)
     if (!item || item.parentId === parentId) return
+    // Chỉ thư mục mới được làm đích. Thả tệp/sơ đồ lên một tệp khác → báo rõ cho người dùng.
+    if (parentId !== null) {
+      const target = props.items.find(value => value.id === parentId)
+      if (target && target.kind !== 'folder') {
+        toast.error(`Không thể di chuyển vào “${target.name}” vì đây không phải thư mục. Hãy tạo một thư mục trước, rồi di chuyển tệp vào đó.`)
+        return
+      }
+    }
     const previousParentId = item.parentId
     props.onMove(itemId, parentId)
     toast.success(

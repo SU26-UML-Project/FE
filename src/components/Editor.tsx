@@ -447,6 +447,46 @@ export function Editor() {
       [beginMutation, setNodes, emitCanvasChange]
   );
 
+  const updateNodeParent = useCallback(
+      (id: string, parentId: string | undefined) => {
+        beginMutation();
+        setNodes((prev) => {
+          // Find the target node to preserve its absolute position
+          const targetNode = prev.find((n) => n.id === id);
+          if (!targetNode) return prev;
+
+          // Calculate its absolute position before parent change
+          const oldParent = targetNode.parentId ? prev.find((p) => p.id === targetNode.parentId) : null;
+          const oldParentX = oldParent ? oldParent.position.x : 0;
+          const oldParentY = oldParent ? oldParent.position.y : 0;
+          const absX = oldParentX + targetNode.position.x;
+          const absY = oldParentY + targetNode.position.y;
+
+          // Calculate its new relative position to the new parent
+          const newParent = parentId ? prev.find((p) => p.id === parentId) : null;
+          const newParentX = newParent ? newParent.position.x : 0;
+          const newParentY = newParent ? newParent.position.y : 0;
+          const newRelX = absX - newParentX;
+          const newRelY = absY - newParentY;
+
+          const next = prev.map((n) =>
+              n.id === id ? {
+                ...n,
+                parentId,
+                extent: undefined,
+                position: { x: newRelX, y: newRelY }
+              } : n
+          );
+          const sorted = sortParentBeforeChild(next);
+          if (!skipCollabEmit.current) {
+            emitCanvasChange({ nodes: sorted, type: "update" });
+          }
+          return sorted;
+        });
+      },
+      [beginMutation, setNodes, emitCanvasChange]
+  );
+
   /** Enlarge a node so it never clips its text. Not recorded in history. */
   const growNode = useCallback(
       (id: string, minW: number, minH: number) => {
@@ -549,7 +589,7 @@ export function Editor() {
           width: item.width,
           height: item.height,
           style: { width: item.width, height: item.height },
-          ...(parentId ? { parentId, extent: "parent" } : {}),
+          ...(parentId ? { parentId, extent: undefined } : {}),
         };
         setNodes((prev) => {
           const next = parentId ? sortParentBeforeChild(prev.concat(node)) : prev.concat(node);
@@ -738,7 +778,7 @@ export function Editor() {
               return {
                 ...n,
                 parentId: target.id,
-                extent: "parent" as const,
+                extent: undefined,
                 position: { x: pos.x - target.x, y: pos.y - target.y },
               };
             }
@@ -1052,7 +1092,7 @@ export function Editor() {
           const { nodes: l1, edges: e1 } = await layoutElements(
               nodesRef.current,
               edgesRef.current,
-              { diagramType }
+              { diagramType, direction: _direction as "TB" | "LR" }
           );
           setNodes(l1);
           setEdges(e1);
@@ -1065,7 +1105,7 @@ export function Editor() {
           const { nodes: finalNodes, edges: finalEdges } = await layoutElements(
               nodesRef.current,
               edgesRef.current,
-              { diagramType }
+              { diagramType, direction: _direction as "TB" | "LR" }
           );
 
           // Fade in with opacity:1
@@ -2288,6 +2328,9 @@ export function Editor() {
                         onPaneContextMenu={onPaneCtx}
                         onMove={(_, vp) => setZoom(vp.zoom)}
                         connectionMode={ConnectionMode.Loose}
+                        connectionRadius={24}
+                        connectionLineType="straight"
+                        connectionLineStyle={{ stroke: "#2563eb", strokeWidth: 2, strokeDasharray: "5,5" }}
                         deleteKeyCode={null}
                         selectionOnDrag
                         selectionMode={SelectionMode.Partial}
@@ -2367,6 +2410,8 @@ export function Editor() {
                           selNodes={selNodes}
                           selEdges={selEdges}
                           diagramType={diagramType}
+                          allNodes={nodes}
+                          onUpdateNodeParent={updateNodeParent}
                           onUpdateNode={updateNodeData}
                           onUpdateEdge={updateEdge}
                           onDelete={deleteSelected}

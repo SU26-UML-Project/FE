@@ -82,6 +82,8 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({
                                                                  }) => {
   const [showHistory, setShowHistory] = useState(false)
   const [sessions, setSessions] = useState<ChatSession[]>([])
+  const [sessionsPage, setSessionsPage] = useState(0)
+  const [sessionsTotalPages, setSessionsTotalPages] = useState(1)
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessageWithExtra[]>([])
   const [input, setInput] = useState('')
@@ -100,24 +102,18 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({
     setLoadingHistory(true)
 
     try {
-      const response = await anythingllmService.getChatHistory(sessionId)
-
-      if (response.code === 200) {
-        const data = response.result as unknown
-
-        if (Array.isArray(data)) {
-          setMessages(data.map(normalizeChatMessage))
-        } else if (
-            data &&
-            typeof data === 'object' &&
-            'messages' in data &&
-            Array.isArray((data as any).messages)
-        ) {
-          setMessages((data as any).messages.map(normalizeChatMessage))
-        } else {
-          setMessages([])
-        }
+      // View hội thoại cần đủ toàn bộ tin nhắn của phiên → gom hết các trang.
+      const all: ChatMessage[] = []
+      let page = 0
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const response = await anythingllmService.getChatHistory(sessionId, page, 100)
+        if (response.code !== 200 || !response.result) break
+        all.push(...(response.result.content || []))
+        if (page + 1 >= response.result.totalPages) break
+        page++
       }
+      setMessages(all.map(normalizeChatMessage))
     } catch (error) {
       toast.error('Không thể tải lịch sử trò chuyện')
     } finally {
@@ -153,13 +149,28 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({
     }
   }
 
+  const loadMoreSessions = async () => {
+    try {
+      const response = await anythingllmService.getChatSessions(sessionsPage + 1, 20)
+      if (response.code === 200 && response.result) {
+        setSessions((prev) => [...prev, ...(response.result.content || [])])
+        setSessionsPage(response.result.page)
+        setSessionsTotalPages(response.result.totalPages)
+      }
+    } catch (error) {
+      toast.error('Không thể tải thêm phiên chat')
+    }
+  }
+
   const fetchSessions = async () => {
     try {
-      const response = await anythingllmService.getChatSessions()
+      const response = await anythingllmService.getChatSessions(0, 20)
 
       if (response.code === 200) {
-        const fetchedSessions = response.result || []
+        const fetchedSessions = response.result?.content || []
         setSessions(fetchedSessions)
+        setSessionsPage(response.result?.page || 0)
+        setSessionsTotalPages(response.result?.totalPages || 1)
 
         if (fetchedSessions.length === 0) {
           await handleNewChat(true)
@@ -392,6 +403,14 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({
                                       </button>
                                   )
                                 })
+                            )}
+                            {sessions.length > 0 && sessionsPage + 1 < sessionsTotalPages && (
+                                <button
+                                    onClick={loadMoreSessions}
+                                    className="w-full rounded-lg border border-gray-100 bg-white py-2 text-[11px] font-bold text-gray-500 transition-colors hover:border-gray-200"
+                                >
+                                  Tải thêm
+                                </button>
                             )}
                           </div>
                         </motion.div>

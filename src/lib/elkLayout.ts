@@ -1,4 +1,5 @@
 import ELK from "elkjs/lib/elk.bundled.js";
+import dagre from "dagre";
 import type { FlowEdge, FlowNode, FlowNodeData, DiagramType } from "../types";
 import {
   classMinSize, actionMinSize, noteMinSize, componentMinSize, swimlaneMinSize,
@@ -71,6 +72,8 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
 
   const clamp = (v: number) => Math.max(0, Math.min(100, v));
 
+  const isActivity = nodes.some(n => n.type === "swimlane" || n.type === "start" || n.type === "final" || n.type === "decision");
+
   return edges.map((e) => {
     const s = posMap.get(e.source);
     const t = posMap.get(e.target);
@@ -78,6 +81,31 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
 
     const dx = t.cx - s.cx;
     const dy = t.cy - s.cy;
+
+    const sn = nodes.find(n => n.id === e.source);
+    const tn = nodes.find(n => n.id === e.target);
+
+    if (isActivity) {
+      if (sn && sn.type === "decision") {
+        const outEdges = edges.filter(x => x.source === e.source);
+        if (outEdges.length > 1) {
+          const isLeft = t.cx < s.cx;
+          return {
+            ...e,
+            sourceHandle: isLeft ? "l-50" : "r-50",
+            targetHandle: "t-50-t"
+          };
+        }
+      }
+
+      // Default for activity diagram: bottom to top
+      return {
+        ...e,
+        sourceHandle: "b-50",
+        targetHandle: "t-50-t"
+      };
+    }
+
     // Check both label and marker data for special relations (include/extend)
     const isIncludeExtend =
         (e.label as string)?.includes("«") ||
@@ -220,7 +248,7 @@ export function finalizeLayout(nodes: FlowNode[], edges: FlowEdge[] = []): FlowN
       pkg.position = { x: pkgX, y: pkgY };
       pkg.width = pkgW;
       pkg.height = pkgH;
-      pkg.style = { ...pkg.style, width: pkgW, height: pkgH };
+      pkg.style = { ...pkg.style, width: pkgW, height: pkgH, pointerEvents: "none" };
       pkg.zIndex = -1; // Ensure package is behind everything
     }
   }
@@ -267,6 +295,10 @@ async function elkLayout(
 ): Promise<{ nodes: FlowNode[]; edges: FlowEdge[] }> {
   if (!nodes.length) return { nodes, edges };
 
+  // Filter out any dangling edges whose source or target node is missing from nodes list!
+  const nodeIds = new Set(nodes.map(n => n.id));
+  const validEdges = edges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target));
+
   // Helper to build ELK hierarchy
   const buildElkGraph = (parentId?: string) => {
     const children = nodes.filter(n => n.parentId === parentId);
@@ -285,7 +317,7 @@ async function elkLayout(
       return { id: n.id, width: sz.width, height: sz.height };
     });
 
-    const elkEdges = edges.filter(e => {
+    const elkEdges = validEdges.filter(e => {
       const s = nodes.find(n => n.id === e.source);
       const t = nodes.find(n => n.id === e.target);
       return s?.parentId === parentId && t?.parentId === parentId;
@@ -306,7 +338,7 @@ async function elkLayout(
   const rootGraph = buildElkGraph(undefined);
 
   // Cross-hierarchy edges (edges between nodes in different packages)
-  const crossEdges = edges.filter(e => {
+  const crossEdges = validEdges.filter(e => {
     const s = nodes.find(n => n.id === e.source);
     const t = nodes.find(n => n.id === e.target);
     return s?.parentId !== t?.parentId;
@@ -634,8 +666,280 @@ function layoutUseCase(
 }
 
 /* ============================================================
-   PUBLIC API
+   ACTIVITY + SWIMLANE LAYOUT (UML ActivityPartition)
    ============================================================ */
+/**
+ * Layout for Activity diagrams with UML swimlanes (ActivityPartitions).
+ * - Global topological sort for correct node ordering
+ * - Activities positioned by GLOBAL Y order across swimlanes
+ * - Flexible swimlane widths, touching edges, equal heights
+ */
+export function layoutActivityWithSwimlanes(
+    nodes: FlowNode[],
+    edges: FlowEdge[]
+): { nodes: FlowNode[]; edges: FlowEdge[] } | null {
+  const lanes = nodes.filter((n) => n.type === "swimlane");
+  if (lanes.length === 0) return null;
+
+  const activities = nodes.filter((n) => n.type !== "swimlane");
+  const kidsOf = (lid: string) => activities.filter((n) => n.parentId === lid);
+
+  // Layout settings
+  const SWIMLANE_HEADER_H = 32;
+  const SWIMLANE_PADDING_X = 30;
+  const SWIMLANE_PADDING_TOP = 50;
+  const ACTIVITY_GAP = 60;
+  const HORIZONTAL_GAP = 40; // Gap between side-by-side nodes (if-else branches)
+
+  // Sort lanes by declaration order (laneIndex)
+  const sortedLanes = [...lanes].sort((a, b) => {
+    const aIdx = (a.data as FlowNodeData)?.laneIndex ?? 0;
+    const bIdx = (b.data as FlowNodeData)?.laneIndex ?? 0;
+    return aIdx - bIdx;
+  });
+
+  // ============================================
+  // STEP 1: Build adjacency for topological sort
+  // ============================================
+  const activityIds = new Set(activities.map(a => a.id));
+
+  const outgoing = new Map<string, string[]>();
+  const incoming = new Map<string, string[]>();
+  activities.forEach(a => {
+    outgoing.set(a.id, []);
+    incoming.set(a.id, []);
+  });
+
+  edges.forEach(e => {
+    if (activityIds.has(e.source) && activityIds.has(e.target)) {
+      outgoing.get(e.source)?.push(e.target);
+      incoming.get(e.target)?.push(e.source);
+    }
+  });
+
+  // ============================================
+  // STEP 2: Topological Rank Assignment (Kahn's Algorithm)
+  // ============================================
+  const startNodes = activities.filter(a => (incoming.get(a.id)?.length ?? 0) === 0);
+  const ranks = new Map<string, number>();
+  activities.forEach(a => ranks.set(a.id, 0));
+
+  const inDegree = new Map<string, number>();
+  activities.forEach(a => inDegree.set(a.id, incoming.get(a.id)?.length ?? 0));
+
+  const queue: string[] = [];
+  startNodes.forEach(n => {
+    queue.push(n.id);
+    ranks.set(n.id, 0);
+  });
+
+  const tempInDegree = new Map(inDegree);
+  while (queue.length > 0) {
+    const currId = queue.shift()!;
+    const currRank = ranks.get(currId)!;
+
+    const out = outgoing.get(currId) ?? [];
+    for (const nextId of out) {
+      ranks.set(nextId, Math.max(ranks.get(nextId)!, currRank + 1));
+
+      const deg = (tempInDegree.get(nextId) ?? 0) - 1;
+      tempInDegree.set(nextId, deg);
+      if (deg === 0) {
+        queue.push(nextId);
+      }
+    }
+  }
+
+  // Handle any disconnected or cyclic nodes by giving them a fallback rank
+  activities.forEach(a => {
+    if (!ranks.has(a.id)) ranks.set(a.id, 0);
+  });
+
+  // ============================================
+  // STEP 3: Group activities by lane and Y level (rank)
+  // ============================================
+  const laneKidsByRank = new Map<string, Map<number, FlowNode[]>>();
+  sortedLanes.forEach(lane => {
+    const kids = kidsOf(lane.id);
+    const rankGroups = new Map<number, FlowNode[]>();
+    kids.forEach(k => {
+      const r = ranks.get(k.id) ?? 0;
+      const arr = rankGroups.get(r) ?? [];
+      arr.push(k);
+      rankGroups.set(r, arr);
+    });
+    laneKidsByRank.set(lane.id, rankGroups);
+  });
+
+  // Calculate Y coordinates for each rank to ensure side-by-side nodes align
+  const uniqueRanks = [...new Set(ranks.values())].sort((a, b) => a - b);
+  const rankY = new Map<number, number>();
+  const rankHeight = new Map<number, number>();
+
+  let currentY = SWIMLANE_HEADER_H + SWIMLANE_PADDING_TOP;
+
+  for (const r of uniqueRanks) {
+    rankY.set(r, currentY);
+
+    // Find max height of any node at this rank
+    const nodesAtRank = activities.filter(a => ranks.get(a.id) === r);
+    let maxH = 54;
+    for (const n of nodesAtRank) {
+      const s = estimateSize(n);
+      maxH = Math.max(maxH, s.height);
+    }
+    rankHeight.set(r, maxH);
+    currentY += maxH + ACTIVITY_GAP;
+  }
+
+  // ============================================
+  // STEP 4: Calculate each swimlane's flexible width
+  // ============================================
+  const laneInfo = new Map<string, { x: number; width: number; height: number }>();
+
+  for (const lane of sortedLanes) {
+    const kids = kidsOf(lane.id);
+    const rankGroups = laneKidsByRank.get(lane.id)!;
+
+    // Flexible width based on horizontal groups (side-by-side)
+    let maxContentW = 220;
+    rankGroups.forEach((nodesAtRank) => {
+      let groupW = 0;
+      nodesAtRank.forEach((n, idx) => {
+        const s = estimateSize(n);
+        groupW += s.width;
+        if (idx > 0) groupW += HORIZONTAL_GAP;
+      });
+      maxContentW = Math.max(maxContentW, groupW);
+    });
+
+    // Max Y for lane height
+    let maxY = SWIMLANE_HEADER_H + SWIMLANE_PADDING_TOP;
+    for (const k of kids) {
+      const r = ranks.get(k.id) ?? 0;
+      const y = rankY.get(r) ?? 0;
+      const s = estimateSize(k);
+      maxY = Math.max(maxY, y + s.height);
+    }
+
+    laneInfo.set(lane.id, {
+      x: 0,
+      width: maxContentW + SWIMLANE_PADDING_X * 2,
+      height: maxY + SWIMLANE_PADDING_TOP
+    });
+  }
+
+  // Calculate X positions for lanes (touching edges)
+  let cursorX = 0;
+  for (const lane of sortedLanes) {
+    const info = laneInfo.get(lane.id)!;
+    info.x = cursorX;
+    cursorX += info.width;
+  }
+
+  const maxHeight = Math.max(...[...laneInfo.values()].map(l => l.height), 400);
+
+  // ============================================
+  // STEP 5: Position activities & swimlanes
+  // ============================================
+  for (const lane of sortedLanes) {
+    const info = laneInfo.get(lane.id)!;
+    const rankGroups = laneKidsByRank.get(lane.id)!;
+
+    rankGroups.forEach((nodesAtRank, r) => {
+      let totalGroupW = 0;
+      nodesAtRank.forEach((n, idx) => {
+        const s = estimateSize(n);
+        totalGroupW += s.width;
+        if (idx > 0) totalGroupW += HORIZONTAL_GAP;
+      });
+
+      const laneContentW = info.width - SWIMLANE_PADDING_X * 2;
+      const groupStartX = info.x + SWIMLANE_PADDING_X + (laneContentW - totalGroupW) / 2;
+
+      let currentX = groupStartX;
+      nodesAtRank.forEach((n) => {
+        const s = estimateSize(n);
+        n.position = { x: currentX - info.x, y: rankY.get(r)! };
+        n.width = s.width;
+        n.height = s.height;
+        n.style = { ...(n.style as object), width: s.width, height: s.height };
+        currentX += s.width + HORIZONTAL_GAP;
+      });
+    });
+  }
+
+  // Handle Free nodes (with parentId undefined)
+  const freeNodes = activities.filter(a => !a.parentId);
+  freeNodes.forEach(fn => {
+    const s = estimateSize(fn);
+    const firstInfo = laneInfo.get(sortedLanes[0]?.id ?? '');
+    const r = ranks.get(fn.id) ?? 0;
+    if (firstInfo) {
+      fn.position = { x: firstInfo.x + SWIMLANE_PADDING_X + (firstInfo.width - SWIMLANE_PADDING_X * 2 - s.width) / 2, y: rankY.get(r)! };
+    }
+    fn.width = s.width;
+    fn.height = s.height;
+    fn.style = { ...(fn.style as object), width: s.width, height: s.height };
+  });
+
+  // Set swimlane dimensions
+  for (const lane of sortedLanes) {
+    const info = laneInfo.get(lane.id)!;
+    lane.width = info.width;
+    lane.height = maxHeight;
+    lane.position = { x: info.x, y: 0 };
+    lane.style = { ...(lane.style as object), width: info.width, height: maxHeight, pointerEvents: "none" };
+  }
+
+  // ============================================
+  // STEP 6: Normalize to start at x=0
+  // ============================================
+  const minX = Math.min(...sortedLanes.map(l => l.position.x));
+
+  for (const n of nodes) {
+    n.position.x -= minX;
+  }
+
+  // ============================================
+  // STEP 7: Smart Edge Routing
+  // For cross-swimlane edges, ensure smooth routing
+  // ============================================
+  const layoutedEdges = edges.map(e => {
+    const s = nodes.find(n => n.id === e.source);
+    const t = nodes.find(n => n.id === e.target);
+
+    if (s && t) {
+      const crossLane = s.parentId !== t.parentId;
+
+      // Calculate absolute horizontal difference to decide if they are aligned
+      const sParent = s.parentId ? nodes.find(p => p.id === s.parentId) : null;
+      const tParent = t.parentId ? nodes.find(p => p.id === t.parentId) : null;
+      const sAbsX = s.position.x + (sParent ? sParent.position.x : 0) + (s.width ?? 150) / 2;
+      const tAbsX = t.position.x + (tParent ? tParent.position.x : 0) + (t.width ?? 150) / 2;
+
+      const dx = Math.abs(sAbsX - tAbsX);
+
+      let edgeType = "smoothstep";
+      if (crossLane) {
+        edgeType = "smoothstep";
+      } else if (dx < 10) {
+        edgeType = "straight"; // Use beautiful straight line for vertically-aligned nodes!
+      }
+
+      return {
+        ...e,
+        type: edgeType,
+        zIndex: crossLane ? 200 : 5
+      };
+    }
+    return e;
+  });
+
+  const finalEdges = assignHandles(nodes, layoutedEdges as FlowEdge[]);
+  return { nodes, edges: finalEdges };
+}
+
 export async function layoutElements(
     nodes: FlowNode[], edges: FlowEdge[],
     options: { diagramType?: DiagramType; direction?: "TB" | "LR" } = {}
@@ -646,6 +950,13 @@ export async function layoutElements(
   const hasUseCases = nodes.some((n) => n.type === "usecase");
   if (options.diagramType === "usecase" || (hasActors && hasUseCases)) {
     return layoutUseCase(nodes, edges);
+  }
+  // Activity diagrams that contain swimlanes get a dedicated band-aware layout
+  // so lanes stay ordered and children stay inside their partition.
+  const lanes = nodes.filter((n) => n.type === "swimlane");
+  if (lanes.length) {
+    const laid = layoutActivityWithSwimlanes(nodes, edges);
+    if (laid) return laid;
   }
   return elkLayout(nodes, edges, options.diagramType, options.direction);
 }

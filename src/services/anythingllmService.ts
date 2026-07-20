@@ -3,8 +3,8 @@
  */
 import type { ChatMsg, DiagramType } from "../types";
 import apiClient from './apiClient';
-import type { ApiResponse } from '../types/api';
-import type { DiagramChatRequest, DiagramChatResponse, ChatSession } from '../types/ai';
+import type { ApiResponse, PagedResponse } from '../types/api';
+import type { DiagramChatRequest, DiagramChatResponse, ChatSession, ChatMessage } from '../types/ai';
 
 export interface ChatRequest {
   message: string;
@@ -23,9 +23,15 @@ export const anythingllmService = {
     return apiClient.post<any, ApiResponse<DiagramChatResponse>>('/diagram-ai/chat', data);
   },
 
-  // Lấy lịch sử chat của một session
-  getChatHistory: async (sessionId: string): Promise<ApiResponse<DiagramChatHistoryResponse>> => {
-    return apiClient.get<any, ApiResponse<DiagramChatHistoryResponse>>(`/diagram-ai/chat/sessions/${sessionId}/messages`);
+  // Lấy lịch sử chat của một session (phân trang, cũ → mới)
+  getChatHistory: async (
+    sessionId: string,
+    page = 0,
+    size = 50,
+  ): Promise<ApiResponse<PagedResponse<ChatMessage>>> => {
+    return apiClient.get<any, ApiResponse<PagedResponse<ChatMessage>>>(
+      `/diagram-ai/chat/sessions/${sessionId}/messages?page=${page}&size=${size}`,
+    );
   },
 
   // Tạo session chat mới
@@ -33,9 +39,11 @@ export const anythingllmService = {
     return apiClient.post<any, ApiResponse<ChatSession>>('/diagram-ai/chat/sessions');
   },
 
-  // Lấy danh sách tất cả các sessions của user
-  getChatSessions: async (): Promise<ApiResponse<ChatSession[]>> => {
-    return apiClient.get<any, ApiResponse<ChatSession[]>>('/diagram-ai/chat/sessions');
+  // Lấy danh sách tất cả các sessions của user (phân trang, mới nhất trước)
+  getChatSessions: async (page = 0, size = 20): Promise<ApiResponse<PagedResponse<ChatSession>>> => {
+    return apiClient.get<any, ApiResponse<PagedResponse<ChatSession>>>(
+      `/diagram-ai/chat/sessions?page=${page}&size=${size}`,
+    );
   },
 };
 

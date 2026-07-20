@@ -2,7 +2,7 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, sans-serif;
+  Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
@@ -27,10 +27,10 @@
   --bg: #ffffff;
   --bg-soft: #fafafa;
   --muted: #8a8f98;
-  
+
   --color-uml-blue: #004ac6;
   --color-uml-dark: #191c1e;
-  
+
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --font-priego: "Priego", var(--font-sans);
@@ -152,13 +152,12 @@ button {
   border-radius: 999px !important;
   opacity: 0 !important;
   z-index: 10 !important;
-  pointer-events: none !important; 
+  pointer-events: none !important;
   transition: opacity 0.1s ease;
 }
 
-/* 1. Only show handles on HOVER, NOT on SELECT */
-/* This allows zoom/resize to work properly when node is selected */
-.react-flow__node:hover:not(.selected) .react-flow__handle,
+/* 1. Only show handles on HOVER */
+.react-flow__node:hover .react-flow__handle,
 .react-flow__handle.connecting,
 .react-flow__handle.valid {
   pointer-events: all !important;
@@ -183,9 +182,10 @@ button {
 .react-flow__handle::after {
   content: "";
   position: absolute;
-  inset: -6px; 
+  inset: -14px;
   border-radius: 999px;
   background: transparent;
+  pointer-events: all !important;
 }
 .react-flow__handle:hover {
   background: #18181b;
@@ -318,10 +318,10 @@ input[type="range"]::-webkit-slider-thumb {
 @theme {
   --color-uml-blue: #2563eb;
   --color-uml-dark: #000000;
-  
+
   --font-priego: "Priego", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, Helvetica, Arial, sans-serif;
+  Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Admin Dashboard Colors (v1 — used by UserDashboard) */
@@ -461,9 +461,9 @@ input[type="range"]::-webkit-slider-thumb {
 @layer utilities {
   .grid-background {
     background-color: #ffffff;
-    background-image:  
-      linear-gradient(to right, #e5e7eb 1px, transparent 1px), 
-      linear-gradient(to bottom, #e5e7eb 1px, transparent 1px);
+    background-image:
+            linear-gradient(to right, #e5e7eb 1px, transparent 1px),
+            linear-gradient(to bottom, #e5e7eb 1px, transparent 1px);
     background-size: 40px 40px;
   }
 
@@ -475,9 +475,9 @@ input[type="range"]::-webkit-slider-thumb {
 
   .footer-bg {
     background-color: #f0f4f7;
-    background-image:  
-      linear-gradient(to right, #e5e7eb 1px, transparent 1px), 
-      linear-gradient(to bottom, #e5e7eb 1px, transparent 1px);
+    background-image:
+            linear-gradient(to right, #e5e7eb 1px, transparent 1px),
+            linear-gradient(to bottom, #e5e7eb 1px, transparent 1px);
     background-size: 40px 40px;
   }
 
@@ -702,5 +702,12 @@ input[type="range"]::-webkit-slider-thumb {
 
   ::selection {
     background: rgba(79, 70, 229, 0.14);
+  }
+
+  /* ---------------- Container Click-Through ---------------- */
+  .react-flow__node-swimlane,
+  .react-flow__node-package,
+  .react-flow__node-boundary {
+    pointer-events: none !important;
   }
 }

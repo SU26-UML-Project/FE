@@ -23,6 +23,8 @@ export type AlignMode = "left" | "centerH" | "right" | "top" | "centerV" | "bott
 export function Inspector(props: {
     nodesLen: number; edgesLen: number; activeConnectorName: string;
     selNodes: FlowNode[]; selEdges: FlowEdge[]; diagramType: DiagramType;
+    allNodes?: FlowNode[];
+    onUpdateNodeParent?: (id: string, parentId: string | undefined) => void;
     onUpdateNode: (id: string, patch: Partial<FlowNodeData>) => void;
     onUpdateEdge: (id: string, patch: { label?: string; marker?: string; markerStart?: string; type?: string; dashed?: boolean; color?: string; flip?: boolean }) => void;
     onDelete: () => void; onDuplicate: () => void; onAlign: (mode: AlignMode) => void; onClose: () => void;
@@ -46,7 +48,7 @@ export function Inspector(props: {
                     <MultiState count={props.selNodes.length + props.selEdges.length} nodeCount={props.selNodes.length}
                                 onDelete={props.onDelete} onDuplicate={props.onDuplicate} onAlign={props.onAlign} />
                 ) : node ? (
-                    <NodeEditor node={node} onChange={(patch) => props.onUpdateNode(node.id, patch)} onDelete={props.onDelete} onDuplicate={props.onDuplicate} />
+                    <NodeEditor node={node} allNodes={props.allNodes} onUpdateParent={props.onUpdateNodeParent} onChange={(patch) => props.onUpdateNode(node.id, patch)} onDelete={props.onDelete} onDuplicate={props.onDuplicate} />
                 ) : edge ? (
                     <EdgeEditor edge={edge} diagramType={props.diagramType} onChange={(patch) => props.onUpdateEdge(edge.id, patch)} onDelete={props.onDelete} />
                 ) : (
@@ -122,11 +124,14 @@ function MultiState({ count, nodeCount, onDelete, onDuplicate, onAlign }: {
     );
 }
 
-function NodeEditor({ node, onChange, onDelete, onDuplicate }: {
-    node: FlowNode; onChange: (patch: Partial<FlowNodeData>) => void; onDelete: () => void; onDuplicate: () => void;
+function NodeEditor({ node, allNodes = [], onUpdateParent, onChange, onDelete, onDuplicate }: {
+    node: FlowNode; allNodes?: FlowNode[]; onUpdateParent?: (id: string, parentId: string | undefined) => void;
+    onChange: (patch: Partial<FlowNodeData>) => void; onDelete: () => void; onDuplicate: () => void;
 }) {
     const d = node.data as FlowNodeData;
     const isClass = node.type === "cls";
+    const potentialParents = allNodes.filter(n => n.id !== node.id && (n.type === "package" || n.type === "boundary" || n.type === "swimlane"));
+
     return (
         <div className="animate-fade-in space-y-4">
             <div className="flex items-center gap-2">
@@ -136,6 +141,31 @@ function NodeEditor({ node, onChange, onDelete, onDuplicate }: {
                 <label className={labelCls}>Label</label>
                 <input className={inputCls} value={d.label ?? ""} placeholder="Untitled" onChange={(e) => onChange({ label: e.target.value })} />
             </div>
+
+            {potentialParents.length > 0 && onUpdateParent && (
+                <div>
+                    <label className={labelCls}>Phân làn / Vùng chứa cha</label>
+                    <select
+                        className={inputCls}
+                        value={node.parentId || "none"}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "none") {
+                                onUpdateParent(node.id, undefined);
+                            } else {
+                                onUpdateParent(node.id, val);
+                            }
+                        }}
+                    >
+                        <option value="none">Không có (Tự do)</option>
+                        {potentialParents.map(p => (
+                            <option key={p.id} value={p.id}>
+                                {p.data.label || p.id} ({p.type === "swimlane" ? "Swimlane" : p.type === "boundary" ? "Boundary" : "Package"})
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            )}
             <div>
                 <label className={labelCls}>Border colour</label>
                 <ColorRow value={d.color as string | undefined} onPick={(c) => onChange({ color: c })} onClear={() => onChange({ color: "" })} />

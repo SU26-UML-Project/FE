@@ -76,6 +76,8 @@ export function AIChat({
     { id: "greeting", role: "ASSISTANT", text: GREETING }
   ]);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [sessionsPage, setSessionsPage] = useState(0);
+  const [sessionsTotalPages, setSessionsTotalPages] = useState(1);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -158,7 +160,7 @@ export function AIChat({
   // Load sessions when switching to history view
   useEffect(() => {
     if (view === "history") {
-      loadSessions();
+      loadSessions(0);
     }
   }, [view]);
 
@@ -168,10 +170,12 @@ export function AIChat({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [msgs, open, view]);
 
-  const loadSessions = async () => {
+  const loadSessions = async (page = 0, append = false) => {
     try {
-      const res = await chatService.getSessions();
-      setSessions(res.result);
+      const res = await chatService.getSessions(page, 20);
+      setSessions((prev) => (append ? [...prev, ...res.result.content] : res.result.content));
+      setSessionsPage(res.result.page);
+      setSessionsTotalPages(res.result.totalPages);
     } catch (err: any) {
       toast.error(err.message || "Không thể tải lịch sử chat");
     }
@@ -250,10 +254,20 @@ export function AIChat({
         throw new Error("Không tìm thấy ID phiên chat hợp lệ");
       }
 
-      const res = await chatService.getHistory(sid);
+      // View hội thoại cần đủ toàn bộ tin nhắn (render cả phiên + lookahead câu trả lời
+      // xác nhận ở message kế tiếp) → gom hết các trang của phiên này.
+      const allMessages: ChatMessage[] = [];
+      let historyPage = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const res = await chatService.getHistory(sid, historyPage, 100);
+        allMessages.push(...res.result.content);
+        if (historyPage + 1 >= res.result.totalPages) break;
+        historyPage++;
+      }
       setCurrentSessionId(sid);
-      
-      const historyMsgs: Msg[] = res.result.messages.map((m, idx) => {
+
+      const historyMsgs: Msg[] = allMessages.map((m, idx) => {
         const parsed = aiResponseToCanvas({
           kind: m.kind || 'reply',
           answer: m.content,
@@ -269,7 +283,7 @@ export function AIChat({
         let initialDone = false;
 
         if (m.kind === "questions" && parsed.questions) {
-          const nextMsg = res.result.messages[idx + 1];
+          const nextMsg = allMessages[idx + 1];
           if (nextMsg && nextMsg.role === "USER" && nextMsg.content.startsWith("Đã xác nhận thông tin:")) {
             const resolved = parseConfirmedAnswers(nextMsg.content, parsed.questions);
             initialAnswers = resolved.answers;
@@ -640,16 +654,26 @@ export function AIChat({
               <p className="text-xs">Chưa có phiên chat nào</p>
             </div>
           ) : (
-            sessions.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => selectSession(s)}
-                className={`group flex w-full flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all hover:border-admin-primary hover:bg-admin-bg/50 ${currentSessionId === s.anythingSessionId ? "border-admin-primary bg-admin-bg/50 ring-1 ring-admin-primary/10" : "border-admin-outline/10 bg-white"}`}
-              >
-                <span className="text-[13px] font-bold text-admin-on-surface line-clamp-1 group-hover:text-admin-primary">{s.title || "Untitled Session"}</span>
-                <span className="text-[10px] text-admin-secondary/50">{new Date(s.updatedAt).toLocaleString()}</span>
-              </button>
-            ))
+            <>
+              {sessions.map((s) => (
+                <button
+                  key={s.anythingSessionId || s.id || (s as any).sessionId}
+                  onClick={() => selectSession(s)}
+                  className={`group flex w-full flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all hover:border-admin-primary hover:bg-admin-bg/50 ${currentSessionId === s.anythingSessionId ? "border-admin-primary bg-admin-bg/50 ring-1 ring-admin-primary/10" : "border-admin-outline/10 bg-white"}`}
+                >
+                  <span className="text-[13px] font-bold text-admin-on-surface line-clamp-1 group-hover:text-admin-primary">{s.title || "Untitled Session"}</span>
+                  <span className="text-[10px] text-admin-secondary/50">{new Date(s.updatedAt).toLocaleString()}</span>
+                </button>
+              ))}
+              {sessionsPage + 1 < sessionsTotalPages && (
+                <button
+                  onClick={() => loadSessions(sessionsPage + 1, true)}
+                  className="mt-1 w-full rounded-xl border border-admin-outline/20 bg-white py-2 text-[12px] font-semibold text-admin-secondary transition hover:bg-admin-bg/50"
+                >
+                  Tải thêm
+                </button>
+              )}
+            </>
           )}
         </div>
       )}

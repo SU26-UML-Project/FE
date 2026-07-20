@@ -259,7 +259,7 @@ export function ClassNode({ id, data, selected, height }: NodeProps) {
     const minH = useContentHeight(contentRef, [d.label, d.stereotype, d.attributes, d.methods]);
     useAutoGrow(id, height as number | undefined, minH);
     return (
-        <div className="relative flex h-full w-full flex-col overflow-hidden"
+        <div className="relative flex h-full w-full flex-col"
              style={{ border: `1.5px solid ${ink}`, background: fillColor(d) }}>
             <Resizer selected={selected} minW={170} minH={minH || 90} />
             <AllHandles />
@@ -288,7 +288,7 @@ export function ComponentNode({ id, data, selected, height }: NodeProps) {
     const minH = useContentHeight(contentRef, [d.label, d.stereotype]);
     useAutoGrow(id, height as number | undefined, minH);
     return (
-        <div className="relative h-full w-full overflow-hidden"
+        <div className="relative h-full w-full"
              style={{ border: `1.5px solid ${ink}`, background: fillColor(d) }}>
             <Resizer selected={selected} minW={140} minH={minH || 64} />
             <AllHandles />
@@ -398,7 +398,7 @@ export function StateNode({ id, data, selected, height }: NodeProps) {
     const minH = useContentHeight(contentRef, [d.label, d.attributes]);
     useAutoGrow(id, height as number | undefined, minH);
     return (
-        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[8px]"
+        <div className="relative flex h-full w-full flex-col rounded-[8px]"
              style={{ border: `1.5px solid ${ink}`, background: fillColor(d) }}>
             <Resizer selected={selected} minW={110} minH={minH || 48} />
             <AllHandles />
@@ -480,20 +480,17 @@ export function PackageNode({ id, data, selected }: NodeProps) {
 }
 
 /**
- * UML Activity swimlane (partition). A labelled container band whose body is
- * click-through (pointer-events:none) so child nodes inside stay interactive.
- * `variant` ("horizontal" | "vertical") controls band orientation:
- *   - horizontal: wide short band, label on a top header strip
- *   - vertical:   tall narrow band, label on a left header strip (rotated)
+ * UML Activity swimlane (partition). A labelled horizontal container band whose
+ * body is click-through (pointer-events:none) so child nodes inside stay interactive.
+ * Always horizontal - swimlanes stack from left to right.
  */
 export function SwimlaneNode({ id, data, selected }: NodeProps) {
     const d = data as FlowNodeData;
     const ink = inkColor(d);
-    const vertical = d.variant === "vertical";
     return (
         <div className="relative h-full w-full" style={{ pointerEvents: "none" }}>
             <div style={{ pointerEvents: "auto" }}>
-                <Resizer selected={selected} minW={vertical ? 120 : 200} minH={vertical ? 120 : 80} />
+                <Resizer selected={selected} minW={200} minH={80} />
             </div>
             {/* Body — click-through so child nodes receive pointer events */}
             <div
@@ -506,28 +503,14 @@ export function SwimlaneNode({ id, data, selected }: NodeProps) {
                 }}
             />
             {/* Header — the only clickable part (selects the lane) */}
-            {vertical ? (
-                <div
-                    className="absolute left-0 top-0 bottom-0 z-10 flex items-center justify-center border-r"
-                    style={{ width: 26, borderColor: ink, pointerEvents: "auto" }}
-                >
-                    <div
-                        style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
-                        className="px-1 text-[12px] font-semibold text-zinc-800"
-                    >
-                        <EditableText id={id} field="label" value={d.label} placeholder="Lane" />
-                    </div>
-                </div>
-            ) : (
-                <div
-                    className="absolute left-0 right-0 top-0 z-10 flex h-[24px] items-center border-b px-3"
-                    style={{ borderColor: ink, pointerEvents: "auto" }}
-                >
-          <span className="text-[12px] font-semibold text-zinc-800">
-            <EditableText id={id} field="label" value={d.label} placeholder="Lane" />
-          </span>
-                </div>
-            )}
+            <div
+                className="absolute left-0 right-0 top-0 z-10 flex h-[24px] items-center border-b px-3"
+                style={{ borderColor: ink, pointerEvents: "auto" }}
+            >
+                <span className="text-[12px] font-semibold text-zinc-800">
+                    <EditableText id={id} field="label" value={d.label} placeholder="Lane" />
+                </span>
+            </div>
             <div className="react-flow__handle-wrap" style={{ pointerEvents: "auto" }}>
                 <AllHandles />
             </div>

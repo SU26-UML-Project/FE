@@ -51,6 +51,29 @@ const formatRelativeTime = (iso: string): string => {
   return new Date(iso).toLocaleDateString('vi-VN')
 }
 
+function Pagination({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (p: number) => void }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="mt-6 flex items-center justify-center gap-4">
+      <button
+        onClick={() => onChange(Math.max(0, page - 1))}
+        disabled={page === 0}
+        className="flex items-center gap-1 rounded-md border border-admin-outline bg-white px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+      >
+        <ChevronLeft size={16} /> Trước
+      </button>
+      <span className="text-sm text-gray-500">Trang {page + 1} / {totalPages}</span>
+      <button
+        onClick={() => onChange(Math.min(totalPages - 1, page + 1))}
+        disabled={page >= totalPages - 1}
+        className="flex items-center gap-1 rounded-md border border-admin-outline bg-white px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+      >
+        Sau <ChevronRight size={16} />
+      </button>
+    </div>
+  );
+}
+
 const UserDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -66,8 +89,13 @@ const UserDashboard: React.FC = () => {
   const [filterLoading, setFilterLoading] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspacesLoading, setWorkspacesLoading] = useState(false);
+  const [wsPage, setWsPage] = useState(0);
+  const [wsTotalPages, setWsTotalPages] = useState(1);
   const [drafts, setDrafts] = useState<Workspace[]>([]);
   const [draftsLoading, setDraftsLoading] = useState(false);
+  const [draftsPage, setDraftsPage] = useState(0);
+  const [draftsTotalPages, setDraftsTotalPages] = useState(1);
+  const PROJECT_PAGE_SIZE = 12;
   const [prebuilts, setPrebuilts] = useState<PrebuiltMeta[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newWsName, setNewWsName] = useState('');
@@ -107,16 +135,20 @@ const UserDashboard: React.FC = () => {
     if (activeTab === 'all' || activeTab === 'archived' || activeTab === 'trash') {
       fetchWorkspaces();
     }
+  }, [activeTab, wsPage]);
+
+  useEffect(() => {
     if (activeTab === 'drafts') {
       fetchDrafts();
     }
-  }, [activeTab]);
+  }, [activeTab, draftsPage]);
 
   const fetchWorkspaces = async () => {
     setWorkspacesLoading(true);
     try {
-      const response = await projectService.getAllProjects({ isDraft: false });
-      const projects = response.result || [];
+      const response = await projectService.getAllProjects({ isDraft: false, page: wsPage, size: PROJECT_PAGE_SIZE });
+      const projects = response.result?.content || [];
+      setWsTotalPages(response.result?.totalPages || 1);
       
       // Fetch sheet counts for all projects
       const projectWithSheets = await Promise.all(
@@ -154,8 +186,9 @@ const UserDashboard: React.FC = () => {
   const fetchDrafts = async () => {
     setDraftsLoading(true);
     try {
-      const response = await projectService.getAllProjects({ isDraft: true });
-      const projects = response.result || [];
+      const response = await projectService.getAllProjects({ isDraft: true, page: draftsPage, size: PROJECT_PAGE_SIZE });
+      const projects = response.result?.content || [];
+      setDraftsTotalPages(response.result?.totalPages || 1);
 
       // Fetch sheet counts for all drafts
       const draftsWithSheets = await Promise.all(
@@ -669,6 +702,9 @@ const UserDashboard: React.FC = () => {
                     </table>
                   </div>
                 )}
+                {!draftsLoading && drafts.length > 0 && (
+                  <Pagination page={draftsPage} totalPages={draftsTotalPages} onChange={setDraftsPage} />
+                )}
               </section>
             ) : (
               <>
@@ -781,6 +817,9 @@ const UserDashboard: React.FC = () => {
                         </tbody>
                       </table>
                     </div>
+                  )}
+                  {!workspacesLoading && workspaces.length > 0 && (
+                    <Pagination page={wsPage} totalPages={wsTotalPages} onChange={setWsPage} />
                   )}
                 </section>
 

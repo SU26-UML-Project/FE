@@ -3,7 +3,7 @@ import dagre from "dagre";
 import type { DiagramType, FlowEdge, FlowEdgeData, FlowNode, FlowNodeData } from "../types";
 import { classMinSize } from "./sizing";
 import type { DiagramChatResponse, AiQuestionDto } from "../types/ai";
-import { finalizeLayout } from "./elkLayout";
+import { finalizeLayout, layoutActivityWithSwimlanes } from "./elkLayout";
 
 /* Marker URL constants (must match src/lib/markers.tsx ids). */
 const MARK = {
@@ -1788,8 +1788,9 @@ function parsePlantActivity(lines: string[]): ParseResult {
   let lastIds: string[] = [];
   let currentLaneId: string | null = null;
   const laneByLabel = new Map<string, string>();
+  let laneIndex = 0; // Track declaration order for horizontal swimlane layout
 
-  const ensureNode = (id: string, label: string, type: string, parentIdArg?: string) => {
+  const ensureNode = (id: string, label: string, type: string, parentIdArg?: string, extraData?: Partial<FlowNodeData>) => {
     if (!nodeMap.has(id)) {
       const uid = nanoid(8);
       nodeMap.set(id, uid);
@@ -1805,12 +1806,12 @@ function parsePlantActivity(lines: string[]): ParseResult {
       const parentId = parentIdArg !== undefined
           ? parentIdArg
           : (currentLaneId && type !== "swimlane" ? nodeMap.get(currentLaneId) : undefined);
-      nodes.push(mkNode(type, 0, 0, { label }, w, h, parentId, uid));
+      nodes.push(mkNode(type, 0, 0, { label, ...extraData }, w, h, parentId, uid));
     }
     return nodeMap.get(id)!;
   };
   const forkStack: { forkId: string; branchEnds: string[] }[] = [];
-  const ifStack: { decisionId: string; yesBranchEnds: string[] }[] = [];
+  const ifStack: { decisionId: string; yesBranchEnds: string[]; laneId: string | null }[] = [];
   /** Stores label to apply to the NEXT sequential edge — used by "else" */
   let pendingEdgeLabel: string | null = null;
 
@@ -1826,7 +1827,9 @@ function parsePlantActivity(lines: string[]): ParseResult {
       if (!lid) {
         lid = "lane-" + nanoid(6);
         laneByLabel.set(label, lid);
-        ensureNode(lid, label, "swimlane");
+        // Track declaration order via laneIndex for horizontal sorting
+        ensureNode(lid, label, "swimlane", undefined, { laneIndex });
+        laneIndex++;
       }
       currentLaneId = lid;
       continue;
@@ -1872,7 +1875,7 @@ function parsePlantActivity(lines: string[]): ParseResult {
         rawEdges.push({ from: lId, to: id, label: pendingEdgeLabel || undefined });
       });
       pendingEdgeLabel = null;
-      ifStack.push({ decisionId: id, yesBranchEnds: [] });
+      ifStack.push({ decisionId: id, yesBranchEnds: [], laneId: currentLaneId });
       lastIds = [id];
       // Set pending label for YES branch (e.g. "yes" from "then (yes)")
       if (m && m[2]) pendingEdgeLabel = m[2].trim() || "yes";
@@ -1883,6 +1886,9 @@ function parsePlantActivity(lines: string[]): ParseResult {
       if (currentIf) {
         // Save the current YES/previous branch ends
         currentIf.yesBranchEnds = [...currentIf.yesBranchEnds, ...lastIds];
+
+        // Restore the lane ID to what it was before the if block!
+        currentLaneId = currentIf.laneId;
 
         const m = ln.match(/(?:else|elseif)\s*\(([^)]+)\)(?:\s+then\s*\(([^)]+)\))?/i);
         const label = m ? m[2] || m[1] : "No";
@@ -1907,6 +1913,8 @@ function parsePlantActivity(lines: string[]): ParseResult {
       const currentIf = ifStack.pop();
       if (currentIf) {
         lastIds = [...currentIf.yesBranchEnds, ...lastIds];
+        // Restore the lane ID to what it was before the if block!
+        currentLaneId = currentIf.laneId;
       }
       pendingEdgeLabel = null;
       continue;
@@ -1985,19 +1993,13 @@ function parsePlantActivity(lines: string[]): ParseResult {
       })
       .filter(Boolean) as FlowEdge[];
 
-  const posMap = layeredLayout(
-      nodes.filter(n => n.type !== "swimlane").map(n => n.id),
-      edges.map(e => ({ source: e.source, target: e.target })),
-      "TB"
-  );
-
-  for (const n of nodes) {
-    const p = posMap.get(n.id) ?? { x: 0, y: 0 };
-    n.position = { x: p.x - (n.width ?? 0) / 2, y: p.y - (n.height ?? 0) / 2 };
-  }
-
-  const nodesOut = finalizeLayout(nodes, edges);
-  return { nodes: nodesOut, edges, type: "activity", preLayouted: true };
+  // Band-aware layout: keep each lane's children inside its partition and
+  // stack the lanes in a stable order (instead of one flat dagre pass that
+  // interleaves every lane's nodes).
+  const laid = layoutActivityWithSwimlanes(nodes, edges, "TB");
+  const nodesOut = laid ? laid.nodes : finalizeLayout(nodes, edges);
+  const edgesOut = laid ? laid.edges : edges;
+  return { nodes: nodesOut, edges: edgesOut, type: "activity", preLayouted: true };
 }
 
 function parsePlantComponent(lines: string[]): ParseResult {
