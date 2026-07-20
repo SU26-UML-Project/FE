@@ -14,8 +14,34 @@ interface EdgeData {
   multiplicityTarget?: string;
 }
 
-function EdgeView({ id, path, data, label, sourceX, sourceY, targetX, targetY, style, selected }: {
+interface Point {
+  x: number;
+  y: number;
+}
+
+function midpointOnPath(points: Point[]): Point {
+  const lengths = points.slice(1).map((point, index) => Math.hypot(point.x - points[index].x, point.y - points[index].y));
+  const midpoint = lengths.reduce((total, length) => total + length, 0) / 2;
+  let distance = 0;
+
+  for (let index = 0; index < lengths.length; index++) {
+    const length = lengths[index];
+    if (distance + length >= midpoint) {
+      const progress = length ? (midpoint - distance) / length : 0;
+      return {
+        x: points[index].x + (points[index + 1].x - points[index].x) * progress,
+        y: points[index].y + (points[index + 1].y - points[index].y) * progress,
+      };
+    }
+    distance += length;
+  }
+
+  return points[0];
+}
+
+function EdgeView({ id, path, data, label, labelX, labelY, sourceX, sourceY, targetX, targetY, style, selected }: {
   id: string; path: string; data: unknown; label?: string;
+  labelX: number; labelY: number;
   sourceX: number; sourceY: number; targetX: number; targetY: number;
   style?: React.CSSProperties;
   selected?: boolean;
@@ -24,8 +50,6 @@ function EdgeView({ id, path, data, label, sourceX, sourceY, targetX, targetY, s
   const marker = d?.marker || undefined;
   const markerStart = d?.markerStart || undefined;
   const mult = resolveEdgeMultiplicity(d, label);
-  const lx = (sourceX + targetX) / 2;
-  const ly = (sourceY + targetY) / 2;
 
   // Unit vector source→target, used to nudge the two end multiplicities
   // inward so they sit just inside each class (UML OMG placement).
@@ -66,7 +90,7 @@ function EdgeView({ id, path, data, label, sourceX, sourceY, targetX, targetY, s
         {mult.name ? (
             <EdgeLabelRenderer>
               <div className="nodrag nopan absolute"
-                   style={{ transform: `translate(-50%, -50%) translate(${lx}px, ${ly}px)` }}>
+                   style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}>
             <span className="whitespace-nowrap bg-white px-1 py-0.5 text-[11px] font-medium text-zinc-700">
               {mult.name}
             </span>
@@ -106,27 +130,35 @@ export function OrthogonalEdge(props: EdgeProps) {
       (sourcePosition === "top" && targetPosition === "bottom");
 
   let path: string;
+  let labelPoint: Point;
 
   if (isHorizontalPair) {
     if (Math.abs(sourceY - targetY) < 3) {
       path = `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
+      labelPoint = midpointOnPath([{ x: sourceX, y: sourceY }, { x: targetX, y: targetY }]);
     } else {
       const midX = sourceX + (targetX - sourceX) / 2;
       path = `M ${sourceX} ${sourceY} L ${midX} ${sourceY} L ${midX} ${targetY} L ${targetX} ${targetY}`;
+      labelPoint = midpointOnPath([{ x: sourceX, y: sourceY }, { x: midX, y: sourceY }, { x: midX, y: targetY }, { x: targetX, y: targetY }]);
     }
   } else if (isVerticalPair) {
     if (Math.abs(sourceX - targetX) < 3) {
       path = `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
+      labelPoint = midpointOnPath([{ x: sourceX, y: sourceY }, { x: targetX, y: targetY }]);
     } else {
       const midY = sourceY + (targetY - sourceY) / 2;
       path = `M ${sourceX} ${sourceY} L ${sourceX} ${midY} L ${targetX} ${midY} L ${targetX} ${targetY}`;
+      labelPoint = midpointOnPath([{ x: sourceX, y: sourceY }, { x: sourceX, y: midY }, { x: targetX, y: midY }, { x: targetX, y: targetY }]);
     }
   } else {
-    [path] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 0 });
+    const [smoothPath, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 0 });
+    path = smoothPath;
+    labelPoint = { x: labelX, y: labelY };
   }
 
   return (
       <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
+                labelX={labelPoint.x} labelY={labelPoint.y}
                 sourceX={sourceX} sourceY={sourceY} targetX={targetX} targetY={targetY}
                 style={props.style}
                 selected={props.selected}
@@ -135,12 +167,13 @@ export function OrthogonalEdge(props: EdgeProps) {
 }
 
 export function BezierEdge(props: EdgeProps) {
-  const [path] = getBezierPath({
+  const [path, labelX, labelY] = getBezierPath({
     sourceX: props.sourceX, sourceY: props.sourceY, sourcePosition: props.sourcePosition,
     targetX: props.targetX, targetY: props.targetY, targetPosition: props.targetPosition,
   });
   return (
       <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
+                labelX={labelX} labelY={labelY}
                 sourceX={props.sourceX} sourceY={props.sourceY} targetX={props.targetX} targetY={props.targetY}
                 style={props.style}
                 selected={props.selected}
@@ -149,9 +182,10 @@ export function BezierEdge(props: EdgeProps) {
 }
 
 export function StraightEdge(props: EdgeProps) {
-  const [path] = getStraightPath({ sourceX: props.sourceX, sourceY: props.sourceY, targetX: props.targetX, targetY: props.targetY });
+  const [path, labelX, labelY] = getStraightPath({ sourceX: props.sourceX, sourceY: props.sourceY, targetX: props.targetX, targetY: props.targetY });
   return (
       <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
+                labelX={labelX} labelY={labelY}
                 sourceX={props.sourceX} sourceY={props.sourceY} targetX={props.targetX} targetY={props.targetY}
                 style={props.style}
                 selected={props.selected}
