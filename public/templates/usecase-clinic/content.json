@@ -1,0 +1,314 @@
+{
+  "id": "usecase-clinic",
+  "kind": "sample",
+  "name": "Use Case — Clinic Appointment",
+  "type": "Use Case Diagram",
+  "umlType": "usecase",
+  "category": "Behavioral",
+  "group": "behavioral",
+  "description": "Mô tả chức năng đặt và quản lý lịch hẹn phòng khám.",
+  "shortDescription": "Mô tả chức năng đặt và quản lý lịch hẹn phòng khám.",
+  "purpose": "Mẫu có thể chỉnh sửa trực tiếp trong Canvas.",
+  "bestFor": [
+    "Khởi tạo nhanh một diagram cùng loại",
+    "Tuỳ biến theo nghiệp vụ của dự án"
+  ],
+  "useCases": [
+    "Mở mẫu trong Canvas",
+    "Điều chỉnh labels và relationships",
+    "Bổ sung element theo yêu cầu"
+  ],
+  "requirements": [
+    "Xác định phạm vi nghiệp vụ",
+    "Kiểm tra relationship trước khi dùng"
+  ],
+  "elements": [
+    {
+      "name": "Canvas elements",
+      "type": "usecase",
+      "description": "Node và edge tương thích với Canvas hiện tại."
+    }
+  ],
+  "previewImage": "/examples/templates/usecase-clinic.svg",
+  "nodeCount": 10,
+  "edgeCount": 8,
+  "createdFor": "Sample Library",
+  "canvasData": {
+    "diagramType": "usecase",
+    "nodes": [
+      {
+        "id": "system",
+        "type": "boundary",
+        "position": {
+          "x": 150,
+          "y": 20
+        },
+        "data": {
+          "label": "Clinic System"
+        },
+        "width": 680,
+        "height": 390,
+        "style": {
+          "width": 680,
+          "height": 390
+        }
+      },
+      {
+        "id": "a0",
+        "type": "actor",
+        "position": {
+          "x": 20,
+          "y": 70
+        },
+        "data": {
+          "label": "Patient"
+        },
+        "width": 76,
+        "height": 124,
+        "style": {
+          "width": 76,
+          "height": 124
+        }
+      },
+      {
+        "id": "a1",
+        "type": "actor",
+        "position": {
+          "x": 860,
+          "y": 70
+        },
+        "data": {
+          "label": "Receptionist"
+        },
+        "width": 76,
+        "height": 124,
+        "style": {
+          "width": 76,
+          "height": 124
+        }
+      },
+      {
+        "id": "a2",
+        "type": "actor",
+        "position": {
+          "x": 20,
+          "y": 260
+        },
+        "data": {
+          "label": "Doctor"
+        },
+        "width": 76,
+        "height": 124,
+        "style": {
+          "width": 76,
+          "height": 124
+        }
+      },
+      {
+        "id": "u0",
+        "type": "usecase",
+        "position": {
+          "x": 210,
+          "y": 80
+        },
+        "data": {
+          "label": "Book Appointment"
+        },
+        "width": 170,
+        "height": 80,
+        "style": {
+          "width": 170,
+          "height": 80
+        }
+      },
+      {
+        "id": "u1",
+        "type": "usecase",
+        "position": {
+          "x": 420,
+          "y": 80
+        },
+        "data": {
+          "label": "Confirm Appointment"
+        },
+        "width": 170,
+        "height": 80,
+        "style": {
+          "width": 170,
+          "height": 80
+        }
+      },
+      {
+        "id": "u2",
+        "type": "usecase",
+        "position": {
+          "x": 630,
+          "y": 80
+        },
+        "data": {
+          "label": "Check In"
+        },
+        "width": 170,
+        "height": 80,
+        "style": {
+          "width": 170,
+          "height": 80
+        }
+      },
+      {
+        "id": "u3",
+        "type": "usecase",
+        "position": {
+          "x": 210,
+          "y": 225
+        },
+        "data": {
+          "label": "View Medical Record"
+        },
+        "width": 170,
+        "height": 80,
+        "style": {
+          "width": 170,
+          "height": 80
+        }
+      },
+      {
+        "id": "u4",
+        "type": "usecase",
+        "position": {
+          "x": 420,
+          "y": 225
+        },
+        "data": {
+          "label": "Cancel Appointment"
+        },
+        "width": 170,
+        "height": 80,
+        "style": {
+          "width": 170,
+          "height": 80
+        }
+      },
+      {
+        "id": "u5",
+        "type": "usecase",
+        "position": {
+          "x": 630,
+          "y": 225
+        },
+        "data": {
+          "label": "Send Reminder"
+        },
+        "width": 170,
+        "height": 80,
+        "style": {
+          "width": 170,
+          "height": 80
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-a0-u0",
+        "source": "a0",
+        "target": "u0",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-a1-u1",
+        "source": "a1",
+        "target": "u1",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-a2-u2",
+        "source": "a2",
+        "target": "u2",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-a0-u3",
+        "source": "a0",
+        "target": "u3",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-a1-u4",
+        "source": "a1",
+        "target": "u4",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-a2-u5",
+        "source": "a2",
+        "target": "u5",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-u3-u4",
+        "source": "u3",
+        "target": "u4",
+        "type": "smoothstep",
+        "label": "«include»",
+        "data": {
+          "marker": "url(#m-arrow-open)",
+          "markerStart": "",
+          "dashed": true
+        }
+      },
+      {
+        "id": "e-u5-u4",
+        "source": "u5",
+        "target": "u4",
+        "type": "smoothstep",
+        "label": "«extend»",
+        "data": {
+          "marker": "url(#m-arrow-open)",
+          "markerStart": "",
+          "dashed": true
+        }
+      }
+    ],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 0.8
+    }
+  }
+}

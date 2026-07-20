@@ -1,3 +1,6 @@
+import type { DiagramType } from './diagram'
+import type { FlowEdge, FlowNode } from './node'
+
 export interface TemplateMeta {
   id: string
   name: string
@@ -11,6 +14,7 @@ export interface TemplateMeta {
   nodeCount: number
   edgeCount: number
   createdFor: string
+  previewImage: string | null
 }
 
 export interface TemplateContent extends TemplateMeta {
@@ -22,5 +26,5 @@ export interface TemplateContent extends TemplateMeta {
   elements: { name: string; type: string; description: string }[]
   confusableWith?: { diagram: string; difference: string }[]
   keywords?: string[]
-  previewImage: string | null
+  canvasData?: { nodes: FlowNode[]; edges: FlowEdge[]; diagramType: DiagramType }
 }

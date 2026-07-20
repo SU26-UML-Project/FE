@@ -6,45 +6,41 @@
   "umlType": "component",
   "category": "Structural",
   "group": "structural",
-  "description": "Component Diagram describes independent software components, their provided/required interfaces, and dependencies between components. This diagram is commonly used at the application architecture or module level.",
-  "purpose": "Design microservices architecture, monolith modules, or declare dependencies with third-party systems.",
+  "description": "Mô tả component, trách nhiệm và dependency ở mức kiến trúc.",
+  "shortDescription": "Mô tả component, trách nhiệm và dependency ở mức kiến trúc.",
+  "purpose": "Giúp đội ngũ lựa chọn đúng loại diagram trước khi triển khai chi tiết.",
   "bestFor": [
-    "Design microservices architecture",
-    "Describe modules in a large monolith",
-    "Declare dependencies with third-party systems or shared libraries",
-    "Create architecture documentation defining component responsibilities and boundaries"
+    "Trao đổi phạm vi và thiết kế với stakeholders",
+    "Tài liệu hoá quyết định thiết kế"
   ],
   "notSuitableFor": [
-    "Describe server/deployment node → use Deployment Diagram",
-    "Describe detailed classes inside component → use Class Diagram",
-    "Describe API call flow in order → use Sequence Diagram"
+    "Thay thế hoàn toàn tài liệu yêu cầu hoặc source code"
   ],
   "useCases": [
-    "Identify list of services/modules/subsystems",
-    "Identify provided interfaces (API the component provides)",
-    "Identify required interfaces (API the component needs to operate)",
-    "Draw dependencies between components",
-    "Add ports if needed (REST, AMQP, gRPC)"
+    "Xác định mục tiêu diagram",
+    "Chuẩn bị actors, domain objects hoặc workflow",
+    "Review cùng team"
   ],
   "requirements": [
-    "Components — service, module, subsystem",
-    "Provided Interfaces — API the service provides",
-    "Required Interfaces — API/library the component needs",
-    "Ports — communication points (optional)",
-    "Dependencies — dependency relationships"
+    "Xác định phạm vi và audience",
+    "Dùng tên rõ ràng, nhất quán",
+    "Chỉ thể hiện relationship cần thiết"
   ],
   "elements": [
-    {"name":"Component","type":"Core","description":"Independent module/service/subsystem"},
-    {"name":"Provided Interface","type":"Core","description":"API/service the component provides externally"},
-    {"name":"Required Interface","type":"Core","description":"API/library the component needs to operate"},
-    {"name":"Port","type":"Optional","description":"Communication point on the component boundary"},
-    {"name":"Dependency","type":"Core","description":"Dependency relationship between components"}
+    {
+      "name": "Core elements",
+      "type": "Component Diagram",
+      "description": "Các phần tử chuẩn được Canvas hỗ trợ."
+    }
   ],
-  "confusableWith": [
-    {"diagram":"Deployment Diagram","difference":"Component describes software structure; Deployment describes what infrastructure the software is deployed on."},
-    {"diagram":"Package Diagram","difference":"Component at runtime/deployable module level; Package at source code organization level."},
-    {"diagram":"Class Diagram","difference":"Component Diagram does not go into details of class attributes/methods."}
+  "confusableWith": [],
+  "keywords": [
+    "component",
+    "UML",
+    "design"
   ],
-  "keywords": ["component","microservice","module","subsystem","provided interface","required interface","architecture","service boundary"],
-  "previewImage":null
+  "previewImage": "/examples/library/component.svg",
+  "nodeCount": 0,
+  "edgeCount": 0,
+  "createdFor": "UML Knowledge Base"
 }

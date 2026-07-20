@@ -1,0 +1,251 @@
+{
+  "id": "state-transaction",
+  "kind": "sample",
+  "name": "State Machine — Transaction Lifecycle",
+  "type": "State Machine Diagram",
+  "umlType": "state",
+  "category": "Behavioral",
+  "group": "behavioral",
+  "description": "Mô tả các trạng thái và transition của giao dịch ngân hàng.",
+  "shortDescription": "Mô tả các trạng thái và transition của giao dịch ngân hàng.",
+  "purpose": "Mẫu có thể chỉnh sửa trực tiếp trong Canvas.",
+  "bestFor": [
+    "Khởi tạo nhanh một diagram cùng loại",
+    "Tuỳ biến theo nghiệp vụ của dự án"
+  ],
+  "useCases": [
+    "Mở mẫu trong Canvas",
+    "Điều chỉnh labels và relationships",
+    "Bổ sung element theo yêu cầu"
+  ],
+  "requirements": [
+    "Xác định phạm vi nghiệp vụ",
+    "Kiểm tra relationship trước khi dùng"
+  ],
+  "elements": [
+    {
+      "name": "Canvas elements",
+      "type": "state",
+      "description": "Node và edge tương thích với Canvas hiện tại."
+    }
+  ],
+  "previewImage": "/examples/templates/state-transaction.svg",
+  "nodeCount": 7,
+  "edgeCount": 7,
+  "createdFor": "Sample Library",
+  "canvasData": {
+    "diagramType": "state",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "position": {
+          "x": 30,
+          "y": 150
+        },
+        "data": {
+          "label": ""
+        },
+        "width": 38,
+        "height": 38,
+        "style": {
+          "width": 38,
+          "height": 38
+        }
+      },
+      {
+        "id": "s0",
+        "type": "state",
+        "position": {
+          "x": 110,
+          "y": 140
+        },
+        "data": {
+          "label": "Draft"
+        },
+        "width": 145,
+        "height": 62,
+        "style": {
+          "width": 145,
+          "height": 62
+        }
+      },
+      {
+        "id": "s1",
+        "type": "state",
+        "position": {
+          "x": 280,
+          "y": 140
+        },
+        "data": {
+          "label": "Pending Validation"
+        },
+        "width": 145,
+        "height": 62,
+        "style": {
+          "width": 145,
+          "height": 62
+        }
+      },
+      {
+        "id": "s2",
+        "type": "state",
+        "position": {
+          "x": 450,
+          "y": 140
+        },
+        "data": {
+          "label": "Pending Review"
+        },
+        "width": 145,
+        "height": 62,
+        "style": {
+          "width": 145,
+          "height": 62
+        }
+      },
+      {
+        "id": "s3",
+        "type": "state",
+        "position": {
+          "x": 620,
+          "y": 140
+        },
+        "data": {
+          "label": "Processing"
+        },
+        "width": 145,
+        "height": 62,
+        "style": {
+          "width": 145,
+          "height": 62
+        }
+      },
+      {
+        "id": "s4",
+        "type": "state",
+        "position": {
+          "x": 790,
+          "y": 140
+        },
+        "data": {
+          "label": "Completed"
+        },
+        "width": 145,
+        "height": 62,
+        "style": {
+          "width": 145,
+          "height": 62
+        }
+      },
+      {
+        "id": "end",
+        "type": "final",
+        "position": {
+          "x": 980,
+          "y": 150
+        },
+        "data": {
+          "label": ""
+        },
+        "width": 40,
+        "height": 40,
+        "style": {
+          "width": 40,
+          "height": 40
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-start-s0",
+        "source": "start",
+        "target": "s0",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s0-s1",
+        "source": "s0",
+        "target": "s1",
+        "type": "smoothstep",
+        "label": "next",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s1-s2",
+        "source": "s1",
+        "target": "s2",
+        "type": "smoothstep",
+        "label": "next",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s2-s3",
+        "source": "s2",
+        "target": "s3",
+        "type": "smoothstep",
+        "label": "next",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s3-s4",
+        "source": "s3",
+        "target": "s4",
+        "type": "smoothstep",
+        "label": "next",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s4-end",
+        "source": "s4",
+        "target": "end",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s1-s0",
+        "source": "s1",
+        "target": "s0",
+        "type": "bezier",
+        "label": "cancel",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      }
+    ],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 0.85
+    }
+  }
+}

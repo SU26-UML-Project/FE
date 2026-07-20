@@ -3,9 +3,17 @@
     "id": "banking",
     "name": "Digital Banking Platform",
     "domain": "fintech",
-    "summary": "Core banking system with account management, transaction processing, fraud detection, and regulatory compliance diagrams.",
+    "summary": "Mẫu ngân hàng số với chuyển tiền, kiểm soát rủi ro và quản lý vòng đời giao dịch.",
     "difficulty": "advanced",
-    "tags": ["use-case", "class", "sequence", "state", "c4-context", "c4-container", "banking"]
+    "tags": [
+      "use-case",
+      "activity",
+      "class",
+      "state-machine",
+      "component",
+      "fintech"
+    ],
+    "coverImage": "/examples/prebuilts/banking-cover.svg"
   },
   "workspace": {
     "id": "prebuilt-banking",
@@ -14,54 +22,1162 @@
     "type": "prebuilt",
     "documents": [
       {
-        "id": "doc-overview",
-        "name": "01-Platform-Overview.md",
+        "id": "overview",
+        "name": "01-Project-Overview.md",
         "type": "md",
-        "content": "# Digital Banking Platform\n\n## Overview\nA next-generation digital banking platform supporting retail and corporate accounts, real-time transactions, fraud detection, and regulatory compliance (PSD2, GDPR).\n\n## Stakeholders\n- Retail Customers\n- Corporate Clients\n- Bank Admins\n- Compliance Officers\n- Regulators\n- Third-party Integrators (PISP, AISP)\n\n## Key Features\n- Multi-currency account management\n- Real-time payment processing (SEPA, SWIFT)\n- Fraud detection with ML\n- KYC/AML compliance\n- Open Banking APIs (PSD2)\n- Mobile and web banking\n- Push notifications and alerts\n- Transaction reporting"
+        "content": "# Digital Banking Platform\n\n## Tổng quan\nMẫu ngân hàng số với chuyển tiền, kiểm soát rủi ro và quản lý vòng đời giao dịch.\n\n## Diagram types\nUse Case, Activity, Class, State Machine và Component."
       },
       {
-        "id": "doc-tech-stack",
-        "name": "02-Tech-Stack.md",
+        "id": "architecture",
+        "name": "02-Architecture-Notes.md",
         "type": "md",
-        "content": "# Tech Stack\n\n- Frontend: React Native (Mobile), React (Web)\n- Backend: Spring Boot (Microservices)\n- Database: PostgreSQL (transactions), MongoDB (customer profiles)\n- Cache: Redis\n- Event Bus: Apache Kafka\n- Security: OAuth2, OpenID Connect, mTLS\n- Fraud Detection: Python ML service (TensorFlow)\n- Monitoring: ELK Stack, Grafana"
+        "content": "# Architecture Notes\n\nTài liệu minh hoạ phục vụ thiết kế và trao đổi; các thuật ngữ kỹ thuật được giữ bằng tiếng Anh."
       }
     ],
     "sheets": [
       {
-        "id": "sheet-use-case",
-        "name": "Use Case",
-        "diagramType": "uml-use-case",
-        "diagramXml": ""
+        "id": "sheet-usecase",
+        "name": "Digital Banking Use Case",
+        "diagramType": "usecase",
+        "canvasData": {
+          "diagramType": "usecase",
+          "nodes": [
+            {
+              "id": "system",
+              "type": "boundary",
+              "position": {
+                "x": 150,
+                "y": 20
+              },
+              "data": {
+                "label": "Digital Banking Platform"
+              },
+              "width": 680,
+              "height": 390,
+              "style": {
+                "width": 680,
+                "height": 390
+              }
+            },
+            {
+              "id": "a0",
+              "type": "actor",
+              "position": {
+                "x": 20,
+                "y": 70
+              },
+              "data": {
+                "label": "Customer"
+              },
+              "width": 76,
+              "height": 124,
+              "style": {
+                "width": 76,
+                "height": 124
+              }
+            },
+            {
+              "id": "a1",
+              "type": "actor",
+              "position": {
+                "x": 860,
+                "y": 70
+              },
+              "data": {
+                "label": "Banking Staff"
+              },
+              "width": 76,
+              "height": 124,
+              "style": {
+                "width": 76,
+                "height": 124
+              }
+            },
+            {
+              "id": "a2",
+              "type": "actor",
+              "position": {
+                "x": 20,
+                "y": 260
+              },
+              "data": {
+                "label": "Admin"
+              },
+              "width": 76,
+              "height": 124,
+              "style": {
+                "width": 76,
+                "height": 124
+              }
+            },
+            {
+              "id": "a3",
+              "type": "actor",
+              "position": {
+                "x": 860,
+                "y": 260
+              },
+              "data": {
+                "label": "Fraud Service"
+              },
+              "width": 76,
+              "height": 124,
+              "style": {
+                "width": 76,
+                "height": 124
+              }
+            },
+            {
+              "id": "u0",
+              "type": "usecase",
+              "position": {
+                "x": 210,
+                "y": 80
+              },
+              "data": {
+                "label": "Authenticate"
+              },
+              "width": 170,
+              "height": 80,
+              "style": {
+                "width": 170,
+                "height": 80
+              }
+            },
+            {
+              "id": "u1",
+              "type": "usecase",
+              "position": {
+                "x": 420,
+                "y": 80
+              },
+              "data": {
+                "label": "View Balance"
+              },
+              "width": 170,
+              "height": 80,
+              "style": {
+                "width": 170,
+                "height": 80
+              }
+            },
+            {
+              "id": "u2",
+              "type": "usecase",
+              "position": {
+                "x": 630,
+                "y": 80
+              },
+              "data": {
+                "label": "Transfer Funds"
+              },
+              "width": 170,
+              "height": 80,
+              "style": {
+                "width": 170,
+                "height": 80
+              }
+            },
+            {
+              "id": "u3",
+              "type": "usecase",
+              "position": {
+                "x": 210,
+                "y": 225
+              },
+              "data": {
+                "label": "Validate Transfer"
+              },
+              "width": 170,
+              "height": 80,
+              "style": {
+                "width": 170,
+                "height": 80
+              }
+            },
+            {
+              "id": "u4",
+              "type": "usecase",
+              "position": {
+                "x": 420,
+                "y": 225
+              },
+              "data": {
+                "label": "Manage Beneficiary"
+              },
+              "width": 170,
+              "height": 80,
+              "style": {
+                "width": 170,
+                "height": 80
+              }
+            },
+            {
+              "id": "u5",
+              "type": "usecase",
+              "position": {
+                "x": 630,
+                "y": 225
+              },
+              "data": {
+                "label": "Freeze Card"
+              },
+              "width": 170,
+              "height": 80,
+              "style": {
+                "width": 170,
+                "height": 80
+              }
+            }
+          ],
+          "edges": [
+            {
+              "id": "e-a0-u0",
+              "source": "a0",
+              "target": "u0",
+              "type": "bezier",
+              "label": "",
+              "data": {
+                "marker": "",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-a1-u1",
+              "source": "a1",
+              "target": "u1",
+              "type": "bezier",
+              "label": "",
+              "data": {
+                "marker": "",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-a2-u2",
+              "source": "a2",
+              "target": "u2",
+              "type": "bezier",
+              "label": "",
+              "data": {
+                "marker": "",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-a3-u3",
+              "source": "a3",
+              "target": "u3",
+              "type": "bezier",
+              "label": "",
+              "data": {
+                "marker": "",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-a0-u4",
+              "source": "a0",
+              "target": "u4",
+              "type": "bezier",
+              "label": "",
+              "data": {
+                "marker": "",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-a1-u5",
+              "source": "a1",
+              "target": "u5",
+              "type": "bezier",
+              "label": "",
+              "data": {
+                "marker": "",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-u3-u4",
+              "source": "u3",
+              "target": "u4",
+              "type": "smoothstep",
+              "label": "«include»",
+              "data": {
+                "marker": "url(#m-arrow-open)",
+                "markerStart": "",
+                "dashed": true
+              }
+            },
+            {
+              "id": "e-u5-u4",
+              "source": "u5",
+              "target": "u4",
+              "type": "smoothstep",
+              "label": "«extend»",
+              "data": {
+                "marker": "url(#m-arrow-open)",
+                "markerStart": "",
+                "dashed": true
+              }
+            }
+          ],
+          "viewport": {
+            "x": 0,
+            "y": 0,
+            "zoom": 0.8
+          }
+        },
+        "thumbnail": "/examples/templates/usecase.svg"
+      },
+      {
+        "id": "sheet-activity",
+        "name": "Fund Transfer Workflow",
+        "diagramType": "activity",
+        "canvasData": {
+          "diagramType": "activity",
+          "nodes": [
+            {
+              "id": "start",
+              "type": "start",
+              "position": {
+                "x": 40,
+                "y": 150
+              },
+              "data": {
+                "label": ""
+              },
+              "width": 38,
+              "height": 38,
+              "style": {
+                "width": 38,
+                "height": 38
+              }
+            },
+            {
+              "id": "a0",
+              "type": "action",
+              "position": {
+                "x": 120,
+                "y": 140
+              },
+              "data": {
+                "label": "Authenticate customer"
+              },
+              "width": 155,
+              "height": 58,
+              "style": {
+                "width": 155,
+                "height": 58
+              }
+            },
+            {
+              "id": "a1",
+              "type": "action",
+              "position": {
+                "x": 310,
+                "y": 140
+              },
+              "data": {
+                "label": "Validate beneficiary"
+              },
+              "width": 155,
+              "height": 58,
+              "style": {
+                "width": 155,
+                "height": 58
+              }
+            },
+            {
+              "id": "a2",
+              "type": "action",
+              "position": {
+                "x": 500,
+                "y": 140
+              },
+              "data": {
+                "label": "Run fraud check"
+              },
+              "width": 155,
+              "height": 58,
+              "style": {
+                "width": 155,
+                "height": 58
+              }
+            },
+            {
+              "id": "a3",
+              "type": "action",
+              "position": {
+                "x": 690,
+                "y": 140
+              },
+              "data": {
+                "label": "Process transfer"
+              },
+              "width": 155,
+              "height": 58,
+              "style": {
+                "width": 155,
+                "height": 58
+              }
+            },
+            {
+              "id": "decision",
+              "type": "decision",
+              "position": {
+                "x": 880,
+                "y": 115
+              },
+              "data": {
+                "label": "Approved?"
+              },
+              "width": 140,
+              "height": 105,
+              "style": {
+                "width": 140,
+                "height": 105
+              }
+            },
+            {
+              "id": "retry",
+              "type": "action",
+              "position": {
+                "x": 450,
+                "y": 310
+              },
+              "data": {
+                "label": "Notify and retry"
+              },
+              "width": 160,
+              "height": 58,
+              "style": {
+                "width": 160,
+                "height": 58
+              }
+            },
+            {
+              "id": "end",
+              "type": "final",
+              "position": {
+                "x": 1070,
+                "y": 150
+              },
+              "data": {
+                "label": ""
+              },
+              "width": 40,
+              "height": 40,
+              "style": {
+                "width": 40,
+                "height": 40
+              }
+            }
+          ],
+          "edges": [
+            {
+              "id": "e-start-a0",
+              "source": "start",
+              "target": "a0",
+              "type": "smoothstep",
+              "label": "",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-a0-a1",
+              "source": "a0",
+              "target": "a1",
+              "type": "smoothstep",
+              "label": "",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-a1-a2",
+              "source": "a1",
+              "target": "a2",
+              "type": "smoothstep",
+              "label": "",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-a2-a3",
+              "source": "a2",
+              "target": "a3",
+              "type": "smoothstep",
+              "label": "",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-a3-decision",
+              "source": "a3",
+              "target": "decision",
+              "type": "smoothstep",
+              "label": "",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-decision-end",
+              "source": "decision",
+              "target": "end",
+              "type": "smoothstep",
+              "label": "yes",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-decision-retry",
+              "source": "decision",
+              "target": "retry",
+              "type": "smoothstep",
+              "label": "no",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-retry-a0",
+              "source": "retry",
+              "target": "a0",
+              "type": "bezier",
+              "label": "retry",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            }
+          ],
+          "viewport": {
+            "x": 0,
+            "y": 0,
+            "zoom": 0.8
+          }
+        },
+        "thumbnail": "/examples/templates/activity.svg"
       },
       {
         "id": "sheet-class",
-        "name": "Class Diagram",
-        "diagramType": "uml-class",
-        "diagramXml": ""
-      },
-      {
-        "id": "sheet-sequence-transfer",
-        "name": "Transfer Flow",
-        "diagramType": "uml-sequence",
-        "diagramXml": ""
+        "name": "Banking Domain Model",
+        "diagramType": "class",
+        "canvasData": {
+          "diagramType": "class",
+          "nodes": [
+            {
+              "id": "c0",
+              "type": "cls",
+              "position": {
+                "x": 60,
+                "y": 40
+              },
+              "data": {
+                "label": "Customer",
+                "attributes": "- id: UUID\n- fullName: String",
+                "methods": "+ validate(): boolean"
+              },
+              "width": 195,
+              "height": 145,
+              "style": {
+                "width": 195,
+                "height": 145
+              }
+            },
+            {
+              "id": "c1",
+              "type": "cls",
+              "position": {
+                "x": 300,
+                "y": 40
+              },
+              "data": {
+                "label": "BankAccount",
+                "attributes": "- number: String\n- balance: Money",
+                "methods": "+ validate(): boolean"
+              },
+              "width": 195,
+              "height": 145,
+              "style": {
+                "width": 195,
+                "height": 145
+              }
+            },
+            {
+              "id": "c2",
+              "type": "cls",
+              "position": {
+                "x": 540,
+                "y": 40
+              },
+              "data": {
+                "label": "Beneficiary",
+                "attributes": "- accountNumber: String",
+                "methods": "+ validate(): boolean"
+              },
+              "width": 195,
+              "height": 145,
+              "style": {
+                "width": 195,
+                "height": 145
+              }
+            },
+            {
+              "id": "c3",
+              "type": "cls",
+              "position": {
+                "x": 780,
+                "y": 40
+              },
+              "data": {
+                "label": "Transfer",
+                "attributes": "- reference: String\n- amount: Money",
+                "methods": "+ validate(): boolean"
+              },
+              "width": 195,
+              "height": 145,
+              "style": {
+                "width": 195,
+                "height": 145
+              }
+            },
+            {
+              "id": "c4",
+              "type": "cls",
+              "position": {
+                "x": 60,
+                "y": 290
+              },
+              "data": {
+                "label": "Transaction",
+                "attributes": "- status: TransactionStatus",
+                "methods": "+ validate(): boolean"
+              },
+              "width": 195,
+              "height": 145,
+              "style": {
+                "width": 195,
+                "height": 145
+              }
+            },
+            {
+              "id": "c5",
+              "type": "cls",
+              "position": {
+                "x": 300,
+                "y": 290
+              },
+              "data": {
+                "label": "FraudAlert",
+                "attributes": "- score: Decimal",
+                "methods": "+ validate(): boolean"
+              },
+              "width": 195,
+              "height": 145,
+              "style": {
+                "width": 195,
+                "height": 145
+              }
+            }
+          ],
+          "edges": [
+            {
+              "id": "e-c0-c1",
+              "source": "c0",
+              "target": "c1",
+              "type": "bezier",
+              "label": "",
+              "data": {
+                "marker": "",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-c0-c2",
+              "source": "c0",
+              "target": "c2",
+              "type": "bezier",
+              "label": "",
+              "data": {
+                "marker": "",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-c0-c3",
+              "source": "c0",
+              "target": "c3",
+              "type": "bezier",
+              "label": "",
+              "data": {
+                "marker": "",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-c0-c4",
+              "source": "c0",
+              "target": "c4",
+              "type": "bezier",
+              "label": "",
+              "data": {
+                "marker": "",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-c0-c5",
+              "source": "c0",
+              "target": "c5",
+              "type": "bezier",
+              "label": "",
+              "data": {
+                "marker": "",
+                "markerStart": "",
+                "dashed": false
+              }
+            }
+          ],
+          "viewport": {
+            "x": 0,
+            "y": 0,
+            "zoom": 0.75
+          }
+        },
+        "thumbnail": "/examples/templates/class.svg"
       },
       {
         "id": "sheet-state",
-        "name": "Transaction State",
-        "diagramType": "uml-state",
-        "diagramXml": ""
+        "name": "Transaction Lifecycle",
+        "diagramType": "state",
+        "canvasData": {
+          "diagramType": "state",
+          "nodes": [
+            {
+              "id": "start",
+              "type": "start",
+              "position": {
+                "x": 30,
+                "y": 150
+              },
+              "data": {
+                "label": ""
+              },
+              "width": 38,
+              "height": 38,
+              "style": {
+                "width": 38,
+                "height": 38
+              }
+            },
+            {
+              "id": "s0",
+              "type": "state",
+              "position": {
+                "x": 110,
+                "y": 140
+              },
+              "data": {
+                "label": "Draft"
+              },
+              "width": 145,
+              "height": 62,
+              "style": {
+                "width": 145,
+                "height": 62
+              }
+            },
+            {
+              "id": "s1",
+              "type": "state",
+              "position": {
+                "x": 280,
+                "y": 140
+              },
+              "data": {
+                "label": "Pending Validation"
+              },
+              "width": 145,
+              "height": 62,
+              "style": {
+                "width": 145,
+                "height": 62
+              }
+            },
+            {
+              "id": "s2",
+              "type": "state",
+              "position": {
+                "x": 450,
+                "y": 140
+              },
+              "data": {
+                "label": "Pending Review"
+              },
+              "width": 145,
+              "height": 62,
+              "style": {
+                "width": 145,
+                "height": 62
+              }
+            },
+            {
+              "id": "s3",
+              "type": "state",
+              "position": {
+                "x": 620,
+                "y": 140
+              },
+              "data": {
+                "label": "Processing"
+              },
+              "width": 145,
+              "height": 62,
+              "style": {
+                "width": 145,
+                "height": 62
+              }
+            },
+            {
+              "id": "s4",
+              "type": "state",
+              "position": {
+                "x": 790,
+                "y": 140
+              },
+              "data": {
+                "label": "Completed"
+              },
+              "width": 145,
+              "height": 62,
+              "style": {
+                "width": 145,
+                "height": 62
+              }
+            },
+            {
+              "id": "end",
+              "type": "final",
+              "position": {
+                "x": 980,
+                "y": 150
+              },
+              "data": {
+                "label": ""
+              },
+              "width": 40,
+              "height": 40,
+              "style": {
+                "width": 40,
+                "height": 40
+              }
+            }
+          ],
+          "edges": [
+            {
+              "id": "e-start-s0",
+              "source": "start",
+              "target": "s0",
+              "type": "smoothstep",
+              "label": "",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-s0-s1",
+              "source": "s0",
+              "target": "s1",
+              "type": "smoothstep",
+              "label": "next",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-s1-s2",
+              "source": "s1",
+              "target": "s2",
+              "type": "smoothstep",
+              "label": "next",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-s2-s3",
+              "source": "s2",
+              "target": "s3",
+              "type": "smoothstep",
+              "label": "next",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-s3-s4",
+              "source": "s3",
+              "target": "s4",
+              "type": "smoothstep",
+              "label": "next",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-s4-end",
+              "source": "s4",
+              "target": "end",
+              "type": "smoothstep",
+              "label": "",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            },
+            {
+              "id": "e-s1-s0",
+              "source": "s1",
+              "target": "s0",
+              "type": "bezier",
+              "label": "cancel",
+              "data": {
+                "marker": "url(#m-arrow)",
+                "markerStart": "",
+                "dashed": false
+              }
+            }
+          ],
+          "viewport": {
+            "x": 0,
+            "y": 0,
+            "zoom": 0.85
+          }
+        },
+        "thumbnail": "/examples/templates/state.svg"
       },
       {
-        "id": "sheet-c4-context",
-        "name": "C4 Context",
-        "diagramType": "c4-context",
-        "diagramXml": ""
-      },
-      {
-        "id": "sheet-c4-container",
-        "name": "C4 Container",
-        "diagramType": "c4-container",
-        "diagramXml": ""
+        "id": "sheet-component",
+        "name": "Digital Banking Components",
+        "diagramType": "component",
+        "canvasData": {
+          "diagramType": "component",
+          "nodes": [
+            {
+              "id": "c0",
+              "type": "component",
+              "position": {
+                "x": 60,
+                "y": 70
+              },
+              "data": {
+                "label": "Digital Banking UI"
+              },
+              "width": 185,
+              "height": 92,
+              "style": {
+                "width": 185,
+                "height": 92
+              }
+            },
+            {
+              "id": "c1",
+              "type": "component",
+              "position": {
+                "x": 330,
+                "y": 70
+              },
+              "data": {
+                "label": "Identity Component"
+              },
+              "width": 185,
+              "height": 92,
+              "style": {
+                "width": 185,
+                "height": 92
+              }
+            },
+            {
+              "id": "c2",
+              "type": "component",
+              "position": {
+                "x": 600,
+                "y": 70
+              },
+              "data": {
+                "label": "Account Component"
+              },
+              "width": 185,
+              "height": 92,
+              "style": {
+                "width": 185,
+                "height": 92
+              }
+            },
+            {
+              "id": "c3",
+              "type": "component",
+              "position": {
+                "x": 60,
+                "y": 240
+              },
+              "data": {
+                "label": "Transfer Component"
+              },
+              "width": 185,
+              "height": 92,
+              "style": {
+                "width": 185,
+                "height": 92
+              }
+            },
+            {
+              "id": "c4",
+              "type": "component",
+              "position": {
+                "x": 330,
+                "y": 240
+              },
+              "data": {
+                "label": "Risk Component"
+              },
+              "width": 185,
+              "height": 92,
+              "style": {
+                "width": 185,
+                "height": 92
+              }
+            },
+            {
+              "id": "c5",
+              "type": "component",
+              "position": {
+                "x": 600,
+                "y": 240
+              },
+              "data": {
+                "label": "Core Banking Adapter"
+              },
+              "width": 185,
+              "height": 92,
+              "style": {
+                "width": 185,
+                "height": 92
+              }
+            }
+          ],
+          "edges": [
+            {
+              "id": "e-c0-c1",
+              "source": "c0",
+              "target": "c1",
+              "type": "smoothstep",
+              "label": "",
+              "data": {
+                "marker": "url(#m-arrow-open)",
+                "markerStart": "",
+                "dashed": true
+              }
+            },
+            {
+              "id": "e-c1-c2",
+              "source": "c1",
+              "target": "c2",
+              "type": "smoothstep",
+              "label": "",
+              "data": {
+                "marker": "url(#m-arrow-open)",
+                "markerStart": "",
+                "dashed": true
+              }
+            },
+            {
+              "id": "e-c2-c3",
+              "source": "c2",
+              "target": "c3",
+              "type": "smoothstep",
+              "label": "",
+              "data": {
+                "marker": "url(#m-arrow-open)",
+                "markerStart": "",
+                "dashed": true
+              }
+            },
+            {
+              "id": "e-c3-c4",
+              "source": "c3",
+              "target": "c4",
+              "type": "smoothstep",
+              "label": "",
+              "data": {
+                "marker": "url(#m-arrow-open)",
+                "markerStart": "",
+                "dashed": true
+              }
+            },
+            {
+              "id": "e-c4-c5",
+              "source": "c4",
+              "target": "c5",
+              "type": "smoothstep",
+              "label": "",
+              "data": {
+                "marker": "url(#m-arrow-open)",
+                "markerStart": "",
+                "dashed": true
+              }
+            }
+          ],
+          "viewport": {
+            "x": 0,
+            "y": 0,
+            "zoom": 0.85
+          }
+        },
+        "thumbnail": "/examples/templates/component.svg"
       }
     ],
     "aiContext": {
@@ -69,19 +1185,33 @@
       "clarifications": [
         {
           "question": "What type of banking does the platform focus on?",
-          "options": ["Retail banking only", "Corporate banking only", "Both retail and corporate", "Neobank (digital only)"],
+          "options": [
+            "Retail banking only",
+            "Corporate banking only",
+            "Both retail and corporate",
+            "Neobank (digital only)"
+          ],
           "answer": "Both retail and corporate",
           "answeredAt": "2025-01-01T00:00:00.000Z"
         },
         {
           "question": "Which regulatory frameworks must be supported?",
-          "options": ["PSD2 only", "PSD2 + GDPR", "PSD2 + GDPR + SOX", "Local regulations only"],
+          "options": [
+            "PSD2 only",
+            "PSD2 + GDPR",
+            "PSD2 + GDPR + SOX",
+            "Local regulations only"
+          ],
           "answer": "PSD2 + GDPR",
           "answeredAt": "2025-01-01T00:00:00.000Z"
         },
         {
           "question": "Is the platform using microservices or monolith architecture?",
-          "options": ["Microservices", "Modular monolith", "Hybrid (microservices for core, monolith for admin)"],
+          "options": [
+            "Microservices",
+            "Modular monolith",
+            "Hybrid (microservices for core, monolith for admin)"
+          ],
           "answer": "Microservices",
           "answeredAt": "2025-01-01T00:00:00.000Z"
         }

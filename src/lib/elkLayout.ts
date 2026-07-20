@@ -45,14 +45,30 @@ function estimateSize(node: FlowNode): { width: number; height: number } {
    HANDLE ASSIGNMENT — multi-point (25/50/75) per side
    ============================================================ */
 function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
+    const nodeById = new Map(nodes.map(node => [node.id, node]));
+    const absolutePosition = (node: FlowNode): { x: number; y: number } => {
+        let x = node.position.x, y = node.position.y;
+        let parentId = node.parentId;
+        const visited = new Set<string>();
+        while (parentId && !visited.has(parentId)) {
+            visited.add(parentId);
+            const parent = nodeById.get(parentId);
+            if (!parent) break;
+            x += parent.position.x;
+            y += parent.position.y;
+            parentId = parent.parentId;
+        }
+        return { x, y };
+    };
     const posMap = new Map<string, { x: number; y: number; w: number; h: number; cx: number; cy: number }>();
     for (const n of nodes) {
         const sz = estimateSize(n);
+        const position = absolutePosition(n);
         posMap.set(n.id, {
-            x: n.position.x, y: n.position.y,
+            x: position.x, y: position.y,
             w: sz.width, h: sz.height,
-            cx: n.position.x + sz.width / 2,
-            cy: n.position.y + sz.height / 2,
+            cx: position.x + sz.width / 2,
+            cy: position.y + sz.height / 2,
         });
     }
 
@@ -505,12 +521,27 @@ function layoutUseCase(
         ucPrimaryActor.set(uc.id, best);
     }
 
-    const sortedActors = [...actors].sort(
-        (a, b) => (actorToUCs.get(b.id)?.length ?? 0) - (actorToUCs.get(a.id)?.length ?? 0)
-    );
+    const sortedActors = [...actors].sort((a, b) => a.position.y - b.position.y);
+    const boundary = packages[0];
+    const boundaryCenterX = boundary ? boundary.position.x + estimateSize(boundary).width / 2 : 0;
     const leftActorIds = new Set<string>();
     const rightActorIds = new Set<string>();
-    sortedActors.forEach((a, i) => (i % 2 === 0 ? leftActorIds : rightActorIds).add(a.id));
+    for (const actor of sortedActors) {
+        // Preserve the designer's intent: actors originally placed left/right of
+        // the boundary stay on that side after Auto-layout. This is especially
+        // important for external systems such as Payment Gateway.
+        if (!boundary || actor.position.x <= boundaryCenterX) leftActorIds.add(actor.id);
+        else rightActorIds.add(actor.id);
+    }
+    // A diagram created without an initial boundary-side convention still gets
+    // a balanced layout instead of placing every actor on one side.
+    if (!rightActorIds.size && sortedActors.length > 1) {
+        const split = Math.ceil(sortedActors.length / 2);
+        sortedActors.forEach((actor, index) => {
+            leftActorIds.delete(actor.id);
+            (index < split ? leftActorIds : rightActorIds).add(actor.id);
+        });
+    }
 
     // 3. Group UCs
     const leftUCs: string[] = [];
@@ -644,7 +675,9 @@ function layoutUseCase(
         });
     })();
 
-    const allUCNodes = [...posLeftUCs, ...posCenterUCs, ...posRightUCs];
+    const allUCNodes = [...posLeftUCs, ...posCenterUCs, ...posRightUCs].map((useCase) =>
+        boundary ? { ...useCase, parentId: boundary.id, extent: "parent" as const } : useCase
+    );
 
     // Boundary - Recalculate based on ACTUAL positions after resolveOverlaps
     let ucMinX = Infinity, ucMaxX = -Infinity;

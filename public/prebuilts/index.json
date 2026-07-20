@@ -3,24 +3,48 @@
     "id": "e-commerce",
     "name": "E-Commerce Platform",
     "domain": "e-commerce",
-    "summary": "Complete UML design for a modern e-commerce platform: customer management, order processing, payment gateway, inventory, and recommendation engine.",
+    "summary": "Mẫu kiến trúc marketplace gồm luồng đặt hàng, domain model và các component cốt lõi.",
     "difficulty": "advanced",
-    "tags": ["use-case", "class", "sequence", "c4-context", "c4-container", "e-commerce", "monolith"]
+    "tags": [
+      "use-case",
+      "activity",
+      "class",
+      "state-machine",
+      "component",
+      "e-commerce"
+    ],
+    "coverImage": "/examples/prebuilts/ecommerce-cover.svg"
   },
   {
     "id": "healthcare",
     "name": "Healthcare Management System",
     "domain": "healthcare",
-    "summary": "Hospital management system covering patient records, appointment scheduling, billing, pharmacy, and lab integration.",
+    "summary": "Mẫu quản lý khám bệnh từ đặt lịch, hồ sơ bệnh án đến thanh toán và thông báo.",
     "difficulty": "intermediate",
-    "tags": ["use-case", "class", "sequence", "activity", "c4-context", "healthcare"]
+    "tags": [
+      "use-case",
+      "activity",
+      "class",
+      "state-machine",
+      "component",
+      "healthcare"
+    ],
+    "coverImage": "/examples/prebuilts/healthcare-cover.svg"
   },
   {
     "id": "banking",
     "name": "Digital Banking Platform",
     "domain": "fintech",
-    "summary": "Core banking system with account management, transaction processing, fraud detection, and regulatory compliance diagrams.",
+    "summary": "Mẫu ngân hàng số với chuyển tiền, kiểm soát rủi ro và quản lý vòng đời giao dịch.",
     "difficulty": "advanced",
-    "tags": ["use-case", "class", "sequence", "state", "c4-context", "c4-container", "banking"]
+    "tags": [
+      "use-case",
+      "activity",
+      "class",
+      "state-machine",
+      "component",
+      "fintech"
+    ],
+    "coverImage": "/examples/prebuilts/banking-cover.svg"
   }
 ]

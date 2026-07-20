@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, 
-  Folder, 
-  Users, 
-  LayoutGrid, 
-  Archive, 
-  Trash2, 
-  HelpCircle, 
-  CheckCircle2, 
-  Grid2X2, 
+import {
+  Plus,
+  Folder,
+  Users,
+  LayoutGrid,
+  Archive,
+  Trash2,
+  HelpCircle,
+  CheckCircle2,
+  Grid2X2,
   List,
   ChevronLeft,
   ChevronRight,
@@ -37,6 +37,11 @@ interface Workspace {
 interface PrebuiltMeta {
   id: string;
   name: string;
+  domain: string;
+  summary: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  coverImage?: string;
+  tags: string[];
 }
 
 const formatRelativeTime = (iso: string): string => {
@@ -59,7 +64,7 @@ const UserDashboard: React.FC = () => {
   const [templates, setTemplates] = useState<TemplateMeta[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [templateKind, setTemplateKind] = useState<'knowledge' | 'sample'>(
-    () => (sessionStorage.getItem('dashboard_templateKind') as 'knowledge' | 'sample') || 'knowledge'
+      () => (sessionStorage.getItem('dashboard_templateKind') as 'knowledge' | 'sample') || 'knowledge'
   );
   const [filterGroup, setFilterGroup] = useState<string | null>(null);
   const [filteredTemplates, setFilteredTemplates] = useState<TemplateMeta[]>([]);
@@ -87,9 +92,9 @@ const UserDashboard: React.FC = () => {
       setTemplatesLoading(true)
       setFilterGroup(null)
       getTemplateList(templateKind)
-        .then(setTemplates)
-        .catch(() => setTemplates([]))
-        .finally(() => setTemplatesLoading(false))
+          .then(setTemplates)
+          .catch(() => setTemplates([]))
+          .finally(() => setTemplatesLoading(false))
     }
   }, [activeTab, templateKind]);
 
@@ -117,31 +122,31 @@ const UserDashboard: React.FC = () => {
     try {
       const response = await projectService.getAllProjects({ isDraft: false });
       const projects = response.result || [];
-      
+
       // Fetch sheet counts for all projects
       const projectWithSheets = await Promise.all(
-        projects.map(async (p: ProjectResponse) => {
-          try {
-            const sheetsRes = await sheetService.getSheetsByProject(p.id);
-            return {
-              id: p.id,
-              name: p.projectName,
-              category: p.description || 'general',
-              updatedAt: p.updatedAt,
-              sheets: sheetsRes.result || []
-            };
-          } catch (e) {
-            return {
-              id: p.id,
-              name: p.projectName,
-              category: p.description || 'general',
-              updatedAt: p.updatedAt,
-              sheets: []
-            };
-          }
-        })
+          projects.map(async (p: ProjectResponse) => {
+            try {
+              const sheetsRes = await sheetService.getSheetsByProject(p.id);
+              return {
+                id: p.id,
+                name: p.projectName,
+                category: p.description || 'general',
+                updatedAt: p.updatedAt,
+                sheets: sheetsRes.result || []
+              };
+            } catch (e) {
+              return {
+                id: p.id,
+                name: p.projectName,
+                category: p.description || 'general',
+                updatedAt: p.updatedAt,
+                sheets: []
+              };
+            }
+          })
       );
-      
+
       setWorkspaces(projectWithSheets);
     } catch (error: any) {
       toast.error(error.message || 'Không thể tải dự án');
@@ -159,26 +164,26 @@ const UserDashboard: React.FC = () => {
 
       // Fetch sheet counts for all drafts
       const draftsWithSheets = await Promise.all(
-        projects.map(async (p: ProjectResponse) => {
-          try {
-            const sheetsRes = await sheetService.getSheetsByProject(p.id);
-            return {
-              id: p.id,
-              name: p.projectName,
-              category: p.description || 'draft',
-              updatedAt: p.updatedAt,
-              sheets: sheetsRes.result || []
-            };
-          } catch (e) {
-            return {
-              id: p.id,
-              name: p.projectName,
-              category: p.description || 'draft',
-              updatedAt: p.updatedAt,
-              sheets: []
-            };
-          }
-        })
+          projects.map(async (p: ProjectResponse) => {
+            try {
+              const sheetsRes = await sheetService.getSheetsByProject(p.id);
+              return {
+                id: p.id,
+                name: p.projectName,
+                category: p.description || 'draft',
+                updatedAt: p.updatedAt,
+                sheets: sheetsRes.result || []
+              };
+            } catch (e) {
+              return {
+                id: p.id,
+                name: p.projectName,
+                category: p.description || 'draft',
+                updatedAt: p.updatedAt,
+                sheets: []
+              };
+            }
+          })
       );
 
       setDrafts(draftsWithSheets);
@@ -192,14 +197,14 @@ const UserDashboard: React.FC = () => {
 
   useEffect(() => {
     fetch('/prebuilts/index.json')
-      .then(r => r.json())
-      .then(setPrebuilts)
-      .catch(() => setPrebuilts([]))
+        .then(r => r.json())
+        .then(setPrebuilts)
+        .catch(() => setPrebuilts([]))
   }, []);
 
   const handleCreateWorkspace = async () => {
     if (!newWsName.trim()) return
-    
+
     try {
       const emptyXml = '<mxfile><diagram id="L1" name="Page-1"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel></diagram></mxfile>';
       const response = await projectService.createProject({
@@ -207,7 +212,7 @@ const UserDashboard: React.FC = () => {
         description: newWsCategory,
         projectData: emptyXml
       });
-      
+
       if (response.code === 200) {
         toast.success('Tạo dự án thành công');
         setShowCreateModal(false);
@@ -293,156 +298,156 @@ const UserDashboard: React.FC = () => {
   }
 
   return (
-    <div className="bg-admin-bg text-admin-on-surface font-priego h-screen flex overflow-hidden pt-[72px]">
-      <div className="absolute inset-0 grid-background opacity-30 pointer-events-none" />
+      <div className="bg-admin-bg text-admin-on-surface font-priego h-screen flex overflow-hidden pt-[72px]">
+        <div className="absolute inset-0 grid-background opacity-30 pointer-events-none" />
 
-      {/* SideNavBar */}
-      <aside 
-        className={`bg-white border-r border-admin-outline flex flex-col h-[calc(100vh-88px)] py-6 shrink-0 z-40 transition-all duration-300 relative ${isSidebarCollapsed ? 'w-[80px]' : 'w-[280px]'}`}
-      >
-        {/* Collapse Toggle Button */}
-        <button 
-          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          className="absolute -right-3 top-24 w-6 h-6 bg-white border border-admin-outline rounded-full flex items-center justify-center text-admin-secondary hover:text-uml-blue shadow-sm z-50 transition-transform active:scale-90"
+        {/* SideNavBar */}
+        <aside
+            className={`bg-white border-r border-admin-outline flex flex-col h-[calc(100vh-88px)] py-6 shrink-0 z-40 transition-all duration-300 relative ${isSidebarCollapsed ? 'w-[80px]' : 'w-[280px]'}`}
         >
-          {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
-
-        {/* Workspace Header */}
-        <div className={`px-6 mb-8 flex items-center gap-3 transition-all duration-300 ${isSidebarCollapsed ? 'px-4 justify-center' : ''}`}>
-          <div className="w-10 h-10 rounded bg-uml-blue/10 flex items-center justify-center text-uml-blue border border-uml-blue/20 shrink-0">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3H7C5.89543 3 5 3.89543 5 5V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V5C19 3.89543 18.1046 3 17 3Z"/><path d="M9 3V21"/><path d="M15 3V21"/><path d="M5 9H19"/><path d="M5 15H19"/></svg>
-          </div>
-          {!isSidebarCollapsed && (
-            <div className="overflow-hidden whitespace-nowrap">
-              <h2 className="font-bold text-[13px] uppercase tracking-widest text-black">Workspace dự án</h2>
-              <p className="text-[10px] text-admin-secondary font-bold uppercase tracking-wider">Thiết kế kỹ thuật</p>
-            </div>
-          )}
-        </div>
-
-        {/* Create Button */}
-        <div className={`px-4 mb-8 transition-all duration-300 ${isSidebarCollapsed ? 'px-2' : ''}`}>
+          {/* Collapse Toggle Button */}
           <button
-            onClick={() => setShowCreateModal(true)}
-            className={`w-full bg-uml-blue text-white rounded font-bold uppercase transition-all flex items-center justify-center gap-2 hover:bg-blue-700 shadow-md active:scale-95 ${isSidebarCollapsed ? 'h-12 w-12 rounded-full p-0' : 'py-3 px-4 text-[13px]'}`}
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="absolute -right-3 top-24 w-6 h-6 bg-white border border-admin-outline rounded-full flex items-center justify-center text-admin-secondary hover:text-uml-blue shadow-sm z-50 transition-transform active:scale-90"
           >
-            <Plus size={isSidebarCollapsed ? 24 : 18} />
-            {!isSidebarCollapsed && "Tạo Diagram mới"}
+            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
-        </div>
 
-        {/* Navigation */}
-        <nav className={`flex-1 px-4 space-y-1 ${isSidebarCollapsed ? 'px-2' : ''}`}>
-          <SidebarItem 
-            icon={<Folder size={20} />}
-            label="Tất cả dự án"
-            active={activeTab === 'all'} 
-            onClick={() => setActiveTab('all')} 
-            collapsed={isSidebarCollapsed}
-          />
-          <SidebarItem 
-            icon={<PenTool size={20} />}
-            label="Bản nháp"
-            active={activeTab === 'drafts'} 
-            onClick={() => setActiveTab('drafts')} 
-            collapsed={isSidebarCollapsed}
-          />
-          <SidebarItem 
-            icon={<Users size={20} />}
-            label="Được chia sẻ với tôi"
-            active={activeTab === 'shared'} 
-            onClick={() => setActiveTab('shared')} 
-            collapsed={isSidebarCollapsed}
-          />
-          <SidebarItem 
-            icon={<LayoutGrid size={20} />}
-            label="Mẫu"
-            active={activeTab === 'templates'} 
-            onClick={() => { setActiveTab('templates'); setTemplateKind('knowledge'); }} 
-            collapsed={isSidebarCollapsed}
-          />
-          {!isSidebarCollapsed && activeTab === 'templates' && (
-            <div className="ml-8 mt-0.5 border-l-2 border-gray-200 pl-3 space-y-0.5">
-              <SubSidebarItem
-                label="Thư viện UML"
-                active={templateKind === 'knowledge'}
-                onClick={() => setTemplateKind('knowledge')}
-              />
-              <SubSidebarItem
-                label="Mẫu dựng sẵn"
-                active={templateKind === 'sample'}
-                onClick={() => setTemplateKind('sample')}
-              />
+          {/* Workspace Header */}
+          <div className={`px-6 mb-8 flex items-center gap-3 transition-all duration-300 ${isSidebarCollapsed ? 'px-4 justify-center' : ''}`}>
+            <div className="w-10 h-10 rounded bg-uml-blue/10 flex items-center justify-center text-uml-blue border border-uml-blue/20 shrink-0">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3H7C5.89543 3 5 3.89543 5 5V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V5C19 3.89543 18.1046 3 17 3Z"/><path d="M9 3V21"/><path d="M15 3V21"/><path d="M5 9H19"/><path d="M5 15H19"/></svg>
             </div>
-          )}
-          <SidebarItem 
-            icon={<Archive size={20} />}
-            label="Lưu trữ"
-            active={activeTab === 'archived'} 
-            onClick={() => setActiveTab('archived')} 
-            collapsed={isSidebarCollapsed}
-          />
-          <SidebarItem 
-            icon={<Trash2 size={20} />}
-            label="Thùng rác"
-            active={activeTab === 'trash'} 
-            onClick={() => setActiveTab('trash')} 
-            collapsed={isSidebarCollapsed}
-          />
-        </nav>
+            {!isSidebarCollapsed && (
+                <div className="overflow-hidden whitespace-nowrap">
+                  <h2 className="font-bold text-[13px] uppercase tracking-widest text-black">Workspace dự án</h2>
+                  <p className="text-[10px] text-admin-secondary font-bold uppercase tracking-wider">Thiết kế kỹ thuật</p>
+                </div>
+            )}
+          </div>
 
-        {/* Bottom Navigation */}
-        <div className={`px-4 mt-auto pt-6 border-t border-admin-outline space-y-1 ${isSidebarCollapsed ? 'px-2' : ''}`}>
-          <SidebarItem icon={<HelpCircle size={18} />} label="Hỗ trợ" small collapsed={isSidebarCollapsed} />
-          <SidebarItem icon={<CheckCircle2 size={18} />} label="Trạng thái hệ thống" small collapsed={isSidebarCollapsed} />
-        </div>
-      </aside>
+          {/* Create Button */}
+          <div className={`px-4 mb-8 transition-all duration-300 ${isSidebarCollapsed ? 'px-2' : ''}`}>
+            <button
+                onClick={() => setShowCreateModal(true)}
+                className={`w-full bg-uml-blue text-white rounded font-bold uppercase transition-all flex items-center justify-center gap-2 hover:bg-blue-700 shadow-md active:scale-95 ${isSidebarCollapsed ? 'h-12 w-12 rounded-full p-0' : 'py-3 px-4 text-[13px]'}`}
+            >
+              <Plus size={isSidebarCollapsed ? 24 : 18} />
+              {!isSidebarCollapsed && "Tạo Diagram mới"}
+            </button>
+          </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative z-0">
-        {/* Scrollable Content */}
-        <main className="flex-1 overflow-y-auto p-8 lg:px-12 relative">
-          <div className="max-w-7xl mx-auto">
-            {/* Page Header */}
+          {/* Navigation */}
+          <nav className={`flex-1 px-4 space-y-1 ${isSidebarCollapsed ? 'px-2' : ''}`}>
+            <SidebarItem
+                icon={<Folder size={20} />}
+                label="Tất cả dự án"
+                active={activeTab === 'all'}
+                onClick={() => setActiveTab('all')}
+                collapsed={isSidebarCollapsed}
+            />
+            <SidebarItem
+                icon={<PenTool size={20} />}
+                label="Bản nháp"
+                active={activeTab === 'drafts'}
+                onClick={() => setActiveTab('drafts')}
+                collapsed={isSidebarCollapsed}
+            />
+            <SidebarItem
+                icon={<Users size={20} />}
+                label="Được chia sẻ với tôi"
+                active={activeTab === 'shared'}
+                onClick={() => setActiveTab('shared')}
+                collapsed={isSidebarCollapsed}
+            />
+            <SidebarItem
+                icon={<LayoutGrid size={20} />}
+                label="Mẫu"
+                active={activeTab === 'templates'}
+                onClick={() => { setActiveTab('templates'); setTemplateKind('knowledge'); }}
+                collapsed={isSidebarCollapsed}
+            />
+            {!isSidebarCollapsed && activeTab === 'templates' && (
+                <div className="ml-8 mt-0.5 border-l-2 border-gray-200 pl-3 space-y-0.5">
+                  <SubSidebarItem
+                      label="Thư viện UML"
+                      active={templateKind === 'knowledge'}
+                      onClick={() => setTemplateKind('knowledge')}
+                  />
+                  <SubSidebarItem
+                      label="Mẫu dựng sẵn"
+                      active={templateKind === 'sample'}
+                      onClick={() => setTemplateKind('sample')}
+                  />
+                </div>
+            )}
+            <SidebarItem
+                icon={<Archive size={20} />}
+                label="Lưu trữ"
+                active={activeTab === 'archived'}
+                onClick={() => setActiveTab('archived')}
+                collapsed={isSidebarCollapsed}
+            />
+            <SidebarItem
+                icon={<Trash2 size={20} />}
+                label="Thùng rác"
+                active={activeTab === 'trash'}
+                onClick={() => setActiveTab('trash')}
+                collapsed={isSidebarCollapsed}
+            />
+          </nav>
+
+          {/* Bottom Navigation */}
+          <div className={`px-4 mt-auto pt-6 border-t border-admin-outline space-y-1 ${isSidebarCollapsed ? 'px-2' : ''}`}>
+            <SidebarItem icon={<HelpCircle size={18} />} label="Hỗ trợ" small collapsed={isSidebarCollapsed} />
+            <SidebarItem icon={<CheckCircle2 size={18} />} label="Trạng thái hệ thống" small collapsed={isSidebarCollapsed} />
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden relative z-0">
+          {/* Scrollable Content */}
+          <main className="flex-1 overflow-y-auto p-8 lg:px-12 relative">
+            <div className="max-w-7xl mx-auto">
+              {/* Page Header */}
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 border-b border-admin-outline pb-6">
                 <div>
                   {activeTab === 'templates' ? (
-                    <>
-                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Mẫu</h1>
-                      <p className="text-lg text-admin-on-surface-variant">
-                        {templateKind === 'knowledge'
-                          ? 'Tìm hiểu từng loại UML diagram — mục đích, thành phần, thời điểm sử dụng và so sánh.'
-                          : 'Các mẫu diagram dựng sẵn gắn với dự án thực tế. Dùng làm điểm khởi đầu.'}
-                      </p>
-                    </>
+                      <>
+                        <h1 className="text-4xl font-black tracking-tight text-black mb-2">Mẫu</h1>
+                        <p className="text-lg text-admin-on-surface-variant">
+                          {templateKind === 'knowledge'
+                              ? 'Tìm hiểu từng loại UML diagram — mục đích, thành phần, thời điểm sử dụng và so sánh.'
+                              : 'Các mẫu diagram dựng sẵn gắn với dự án thực tế. Dùng làm điểm khởi đầu.'}
+                        </p>
+                      </>
                   ) : activeTab === 'all' ? (
-                    <>
-                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Tất cả dự án</h1>
-                      <p className="text-lg text-admin-on-surface-variant">Tạo và quản lý các Workspace thiết kế kiến trúc của bạn.</p>
-                    </>
+                      <>
+                        <h1 className="text-4xl font-black tracking-tight text-black mb-2">Tất cả dự án</h1>
+                        <p className="text-lg text-admin-on-surface-variant">Tạo và quản lý các Workspace thiết kế kiến trúc của bạn.</p>
+                      </>
                   ) : activeTab === 'drafts' ? (
-                    <>
-                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Bản nháp</h1>
-                      <p className="text-lg text-admin-on-surface-variant">
-                        Các diagram nhanh được lưu dưới dạng bản nháp độc lập. Mở và tiếp tục chỉnh sửa bất cứ lúc nào.
-                      </p>
-                    </>
+                      <>
+                        <h1 className="text-4xl font-black tracking-tight text-black mb-2">Bản nháp</h1>
+                        <p className="text-lg text-admin-on-surface-variant">
+                          Các diagram nhanh được lưu dưới dạng bản nháp độc lập. Mở và tiếp tục chỉnh sửa bất cứ lúc nào.
+                        </p>
+                      </>
                   ) : activeTab === 'archived' ? (
-                    <>
-                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Lưu trữ</h1>
-                      <p className="text-lg text-admin-on-surface-variant">Xem các dự án đã lưu trữ của bạn.</p>
-                    </>
+                      <>
+                        <h1 className="text-4xl font-black tracking-tight text-black mb-2">Lưu trữ</h1>
+                        <p className="text-lg text-admin-on-surface-variant">Xem các dự án đã lưu trữ của bạn.</p>
+                      </>
                   ) : activeTab === 'trash' ? (
-                    <>
-                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Thùng rác</h1>
-                      <p className="text-lg text-admin-on-surface-variant">Các dự án đã xoá có thể được khôi phục tại đây.</p>
-                    </>
+                      <>
+                        <h1 className="text-4xl font-black tracking-tight text-black mb-2">Thùng rác</h1>
+                        <p className="text-lg text-admin-on-surface-variant">Các dự án đã xoá có thể được khôi phục tại đây.</p>
+                      </>
                   ) : (
-                    <>
-                      <h1 className="text-4xl font-black tracking-tight text-black mb-2">Được chia sẻ với tôi</h1>
-                      <p className="text-lg text-admin-on-surface-variant">Các dự án được người dùng khác chia sẻ với bạn.</p>
-                    </>
+                      <>
+                        <h1 className="text-4xl font-black tracking-tight text-black mb-2">Được chia sẻ với tôi</h1>
+                        <p className="text-lg text-admin-on-surface-variant">Các dự án được người dùng khác chia sẻ với bạn.</p>
+                      </>
                   )}
                 </div>
 
@@ -450,488 +455,488 @@ const UserDashboard: React.FC = () => {
                 {/* Grid/List Toggle */}
                 <div className="flex items-center gap-3">
                   {activeTab !== 'templates' && activeTab !== 'drafts' && (
-                    <button
-                      onClick={() => setShowCreateModal(true)}
-                      className="px-4 py-2 bg-uml-blue text-white font-bold rounded-md text-sm hover:bg-blue-700 transition flex items-center gap-2"
-                    >
-                      <Plus size={16} />
-                      Workspace mới
-                    </button>
+                      <button
+                          onClick={() => setShowCreateModal(true)}
+                          className="px-4 py-2 bg-uml-blue text-white font-bold rounded-md text-sm hover:bg-blue-700 transition flex items-center gap-2"
+                      >
+                        <Plus size={16} />
+                        Workspace mới
+                      </button>
                   )}
                   <div className="flex bg-gray-100 p-1 rounded-lg">
-                    <button 
-                      onClick={() => setViewMode('grid')}
-                      className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-uml-blue' : 'text-gray-500 hover:text-black'}`}
+                    <button
+                        onClick={() => setViewMode('grid')}
+                        className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-uml-blue' : 'text-gray-500 hover:text-black'}`}
                     >
                       <Grid2X2 size={20} />
                     </button>
-                    <button 
-                      onClick={() => setViewMode('list')}
-                      className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-uml-blue' : 'text-gray-500 hover:text-black'}`}
+                    <button
+                        onClick={() => setViewMode('list')}
+                        className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-uml-blue' : 'text-gray-500 hover:text-black'}`}
                     >
                       <List size={20} />
                     </button>
                   </div>
                 </div>
               </div>
-            {/* Filter Pills */}
-            {activeTab === 'templates' && !templatesLoading && templates.length > 0 && (
-              <div className="flex items-center gap-2 mb-6 flex-wrap">
-                <button
-                  onClick={() => setFilterGroup(null)}
-                  className={`px-3 py-1.5 rounded-[4px] text-[11px] font-black uppercase tracking-widest border transition-all ${
-                    !filterGroup
-                      ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
-                      : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-                  }`}
-                >
-                  Tất cả
-                </button>
-                {[...new Set(templates.map(t => t.group))].map(g => (
-                  <button
-                    key={g}
-                    onClick={() => setFilterGroup(g)}
-                    className={`px-3 py-1.5 rounded-[4px] text-[11px] font-black uppercase tracking-widest border transition-all ${
-                      filterGroup === g
-                        ? groupColors[g] + ' shadow-sm'
-                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-                    }`}
-                  >
-                    {g === 'structural' ? 'Cấu trúc' : g === 'behavioral' ? 'Hành vi' : 'Mô hình C4'}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Diagrams Display */}
-            {activeTab === 'templates' ? (
-              templatesLoading ? (
-                <div className="flex items-center justify-center py-20">
-                  <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : templates.length === 0 ? (
-                <div className="text-center py-20">
-                  <Layers size={48} className="text-gray-200 mx-auto mb-4" />
-                  <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có mẫu nào</h3>
-                  <p className="text-sm text-gray-300">Các mẫu đang được chuẩn bị.</p>
-                </div>
-              ) : filterLoading ? (
-                <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
-                  <div className="text-center">
-                    <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                    <p className="text-sm text-gray-400 font-medium">Đang lọc...</p>
-                  </div>
-                </div>
-              ) : (
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={`${templateKind}-${viewMode}-${filterGroup || 'all'}`}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -12 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    {viewMode === 'grid' ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredTemplates.map((tpl, i) => (
-                          <motion.div
-                            key={tpl.id}
-                            initial={{ opacity: 0, y: 16 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.035, duration: 0.3 }}
-                          >
-                            <TemplateGridCard template={tpl} />
-                          </motion.div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="bg-white border border-admin-outline rounded-sm overflow-hidden">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
-                              <th className="py-4 px-6">Tên mẫu</th>
-                              <th className="py-4 px-6">Loại</th>
-                              <th className="py-4 px-6">Danh mục</th>
-                              <th className="py-4 px-6 text-right">Nodes</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredTemplates.map((tpl, i) => (
-                              <TemplateListRow key={tpl.id} template={tpl} index={i} />
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              )
-            ) : activeTab === 'drafts' ? (
-              <section className="mb-12">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold text-black">
-                    Bản nháp
-                    <span className="ml-2 text-sm font-normal text-gray-400">({drafts.length})</span>
-                  </h2>
-                  <motion.div
-                    layout
-                    transition={{ type: 'spring', stiffness: 250, damping: 25 }}
-                    className={`flex items-center border-2 rounded-full bg-white ${
-                      draftSelectionMode ? 'border-gray-300 px-1.5 py-1' : 'border-gray-300'
-                    }`}
-                  >
-                    <AnimatePresence mode="popLayout">
-                      {draftSelectionMode && (
-                        <motion.div
-                          key="red-pill-draft"
-                          initial={{ width: 0, opacity: 0 }}
-                          animate={{ width: 120, opacity: 1 }}
-                          exit={{ width: 0, opacity: 0 }}
-                          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                          className="flex items-center overflow-hidden bg-red-600 rounded-full h-8"
-                        >
-                          <div className="flex items-center h-full shrink-0" style={{ width: 120 }}>
-                            <button
-                              onClick={handleDraftDeleteClick}
-                              disabled={draftSelectedIds.size === 0}
-                              className={`h-full font-bold text-xs whitespace-nowrap flex-[7] flex items-center justify-center ${draftSelectedIds.size === 0 ? 'text-gray-400' : 'text-white'}`}
-                            >
-                              Xoá
-                            </button>
-                            <div className="w-[1px] h-5 bg-white/80 shrink-0" />
-                            <button
-                              onClick={handleAllDraftsClick}
-                              className="h-full font-bold text-xs whitespace-nowrap flex-[3] flex items-center justify-center text-white"
-                            >
-                              Tất cả
-                            </button>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+              {/* Filter Pills */}
+              {activeTab === 'templates' && !templatesLoading && templates.length > 0 && (
+                  <div className="flex items-center gap-2 mb-6 flex-wrap">
                     <button
-                      onClick={() => { setDraftSelectionMode(!draftSelectionMode); if (draftSelectionMode) setDraftSelectedIds(new Set()); }}
-                      className={`flex items-center justify-center font-bold text-xs transition-colors cursor-pointer ${
-                        draftSelectionMode
-                          ? 'px-3 py-1 text-gray-500 hover:text-gray-700'
-                          : 'w-9 h-9 text-gray-400 hover:text-red-500 hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]'
-                      }`}
-                      title="Xoá bản nháp"
+                        onClick={() => setFilterGroup(null)}
+                        className={`px-3 py-1.5 rounded-[4px] text-[11px] font-black uppercase tracking-widest border transition-all ${
+                            !filterGroup
+                                ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
+                                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                        }`}
                     >
-                      {draftSelectionMode ? 'Huỷ' : <Trash2 size={16} />}
+                      Tất cả
                     </button>
-                  </motion.div>
-                </div>
-                {draftsLoading ? (
-                  <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
-                    <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
-                  </div>
-                ) : drafts.length === 0 ? (
-                  <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
-                    <PenTool size={48} className="text-gray-200 mx-auto mb-3" />
-                    <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có bản nháp nào</h3>
-                    <p className="text-sm text-gray-300">Tạo diagram từ canvas và lưu dưới dạng bản nháp.</p>
-                  </div>
-                ) : viewMode === 'grid' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {drafts.map((d) => (
-                      <DraftCard
-                        key={d.id}
-                        draft={d}
-                        selectionMode={draftSelectionMode}
-                        selected={draftSelectedIds.has(d.id)}
-                        onToggleSelect={handleToggleDraftSelect}
-                      />
+                    {[...new Set(templates.map(t => t.group))].map(g => (
+                        <button
+                            key={g}
+                            onClick={() => setFilterGroup(g)}
+                            className={`px-3 py-1.5 rounded-[4px] text-[11px] font-black uppercase tracking-widest border transition-all ${
+                                filterGroup === g
+                                    ? groupColors[g] + ' shadow-sm'
+                                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                            }`}
+                        >
+                          {g === 'structural' ? 'Cấu trúc' : g === 'behavioral' ? 'Hành vi' : 'Mô hình C4'}
+                        </button>
                     ))}
                   </div>
-                ) : (
-                  <div className="bg-white border border-admin-outline rounded-sm overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
-                          <th className="py-4 px-6">Tên bản nháp</th>
-                          <th className="py-4 px-6">Danh mục</th>
-                          <th className="py-4 px-6">Chỉnh sửa lần cuối</th>
-                          <th className="py-4 px-6 text-right">Diagrams</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {drafts.map((d) => (
-                          <DraftListRow
-                            key={d.id}
-                            draft={d}
-                            selectionMode={draftSelectionMode}
-                            selected={draftSelectedIds.has(d.id)}
-                            onToggleSelect={handleToggleDraftSelect}
-                          />
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </section>
-            ) : (
-              <>
-                {/* My Workspaces */}
-                <section className="mb-12">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-bold text-black">
-                      Workspace của tôi
-                      <span className="ml-2 text-sm font-normal text-gray-400">({workspaces.length})</span>
-                    </h2>
-                    <motion.div
-                      layout
-                      transition={{ type: 'spring', stiffness: 250, damping: 25 }}
-                      className={`flex items-center border-2 rounded-full bg-white ${
-                        selectionMode ? 'border-gray-300 px-1.5 py-1' : 'border-gray-300'
-                      }`}
-                    >
-                      <AnimatePresence mode="popLayout">
-                        {selectionMode && (
-                          <motion.div
-                            key="red-pill"
-                            initial={{ width: 0, opacity: 0 }}
-                            animate={{ width: 120, opacity: 1 }}
-                            exit={{ width: 0, opacity: 0 }}
-                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                            className="flex items-center overflow-hidden bg-red-600 rounded-full h-8"
-                          >
-                            <div className="flex items-center h-full shrink-0" style={{ width: 120 }}>
-                              <button
-                                onClick={handleDeleteClick}
-                                disabled={selectedIds.size === 0}
-                                className={`h-full font-bold text-xs whitespace-nowrap flex-[7] flex items-center justify-center ${selectedIds.size === 0 ? 'text-gray-400' : 'text-white'}`}
-                              >
-                                Xoá
-                              </button>
-                              <div className="w-[1px] h-5 bg-white/80 shrink-0" />
-                              <button
-                                onClick={handleAllClick}
-                                className="h-full font-bold text-xs whitespace-nowrap flex-[3] flex items-center justify-center text-white"
-                              >
-                                Tất cả
-                              </button>
-                            </div>
-                          </motion.div>
-                        )}
+              )}
+
+              {/* Diagrams Display */}
+              {activeTab === 'templates' ? (
+                  templatesLoading ? (
+                      <div className="flex items-center justify-center py-20">
+                        <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
+                      </div>
+                  ) : templates.length === 0 ? (
+                      <div className="text-center py-20">
+                        <Layers size={48} className="text-gray-200 mx-auto mb-4" />
+                        <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có mẫu nào</h3>
+                        <p className="text-sm text-gray-300">Các mẫu đang được chuẩn bị.</p>
+                      </div>
+                  ) : filterLoading ? (
+                      <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
+                        <div className="text-center">
+                          <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                          <p className="text-sm text-gray-400 font-medium">Đang lọc...</p>
+                        </div>
+                      </div>
+                  ) : (
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                            key={`${templateKind}-${viewMode}-${filterGroup || 'all'}`}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -12 }}
+                            transition={{ duration: 0.25 }}
+                        >
+                          {viewMode === 'grid' ? (
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {filteredTemplates.map((tpl, i) => (
+                                    <motion.div
+                                        key={tpl.id}
+                                        initial={{ opacity: 0, y: 16 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: i * 0.035, duration: 0.3 }}
+                                    >
+                                      <TemplateGridCard template={tpl} />
+                                    </motion.div>
+                                ))}
+                              </div>
+                          ) : (
+                              <div className="bg-white border border-admin-outline rounded-sm overflow-hidden">
+                                <table className="w-full text-left border-collapse">
+                                  <thead>
+                                  <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
+                                    <th className="py-4 px-6">Tên mẫu</th>
+                                    <th className="py-4 px-6">Loại</th>
+                                    <th className="py-4 px-6">Danh mục</th>
+                                    <th className="py-4 px-6 text-right">Nodes</th>
+                                  </tr>
+                                  </thead>
+                                  <tbody>
+                                  {filteredTemplates.map((tpl, i) => (
+                                      <TemplateListRow key={tpl.id} template={tpl} index={i} />
+                                  ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                          )}
+                        </motion.div>
                       </AnimatePresence>
-
-                      <button
-                        onClick={() => { setSelectionMode(!selectionMode); if (selectionMode) setSelectedIds(new Set()); }}
-                        className={`flex items-center justify-center font-bold text-xs transition-colors cursor-pointer ${
-                          selectionMode
-                            ? 'px-3 py-1 text-gray-500 hover:text-gray-700'
-                            : 'w-9 h-9 text-gray-400 hover:text-red-500 hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]'
-                        }`}
-                        title="Xoá dự án"
+                  )
+              ) : activeTab === 'drafts' ? (
+                  <section className="mb-12">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-bold text-black">
+                        Bản nháp
+                        <span className="ml-2 text-sm font-normal text-gray-400">({drafts.length})</span>
+                      </h2>
+                      <motion.div
+                          layout
+                          transition={{ type: 'spring', stiffness: 250, damping: 25 }}
+                          className={`flex items-center border-2 rounded-full bg-white ${
+                              draftSelectionMode ? 'border-gray-300 px-1.5 py-1' : 'border-gray-300'
+                          }`}
                       >
-                        {selectionMode ? 'Huỷ' : <Trash2 size={16} />}
-                      </button>
-                    </motion.div>
-                  </div>
-                  {workspacesLoading ? (
-                    <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
-                      <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
+                        <AnimatePresence mode="popLayout">
+                          {draftSelectionMode && (
+                              <motion.div
+                                  key="red-pill-draft"
+                                  initial={{ width: 0, opacity: 0 }}
+                                  animate={{ width: 120, opacity: 1 }}
+                                  exit={{ width: 0, opacity: 0 }}
+                                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                  className="flex items-center overflow-hidden bg-red-600 rounded-full h-8"
+                              >
+                                <div className="flex items-center h-full shrink-0" style={{ width: 120 }}>
+                                  <button
+                                      onClick={handleDraftDeleteClick}
+                                      disabled={draftSelectedIds.size === 0}
+                                      className={`h-full font-bold text-xs whitespace-nowrap flex-[7] flex items-center justify-center ${draftSelectedIds.size === 0 ? 'text-gray-400' : 'text-white'}`}
+                                  >
+                                    Xoá
+                                  </button>
+                                  <div className="w-[1px] h-5 bg-white/80 shrink-0" />
+                                  <button
+                                      onClick={handleAllDraftsClick}
+                                      className="h-full font-bold text-xs whitespace-nowrap flex-[3] flex items-center justify-center text-white"
+                                  >
+                                    Tất cả
+                                  </button>
+                                </div>
+                              </motion.div>
+                          )}
+                        </AnimatePresence>
+                        <button
+                            onClick={() => { setDraftSelectionMode(!draftSelectionMode); if (draftSelectionMode) setDraftSelectedIds(new Set()); }}
+                            className={`flex items-center justify-center font-bold text-xs transition-colors cursor-pointer ${
+                                draftSelectionMode
+                                    ? 'px-3 py-1 text-gray-500 hover:text-gray-700'
+                                    : 'w-9 h-9 text-gray-400 hover:text-red-500 hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]'
+                            }`}
+                            title="Xoá bản nháp"
+                        >
+                          {draftSelectionMode ? 'Huỷ' : <Trash2 size={16} />}
+                        </button>
+                      </motion.div>
                     </div>
-                  ) : workspaces.length === 0 ? (
-                    <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
-                      <Folder size={48} className="text-gray-200 mx-auto mb-3" />
-                      <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có Workspace nào</h3>
-                      <p className="text-sm text-gray-300 mb-4">Tạo Workspace đầu tiên của bạn để bắt đầu.</p>
-                      <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="px-4 py-2 bg-uml-blue text-white font-bold rounded-md text-sm hover:bg-blue-700 transition"
-                      >
-                        Tạo Workspace
-                      </button>
-                    </div>
-                  ) : viewMode === 'grid' ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {workspaces.map((ws) => (
-                        <UserWorkspaceCard
-                          key={ws.id}
-                          workspace={ws}
-                          selectionMode={selectionMode}
-                          selected={selectedIds.has(ws.id)}
-                          onToggleSelect={handleToggleSelect}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="bg-white border border-admin-outline rounded-sm overflow-hidden">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
-                            <th className="py-4 px-6">Tên Workspace</th>
-                            <th className="py-4 px-6">Danh mục</th>
-                            <th className="py-4 px-6">Chỉnh sửa lần cuối</th>
-                            <th className="py-4 px-6 text-right">Diagrams</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {workspaces.map((ws) => (
-                            <WorkspaceListRow
-                              key={ws.id}
-                              workspace={ws}
-                              selectionMode={selectionMode}
-                              selected={selectedIds.has(ws.id)}
-                              onToggleSelect={handleToggleSelect}
-                            />
+                    {draftsLoading ? (
+                        <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
+                          <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
+                        </div>
+                    ) : drafts.length === 0 ? (
+                        <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
+                          <PenTool size={48} className="text-gray-200 mx-auto mb-3" />
+                          <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có bản nháp nào</h3>
+                          <p className="text-sm text-gray-300">Tạo diagram từ canvas và lưu dưới dạng bản nháp.</p>
+                        </div>
+                    ) : viewMode === 'grid' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {drafts.map((d) => (
+                              <DraftCard
+                                  key={d.id}
+                                  draft={d}
+                                  selectionMode={draftSelectionMode}
+                                  selected={draftSelectedIds.has(d.id)}
+                                  onToggleSelect={handleToggleDraftSelect}
+                              />
                           ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </section>
+                        </div>
+                    ) : (
+                        <div className="bg-white border border-admin-outline rounded-sm overflow-hidden">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                            <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
+                              <th className="py-4 px-6">Tên bản nháp</th>
+                              <th className="py-4 px-6">Danh mục</th>
+                              <th className="py-4 px-6">Chỉnh sửa lần cuối</th>
+                              <th className="py-4 px-6 text-right">Diagrams</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {drafts.map((d) => (
+                                <DraftListRow
+                                    key={d.id}
+                                    draft={d}
+                                    selectionMode={draftSelectionMode}
+                                    selected={draftSelectedIds.has(d.id)}
+                                    onToggleSelect={handleToggleDraftSelect}
+                                />
+                            ))}
+                            </tbody>
+                          </table>
+                        </div>
+                    )}
+                  </section>
+              ) : (
+                  <>
+                    {/* My Workspaces */}
+                    <section className="mb-12">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-bold text-black">
+                          Workspace của tôi
+                          <span className="ml-2 text-sm font-normal text-gray-400">({workspaces.length})</span>
+                        </h2>
+                        <motion.div
+                            layout
+                            transition={{ type: 'spring', stiffness: 250, damping: 25 }}
+                            className={`flex items-center border-2 rounded-full bg-white ${
+                                selectionMode ? 'border-gray-300 px-1.5 py-1' : 'border-gray-300'
+                            }`}
+                        >
+                          <AnimatePresence mode="popLayout">
+                            {selectionMode && (
+                                <motion.div
+                                    key="red-pill"
+                                    initial={{ width: 0, opacity: 0 }}
+                                    animate={{ width: 120, opacity: 1 }}
+                                    exit={{ width: 0, opacity: 0 }}
+                                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                    className="flex items-center overflow-hidden bg-red-600 rounded-full h-8"
+                                >
+                                  <div className="flex items-center h-full shrink-0" style={{ width: 120 }}>
+                                    <button
+                                        onClick={handleDeleteClick}
+                                        disabled={selectedIds.size === 0}
+                                        className={`h-full font-bold text-xs whitespace-nowrap flex-[7] flex items-center justify-center ${selectedIds.size === 0 ? 'text-gray-400' : 'text-white'}`}
+                                    >
+                                      Xoá
+                                    </button>
+                                    <div className="w-[1px] h-5 bg-white/80 shrink-0" />
+                                    <button
+                                        onClick={handleAllClick}
+                                        className="h-full font-bold text-xs whitespace-nowrap flex-[3] flex items-center justify-center text-white"
+                                    >
+                                      Tất cả
+                                    </button>
+                                  </div>
+                                </motion.div>
+                            )}
+                          </AnimatePresence>
 
-                {/* Prebuilt Projects */}
-                <section>
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-bold text-black">
-                      Dự án dựng sẵn
-                      <span className="ml-2 text-sm font-normal text-gray-400">({prebuilts.length})</span>
-                    </h2>
+                          <button
+                              onClick={() => { setSelectionMode(!selectionMode); if (selectionMode) setSelectedIds(new Set()); }}
+                              className={`flex items-center justify-center font-bold text-xs transition-colors cursor-pointer ${
+                                  selectionMode
+                                      ? 'px-3 py-1 text-gray-500 hover:text-gray-700'
+                                      : 'w-9 h-9 text-gray-400 hover:text-red-500 hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]'
+                              }`}
+                              title="Xoá dự án"
+                          >
+                            {selectionMode ? 'Huỷ' : <Trash2 size={16} />}
+                          </button>
+                        </motion.div>
+                      </div>
+                      {workspacesLoading ? (
+                          <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
+                            <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
+                          </div>
+                      ) : workspaces.length === 0 ? (
+                          <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
+                            <Folder size={48} className="text-gray-200 mx-auto mb-3" />
+                            <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có Workspace nào</h3>
+                            <p className="text-sm text-gray-300 mb-4">Tạo Workspace đầu tiên của bạn để bắt đầu.</p>
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                className="px-4 py-2 bg-uml-blue text-white font-bold rounded-md text-sm hover:bg-blue-700 transition"
+                            >
+                              Tạo Workspace
+                            </button>
+                          </div>
+                      ) : viewMode === 'grid' ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {workspaces.map((ws) => (
+                                <UserWorkspaceCard
+                                    key={ws.id}
+                                    workspace={ws}
+                                    selectionMode={selectionMode}
+                                    selected={selectedIds.has(ws.id)}
+                                    onToggleSelect={handleToggleSelect}
+                                />
+                            ))}
+                          </div>
+                      ) : (
+                          <div className="bg-white border border-admin-outline rounded-sm overflow-hidden">
+                            <table className="w-full text-left border-collapse">
+                              <thead>
+                              <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
+                                <th className="py-4 px-6">Tên Workspace</th>
+                                <th className="py-4 px-6">Danh mục</th>
+                                <th className="py-4 px-6">Chỉnh sửa lần cuối</th>
+                                <th className="py-4 px-6 text-right">Diagrams</th>
+                              </tr>
+                              </thead>
+                              <tbody>
+                              {workspaces.map((ws) => (
+                                  <WorkspaceListRow
+                                      key={ws.id}
+                                      workspace={ws}
+                                      selectionMode={selectionMode}
+                                      selected={selectedIds.has(ws.id)}
+                                      onToggleSelect={handleToggleSelect}
+                                  />
+                              ))}
+                              </tbody>
+                            </table>
+                          </div>
+                      )}
+                    </section>
+
+                    {/* Prebuilt Projects */}
+                    <section>
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-bold text-black">
+                          Dự án dựng sẵn
+                          <span className="ml-2 text-sm font-normal text-gray-400">({prebuilts.length})</span>
+                        </h2>
+                      </div>
+                      {prebuilts.length === 0 ? (
+                          <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
+                            <Copy size={48} className="text-gray-200 mx-auto mb-3" />
+                            <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có dự án dựng sẵn</h3>
+                            <p className="text-sm text-gray-300">Hãy quay lại sau để xem các mẫu dự án dựng sẵn.</p>
+                          </div>
+                      ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {prebuilts.map((p) => (
+                                <PrebuiltCard key={p.id} meta={p} />
+                            ))}
+                          </div>
+                      )}
+                    </section>
+                  </>
+              )}
+            </div>
+          </main>
+        </div>
+        <CreateWorkspaceModal
+            isOpen={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            name={newWsName}
+            onNameChange={setNewWsName}
+            category={newWsCategory}
+            onCategoryChange={setNewWsCategory}
+            onCreate={handleCreateWorkspace}
+        />
+
+        <AnimatePresence>
+          {showConfirm && (
+              <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+              >
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.9, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 250, damping: 25 }}
+                    className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4"
+                >
+                  <h3 className="text-lg font-bold text-black mb-2">Xoá dự án?</h3>
+                  <p className="text-sm text-gray-500 mb-6">
+                    Bạn có chắc muốn xoá {selectedIds.size} dự án? Hành động này không thể hoàn tác.
+                  </p>
+                  <div className="flex justify-end gap-3">
+                    <button
+                        onClick={() => { setShowConfirm(false); setSelectedIds(new Set()); setSelectionMode(false); }}
+                        className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 rounded-md transition"
+                    >
+                      Huỷ
+                    </button>
+                    <button
+                        onClick={handleConfirmDelete}
+                        className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition"
+                    >
+                      Xoá
+                    </button>
                   </div>
-                  {prebuilts.length === 0 ? (
-                    <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
-                      <Copy size={48} className="text-gray-200 mx-auto mb-3" />
-                      <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có dự án dựng sẵn</h3>
-                      <p className="text-sm text-gray-300">Hãy quay lại sau để xem các mẫu dự án dựng sẵn.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {prebuilts.map((p) => (
-                        <PrebuiltCard key={p.id} meta={p} />
-                      ))}
-                    </div>
-                  )}
-                </section>
-              </>
-            )}
-          </div>
-        </main>
+                </motion.div>
+              </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showDraftConfirm && (
+              <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+              >
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.9, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 250, damping: 25 }}
+                    className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4"
+                >
+                  <h3 className="text-lg font-bold text-black mb-2">Xoá bản nháp?</h3>
+                  <p className="text-sm text-gray-500 mb-6">
+                    Bạn có chắc muốn xoá {draftSelectedIds.size} bản nháp? Hành động này không thể hoàn tác.
+                  </p>
+                  <div className="flex justify-end gap-3">
+                    <button
+                        onClick={() => { setShowDraftConfirm(false); setDraftSelectedIds(new Set()); setDraftSelectionMode(false); }}
+                        className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 rounded-md transition"
+                    >
+                      Huỷ
+                    </button>
+                    <button
+                        onClick={handleConfirmDraftDelete}
+                        className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition"
+                    >
+                      Xoá
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-      <CreateWorkspaceModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        name={newWsName}
-        onNameChange={setNewWsName}
-        category={newWsCategory}
-        onCategoryChange={setNewWsCategory}
-        onCreate={handleCreateWorkspace}
-      />
-
-      <AnimatePresence>
-        {showConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 250, damping: 25 }}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4"
-            >
-              <h3 className="text-lg font-bold text-black mb-2">Xoá dự án?</h3>
-              <p className="text-sm text-gray-500 mb-6">
-                Bạn có chắc muốn xoá {selectedIds.size} dự án? Hành động này không thể hoàn tác.
-              </p>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => { setShowConfirm(false); setSelectedIds(new Set()); setSelectionMode(false); }}
-                  className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 rounded-md transition"
-                >
-                  Huỷ
-                </button>
-                <button
-                  onClick={handleConfirmDelete}
-                  className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition"
-                >
-                  Xoá
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showDraftConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 250, damping: 25 }}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4"
-            >
-              <h3 className="text-lg font-bold text-black mb-2">Xoá bản nháp?</h3>
-              <p className="text-sm text-gray-500 mb-6">
-                Bạn có chắc muốn xoá {draftSelectedIds.size} bản nháp? Hành động này không thể hoàn tác.
-              </p>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => { setShowDraftConfirm(false); setDraftSelectedIds(new Set()); setDraftSelectionMode(false); }}
-                  className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 rounded-md transition"
-                >
-                  Huỷ
-                </button>
-                <button
-                  onClick={handleConfirmDraftDelete}
-                  className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition"
-                >
-                  Xoá
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
   );
 };
 
 const SidebarItem = ({ icon, label, active = false, small = false, onClick, collapsed = false }: { icon: React.ReactNode, label: string, active?: boolean, small?: boolean, onClick?: () => void, collapsed?: boolean }) => (
-  <button 
-    onClick={onClick}
-    title={collapsed ? label : undefined}
-    className={`
+    <button
+        onClick={onClick}
+        title={collapsed ? label : undefined}
+        className={`
       w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group relative
-      ${active 
-        ? 'bg-blue-100/50 text-uml-blue border-r-4 border-uml-blue font-bold' 
-        : 'text-admin-secondary hover:bg-gray-100 hover:text-black font-bold'
-      }
+      ${active
+            ? 'bg-blue-100/50 text-uml-blue border-r-4 border-uml-blue font-bold'
+            : 'text-admin-secondary hover:bg-gray-100 hover:text-black font-bold'
+        }
       ${small ? 'py-2 text-[12px]' : 'text-[13px] uppercase tracking-wider'}
       ${collapsed ? 'justify-center px-0' : ''}
     `}
-  >
-    <span className={`${active ? 'text-uml-blue' : 'text-gray-400 group-hover:text-black'} transition-colors shrink-0`}>{icon}</span>
-    {!collapsed && <span className="overflow-hidden whitespace-nowrap">{label}</span>}
-  </button>
+    >
+      <span className={`${active ? 'text-uml-blue' : 'text-gray-400 group-hover:text-black'} transition-colors shrink-0`}>{icon}</span>
+      {!collapsed && <span className="overflow-hidden whitespace-nowrap">{label}</span>}
+    </button>
 );
 
 
 
 const SubSidebarItem = ({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) => (
-  <button
-    onClick={onClick}
-    className={`w-full text-left px-3 py-1.5 rounded text-[12px] font-bold uppercase tracking-wider transition-all ${
-      active
-        ? 'text-uml-blue bg-blue-50/50'
-        : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'
-    }`}
-  >
-    {label}
-  </button>
+    <button
+        onClick={onClick}
+        className={`w-full text-left px-3 py-1.5 rounded text-[12px] font-bold uppercase tracking-wider transition-all ${
+            active
+                ? 'text-uml-blue bg-blue-50/50'
+                : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'
+        }`}
+    >
+      {label}
+    </button>
 )
 
 const groupColors: Record<string, string> = {
@@ -955,67 +960,67 @@ const iconColors: Record<string, string> = {
 const TemplateGridCard = ({ template }: { template: TemplateMeta }) => {
   const navigate = useNavigate()
   return (
-    <motion.div
-      whileHover={{ y: -4 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      onClick={() => navigate(`/templates/${template.id}`)}
-      className="bg-white border border-admin-outline rounded flex flex-col group hover:border-uml-blue transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[300px]"
-    >
-      <div className={`h-44 bg-gradient-to-br ${groupGradients[template.group] || 'from-gray-50 to-gray-100'} border-b border-admin-outline relative overflow-hidden`}>
-        <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
-        <div className="absolute top-3 right-3 flex gap-1.5">
+      <motion.div
+          whileHover={{ y: -4 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          onClick={() => navigate(`/templates/${template.id}`)}
+          className="bg-white border border-admin-outline rounded flex flex-col group hover:border-uml-blue transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[300px]"
+      >
+        <div className={`h-44 bg-gradient-to-br ${groupGradients[template.group] || 'from-gray-50 to-gray-100'} border-b border-admin-outline relative overflow-hidden`}>
+          {template.previewImage ? <img src={template.previewImage} alt={`Preview of ${template.name}`} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" /> : <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />}
+          <div className="absolute top-3 right-3 flex gap-1.5">
           <span className={`px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border ${groupColors[template.group] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
             {template.type}
           </span>
+          </div>
         </div>
-      </div>
-      <div className="p-5 flex-1 flex flex-col justify-between">
-        <div>
-          <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{template.name}</h3>
-          <p className="text-xs text-admin-secondary leading-relaxed line-clamp-2">{template.shortDescription}</p>
+        <div className="p-5 flex-1 flex flex-col justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{template.name}</h3>
+            <p className="text-xs text-admin-secondary leading-relaxed line-clamp-2">{template.shortDescription}</p>
+          </div>
+          <div className="flex items-center justify-between">
+            {template.kind === 'sample' && (
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{template.nodeCount} nodes · {template.edgeCount} edges</span>
+            )}
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{template.category}</span>
+          </div>
         </div>
-        <div className="flex items-center justify-between">
-          {template.kind === 'sample' && (
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{template.nodeCount} nodes · {template.edgeCount} edges</span>
-          )}
-          <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{template.category}</span>
-        </div>
-      </div>
-    </motion.div>
+      </motion.div>
   )
 }
 
 const TemplateListRow = ({ template, index = 0 }: { template: TemplateMeta; index?: number }) => {
   const navigate = useNavigate()
   return (
-    <motion.tr
-      initial={{ opacity: 0, x: -8 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.03, duration: 0.25 }}
-      onClick={() => navigate(`/templates/${template.id}`)}
-      className="border-b border-admin-outline hover:bg-gray-50/50 transition-colors group cursor-pointer"
-    >
-      <td className="py-4 px-6">
-        <div className="flex items-center gap-4">
-          <div className={`w-10 h-10 rounded flex items-center justify-center shrink-0 ${iconColors[template.group] || 'bg-uml-blue/10 text-uml-blue'}`}>
-            <Layers size={18} />
+      <motion.tr
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: index * 0.03, duration: 0.25 }}
+          onClick={() => navigate(`/templates/${template.id}`)}
+          className="border-b border-admin-outline hover:bg-gray-50/50 transition-colors group cursor-pointer"
+      >
+        <td className="py-4 px-6">
+          <div className="flex items-center gap-4">
+            <div className={`w-10 h-10 rounded flex items-center justify-center shrink-0 ${iconColors[template.group] || 'bg-uml-blue/10 text-uml-blue'}`}>
+              <Layers size={18} />
+            </div>
+            <div>
+              <span className="font-bold text-black group-hover:text-uml-blue transition-colors">{template.name}</span>
+              <p className="text-xs text-gray-400 mt-0.5">{template.shortDescription}</p>
+            </div>
           </div>
-          <div>
-            <span className="font-bold text-black group-hover:text-uml-blue transition-colors">{template.name}</span>
-            <p className="text-xs text-gray-400 mt-0.5">{template.shortDescription}</p>
-          </div>
-        </div>
-      </td>
-      <td className="py-4 px-6">
+        </td>
+        <td className="py-4 px-6">
         <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest border ${groupColors[template.group] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
           {template.type}
         </span>
-      </td>
-      <td className="py-4 px-6 text-sm text-admin-secondary font-bold">{template.category}</td>
-      <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">
-        {template.kind === 'sample' ? `${template.nodeCount}` : '—'}
-      </td>
-    </motion.tr>
+        </td>
+        <td className="py-4 px-6 text-sm text-admin-secondary font-bold">{template.category}</td>
+        <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">
+          {template.kind === 'sample' ? `${template.nodeCount}` : '—'}
+        </td>
+      </motion.tr>
   )
 }
 
@@ -1023,97 +1028,97 @@ const DraftCard = ({ draft, selectionMode, selected, onToggleSelect }: { draft: 
   const navigate = useNavigate()
   const sheetId = draft.sheets?.[0]?.id
   return (
-    <motion.div
-      whileHover={{ y: -4 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      onClick={() => {
-        if (selectionMode) {
-          onToggleSelect(draft.id)
-        } else {
-          navigate(`/workspace/${draft.id}?draft=true`)
-        }
-      }}
-      className={`bg-white border rounded flex flex-col group transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px] ${
-        selected ? 'border-red-400 ring-2 ring-red-400/25' : 'border-admin-outline hover:border-amber-400'
-      }`}
-    >
-      <div className="h-36 bg-gradient-to-br from-amber-50 to-orange-50 border-b border-admin-outline relative overflow-hidden">
-        <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
-        <div className="absolute top-3 right-3 flex gap-1.5">
+      <motion.div
+          whileHover={{ y: -4 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          onClick={() => {
+            if (selectionMode) {
+              onToggleSelect(draft.id)
+            } else {
+              navigate(`/workspace/${draft.id}?draft=true`)
+            }
+          }}
+          className={`bg-white border rounded flex flex-col group transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px] ${
+              selected ? 'border-red-400 ring-2 ring-red-400/25' : 'border-admin-outline hover:border-amber-400'
+          }`}
+      >
+        <div className="h-36 bg-gradient-to-br from-amber-50 to-orange-50 border-b border-admin-outline relative overflow-hidden">
+          <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
+          <div className="absolute top-3 right-3 flex gap-1.5">
           <span className="px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border bg-amber-100 text-amber-700 border-amber-200">
             Bản nháp
           </span>
+          </div>
         </div>
-      </div>
-      <div className="p-5 flex-1 flex flex-col justify-between">
-        <div>
-          <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{draft.name}</h3>
-          <p className="text-[11px] text-admin-secondary font-bold uppercase tracking-widest">{(draft.sheets?.length || 0)} diagram</p>
+        <div className="p-5 flex-1 flex flex-col justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{draft.name}</h3>
+            <p className="text-[11px] text-admin-secondary font-bold uppercase tracking-widest">{(draft.sheets?.length || 0)} diagram</p>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] text-gray-400">
+            <Clock size={12} />
+            {formatRelativeTime(draft.updatedAt)}
+          </div>
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-gray-400">
-          <Clock size={12} />
-          {formatRelativeTime(draft.updatedAt)}
-        </div>
-      </div>
-      {selected && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="absolute inset-0 bg-red-50/80 z-20 flex items-center justify-center"
-        >
-          <motion.div
-            animate={{ opacity: [0.4, 1, 0.4] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <Trash2 size={28} className="text-red-500/80" />
-          </motion.div>
-        </motion.div>
-      )}
-    </motion.div>
+        {selected && (
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="absolute inset-0 bg-red-50/80 z-20 flex items-center justify-center"
+            >
+              <motion.div
+                  animate={{ opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <Trash2 size={28} className="text-red-500/80" />
+              </motion.div>
+            </motion.div>
+        )}
+      </motion.div>
   )
 }
 
 const DraftListRow = ({ draft, selectionMode, selected, onToggleSelect }: { draft: Workspace } & CardActions) => {
   const navigate = useNavigate()
   return (
-    <tr
-      onClick={() => {
-        if (selectionMode) {
-          onToggleSelect(draft.id)
-        } else {
-          navigate(`/workspace/${draft.id}?draft=true`)
-        }
-      }}
-      className={`relative overflow-hidden border-b transition-colors group cursor-pointer ${
-        selected ? 'border-red-400 bg-red-50/50' : 'border-admin-outline hover:bg-gray-50/50'
-      }`}
-    >
-      {selected && selectionMode && (
-        <td className="absolute inset-0 z-20 flex items-center justify-center bg-red-50/80" colSpan={4}>
-          <motion.div
-            animate={{ opacity: [0.4, 1, 0.4] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <Trash2 size={20} className="text-red-500/80" />
-          </motion.div>
-        </td>
-      )}
-      <td className="py-4 px-6">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded flex items-center justify-center shrink-0 bg-amber-100 text-amber-700">
-            <PenTool size={18} />
+      <tr
+          onClick={() => {
+            if (selectionMode) {
+              onToggleSelect(draft.id)
+            } else {
+              navigate(`/workspace/${draft.id}?draft=true`)
+            }
+          }}
+          className={`relative overflow-hidden border-b transition-colors group cursor-pointer ${
+              selected ? 'border-red-400 bg-red-50/50' : 'border-admin-outline hover:bg-gray-50/50'
+          }`}
+      >
+        {selected && selectionMode && (
+            <td className="absolute inset-0 z-20 flex items-center justify-center bg-red-50/80" colSpan={4}>
+              <motion.div
+                  animate={{ opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <Trash2 size={20} className="text-red-500/80" />
+              </motion.div>
+            </td>
+        )}
+        <td className="py-4 px-6">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded flex items-center justify-center shrink-0 bg-amber-100 text-amber-700">
+              <PenTool size={18} />
+            </div>
+            <span className="font-bold text-black group-hover:text-uml-blue transition-colors">{draft.name}</span>
           </div>
-          <span className="font-bold text-black group-hover:text-uml-blue transition-colors">{draft.name}</span>
-        </div>
-      </td>
-      <td className="py-4 px-6">
+        </td>
+        <td className="py-4 px-6">
         <span className="px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest border bg-amber-100 text-amber-700 border-amber-200">
           Bản nháp
         </span>
-      </td>
-      <td className="py-4 px-6 text-admin-on-surface-variant font-bold text-[12px] uppercase">{formatRelativeTime(draft.updatedAt)}</td>
-      <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">{(draft.sheets?.length || 0)}</td>
-    </tr>
+        </td>
+        <td className="py-4 px-6 text-admin-on-surface-variant font-bold text-[12px] uppercase">{formatRelativeTime(draft.updatedAt)}</td>
+        <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">{(draft.sheets?.length || 0)}</td>
+      </tr>
   )
 }
 
@@ -1126,53 +1131,53 @@ interface CardActions {
 const UserWorkspaceCard = ({ workspace, selectionMode, selected, onToggleSelect }: { workspace: Workspace } & CardActions) => {
   const navigate = useNavigate()
   return (
-    <motion.div
-      whileHover={{ y: -4 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      onClick={() => {
-        if (selectionMode) {
-          onToggleSelect(workspace.id)
-        } else {
-          navigate(`/workspace/${workspace.id}`)
-        }
-      }}
-      className={`bg-white border rounded flex flex-col group transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px] ${
-        selected ? 'border-red-400 ring-2 ring-red-400/25' : 'border-admin-outline hover:border-uml-blue'
-      }`}
-    >
-      <div className="h-36 bg-gradient-to-br from-gray-50 to-blue-50 border-b border-admin-outline relative overflow-hidden">
-        <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
-        <div className="absolute top-3 right-3 flex gap-1.5">
+      <motion.div
+          whileHover={{ y: -4 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          onClick={() => {
+            if (selectionMode) {
+              onToggleSelect(workspace.id)
+            } else {
+              navigate(`/workspace/${workspace.id}`)
+            }
+          }}
+          className={`bg-white border rounded flex flex-col group transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px] ${
+              selected ? 'border-red-400 ring-2 ring-red-400/25' : 'border-admin-outline hover:border-uml-blue'
+          }`}
+      >
+        <div className="h-36 bg-gradient-to-br from-gray-50 to-blue-50 border-b border-admin-outline relative overflow-hidden">
+          <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
+          <div className="absolute top-3 right-3 flex gap-1.5">
           <span className="px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border bg-uml-blue/10 text-uml-blue border-uml-blue/20">
             {workspace.category}
           </span>
+          </div>
         </div>
-      </div>
-      <div className="p-5 flex-1 flex flex-col justify-between">
-        <div>
-          <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{workspace.name}</h3>
-          <p className="text-[11px] text-admin-secondary font-bold uppercase tracking-widest">{(workspace.sheets?.length || 0)} diagrams</p>
+        <div className="p-5 flex-1 flex flex-col justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{workspace.name}</h3>
+            <p className="text-[11px] text-admin-secondary font-bold uppercase tracking-widest">{(workspace.sheets?.length || 0)} diagrams</p>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] text-gray-400">
+            <Clock size={12} />
+            {formatRelativeTime(workspace.updatedAt)}
+          </div>
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-gray-400">
-          <Clock size={12} />
-          {formatRelativeTime(workspace.updatedAt)}
-        </div>
-      </div>
-      {selected && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="absolute inset-0 bg-red-50/80 z-20 flex items-center justify-center"
-        >
-          <motion.div
-            animate={{ opacity: [0.4, 1, 0.4] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <Trash2 size={28} className="text-red-500/80" />
-          </motion.div>
-        </motion.div>
-      )}
-    </motion.div>
+        {selected && (
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="absolute inset-0 bg-red-50/80 z-20 flex items-center justify-center"
+            >
+              <motion.div
+                  animate={{ opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <Trash2 size={28} className="text-red-500/80" />
+              </motion.div>
+            </motion.div>
+        )}
+      </motion.div>
   )
 }
 
@@ -1185,94 +1190,94 @@ interface RowActions {
 const WorkspaceListRow = ({ workspace, selectionMode, selected, onToggleSelect }: { workspace: Workspace } & RowActions) => {
   const navigate = useNavigate()
   return (
-    <tr
-      onClick={() => {
-        if (selectionMode) {
-          onToggleSelect(workspace.id)
-        } else {
-          navigate(`/workspace/${workspace.id}`)
-        }
-      }}
-      className={`relative overflow-hidden border-b transition-colors group cursor-pointer ${
-        selected ? 'border-red-400 bg-red-50/50' : 'border-admin-outline hover:bg-gray-50/50'
-      }`}
-    >
-      {selected && selectionMode && (
-        <td className="absolute inset-0 z-20 flex items-center justify-center bg-red-50/80" colSpan={4}>
-          <motion.div
-            animate={{ opacity: [0.4, 1, 0.4] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <Trash2 size={20} className="text-red-500/80" />
-          </motion.div>
-        </td>
-      )}
-      <td className="py-4 px-6">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded flex items-center justify-center shrink-0 bg-uml-blue/10 text-uml-blue">
-            <Layers size={18} />
+      <tr
+          onClick={() => {
+            if (selectionMode) {
+              onToggleSelect(workspace.id)
+            } else {
+              navigate(`/workspace/${workspace.id}`)
+            }
+          }}
+          className={`relative overflow-hidden border-b transition-colors group cursor-pointer ${
+              selected ? 'border-red-400 bg-red-50/50' : 'border-admin-outline hover:bg-gray-50/50'
+          }`}
+      >
+        {selected && selectionMode && (
+            <td className="absolute inset-0 z-20 flex items-center justify-center bg-red-50/80" colSpan={4}>
+              <motion.div
+                  animate={{ opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <Trash2 size={20} className="text-red-500/80" />
+              </motion.div>
+            </td>
+        )}
+        <td className="py-4 px-6">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded flex items-center justify-center shrink-0 bg-uml-blue/10 text-uml-blue">
+              <Layers size={18} />
+            </div>
+            <span className="font-bold text-black group-hover:text-uml-blue transition-colors">{workspace.name}</span>
           </div>
-          <span className="font-bold text-black group-hover:text-uml-blue transition-colors">{workspace.name}</span>
-        </div>
-      </td>
-      <td className="py-4 px-6 text-[12px] text-admin-secondary font-bold uppercase">{workspace.category}</td>
-      <td className="py-4 px-6 text-admin-on-surface-variant font-bold text-[12px] uppercase">{formatRelativeTime(workspace.updatedAt)}</td>
-      <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">{(workspace.sheets?.length || 0)}</td>
-    </tr>
+        </td>
+        <td className="py-4 px-6 text-[12px] text-admin-secondary font-bold uppercase">{workspace.category}</td>
+        <td className="py-4 px-6 text-admin-on-surface-variant font-bold text-[12px] uppercase">{formatRelativeTime(workspace.updatedAt)}</td>
+        <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">{(workspace.sheets?.length || 0)}</td>
+      </tr>
   )
 }
 
 const PrebuiltCard = ({ meta }: { meta: PrebuiltMeta }) => {
   const navigate = useNavigate()
   return (
-    <motion.div
-      whileHover={{ y: -4 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      onClick={() => navigate(`/prebuilts/${meta.id}`)}
-      className="bg-white border border-admin-outline rounded flex flex-col group hover:border-uml-blue transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px]"
-    >
-      <div className={`h-36 bg-gradient-to-br ${
-        meta.difficulty === 'beginner' ? 'from-emerald-50 to-green-50' :
-        meta.difficulty === 'intermediate' ? 'from-amber-50 to-orange-50' :
-        'from-red-50 to-rose-50'
-      } border-b border-admin-outline relative overflow-hidden`}>
-        <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
-        <div className="absolute top-3 right-3 flex gap-1.5">
+      <motion.div
+          whileHover={{ y: -4 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          onClick={() => navigate(`/prebuilts/${meta.id}`)}
+          className="bg-white border border-admin-outline rounded flex flex-col group hover:border-uml-blue transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px]"
+      >
+        <div className={`h-36 bg-gradient-to-br ${
+            meta.difficulty === 'beginner' ? 'from-emerald-50 to-green-50' :
+                meta.difficulty === 'intermediate' ? 'from-amber-50 to-orange-50' :
+                    'from-red-50 to-rose-50'
+        } border-b border-admin-outline relative overflow-hidden`}>
+          {meta.coverImage ? <img src={meta.coverImage} alt={`Cover for ${meta.name}`} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" /> : <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />}
+          <div className="absolute top-3 right-3 flex gap-1.5">
           <span className={`px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border ${
-            meta.difficulty === 'beginner' ? 'bg-emerald-100 text-emerald-600 border-emerald-200' :
-            meta.difficulty === 'intermediate' ? 'bg-amber-100 text-amber-600 border-amber-200' :
-            'bg-red-100 text-red-600 border-red-200'
+              meta.difficulty === 'beginner' ? 'bg-emerald-100 text-emerald-600 border-emerald-200' :
+                  meta.difficulty === 'intermediate' ? 'bg-amber-100 text-amber-600 border-amber-200' :
+                      'bg-red-100 text-red-600 border-red-200'
           }`}>
             {meta.difficulty}
           </span>
+          </div>
+          <div className="absolute top-3 left-3 p-2 rounded-full bg-white/80 backdrop-blur-sm text-gray-400">
+            <Copy size={16} />
+          </div>
         </div>
-        <div className="absolute top-3 left-3 p-2 rounded-full bg-white/80 backdrop-blur-sm text-gray-400">
-          <Copy size={16} />
+        <div className="p-5 flex-1 flex flex-col justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{meta.name}</h3>
+            <p className="text-xs text-admin-secondary leading-relaxed line-clamp-2">{meta.summary}</p>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] text-gray-400">
+            <span className="font-bold uppercase tracking-widest">{meta.domain}</span>
+          </div>
         </div>
-      </div>
-      <div className="p-5 flex-1 flex flex-col justify-between">
-        <div>
-          <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{meta.name}</h3>
-          <p className="text-xs text-admin-secondary leading-relaxed line-clamp-2">{meta.summary}</p>
-        </div>
-        <div className="flex items-center gap-2 text-[10px] text-gray-400">
-          <span className="font-bold uppercase tracking-widest">{meta.domain}</span>
-        </div>
-      </div>
-    </motion.div>
+      </motion.div>
   )
 }
 
 {/* Create Workspace Modal */}
 const CreateWorkspaceModal = ({
-  isOpen,
-  onClose,
-  name,
-  onNameChange,
-  category,
-  onCategoryChange,
-  onCreate,
-}: {
+                                isOpen,
+                                onClose,
+                                name,
+                                onNameChange,
+                                category,
+                                onCategoryChange,
+                                onCreate,
+                              }: {
   isOpen: boolean
   onClose: () => void
   name: string
@@ -1283,62 +1288,62 @@ const CreateWorkspaceModal = ({
 }) => {
   if (!isOpen) return null
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.2 }}
-        onClick={e => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4"
-      >
-        <h2 className="text-xl font-black text-black mb-2">Tạo Workspace mới</h2>
-        <p className="text-sm text-gray-500 mb-6">Workspace chứa các diagram, tài liệu và ngữ cảnh AI cho dự án của bạn.</p>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Tên Workspace</label>
-            <input
-              value={name}
-              onChange={e => onNameChange(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') onCreate() }}
-              placeholder="VD: Nền tảng thương mại điện tử"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-uml-blue focus:ring-1 focus:ring-uml-blue/20"
-              autoFocus
-            />
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+        <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            onClick={e => e.stopPropagation()}
+            className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4"
+        >
+          <h2 className="text-xl font-black text-black mb-2">Tạo Workspace mới</h2>
+          <p className="text-sm text-gray-500 mb-6">Workspace chứa các diagram, tài liệu và ngữ cảnh AI cho dự án của bạn.</p>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Tên Workspace</label>
+              <input
+                  value={name}
+                  onChange={e => onNameChange(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') onCreate() }}
+                  placeholder="VD: Nền tảng thương mại điện tử"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-uml-blue focus:ring-1 focus:ring-uml-blue/20"
+                  autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Danh mục</label>
+              <select
+                  value={category}
+                  onChange={e => onCategoryChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-uml-blue focus:ring-1 focus:ring-uml-blue/20 bg-white"
+              >
+                <option value="general">Chung</option>
+                <option value="e-commerce">Thương mại điện tử</option>
+                <option value="healthcare">Y tế</option>
+                <option value="fintech">Công nghệ tài chính</option>
+                <option value="education">Giáo dục</option>
+                <option value="enterprise">Doanh nghiệp</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Danh mục</label>
-            <select
-              value={category}
-              onChange={e => onCategoryChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-uml-blue focus:ring-1 focus:ring-uml-blue/20 bg-white"
+          <div className="flex items-center justify-end gap-3 mt-6">
+            <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-black transition"
             >
-              <option value="general">Chung</option>
-              <option value="e-commerce">Thương mại điện tử</option>
-              <option value="healthcare">Y tế</option>
-              <option value="fintech">Công nghệ tài chính</option>
-              <option value="education">Giáo dục</option>
-              <option value="enterprise">Doanh nghiệp</option>
-            </select>
+              Huỷ
+            </button>
+            <button
+                onClick={onCreate}
+                disabled={!name.trim()}
+                className="px-5 py-2 bg-uml-blue text-white font-bold rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50"
+            >
+              Tạo Workspace
+            </button>
           </div>
-        </div>
-        <div className="flex items-center justify-end gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-black transition"
-          >
-            Huỷ
-          </button>
-          <button
-            onClick={onCreate}
-            disabled={!name.trim()}
-            className="px-5 py-2 bg-uml-blue text-white font-bold rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50"
-          >
-            Tạo Workspace
-          </button>
-        </div>
-      </motion.div>
-    </div>
+        </motion.div>
+      </div>
   )
 }
 
