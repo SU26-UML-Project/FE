@@ -5,6 +5,8 @@ import { ArrowLeft, ArrowRight, ChevronRight, Clock3, FileText, Folder, FolderOp
 import { toast } from 'react-hot-toast'
 import { projectService } from '../services'
 import { workspaceFileService } from '../services/workspaceFileService'
+import { ConfirmDialog } from '../components/overlays/ConfirmDialog'
+import { getErrorMessage, isInTrashError } from '../utils/errorMessage'
 import type { DiagramType } from '../types'
 import type { WorkspaceFileItem, WorkspaceFileKind, WorkspaceTreeState } from '../types/workspaceFile'
 
@@ -36,6 +38,9 @@ export default function ProjectOverview() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [folderHistory, setFolderHistory] = useState<Array<string | null>>([null])
   const [historyIndex, setHistoryIndex] = useState(0)
+  // Dự án đang trong thùng rác (BE trả code 1805) → yêu cầu khôi phục trước khi xem
+  const [trashPrompt, setTrashPrompt] = useState(false)
+  const [restoring, setRestoring] = useState(false)
 
   const refresh = useCallback(async () => {
     if (!id) return
@@ -46,10 +51,28 @@ export default function ProjectOverview() {
       setProject({ name: projectRes.result.projectName, category: projectRes.result.description || 'general', updatedAt: projectRes.result.updatedAt })
       setTree(treeState)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Unable to load project')
+      // Đã xóa mềm: không đá về dashboard mà mở popup cho phép khôi phục ngay.
+      if (isInTrashError(error)) {
+        setTrashPrompt(true)
+        return
+      }
+      toast.error(getErrorMessage(error, 'Không thể tải dự án'))
       navigate('/dashboard')
     } finally { setLoading(false) }
   }, [id, navigate])
+
+  const handleRestoreAndOpen = useCallback(async () => {
+    if (!id || restoring) return
+    setRestoring(true)
+    try {
+      await projectService.restoreProject(id)
+      toast.success('Khôi phục dự án thành công')
+      setTrashPrompt(false)
+      refresh()
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Không thể khôi phục dự án'))
+    } finally { setRestoring(false) }
+  }, [id, refresh, restoring])
 
   useEffect(() => { refresh() }, [refresh])
   useEffect(() => { localStorage.setItem('diauml:overview-view', view) }, [view])
@@ -109,6 +132,17 @@ export default function ProjectOverview() {
 
 
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-admin-bg"><Loader2 className="animate-spin text-uml-blue"/></div>
+  if (trashPrompt) return (
+    <ConfirmDialog
+      title="Dự án đang trong thùng rác"
+      message='Bạn cần khôi phục dự án này trước khi mở. Khôi phục sẽ đưa dự án về mục "Tất cả dự án".'
+      confirmLabel={restoring ? 'Đang khôi phục…' : 'Khôi phục'}
+      cancelLabel="Về trang chủ"
+      danger={false}
+      onConfirm={handleRestoreAndOpen}
+      onCancel={() => navigate('/dashboard')}
+    />
+  )
   if (!project) return null
 
   return <div

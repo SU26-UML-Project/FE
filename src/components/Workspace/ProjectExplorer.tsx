@@ -225,23 +225,27 @@ export default function ProjectExplorer(props: Props) {
         draggable
         onDragStart={event => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('workspace-item', item.id); setDragId(item.id) }}
         onDragEnd={() => { setDragId(null); setDropId(null) }}
-        onDragOver={event => { if (item.kind === 'folder') { event.preventDefault(); setDropId(item.id) } }}
-        onDragLeave={() => setDropId(value => value === item.id ? null : value)}
-        onDrop={event => { event.preventDefault(); event.stopPropagation(); const id = event.dataTransfer.getData('workspace-item'); if (id && id !== item.id) moveItem(id, item.id); setDropId(null) }}
         onClick={() => handleItemClick(item)}
         onDoubleClick={event => handleItemDoubleClick(event, item)}
         onContextMenu={event => { event.preventDefault(); event.stopPropagation(); setContext({ x: event.clientX, y: event.clientY, item }) }}
-        className={`group relative flex h-8 cursor-pointer items-center gap-1.5 rounded-md pr-1 text-xs transition-colors ${props.activeId === item.id ? 'bg-uml-blue/10 font-bold text-uml-blue before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded before:bg-uml-blue' : focusedId === item.id ? 'bg-admin-bg text-admin-on-surface' : 'text-admin-on-surface hover:bg-admin-bg'} ${dropId === item.id ? 'ring-2 ring-inset ring-uml-blue bg-uml-blue/10' : ''} ${dragId === item.id ? 'opacity-40' : ''}`}
-        style={{ paddingLeft: 8 + depth * 14 }}
+        className={`group relative flex h-8 cursor-pointer items-center rounded-md pr-1 text-xs transition-colors ${props.activeId === item.id ? 'bg-uml-blue/10 font-bold text-uml-blue before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded before:bg-uml-blue' : focusedId === item.id ? 'bg-admin-bg text-admin-on-surface' : 'text-admin-on-surface hover:bg-admin-bg'} ${dragId === item.id ? 'opacity-40' : ''}`}
         title={`${path(item.parentId)} / ${item.name}`}
       >
-        {item.kind === 'folder' ? (expanded ? <ChevronDown size={13}/> : <ChevronRight size={13}/>) : <span className="w-[13px]"/>}
-        <ItemGlyph item={item} expanded={expanded}/>
-        {editingId === item.id ? <div className="relative min-w-0 flex-1" onClick={event => event.stopPropagation()} onDoubleClick={event => event.stopPropagation()}>
-          <input autoFocus value={editingName} onChange={event => { setEditingName(event.target.value); setRenameError('') }} onBlur={() => { if (!renameError) void commitInlineRename(item) }} onKeyDown={event => { event.stopPropagation(); if (event.key === 'Enter') void commitInlineRename(item); if (event.key === 'Escape') cancelInlineRename() }} className={`h-6 w-full rounded border bg-white px-1.5 text-xs text-admin-on-surface outline-none ${renameError ? 'border-red-500' : 'border-uml-blue ring-1 ring-uml-blue/20'}`}/>
-          {renameError && <span className="absolute left-0 top-7 z-50 whitespace-nowrap rounded bg-red-600 px-2 py-1 text-[9px] font-medium text-white shadow-lg">{renameError}</span>}
-        </div> : <span className="min-w-0 flex-1 truncate" onDoubleClick={event => handleItemDoubleClick(event, item)}><HighlightName name={item.name} query={query}/></span>}
-        {editingId !== item.id && <button onClick={event => { event.stopPropagation(); const box = event.currentTarget.getBoundingClientRect(); setContext({ x: box.right, y: box.bottom, item }) }} className="invisible rounded p-1 text-admin-secondary hover:bg-white group-hover:visible" aria-label={`Actions for ${item.name}`}><MoreHorizontal size={14}/></button>}
+        <div style={{ width: 4 + depth * 14 }} className="h-full shrink-0" />
+        <div 
+          className={`flex h-full flex-1 items-center gap-1.5 rounded-md px-1 ${dropId === item.id ? 'ring-2 ring-inset ring-uml-blue bg-uml-blue/10' : ''}`}
+          onDragOver={event => { if (item.kind === 'folder') { event.preventDefault(); event.stopPropagation(); setDropId(item.id) } }}
+          onDragLeave={() => setDropId(value => value === item.id ? null : value)}
+          onDrop={event => { event.preventDefault(); event.stopPropagation(); const id = event.dataTransfer.getData('workspace-item'); if (id && id !== item.id) moveItem(id, item.id); setDropId(null) }}
+        >
+          {item.kind === 'folder' ? (expanded ? <ChevronDown size={13}/> : <ChevronRight size={13}/>) : <span className="w-[13px]"/>}
+          <ItemGlyph item={item} expanded={expanded}/>
+          {editingId === item.id ? <div className="relative min-w-0 flex-1" onClick={event => event.stopPropagation()} onDoubleClick={event => event.stopPropagation()}>
+            <input autoFocus value={editingName} onChange={event => { setEditingName(event.target.value); setRenameError('') }} onBlur={() => { if (!renameError) void commitInlineRename(item) }} onKeyDown={event => { event.stopPropagation(); if (event.key === 'Enter') void commitInlineRename(item); if (event.key === 'Escape') cancelInlineRename() }} className={`h-6 w-full rounded border bg-white px-1.5 text-xs text-admin-on-surface outline-none ${renameError ? 'border-red-500' : 'border-uml-blue ring-1 ring-uml-blue/20'}`}/>
+            {renameError && <span className="absolute left-0 top-7 z-50 whitespace-nowrap rounded bg-red-600 px-2 py-1 text-[9px] font-medium text-white shadow-lg">{renameError}</span>}
+          </div> : <span className="min-w-0 flex-1 truncate" onDoubleClick={event => handleItemDoubleClick(event, item)}><HighlightName name={item.name} query={query}/></span>}
+          {editingId !== item.id && <button onClick={event => { event.stopPropagation(); const box = event.currentTarget.getBoundingClientRect(); setContext({ x: box.right, y: box.bottom, item }) }} className="invisible rounded p-1 text-admin-secondary hover:bg-white group-hover:visible" aria-label={`Actions for ${item.name}`}><MoreHorizontal size={14}/></button>}
+        </div>
       </div>
       {item.kind === 'folder' && expanded && renderTree(item.id, depth + 1)}
     </div>

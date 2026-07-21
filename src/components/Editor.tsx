@@ -59,6 +59,7 @@ import VersionHistoryPanel from "./Workspace/VersionHistoryPanel";
 import { diagramVersionService } from "../services/diagramVersionService";
 import type { DiagramSnapshot, DiagramVersion } from "../types/diagramVersion";
 import WorkspaceTabs, { type WorkspaceTab } from "./Workspace/WorkspaceTabs";
+import { getErrorMessage, isInTrashError } from "../utils/errorMessage";
 
 type Snap = { nodes: FlowNode[]; edges: FlowEdge[] };
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -1503,7 +1504,12 @@ export function Editor() {
                 });
                 return () => cancelAnimationFrame(raf);
             } catch (error: any) {
-                toast.error(error.message || "Failed to load project from server");
+                // Dự án trong thùng rác → về trang tổng quan để hiện popup "khôi phục trước khi xem".
+                if (isInTrashError(error)) {
+                    navigate(`/workspace/${id}`);
+                    return;
+                }
+                toast.error(getErrorMessage(error, "Không thể tải dự án"));
                 navigate("/dashboard");
             }
         };
