@@ -6,48 +6,41 @@
   "umlType": "activity",
   "category": "Behavioral",
   "group": "behavioral",
-  "description": "Activity Diagram describes workflow, algorithm or business process in the form of actions, conditional branches, parallelization, and responsibilities by swimlane.",
-  "purpose": "Detailed specification of workflow, business process or algorithm with multiple decisions and fork/join.",
+  "description": "Mô tả workflow nghiệp vụ, decision và control flow.",
+  "shortDescription": "Mô tả workflow nghiệp vụ, decision và control flow.",
+  "purpose": "Giúp đội ngũ lựa chọn đúng loại diagram trước khi triển khai chi tiết.",
   "bestFor": [
-    "Draw cross-departmental business workflow",
-    "Describe complex data processing algorithm",
-    "Detailed specification of flow inside a use case",
-    "Describe flow with decisions, fork/join, or swimlanes"
+    "Trao đổi phạm vi và thiết kế với stakeholders",
+    "Tài liệu hoá quyết định thiết kế"
   ],
   "notSuitableFor": [
-    "Describe object lifecycle states \u2192 use State Machine Diagram",
-    "Describe actors and functional scope \u2192 use Use Case Diagram",
-    "Describe messages between services over time \u2192 use Sequence Diagram"
+    "Thay thế hoàn toàn tài liệu yêu cầu hoặc source code"
   ],
   "useCases": [
-    "Identify process start and end points",
-    "Add action/activity processing steps",
-    "Add decision node for conditional branching",
-    "Add fork/join for parallel flows",
-    "Add swimlane to divide responsibilities",
-    "Add merge node to join branches"
+    "Xác định mục tiêu diagram",
+    "Chuẩn bị actors, domain objects hoặc workflow",
+    "Review cùng team"
   ],
   "requirements": [
-    "Initial/Final node \u2014 start/end point",
-    "Actions \u2014 sequential processing steps",
-    "Decision/Merge nodes \u2014 branch/merge",
-    "Fork/Join nodes \u2014 split/merge parallel flows (optional)",
-    "Swimlanes \u2014 responsibility division (optional)"
+    "Xác định phạm vi và audience",
+    "Dùng tên rõ ràng, nhất quán",
+    "Chỉ thể hiện relationship cần thiết"
   ],
   "elements": [
-    {"name":"Initial Node","type":"Core","description":"Process start point"},
-    {"name":"Final Node","type":"Core","description":"Process end point"},
-    {"name":"Action/Activity","type":"Core","description":"Sequential processing step"},
-    {"name":"Decision Node","type":"Optional","description":"Branching condition"},
-    {"name":"Merge Node","type":"Optional","description":"Branch merge point"},
-    {"name":"Fork/Join","type":"Optional","description":"Split/merge parallel flows"},
-    {"name":"Swimlane","type":"Optional","description":"Responsibility division by performing party"}
+    {
+      "name": "Core elements",
+      "type": "Activity Diagram",
+      "description": "Các phần tử chuẩn được Canvas hỗ trợ."
+    }
   ],
-  "confusableWith": [
-    {"diagram":"Sequence Diagram","difference":"Activity focuses on workflow/action; Sequence focuses on messages between lifelines over time."},
-    {"diagram":"State Machine Diagram","difference":"Activity describes processing flow; State Machine describes states and transitions of an object."},
-    {"diagram":"Use Case Diagram","difference":"Use Case tells what the system does; Activity tells how it is done."}
+  "confusableWith": [],
+  "keywords": [
+    "activity",
+    "UML",
+    "design"
   ],
-  "keywords": ["activity","workflow","business process","decision","swimlane","fork","join","algorithm","flow"],
-  "previewImage":null
+  "previewImage": "/examples/library/activity.svg",
+  "nodeCount": 0,
+  "edgeCount": 0,
+  "createdFor": "UML Knowledge Base"
 }

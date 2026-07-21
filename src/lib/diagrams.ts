@@ -31,7 +31,7 @@ export const DIAGRAMS: DiagramDef[] = [
       P("start", "Start", { label: "" }, 38, 38),
       P("final", "Final", { label: "" }, 40, 40),
       P("action", "Action", { label: "Action" }, 150, 54),
-      P("decision", "Decision", { label: "Condition?" }, 150, 104),
+      P("decision", "Decision", { label: "" }, 150, 104),
       P("fork", "Fork / Join", { label: "" }, 130, 12),
       P("swimlane", "Swimlane", { label: "Lane", variant: "horizontal" }, 480, 130),
       P("note", "Note", { label: "A note…" }, 170, 90),

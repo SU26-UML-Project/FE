@@ -1,0 +1,210 @@
+{
+  "id": "component-banking",
+  "kind": "sample",
+  "name": "Component — Digital Banking",
+  "type": "Component Diagram",
+  "umlType": "component",
+  "category": "Structural",
+  "group": "structural",
+  "description": "Minh hoạ các component chính của nền tảng ngân hàng số.",
+  "shortDescription": "Minh hoạ các component chính của nền tảng ngân hàng số.",
+  "purpose": "Mẫu có thể chỉnh sửa trực tiếp trong Canvas.",
+  "bestFor": [
+    "Khởi tạo nhanh một diagram cùng loại",
+    "Tuỳ biến theo nghiệp vụ của dự án"
+  ],
+  "useCases": [
+    "Mở mẫu trong Canvas",
+    "Điều chỉnh labels và relationships",
+    "Bổ sung element theo yêu cầu"
+  ],
+  "requirements": [
+    "Xác định phạm vi nghiệp vụ",
+    "Kiểm tra relationship trước khi dùng"
+  ],
+  "elements": [
+    {
+      "name": "Canvas elements",
+      "type": "component",
+      "description": "Node và edge tương thích với Canvas hiện tại."
+    }
+  ],
+  "previewImage": "/examples/templates/component-banking.svg",
+  "nodeCount": 6,
+  "edgeCount": 5,
+  "createdFor": "Sample Library",
+  "canvasData": {
+    "diagramType": "component",
+    "nodes": [
+      {
+        "id": "c0",
+        "type": "component",
+        "position": {
+          "x": 60,
+          "y": 70
+        },
+        "data": {
+          "label": "Digital Banking UI"
+        },
+        "width": 185,
+        "height": 92,
+        "style": {
+          "width": 185,
+          "height": 92
+        }
+      },
+      {
+        "id": "c1",
+        "type": "component",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "data": {
+          "label": "Identity Component"
+        },
+        "width": 185,
+        "height": 92,
+        "style": {
+          "width": 185,
+          "height": 92
+        }
+      },
+      {
+        "id": "c2",
+        "type": "component",
+        "position": {
+          "x": 600,
+          "y": 70
+        },
+        "data": {
+          "label": "Account Component"
+        },
+        "width": 185,
+        "height": 92,
+        "style": {
+          "width": 185,
+          "height": 92
+        }
+      },
+      {
+        "id": "c3",
+        "type": "component",
+        "position": {
+          "x": 60,
+          "y": 240
+        },
+        "data": {
+          "label": "Transfer Component"
+        },
+        "width": 185,
+        "height": 92,
+        "style": {
+          "width": 185,
+          "height": 92
+        }
+      },
+      {
+        "id": "c4",
+        "type": "component",
+        "position": {
+          "x": 330,
+          "y": 240
+        },
+        "data": {
+          "label": "Risk Component"
+        },
+        "width": 185,
+        "height": 92,
+        "style": {
+          "width": 185,
+          "height": 92
+        }
+      },
+      {
+        "id": "c5",
+        "type": "component",
+        "position": {
+          "x": 600,
+          "y": 240
+        },
+        "data": {
+          "label": "Core Banking Adapter"
+        },
+        "width": 185,
+        "height": 92,
+        "style": {
+          "width": 185,
+          "height": 92
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-c0-c1",
+        "source": "c0",
+        "target": "c1",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow-open)",
+          "markerStart": "",
+          "dashed": true
+        }
+      },
+      {
+        "id": "e-c1-c2",
+        "source": "c1",
+        "target": "c2",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow-open)",
+          "markerStart": "",
+          "dashed": true
+        }
+      },
+      {
+        "id": "e-c2-c3",
+        "source": "c2",
+        "target": "c3",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow-open)",
+          "markerStart": "",
+          "dashed": true
+        }
+      },
+      {
+        "id": "e-c3-c4",
+        "source": "c3",
+        "target": "c4",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow-open)",
+          "markerStart": "",
+          "dashed": true
+        }
+      },
+      {
+        "id": "e-c4-c5",
+        "source": "c4",
+        "target": "c5",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow-open)",
+          "markerStart": "",
+          "dashed": true
+        }
+      }
+    ],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 0.85
+    }
+  }
+}

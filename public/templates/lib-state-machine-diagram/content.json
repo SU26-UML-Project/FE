@@ -3,51 +3,44 @@
   "kind": "knowledge",
   "name": "State Machine Diagram",
   "type": "State Machine Diagram",
-  "umlType": "state_machine",
+  "umlType": "state",
   "category": "Behavioral",
   "group": "behavioral",
-  "description": "State Machine Diagram describes the lifecycle states of an object or system, including states, events/triggers, guard conditions, and entry/do/exit actions.",
-  "purpose": "Manage complex lifecycle states and control which events are allowed to transition from which state to which state.",
+  "description": "Mô tả vòng đời của một đối tượng qua state và transition.",
+  "shortDescription": "Mô tả vòng đời của một đối tượng qua state và transition.",
+  "purpose": "Giúp đội ngũ lựa chọn đúng loại diagram trước khi triển khai chi tiết.",
   "bestFor": [
-    "Manage order, flight ticket, and payment transaction states",
-    "Design logic for vending machines, elevators, IoT sensors",
-    "Describe objects with complex lifecycle and constrained transitions",
-    "Control events allowed to transition from one state to another"
+    "Trao đổi phạm vi và thiết kế với stakeholders",
+    "Tài liệu hoá quyết định thiết kế"
   ],
   "notSuitableFor": [
-    "Describe multi-actor/departmental workflow \u2192 use Activity Diagram",
-    "Describe messages between services over time \u2192 use Sequence Diagram",
-    "Describe high-level system functionality \u2192 use Use Case Diagram"
+    "Thay thế hoàn toàn tài liệu yêu cầu hoặc source code"
   ],
   "useCases": [
-    "Identify the object/system whose lifecycle needs to be described",
-    "List valid states",
-    "Identify initial state and final state",
-    "Identify events that trigger transitions",
-    "Add guard conditions to allow state transitions",
-    "Add entry/do/exit actions to states (optional)"
+    "Xác định mục tiêu diagram",
+    "Chuẩn bị actors, domain objects hoặc workflow",
+    "Review cùng team"
   ],
   "requirements": [
-    "States \u2014 list of states",
-    "Initial/Final state \u2014 start/end state",
-    "Events/Triggers \u2014 triggering events",
-    "Transitions \u2014 state transitions",
-    "Guard Conditions \u2014 conditions permitting transitions",
-    "State Actions \u2014 entry/do/exit (optional)"
+    "Xác định phạm vi và audience",
+    "Dùng tên rõ ràng, nhất quán",
+    "Chỉ thể hiện relationship cần thiết"
   ],
   "elements": [
-    {"name":"State","type":"Core","description":"Static state of an object: PENDING, APPROVED, REJECTED"},
-    {"name":"Initial State","type":"Core","description":"Starting state"},
-    {"name":"Final State","type":"Optional","description":"Ending state"},
-    {"name":"Event/Trigger","type":"Core","description":"Event that triggers a transition: pay(), approve()"},
-    {"name":"Transition","type":"Core","description":"Transition between states: Pending \u2192 Paid"},
-    {"name":"Guard Condition","type":"Optional","description":"Condition permitting transition: [balance >= amount]"},
-    {"name":"State Action","type":"Optional","description":"Action on entry/within/exit of a state: entry/sendEmail()"}
+    {
+      "name": "Core elements",
+      "type": "State Machine Diagram",
+      "description": "Các phần tử chuẩn được Canvas hỗ trợ."
+    }
   ],
-  "confusableWith": [
-    {"diagram":"Activity Diagram","difference":"State Machine focuses on the lifecycle of one object; Activity focuses on workflow flow."},
-    {"diagram":"Sequence Diagram","difference":"State Machine does not focus on who calls whom over time but on state transitions."}
+  "confusableWith": [],
+  "keywords": [
+    "state",
+    "UML",
+    "design"
   ],
-  "keywords": ["state","state machine","transition","event","trigger","guard","lifecycle","order status","payment status"],
-  "previewImage":null
+  "previewImage": "/examples/library/state.svg",
+  "nodeCount": 0,
+  "edgeCount": 0,
+  "createdFor": "UML Knowledge Base"
 }

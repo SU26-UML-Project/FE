@@ -1,0 +1,309 @@
+{
+  "id": "activity-transfer",
+  "kind": "sample",
+  "name": "Activity — Fund Transfer",
+  "type": "Activity Diagram",
+  "umlType": "activity",
+  "category": "Behavioral",
+  "group": "behavioral",
+  "description": "Mô tả workflow kiểm tra và xử lý chuyển tiền.",
+  "shortDescription": "Mô tả workflow kiểm tra và xử lý chuyển tiền.",
+  "purpose": "Mẫu có thể chỉnh sửa trực tiếp trong Canvas.",
+  "bestFor": [
+    "Khởi tạo nhanh một diagram cùng loại",
+    "Tuỳ biến theo nghiệp vụ của dự án"
+  ],
+  "useCases": [
+    "Mở mẫu trong Canvas",
+    "Điều chỉnh labels và relationships",
+    "Bổ sung element theo yêu cầu"
+  ],
+  "requirements": [
+    "Xác định phạm vi nghiệp vụ",
+    "Kiểm tra relationship trước khi dùng"
+  ],
+  "elements": [
+    {
+      "name": "Canvas elements",
+      "type": "activity",
+      "description": "Node và edge tương thích với Canvas hiện tại."
+    }
+  ],
+  "previewImage": "/examples/templates/activity-transfer.svg",
+  "nodeCount": 9,
+  "edgeCount": 9,
+  "createdFor": "Sample Library",
+  "canvasData": {
+    "diagramType": "activity",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "position": {
+          "x": 40,
+          "y": 80
+        },
+        "data": {
+          "label": ""
+        },
+        "width": 38,
+        "height": 38,
+        "style": {
+          "width": 38,
+          "height": 38
+        }
+      },
+      {
+        "id": "a0",
+        "type": "action",
+        "position": {
+          "x": 120,
+          "y": 150
+        },
+        "data": {
+          "label": "Authenticate customer"
+        },
+        "width": 180,
+        "height": 58,
+        "style": {
+          "width": 180,
+          "height": 58
+        }
+      },
+      {
+        "id": "a1",
+        "type": "action",
+        "position": {
+          "x": 120,
+          "y": 250
+        },
+        "data": {
+          "label": "Validate beneficiary"
+        },
+        "width": 180,
+        "height": 58,
+        "style": {
+          "width": 180,
+          "height": 58
+        }
+      },
+      {
+        "id": "a2",
+        "type": "action",
+        "position": {
+          "x": 120,
+          "y": 350
+        },
+        "data": {
+          "label": "Run fraud check"
+        },
+        "width": 180,
+        "height": 58,
+        "style": {
+          "width": 180,
+          "height": 58
+        }
+      },
+      {
+        "id": "a3",
+        "type": "action",
+        "position": {
+          "x": 120,
+          "y": 450
+        },
+        "data": {
+          "label": "Process transfer"
+        },
+        "width": 180,
+        "height": 58,
+        "style": {
+          "width": 180,
+          "height": 58
+        }
+      },
+      {
+        "id": "decision",
+        "type": "decision",
+        "position": {
+          "x": 140,
+          "y": 550
+        },
+        "data": {
+          "label": "Transfer approved?"
+        },
+        "width": 150,
+        "height": 105,
+        "style": {
+          "width": 150,
+          "height": 105
+        }
+      },
+      {
+        "id": "approved",
+        "type": "action",
+        "position": {
+          "x": 360,
+          "y": 480
+        },
+        "data": {
+          "label": "Send confirmation"
+        },
+        "width": 180,
+        "height": 58,
+        "style": {
+          "width": 180,
+          "height": 58
+        }
+      },
+      {
+        "id": "rejected",
+        "type": "action",
+        "position": {
+          "x": 360,
+          "y": 640
+        },
+        "data": {
+          "label": "Send rejection notice"
+        },
+        "width": 180,
+        "height": 58,
+        "style": {
+          "width": 180,
+          "height": 58
+        }
+      },
+      {
+        "id": "end",
+        "type": "final",
+        "position": {
+          "x": 620,
+          "y": 575
+        },
+        "data": {
+          "label": ""
+        },
+        "width": 40,
+        "height": 40,
+        "style": {
+          "width": 40,
+          "height": 40
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-start-a0",
+        "source": "start",
+        "target": "a0",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-a0-a1",
+        "source": "a0",
+        "target": "a1",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-a1-a2",
+        "source": "a1",
+        "target": "a2",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-a2-a3",
+        "source": "a2",
+        "target": "a3",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-a3-decision",
+        "source": "a3",
+        "target": "decision",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-decision-approved",
+        "source": "decision",
+        "target": "approved",
+        "type": "smoothstep",
+        "label": "[approved]",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-decision-rejected",
+        "source": "decision",
+        "target": "rejected",
+        "type": "smoothstep",
+        "label": "[rejected]",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-approved-end",
+        "source": "approved",
+        "target": "end",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-rejected-end",
+        "source": "rejected",
+        "target": "end",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      }
+    ],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 0.8
+    }
+  }
+}

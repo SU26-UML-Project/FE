@@ -138,8 +138,8 @@ function NodeEditor({ node, allNodes = [], onUpdateParent, onChange, onDelete, o
                 <span className="rounded-md bg-admin-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">{NODE_NAMES[node.type] ?? node.type}</span>
             </div>
             <div>
-                <label className={labelCls}>Label</label>
-                <input className={inputCls} value={d.label ?? ""} placeholder="Untitled" onChange={(e) => onChange({ label: e.target.value })} />
+                <label className={labelCls}>{node.type === "decision" ? "Decision input (optional)" : "Label"}</label>
+                <input className={inputCls} value={d.label ?? ""} placeholder={node.type === "decision" ? "Leave blank; add guards on outgoing edges" : "Untitled"} onChange={(e) => onChange({ label: e.target.value })} />
             </div>
 
             {potentialParents.length > 0 && onUpdateParent && (
@@ -250,7 +250,7 @@ function EdgeEditor({ edge, diagramType, onChange, onDelete }: {
             <span className="inline-block rounded-md bg-admin-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Connector</span>
             <div>
                 <label className={labelCls}>Label</label>
-                <input className={inputCls} value={(edge.label as string) ?? ""} placeholder="guard / message…" onChange={(e) => onChange({ label: e.target.value, multiplicitySource: multSource, multiplicityTarget: multTarget })} />
+                <input className={inputCls} value={(edge.label as string) ?? ""} placeholder={diagramType === "activity" ? "[approved], [rejected], or [else]" : "guard / message…"} onChange={(e) => onChange({ label: e.target.value, multiplicitySource: multSource, multiplicityTarget: multTarget })} />
             </div>
             {diagramType === "class" && (
                 <div className="grid grid-cols-2 gap-2">

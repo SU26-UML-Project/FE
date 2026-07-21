@@ -1,0 +1,321 @@
+{
+  "id": "state-order",
+  "kind": "sample",
+  "name": "State Machine — Order Lifecycle",
+  "type": "State Machine Diagram",
+  "umlType": "state",
+  "category": "Behavioral",
+  "group": "behavioral",
+  "description": "Mô tả các trạng thái hợp lệ của một đơn hàng.",
+  "shortDescription": "Mô tả các trạng thái hợp lệ của một đơn hàng.",
+  "purpose": "Mẫu có thể chỉnh sửa trực tiếp trong Canvas.",
+  "bestFor": [
+    "Khởi tạo nhanh một diagram cùng loại",
+    "Tuỳ biến theo nghiệp vụ của dự án"
+  ],
+  "useCases": [
+    "Mở mẫu trong Canvas",
+    "Điều chỉnh labels và relationships",
+    "Bổ sung element theo yêu cầu"
+  ],
+  "requirements": [
+    "Xác định phạm vi nghiệp vụ",
+    "Kiểm tra relationship trước khi dùng"
+  ],
+  "elements": [
+    {
+      "name": "Canvas elements",
+      "type": "state",
+      "description": "Node và edge tương thích với Canvas hiện tại."
+    }
+  ],
+  "previewImage": "/examples/templates/state-order.svg",
+  "nodeCount": 9,
+  "edgeCount": 10,
+  "createdFor": "Sample Library",
+  "canvasData": {
+    "diagramType": "state",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "position": {
+          "x": 40,
+          "y": 90
+        },
+        "data": {
+          "label": ""
+        },
+        "width": 38,
+        "height": 38,
+        "style": {
+          "width": 38,
+          "height": 38
+        }
+      },
+      {
+        "id": "s0",
+        "type": "state",
+        "position": {
+          "x": 130,
+          "y": 160
+        },
+        "data": {
+          "label": "Draft"
+        },
+        "width": 170,
+        "height": 64,
+        "style": {
+          "width": 170,
+          "height": 64
+        }
+      },
+      {
+        "id": "s1",
+        "type": "state",
+        "position": {
+          "x": 130,
+          "y": 265
+        },
+        "data": {
+          "label": "Pending Payment"
+        },
+        "width": 170,
+        "height": 64,
+        "style": {
+          "width": 170,
+          "height": 64
+        }
+      },
+      {
+        "id": "s2",
+        "type": "state",
+        "position": {
+          "x": 130,
+          "y": 370
+        },
+        "data": {
+          "label": "Paid"
+        },
+        "width": 170,
+        "height": 64,
+        "style": {
+          "width": 170,
+          "height": 64
+        }
+      },
+      {
+        "id": "s3",
+        "type": "state",
+        "position": {
+          "x": 130,
+          "y": 475
+        },
+        "data": {
+          "label": "Processing"
+        },
+        "width": 170,
+        "height": 64,
+        "style": {
+          "width": 170,
+          "height": 64
+        }
+      },
+      {
+        "id": "s4",
+        "type": "state",
+        "position": {
+          "x": 130,
+          "y": 580
+        },
+        "data": {
+          "label": "Shipped"
+        },
+        "width": 170,
+        "height": 64,
+        "style": {
+          "width": 170,
+          "height": 64
+        }
+      },
+      {
+        "id": "s5",
+        "type": "state",
+        "position": {
+          "x": 130,
+          "y": 685
+        },
+        "data": {
+          "label": "Delivered"
+        },
+        "width": 170,
+        "height": 64,
+        "style": {
+          "width": 170,
+          "height": 64
+        }
+      },
+      {
+        "id": "terminal",
+        "type": "state",
+        "position": {
+          "x": 420,
+          "y": 460
+        },
+        "data": {
+          "label": "Cancelled"
+        },
+        "width": 170,
+        "height": 64,
+        "style": {
+          "width": 170,
+          "height": 64
+        }
+      },
+      {
+        "id": "end",
+        "type": "final",
+        "position": {
+          "x": 680,
+          "y": 340
+        },
+        "data": {
+          "label": ""
+        },
+        "width": 40,
+        "height": 40,
+        "style": {
+          "width": 40,
+          "height": 40
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-start-s0",
+        "source": "start",
+        "target": "s0",
+        "type": "smoothstep",
+        "label": "create",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s0-s1",
+        "source": "s0",
+        "target": "s1",
+        "type": "smoothstep",
+        "label": "checkout",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s1-s2",
+        "source": "s1",
+        "target": "s2",
+        "type": "smoothstep",
+        "label": "[paid]",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s2-s3",
+        "source": "s2",
+        "target": "s3",
+        "type": "smoothstep",
+        "label": "fulfill",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s3-s4",
+        "source": "s3",
+        "target": "s4",
+        "type": "smoothstep",
+        "label": "ship",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s4-s5",
+        "source": "s4",
+        "target": "s5",
+        "type": "smoothstep",
+        "label": "deliver",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s5-end",
+        "source": "s5",
+        "target": "end",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-terminal-end",
+        "source": "terminal",
+        "target": "end",
+        "type": "smoothstep",
+        "label": "",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s0-terminal",
+        "source": "s0",
+        "target": "terminal",
+        "type": "smoothstep",
+        "label": "[cancelled]",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-s1-terminal",
+        "source": "s1",
+        "target": "terminal",
+        "type": "smoothstep",
+        "label": "[payment failed]",
+        "data": {
+          "marker": "url(#m-arrow)",
+          "markerStart": "",
+          "dashed": false
+        }
+      }
+    ],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 0.85
+    }
+  }
+}
