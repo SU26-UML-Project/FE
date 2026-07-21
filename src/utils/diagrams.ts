@@ -15,15 +15,15 @@ const M = {
 const P = (type: string, label: string, data: FlowNodeData, width: number, height: number) => ({ type, label, data, width, height });
 
 export const getDiagram = (id: string): DiagramDef =>
-  DIAGRAMS.find((d) => d.id === id) ?? DIAGRAMS[0];
+    DIAGRAMS.find((d) => d.id === id) ?? DIAGRAMS[0];
 
 export const getEdgeOption = (diagramId: string, optId: string) =>
-  getDiagram(diagramId).edges.find((e) => e.id === optId) ?? getDiagram(diagramId).edges[0];
+    getDiagram(diagramId).edges.find((e) => e.id === optId) ?? getDiagram(diagramId).edges[0];
 
 export const DIAGRAMS: DiagramDef[] = [
   {
     id: "activity", name: "Activity", hint: "Workflows, control & object flow", defaultEdge: "cf",
-    nodes: [P("start", "Start", { label: "" }, 38, 38), P("final", "Final", { label: "" }, 40, 40), P("action", "Action", { label: "Action" }, 150, 54), P("decision", "Decision", { label: "Condition?" }, 150, 104), P("fork", "Fork / Join", { label: "" }, 130, 12), P("note", "Note", { label: "A note…" }, 170, 90)],
+    nodes: [P("start", "Start", { label: "" }, 38, 38), P("final", "Final", { label: "" }, 40, 40), P("action", "Action", { label: "Action" }, 150, 54), P("decision", "Decision", { label: "" }, 150, 104), P("fork", "Fork / Join", { label: "" }, 130, 12), P("note", "Note", { label: "A note…" }, 170, 90)],
     edges: [{ id: "cf", label: "Control flow", markerEnd: M.arrow, dashed: false, path: "smoothstep", autoLabel: "" }, { id: "note", label: "Note link", markerEnd: M.none, dashed: true, path: "smoothstep", autoLabel: "" }],
   },
   {

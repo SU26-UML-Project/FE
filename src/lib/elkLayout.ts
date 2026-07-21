@@ -44,15 +44,31 @@ function estimateSize(node: FlowNode): { width: number; height: number } {
 /* ============================================================
    HANDLE ASSIGNMENT — multi-point (25/50/75) per side
    ============================================================ */
-function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
+function assignHandles(nodes: FlowNode[], edges: FlowEdge[], diagramType?: DiagramType): FlowEdge[] {
+    const nodeById = new Map(nodes.map(node => [node.id, node]));
+    const absolutePosition = (node: FlowNode): { x: number; y: number } => {
+        let x = node.position.x, y = node.position.y;
+        let parentId = node.parentId;
+        const visited = new Set<string>();
+        while (parentId && !visited.has(parentId)) {
+            visited.add(parentId);
+            const parent = nodeById.get(parentId);
+            if (!parent) break;
+            x += parent.position.x;
+            y += parent.position.y;
+            parentId = parent.parentId;
+        }
+        return { x, y };
+    };
     const posMap = new Map<string, { x: number; y: number; w: number; h: number; cx: number; cy: number }>();
     for (const n of nodes) {
         const sz = estimateSize(n);
+        const position = absolutePosition(n);
         posMap.set(n.id, {
-            x: n.position.x, y: n.position.y,
+            x: position.x, y: position.y,
             w: sz.width, h: sz.height,
-            cx: n.position.x + sz.width / 2,
-            cy: n.position.y + sz.height / 2,
+            cx: position.x + sz.width / 2,
+            cy: position.y + sz.height / 2,
         });
     }
 
@@ -72,7 +88,10 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[]): FlowEdge[] {
 
     const clamp = (v: number) => Math.max(0, Math.min(100, v));
 
-    const isActivity = nodes.some(n => n.type === "swimlane" || n.type === "start" || n.type === "final" || n.type === "decision");
+    // State Machines also use Initial/Final pseudostates. Infer Activity only
+    // from the explicit diagram type so State transitions can use side handles
+    // for branches instead of being forced into a bottom-to-top flow.
+    const isActivity = diagramType === "activity";
 
     return edges.map((e) => {
         const s = posMap.get(e.source);
@@ -416,7 +435,10 @@ async function elkLayout(
 
     // Re-run finalizeLayout to fix package sizes and relative positions
     const finalNodes = finalizeLayout(layoutedNodes);
-    const layoutedEdges = assignHandles(finalNodes, edges);
+    // State branches must remain orthogonal. A straight diagonal can cross the
+    // main lifecycle and makes terminal states difficult to follow.
+    const routedEdges = type === "state" ? edges.map(edge => ({ ...edge, type: "smoothstep" })) : edges;
+    const layoutedEdges = assignHandles(finalNodes, routedEdges, type);
 
     return { nodes: finalNodes, edges: layoutedEdges };
 }
@@ -469,7 +491,7 @@ function layoutUseCase(
     const others = nodes.filter((n) => n.type !== "actor" && n.type !== "usecase" && n.type !== "package" && n.type !== "boundary");
 
     if (!useCases.length && !actors.length) {
-        return { nodes, edges: assignHandles(nodes, edges) };
+        return { nodes, edges: assignHandles(nodes, edges, "usecase") };
     }
 
     // 1. Build adjacency
@@ -505,12 +527,27 @@ function layoutUseCase(
         ucPrimaryActor.set(uc.id, best);
     }
 
-    const sortedActors = [...actors].sort(
-        (a, b) => (actorToUCs.get(b.id)?.length ?? 0) - (actorToUCs.get(a.id)?.length ?? 0)
-    );
+    const sortedActors = [...actors].sort((a, b) => a.position.y - b.position.y);
+    const boundary = packages[0];
+    const boundaryCenterX = boundary ? boundary.position.x + estimateSize(boundary).width / 2 : 0;
     const leftActorIds = new Set<string>();
     const rightActorIds = new Set<string>();
-    sortedActors.forEach((a, i) => (i % 2 === 0 ? leftActorIds : rightActorIds).add(a.id));
+    for (const actor of sortedActors) {
+        // Preserve the designer's intent: actors originally placed left/right of
+        // the boundary stay on that side after Auto-layout. This is especially
+        // important for external systems such as Payment Gateway.
+        if (!boundary || actor.position.x <= boundaryCenterX) leftActorIds.add(actor.id);
+        else rightActorIds.add(actor.id);
+    }
+    // A diagram created without an initial boundary-side convention still gets
+    // a balanced layout instead of placing every actor on one side.
+    if (!rightActorIds.size && sortedActors.length > 1) {
+        const split = Math.ceil(sortedActors.length / 2);
+        sortedActors.forEach((actor, index) => {
+            leftActorIds.delete(actor.id);
+            (index < split ? leftActorIds : rightActorIds).add(actor.id);
+        });
+    }
 
     // 3. Group UCs
     const leftUCs: string[] = [];
@@ -644,7 +681,9 @@ function layoutUseCase(
         });
     })();
 
-    const allUCNodes = [...posLeftUCs, ...posCenterUCs, ...posRightUCs];
+    const allUCNodes = [...posLeftUCs, ...posCenterUCs, ...posRightUCs].map((useCase) =>
+        boundary ? { ...useCase, parentId: boundary.id, extent: "parent" as const } : useCase
+    );
 
     // Boundary - Recalculate based on ACTUAL positions after resolveOverlaps
     let ucMinX = Infinity, ucMaxX = -Infinity;
@@ -684,7 +723,7 @@ function layoutUseCase(
     // Use finalizeLayout to wrap packages around their children
     const finalNodes = finalizeLayout(allNodes);
 
-    const layoutedEdges = assignHandles(finalNodes, edges).map((e) => ({
+    const layoutedEdges = assignHandles(finalNodes, edges, "usecase").map((e) => ({
         ...e,
         type: "bezier",
         zIndex: 10,
@@ -964,7 +1003,7 @@ export function layoutActivityWithSwimlanes(
         return e;
     });
 
-    const finalEdges = assignHandles(nodes, layoutedEdges as FlowEdge[]);
+    const finalEdges = assignHandles(nodes, layoutedEdges as FlowEdge[], "activity");
     return { nodes, edges: finalEdges };
 }
 

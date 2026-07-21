@@ -1,0 +1,314 @@
+{
+  "id": "usecase-clinic",
+  "kind": "sample",
+  "name": "Use Case — Clinic Appointment",
+  "type": "Use Case Diagram",
+  "umlType": "usecase",
+  "category": "Behavioral",
+  "group": "behavioral",
+  "description": "Mô tả chức năng đặt và quản lý lịch hẹn phòng khám.",
+  "shortDescription": "Mô tả chức năng đặt và quản lý lịch hẹn phòng khám.",
+  "purpose": "Mẫu có thể chỉnh sửa trực tiếp trong Canvas.",
+  "bestFor": [
+    "Khởi tạo nhanh một diagram cùng loại",
+    "Tuỳ biến theo nghiệp vụ của dự án"
+  ],
+  "useCases": [
+    "Mở mẫu trong Canvas",
+    "Điều chỉnh labels và relationships",
+    "Bổ sung element theo yêu cầu"
+  ],
+  "requirements": [
+    "Xác định phạm vi nghiệp vụ",
+    "Kiểm tra relationship trước khi dùng"
+  ],
+  "elements": [
+    {
+      "name": "Canvas elements",
+      "type": "usecase",
+      "description": "Node và edge tương thích với Canvas hiện tại."
+    }
+  ],
+  "previewImage": "/examples/templates/usecase-clinic.svg",
+  "nodeCount": 10,
+  "edgeCount": 7,
+  "createdFor": "Sample Library",
+  "canvasData": {
+    "diagramType": "usecase",
+    "nodes": [
+      {
+        "id": "system",
+        "type": "boundary",
+        "position": {
+          "x": 150,
+          "y": 30
+        },
+        "data": {
+          "label": "Clinic System"
+        },
+        "width": 660,
+        "height": 465,
+        "style": {
+          "width": 660,
+          "height": 465
+        }
+      },
+      {
+        "id": "a0",
+        "type": "actor",
+        "position": {
+          "x": 35,
+          "y": 95
+        },
+        "data": {
+          "label": "Patient"
+        },
+        "width": 76,
+        "height": 124,
+        "style": {
+          "width": 76,
+          "height": 124
+        }
+      },
+      {
+        "id": "a1",
+        "type": "actor",
+        "position": {
+          "x": 35,
+          "y": 265
+        },
+        "data": {
+          "label": "Receptionist"
+        },
+        "width": 76,
+        "height": 124,
+        "style": {
+          "width": 76,
+          "height": 124
+        }
+      },
+      {
+        "id": "a2",
+        "type": "actor",
+        "position": {
+          "x": 35,
+          "y": 435
+        },
+        "data": {
+          "label": "Doctor"
+        },
+        "width": 76,
+        "height": 124,
+        "style": {
+          "width": 76,
+          "height": 124
+        }
+      },
+      {
+        "id": "u0",
+        "type": "usecase",
+        "position": {
+          "x": 55,
+          "y": 75
+        },
+        "data": {
+          "label": "Book Appointment"
+        },
+        "width": 170,
+        "height": 80,
+        "style": {
+          "width": 170,
+          "height": 80
+        },
+        "parentId": "system",
+        "extent": "parent"
+      },
+      {
+        "id": "u1",
+        "type": "usecase",
+        "position": {
+          "x": 265,
+          "y": 75
+        },
+        "data": {
+          "label": "Confirm Appointment"
+        },
+        "width": 170,
+        "height": 80,
+        "style": {
+          "width": 170,
+          "height": 80
+        },
+        "parentId": "system",
+        "extent": "parent"
+      },
+      {
+        "id": "u2",
+        "type": "usecase",
+        "position": {
+          "x": 475,
+          "y": 75
+        },
+        "data": {
+          "label": "Check In"
+        },
+        "width": 170,
+        "height": 80,
+        "style": {
+          "width": 170,
+          "height": 80
+        },
+        "parentId": "system",
+        "extent": "parent"
+      },
+      {
+        "id": "u3",
+        "type": "usecase",
+        "position": {
+          "x": 55,
+          "y": 200
+        },
+        "data": {
+          "label": "View Medical Record"
+        },
+        "width": 170,
+        "height": 80,
+        "style": {
+          "width": 170,
+          "height": 80
+        },
+        "parentId": "system",
+        "extent": "parent"
+      },
+      {
+        "id": "u4",
+        "type": "usecase",
+        "position": {
+          "x": 265,
+          "y": 200
+        },
+        "data": {
+          "label": "Cancel Appointment"
+        },
+        "width": 170,
+        "height": 80,
+        "style": {
+          "width": 170,
+          "height": 80
+        },
+        "parentId": "system",
+        "extent": "parent"
+      },
+      {
+        "id": "u5",
+        "type": "usecase",
+        "position": {
+          "x": 475,
+          "y": 200
+        },
+        "data": {
+          "label": "Send Reminder"
+        },
+        "width": 170,
+        "height": 80,
+        "style": {
+          "width": 170,
+          "height": 80
+        },
+        "parentId": "system",
+        "extent": "parent"
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-a0-u0",
+        "source": "a0",
+        "target": "u0",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-a0-u4",
+        "source": "a0",
+        "target": "u4",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-a1-u1",
+        "source": "a1",
+        "target": "u1",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-a1-u2",
+        "source": "a1",
+        "target": "u2",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-a2-u3",
+        "source": "a2",
+        "target": "u3",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-u0-u5",
+        "source": "u0",
+        "target": "u5",
+        "type": "bezier",
+        "label": "«include»",
+        "data": {
+          "marker": "url(#m-arrow-open)",
+          "markerStart": "",
+          "dashed": true
+        }
+      },
+      {
+        "id": "e-u4-u1",
+        "source": "u4",
+        "target": "u1",
+        "type": "bezier",
+        "label": "«extend»",
+        "data": {
+          "marker": "url(#m-arrow-open)",
+          "markerStart": "",
+          "dashed": true
+        }
+      }
+    ],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 0.8
+    }
+  }
+}

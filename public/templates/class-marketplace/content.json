@@ -1,0 +1,222 @@
+{
+  "id": "class-marketplace",
+  "kind": "sample",
+  "name": "Class Diagram — Marketplace Order",
+  "type": "Class Diagram Diagram",
+  "umlType": "class",
+  "category": "Structural",
+  "group": "structural",
+  "description": "Thiết kế các entity chính trong domain marketplace.",
+  "shortDescription": "Thiết kế các entity chính trong domain marketplace.",
+  "purpose": "Mẫu có thể chỉnh sửa trực tiếp trong Canvas.",
+  "bestFor": [
+    "Khởi tạo nhanh một diagram cùng loại",
+    "Tuỳ biến theo nghiệp vụ của dự án"
+  ],
+  "useCases": [
+    "Mở mẫu trong Canvas",
+    "Điều chỉnh labels và relationships",
+    "Bổ sung element theo yêu cầu"
+  ],
+  "requirements": [
+    "Xác định phạm vi nghiệp vụ",
+    "Kiểm tra relationship trước khi dùng"
+  ],
+  "elements": [
+    {
+      "name": "Canvas elements",
+      "type": "class",
+      "description": "Node và edge tương thích với Canvas hiện tại."
+    }
+  ],
+  "previewImage": "/examples/templates/class-marketplace.svg",
+  "nodeCount": 6,
+  "edgeCount": 5,
+  "createdFor": "Sample Library",
+  "canvasData": {
+    "diagramType": "class",
+    "nodes": [
+      {
+        "id": "c0",
+        "type": "cls",
+        "position": {
+          "x": 60,
+          "y": 40
+        },
+        "data": {
+          "label": "Customer",
+          "attributes": "- id: UUID\n- email: String",
+          "methods": "+ validate(): boolean"
+        },
+        "width": 195,
+        "height": 145,
+        "style": {
+          "width": 195,
+          "height": 145
+        }
+      },
+      {
+        "id": "c1",
+        "type": "cls",
+        "position": {
+          "x": 300,
+          "y": 40
+        },
+        "data": {
+          "label": "Product",
+          "attributes": "- id: UUID\n- price: Money",
+          "methods": "+ validate(): boolean"
+        },
+        "width": 195,
+        "height": 145,
+        "style": {
+          "width": 195,
+          "height": 145
+        }
+      },
+      {
+        "id": "c2",
+        "type": "cls",
+        "position": {
+          "x": 540,
+          "y": 40
+        },
+        "data": {
+          "label": "Cart",
+          "attributes": "- id: UUID\n- status: CartStatus",
+          "methods": "+ validate(): boolean"
+        },
+        "width": 195,
+        "height": 145,
+        "style": {
+          "width": 195,
+          "height": 145
+        }
+      },
+      {
+        "id": "c3",
+        "type": "cls",
+        "position": {
+          "x": 780,
+          "y": 40
+        },
+        "data": {
+          "label": "Order",
+          "attributes": "- id: UUID\n- status: OrderStatus",
+          "methods": "+ validate(): boolean"
+        },
+        "width": 195,
+        "height": 145,
+        "style": {
+          "width": 195,
+          "height": 145
+        }
+      },
+      {
+        "id": "c4",
+        "type": "cls",
+        "position": {
+          "x": 60,
+          "y": 290
+        },
+        "data": {
+          "label": "Payment",
+          "attributes": "- id: UUID\n- amount: Money",
+          "methods": "+ validate(): boolean"
+        },
+        "width": 195,
+        "height": 145,
+        "style": {
+          "width": 195,
+          "height": 145
+        }
+      },
+      {
+        "id": "c5",
+        "type": "cls",
+        "position": {
+          "x": 300,
+          "y": 290
+        },
+        "data": {
+          "label": "Shipment",
+          "attributes": "- trackingCode: String",
+          "methods": "+ validate(): boolean"
+        },
+        "width": 195,
+        "height": 145,
+        "style": {
+          "width": 195,
+          "height": 145
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-c0-c1",
+        "source": "c0",
+        "target": "c1",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-c0-c2",
+        "source": "c0",
+        "target": "c2",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-c0-c3",
+        "source": "c0",
+        "target": "c3",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-c0-c4",
+        "source": "c0",
+        "target": "c4",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      },
+      {
+        "id": "e-c0-c5",
+        "source": "c0",
+        "target": "c5",
+        "type": "bezier",
+        "label": "",
+        "data": {
+          "marker": "",
+          "markerStart": "",
+          "dashed": false
+        }
+      }
+    ],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 0.75
+    }
+  }
+}

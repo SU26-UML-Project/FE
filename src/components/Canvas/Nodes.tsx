@@ -183,13 +183,13 @@ export function DecisionNode({ id, data, selected }: NodeProps) {
     const ink = inkColor(d);
     return (
         <div className="relative h-full w-full">
-            <Resizer selected={selected} minW={90} minH={70} />
+            <Resizer selected={selected} minW={40} minH={40} keepAspectRatio />
             <AllHandles />
             <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <polygon points="50,1.5 98.5,50 50,98.5 1.5,50" fill={fillColor(d)} stroke={ink} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center px-7 text-center text-[12px] font-medium text-zinc-900">
-                <EditableText id={id} field="label" value={d.label} placeholder="Condition?" />
+                <EditableText id={id} field="label" value={d.label} placeholder="" />
             </div>
         </div>
     );
