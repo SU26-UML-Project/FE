@@ -112,7 +112,7 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[], diagramType?: Diagr
                     return {
                         ...e,
                         sourceHandle: isLeft ? "l-50" : "r-50",
-                        targetHandle: "t-50-t"
+                        targetHandle: "t-50"
                     };
                 }
             }
@@ -121,7 +121,7 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[], diagramType?: Diagr
             return {
                 ...e,
                 sourceHandle: "b-50",
-                targetHandle: "t-50-t"
+                targetHandle: "t-50"
             };
         }
 
@@ -138,14 +138,14 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[], diagramType?: Diagr
             if (horizontalRatio > 0.6 || isIncludeExtend) {
                 return {
                     ...e,
-                    sourceHandle: dx >= 0 ? "r" : "l",
-                    targetHandle: dx >= 0 ? "l-t" : "r-t"
+                    sourceHandle: dx >= 0 ? "r-50" : "l-50",
+                    targetHandle: dx >= 0 ? "l-50" : "r-50"
                 };
             }
             return {
                 ...e,
-                sourceHandle: dy >= 0 ? "b" : "t",
-                targetHandle: dy >= 0 ? "t-t" : "b-t"
+                sourceHandle: dy >= 0 ? "b-50" : "t-50",
+                targetHandle: dy >= 0 ? "t-50" : "b-50"
             };
         }
 
