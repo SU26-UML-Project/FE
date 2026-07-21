@@ -83,7 +83,7 @@ function assignHandles(nodes: FlowNode[], edges: FlowEdge[], diagramType?: Diagr
         const best = pool.reduce((b, p) => (Math.abs(p - ideal) < Math.abs(b - ideal) ? p : b), pool[0]);
         used.add(best);
         handleUsage.set(key, used);
-        return `${side}-${best}${isTarget ? "-t" : ""}`;
+        return `${side}-${best}`;
     };
 
     const clamp = (v: number) => Math.max(0, Math.min(100, v));

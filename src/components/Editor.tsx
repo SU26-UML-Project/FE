@@ -2264,7 +2264,6 @@ export function Editor() {
                         setInspectorOpen(next);
                         setInspectorManualOpen(next);
                     }}
-                    onPickTemplate={onPickTemplate}
                     onClear={() => setConfirmClear(true)}
                     onImportCode={() => setImportOpen(true)}
                     onExportPng={exportPng}

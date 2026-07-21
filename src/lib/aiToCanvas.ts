@@ -37,7 +37,7 @@ function estimateAINodeSize(type: string, data: FlowNodeData): [number, number] 
             return [s.w, s.h];
         }
         // Size cứng cho các loại có text ngắn, không cần ước lượng
-        case "decision": return [150, 104];
+        case "decision": return [48, 48];
         case "start": return [38, 38];
         case "final": return [40, 40];
         case "fork": return [130, 12];
@@ -72,12 +72,13 @@ export function aiNodeToFlow(ai: AINode): FlowNode {
 
 export function aiEdgeToFlow(ai: AIEdge): FlowEdge {
     const r = resolveRelation(ai.relation);
+    const label = (ai.label && ai.label.trim()) ? ai.label : (r.autoLabel ?? "");
     return {
         id: ai.id,
         source: ai.source,
         target: ai.target,
         type: r.pathType,
-        label: ai.label ?? r.autoLabel ?? "",
+        label,
         data: { marker: r.marker, markerStart: r.markerStart, dashed: r.dashed },
     } as FlowEdge;
 }

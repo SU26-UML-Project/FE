@@ -130,22 +130,18 @@ function AllHandles() {
     // Top
     points.forEach((i) => {
         handles.push(<Handle key={`t-${i}`} id={`t-${i}`} type="source" position={Position.Top} style={{ left: `${i}%` }} />);
-        handles.push(<Handle key={`t-${i}-t`} id={`t-${i}-t`} type="target" position={Position.Top} style={{ left: `${i}%` }} />);
     });
     // Right
     points.forEach((i) => {
         handles.push(<Handle key={`r-${i}`} id={`r-${i}`} type="source" position={Position.Right} style={{ top: `${i}%` }} />);
-        handles.push(<Handle key={`r-${i}-t`} id={`r-${i}-t`} type="target" position={Position.Right} style={{ top: `${i}%` }} />);
     });
     // Bottom
     points.forEach((i) => {
         handles.push(<Handle key={`b-${i}`} id={`b-${i}`} type="source" position={Position.Bottom} style={{ left: `${i}%` }} />);
-        handles.push(<Handle key={`b-${i}-t`} id={`b-${i}-t`} type="target" position={Position.Bottom} style={{ left: `${i}%` }} />);
     });
     // Left
     points.forEach((i) => {
         handles.push(<Handle key={`l-${i}`} id={`l-${i}`} type="source" position={Position.Left} style={{ top: `${i}%` }} />);
-        handles.push(<Handle key={`l-${i}-t`} id={`l-${i}-t`} type="target" position={Position.Left} style={{ top: `${i}%` }} />);
     });
 
     return <>{handles}</>;
@@ -183,12 +179,12 @@ export function DecisionNode({ id, data, selected }: NodeProps) {
     const ink = inkColor(d);
     return (
         <div className="relative h-full w-full">
-            <Resizer selected={selected} minW={40} minH={40} keepAspectRatio />
+            <Resizer selected={selected} minW={32} minH={32} keepAspectRatio />
             <AllHandles />
             <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <polygon points="50,1.5 98.5,50 50,98.5 1.5,50" fill={fillColor(d)} stroke={ink} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
             </svg>
-            <div className="absolute inset-0 flex items-center justify-center px-7 text-center text-[12px] font-medium text-zinc-900">
+            <div className="absolute bottom-[100%] left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap text-center text-[12px] font-semibold text-zinc-800">
                 <EditableText id={id} field="label" value={d.label} placeholder="" />
             </div>
         </div>
@@ -223,9 +219,8 @@ export function FinalNode({ data, selected }: NodeProps) {
     );
 }
 
-export function ForkNode({ data, selected, width, height }: NodeProps) {
+export function ForkNode({ data, selected }: NodeProps) {
     const d = data as FlowNodeData;
-    const isHorizontal = (width ?? 0) > (height ?? 0);
     return (
         <div className="relative h-full w-full">
             <Resizer selected={selected} minW={8} minH={8} />
@@ -258,13 +253,14 @@ export function ClassNode({ id, data, selected, height }: NodeProps) {
     const contentRef = useRef<HTMLDivElement>(null);
     const minH = useContentHeight(contentRef, [d.label, d.stereotype, d.attributes, d.methods]);
     useAutoGrow(id, height as number | undefined, minH);
+    const hasBody = Boolean(d.attributes || d.methods);
     return (
         <div className="relative flex h-full w-full flex-col"
              style={{ border: `1.5px solid ${ink}`, background: fillColor(d) }}>
             <Resizer selected={selected} minW={170} minH={minH || 90} />
             <AllHandles />
             <div ref={contentRef} style={{ height: "max-content" }} className="flex w-full flex-col">
-                <div className="shrink-0 break-words px-3 pt-2 pb-2 text-center" style={{ borderBottom: `1.5px solid ${ink}` }}>
+                <div className="shrink-0 break-words px-3 pt-2 pb-2 text-center" style={{ borderBottom: hasBody ? `1.5px solid ${ink}` : "none" }}>
                     {d.stereotype && (
                         <div className="mb-0.5 text-[10px] font-medium italic leading-none text-zinc-500">
                             <EditableText id={id} field="stereotype" value={d.stereotype ?? ""} placeholder="«interface»" />
@@ -274,8 +270,8 @@ export function ClassNode({ id, data, selected, height }: NodeProps) {
                         <EditableText id={id} field="label" value={d.label} placeholder="ClassName" />
                     </div>
                 </div>
-                <Compartment id={id} field="attributes" value={d.attributes} ink={ink} placeholder={"- attribute: Type"} />
-                <Compartment id={id} field="methods" value={d.methods} ink={ink} placeholder={"+ method(): Type"} last />
+                {d.attributes ? <Compartment id={id} field="attributes" value={d.attributes} ink={ink} placeholder={"- attribute: Type"} /> : null}
+                {d.methods ? <Compartment id={id} field="methods" value={d.methods} ink={ink} placeholder={"+ method(): Type"} last /> : null}
             </div>
         </div>
     );
@@ -466,23 +462,15 @@ export function PackageNode({ id, data, selected }: NodeProps) {
             />
             {/* Handles — only on hover/selected, and auto pointer-events */}
             <div className="react-flow__handle-wrap" style={{ pointerEvents: "auto" }}>
-                <Handle id="t" type="source" position={Position.Top} />
-                <Handle id="t-t" type="target" position={Position.Top} />
-                <Handle id="r" type="source" position={Position.Right} />
-                <Handle id="r-t" type="target" position={Position.Right} />
-                <Handle id="b" type="source" position={Position.Bottom} />
-                <Handle id="b-t" type="target" position={Position.Bottom} />
-                <Handle id="l" type="source" position={Position.Left} />
-                <Handle id="l-t" type="target" position={Position.Left} />
+                <AllHandles />
             </div>
         </div>
     );
 }
 
 /**
- * UML Activity swimlane (partition). A labelled horizontal container band whose
- * body is click-through (pointer-events:none) so child nodes inside stay interactive.
- * Always horizontal - swimlanes stack from left to right.
+ * UML Activity swimlane (partition). A labelled container band with centered header
+ * label whose body is click-through (pointer-events:none) so child nodes inside stay interactive.
  */
 export function SwimlaneNode({ id, data, selected }: NodeProps) {
     const d = data as FlowNodeData;
@@ -502,9 +490,9 @@ export function SwimlaneNode({ id, data, selected }: NodeProps) {
                     borderRadius: 6,
                 }}
             />
-            {/* Header — the only clickable part (selects the lane) */}
+            {/* Header — centered label, clickable to select lane */}
             <div
-                className="absolute left-0 right-0 top-0 z-10 flex h-[24px] items-center border-b px-3"
+                className="absolute left-0 right-0 top-0 z-10 flex h-[26px] items-center justify-center border-b px-3 text-center"
                 style={{ borderColor: ink, pointerEvents: "auto" }}
             >
                 <span className="text-[12px] font-semibold text-zinc-800">
