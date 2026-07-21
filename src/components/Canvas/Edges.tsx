@@ -1,7 +1,7 @@
 import {
   BaseEdge, EdgeLabelRenderer,
   getSmoothStepPath, getBezierPath, getStraightPath,
-  type EdgeProps,
+  type EdgeProps, type Position,
 } from "@xyflow/react";
 import { resolveEdgeMultiplicity } from "../../utils/edgeMultiplicity";
 
@@ -39,10 +39,21 @@ function midpointOnPath(points: Point[]): Point {
   return points[0];
 }
 
-function EdgeView({ id, path, data, label, labelX, labelY, sourceX, sourceY, targetX, targetY, style, selected }: {
+function posToDir(pos?: Position | string): { x: number; y: number } {
+  switch (pos) {
+    case "top": return { x: 0, y: -1 };
+    case "bottom": return { x: 0, y: 1 };
+    case "left": return { x: -1, y: 0 };
+    case "right": return { x: 1, y: 0 };
+    default: return { x: 0, y: 0 };
+  }
+}
+
+function EdgeView({ id, path, data, label, labelX, labelY, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style, selected }: {
   id: string; path: string; data: unknown; label?: string;
   labelX: number; labelY: number;
   sourceX: number; sourceY: number; targetX: number; targetY: number;
+  sourcePosition?: Position | string; targetPosition?: Position | string;
   style?: React.CSSProperties;
   selected?: boolean;
 }) {
@@ -51,12 +62,20 @@ function EdgeView({ id, path, data, label, labelX, labelY, sourceX, sourceY, tar
   const markerStart = d?.markerStart || undefined;
   const mult = resolveEdgeMultiplicity(d, label);
 
-  // Unit vector source→target, used to nudge the two end multiplicities
-  // inward so they sit just inside each class (UML OMG placement).
   const dx = targetX - sourceX, dy = targetY - sourceY;
   const len = Math.hypot(dx, dy) || 1;
-  const ux = dx / len, uy = dy / len;
-  const OFF = 16;
+  const diagUx = dx / len, diagUy = dy / len;
+
+  const sDir = posToDir(sourcePosition);
+  const tDir = posToDir(targetPosition);
+
+  const sUx = (sDir.x !== 0 || sDir.y !== 0) ? sDir.x : diagUx;
+  const sUy = (sDir.x !== 0 || sDir.y !== 0) ? sDir.y : diagUy;
+
+  const tUx = (tDir.x !== 0 || tDir.y !== 0) ? tDir.x : -diagUx;
+  const tUy = (tDir.x !== 0 || tDir.y !== 0) ? tDir.y : -diagUy;
+
+  const OFF = 18;
 
   // Visual feedback: blue highlight when selected or hovered
   const strokeColor = selected ? "#2563eb" : (d?.color || "#565e74");
@@ -100,7 +119,7 @@ function EdgeView({ id, path, data, label, labelX, labelY, sourceX, sourceY, tar
         {mult.source ? (
             <EdgeLabelRenderer>
               <div className="nodrag nopan absolute"
-                   style={{ transform: `translate(-50%, -50%) translate(${sourceX + ux * OFF}px, ${sourceY + uy * OFF}px)` }}>
+                   style={{ transform: `translate(-50%, -50%) translate(${sourceX + sUx * OFF}px, ${sourceY + sUy * OFF}px)` }}>
             <span className="whitespace-nowrap bg-white px-1 py-0.5 text-[11px] font-medium text-zinc-700">
               {mult.source}
             </span>
@@ -110,7 +129,7 @@ function EdgeView({ id, path, data, label, labelX, labelY, sourceX, sourceY, tar
         {mult.target ? (
             <EdgeLabelRenderer>
               <div className="nodrag nopan absolute"
-                   style={{ transform: `translate(-50%, -50%) translate(${targetX - ux * OFF}px, ${targetY - uy * OFF}px)` }}>
+                   style={{ transform: `translate(-50%, -50%) translate(${targetX + tUx * OFF}px, ${targetY + tUy * OFF}px)` }}>
             <span className="whitespace-nowrap bg-white px-1 py-0.5 text-[11px] font-medium text-zinc-700">
               {mult.target}
             </span>
@@ -122,7 +141,20 @@ function EdgeView({ id, path, data, label, labelX, labelY, sourceX, sourceY, tar
 }
 
 export function OrthogonalEdge(props: EdgeProps) {
-  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition } = props;
+  const { source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition } = props;
+
+  if (source === target) {
+    const r = 32;
+    const path = `M ${sourceX} ${sourceY} C ${sourceX + r * 1.8} ${sourceY - r * 2}, ${sourceX + r * 2.5} ${sourceY + r}, ${sourceX} ${sourceY}`;
+    return (
+      <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
+                labelX={sourceX + r * 1.4} labelY={sourceY - r * 0.9}
+                sourceX={sourceX} sourceY={sourceY} targetX={targetX} targetY={targetY}
+                sourcePosition={sourcePosition} targetPosition={targetPosition}
+                style={props.style} selected={props.selected}
+      />
+    );
+  }
 
   const isHorizontalPair = (sourcePosition === "right" && targetPosition === "left") ||
       (sourcePosition === "left" && targetPosition === "right");
@@ -160,6 +192,7 @@ export function OrthogonalEdge(props: EdgeProps) {
       <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
                 labelX={labelPoint.x} labelY={labelPoint.y}
                 sourceX={sourceX} sourceY={sourceY} targetX={targetX} targetY={targetY}
+                sourcePosition={sourcePosition} targetPosition={targetPosition}
                 style={props.style}
                 selected={props.selected}
       />
@@ -167,6 +200,19 @@ export function OrthogonalEdge(props: EdgeProps) {
 }
 
 export function BezierEdge(props: EdgeProps) {
+  if (props.source === props.target) {
+    const r = 32;
+    const path = `M ${props.sourceX} ${props.sourceY} C ${props.sourceX + r * 1.8} ${props.sourceY - r * 2}, ${props.sourceX + r * 2.5} ${props.sourceY + r}, ${props.sourceX} ${props.sourceY}`;
+    return (
+      <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
+                labelX={props.sourceX + r * 1.4} labelY={props.sourceY - r * 0.9}
+                sourceX={props.sourceX} sourceY={props.sourceY} targetX={props.targetX} targetY={props.targetY}
+                sourcePosition={props.sourcePosition} targetPosition={props.targetPosition}
+                style={props.style} selected={props.selected}
+      />
+    );
+  }
+
   const [path, labelX, labelY] = getBezierPath({
     sourceX: props.sourceX, sourceY: props.sourceY, sourcePosition: props.sourcePosition,
     targetX: props.targetX, targetY: props.targetY, targetPosition: props.targetPosition,
@@ -175,6 +221,7 @@ export function BezierEdge(props: EdgeProps) {
       <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
                 labelX={labelX} labelY={labelY}
                 sourceX={props.sourceX} sourceY={props.sourceY} targetX={props.targetX} targetY={props.targetY}
+                sourcePosition={props.sourcePosition} targetPosition={props.targetPosition}
                 style={props.style}
                 selected={props.selected}
       />
@@ -182,11 +229,25 @@ export function BezierEdge(props: EdgeProps) {
 }
 
 export function StraightEdge(props: EdgeProps) {
+  if (props.source === props.target) {
+    const r = 32;
+    const path = `M ${props.sourceX} ${props.sourceY} C ${props.sourceX + r * 1.8} ${props.sourceY - r * 2}, ${props.sourceX + r * 2.5} ${props.sourceY + r}, ${props.sourceX} ${props.sourceY}`;
+    return (
+      <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
+                labelX={props.sourceX + r * 1.4} labelY={props.sourceY - r * 0.9}
+                sourceX={props.sourceX} sourceY={props.sourceY} targetX={props.targetX} targetY={props.targetY}
+                sourcePosition={props.sourcePosition} targetPosition={props.targetPosition}
+                style={props.style} selected={props.selected}
+      />
+    );
+  }
+
   const [path, labelX, labelY] = getStraightPath({ sourceX: props.sourceX, sourceY: props.sourceY, targetX: props.targetX, targetY: props.targetY });
   return (
       <EdgeView id={props.id} path={path} data={props.data} label={props.label as string | undefined}
                 labelX={labelX} labelY={labelY}
                 sourceX={props.sourceX} sourceY={props.sourceY} targetX={props.targetX} targetY={props.targetY}
+                sourcePosition={props.sourcePosition} targetPosition={props.targetPosition}
                 style={props.style}
                 selected={props.selected}
       />

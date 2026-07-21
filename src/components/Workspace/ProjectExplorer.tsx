@@ -32,11 +32,9 @@ type Dialog =
 const types: Array<{ id: DiagramType; label: string; hint: string; icon: typeof Activity }> = [
   { id: 'usecase', label: 'Use Case', hint: 'Actors and goals', icon: Share2 },
   { id: 'class', label: 'Class', hint: 'Domain structure', icon: Boxes },
-  { id: 'sequence', label: 'Sequence', hint: 'Message flow', icon: GitBranch },
   { id: 'activity', label: 'Activity', hint: 'Process workflow', icon: Activity },
   { id: 'state', label: 'State', hint: 'State transitions', icon: Workflow },
   { id: 'component', label: 'Component', hint: 'System modules', icon: Network },
-  { id: 'deployment', label: 'Deployment', hint: 'Runtime topology', icon: Network },
 ]
 
 const widthKey = 'diauml:explorer-width'

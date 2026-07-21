@@ -31,7 +31,7 @@ export const DIAGRAMS: DiagramDef[] = [
       P("start", "Start", { label: "" }, 38, 38),
       P("final", "Final", { label: "" }, 40, 40),
       P("action", "Action", { label: "Action" }, 150, 54),
-      P("decision", "Decision", { label: "" }, 150, 104),
+      P("decision", "Decision", { label: "" }, 48, 48),
       P("fork", "Fork / Join", { label: "" }, 130, 12),
       P("swimlane", "Swimlane", { label: "Lane", variant: "horizontal" }, 480, 130),
       P("note", "Note", { label: "A note…" }, 170, 90),
@@ -50,7 +50,7 @@ export const DIAGRAMS: DiagramDef[] = [
       P("start", "Initial", { label: "" }, 38, 38),
       P("final", "Final", { label: "" }, 40, 40),
       P("state", "State", { label: "Idle" }, 150, 56),
-      P("decision", "Choice", { label: "Guard?" }, 150, 104),
+      P("decision", "Choice", { label: "Guard?" }, 48, 48),
       P("note", "Note", { label: "Note…" }, 170, 80),
     ],
     edges: [
@@ -233,7 +233,7 @@ export function sampleFor(id: string): { nodes: FlowNode[]; edges: FlowEdge[] } 
 function act() {
   const start = node("start", 40, 170, { label: "" }, 38, 38, "s");
   const a1 = node("action", 130, 162, { label: "Open app" }, 150, 54, "a1");
-  const dec = node("decision", 350, 150, { label: "Signed in?" }, 150, 110, "dec");
+  const dec = node("decision", 350, 150, { label: "Signed in?" }, 48, 48, "dec");
   const a2 = node("action", 570, 50, { label: "Show feed" }, 150, 54, "a2");
   const a3 = node("action", 570, 290, { label: "Show login" }, 150, 54, "a3");
   const fin = node("final", 800, 67, { label: "" }, 40, 40, "f");
@@ -259,7 +259,7 @@ function st() {
   const init = node("start", 40, 150, { label: "" }, 38, 38, "i");
   const idle = node("state", 130, 142, { label: "Idle" }, 150, 56, "idle");
   const run = node("state", 350, 142, { label: "Running" }, 150, 56, "run");
-  const dec = node("decision", 570, 130, { label: "Done?" }, 150, 110, "dec");
+  const dec = node("decision", 570, 130, { label: "Done?" }, 48, 48, "dec");
   const done = node("state", 790, 142, { label: "Finished" }, 150, 56, "done");
   const fin = node("final", 990, 150, { label: "" }, 40, 40, "f");
   return {

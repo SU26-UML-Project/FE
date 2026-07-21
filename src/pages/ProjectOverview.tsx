@@ -9,10 +9,11 @@ import type { DiagramType } from '../types'
 import type { WorkspaceFileItem, WorkspaceFileKind, WorkspaceTreeState } from '../types/workspaceFile'
 
 const diagramTypes: Array<{ id: DiagramType; label: string; hint: string }> = [
-  { id: 'usecase', label: 'Use Case', hint: 'Actors and goals' }, { id: 'class', label: 'Class', hint: 'Domain structure' },
-  { id: 'sequence', label: 'Sequence', hint: 'Message flow' }, { id: 'activity', label: 'Activity', hint: 'Process workflow' },
-  { id: 'state', label: 'State', hint: 'State transitions' }, { id: 'component', label: 'Component', hint: 'System modules' },
-  { id: 'deployment', label: 'Deployment', hint: 'Runtime topology' },
+  { id: 'usecase', label: 'Use Case', hint: 'Actors and goals' },
+  { id: 'class', label: 'Class', hint: 'Domain structure' },
+  { id: 'activity', label: 'Activity', hint: 'Process workflow' },
+  { id: 'state', label: 'State', hint: 'State transitions' },
+  { id: 'component', label: 'Component', hint: 'System modules' },
 ]
 
 export default function ProjectOverview() {

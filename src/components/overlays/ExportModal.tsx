@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
-import { toMermaid, toPlantUml, toDiagramXml } from "../../lib/exporters";
+import { toMermaid, toPlantUml } from "../../lib/exporters";
 import type { DiagramType, FlowEdge, FlowNode } from "../../types";
 
-type ExportFormat = "mermaid" | "plantuml" | "xml";
+type ExportFormat = "mermaid" | "plantuml";
 
 interface ExportModalProps {
   nodes: FlowNode[];
@@ -56,8 +56,6 @@ export function ExportModal({ nodes, edges, diagramType, onClose }: ExportModalP
         return toMermaid(nodes, edges, diagramType);
       case "plantuml":
         return toPlantUml(nodes, edges, diagramType);
-      case "xml":
-        return toDiagramXml(nodes, edges, diagramType);
     }
   }, [nodes, edges, diagramType, tab]);
 
@@ -78,8 +76,7 @@ export function ExportModal({ nodes, edges, diagramType, onClose }: ExportModalP
   }, [code]);
 
   const handleDownload = useCallback(() => {
-    const ext =
-      tab === "mermaid" ? "mmd" : tab === "plantuml" ? "puml" : "xml";
+    const ext = tab === "mermaid" ? "mmd" : "puml";
     const blob = new Blob([code], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -92,7 +89,6 @@ export function ExportModal({ nodes, edges, diagramType, onClose }: ExportModalP
   const tabs: { id: ExportFormat; label: string; desc: string }[] = [
     { id: "mermaid", label: "Mermaid", desc: "Mermaid.js live editor" },
     { id: "plantuml", label: "PlantUML", desc: "PlantUML server" },
-    { id: "xml", label: "XML", desc: "Draw.io / diagrams.net" },
   ];
 
   return (
@@ -111,9 +107,9 @@ export function ExportModal({ nodes, edges, diagramType, onClose }: ExportModalP
         {/* ── Body ── */}
         <div className={STYLES.body}>
           <p className="mb-4 text-[13px] text-zinc-500">
-            Export your diagram as <strong>Mermaid</strong>,{" "}
-            <strong>PlantUML</strong>, or <strong>XML</strong> code. Copy or
-            download for use in documentation, wikis, or other tools.
+            Export your diagram as <strong>Mermaid</strong> or{" "}
+            <strong>PlantUML</strong> code. Copy or download for use in
+            documentation, wikis, or other tools.
           </p>
 
           {/* Format tabs */}

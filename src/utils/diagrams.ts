@@ -23,12 +23,12 @@ export const getEdgeOption = (diagramId: string, optId: string) =>
 export const DIAGRAMS: DiagramDef[] = [
   {
     id: "activity", name: "Activity", hint: "Workflows, control & object flow", defaultEdge: "cf",
-    nodes: [P("start", "Start", { label: "" }, 38, 38), P("final", "Final", { label: "" }, 40, 40), P("action", "Action", { label: "Action" }, 150, 54), P("decision", "Decision", { label: "" }, 150, 104), P("fork", "Fork / Join", { label: "" }, 130, 12), P("note", "Note", { label: "A note…" }, 170, 90)],
+    nodes: [P("start", "Start", { label: "" }, 38, 38), P("final", "Final", { label: "" }, 40, 40), P("action", "Action", { label: "Action" }, 150, 54), P("decision", "Decision", { label: "" }, 48, 48), P("fork", "Fork / Join", { label: "" }, 130, 12), P("note", "Note", { label: "A note…" }, 170, 90)],
     edges: [{ id: "cf", label: "Control flow", markerEnd: M.arrow, dashed: false, path: "smoothstep", autoLabel: "" }, { id: "note", label: "Note link", markerEnd: M.none, dashed: true, path: "smoothstep", autoLabel: "" }],
   },
   {
     id: "state", name: "State Machine", hint: "States, transitions & guards", defaultEdge: "trans",
-    nodes: [P("start", "Initial", { label: "" }, 38, 38), P("final", "Final", { label: "" }, 40, 40), P("action", "State", { label: "Idle" }, 150, 56), P("decision", "Choice", { label: "Guard?" }, 150, 104), P("note", "Note", { label: "Note…" }, 170, 80)],
+    nodes: [P("start", "Initial", { label: "" }, 38, 38), P("final", "Final", { label: "" }, 40, 40), P("action", "State", { label: "Idle" }, 150, 56), P("decision", "Choice", { label: "Guard?" }, 48, 48), P("note", "Note", { label: "Note…" }, 170, 80)],
     edges: [{ id: "trans", label: "Transition", markerEnd: M.arrow, dashed: false, path: "smoothstep", autoLabel: "" }, { id: "self", label: "Self / internal", markerEnd: M.arrow, dashed: true, path: "smoothstep", autoLabel: "" }],
   },
   {

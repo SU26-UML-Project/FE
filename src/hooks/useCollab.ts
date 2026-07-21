@@ -82,6 +82,7 @@ export function useCollab(
 
     return () => {
       socketService.leaveRoom(sheetId);
+      socket.off("collab:disabled");
       socket.off("cursor:update");
       socket.off("selection:update");
       socket.off("canvas:update");

@@ -174,25 +174,6 @@ function NodeEditor({ node, allNodes = [], onUpdateParent, onChange, onDelete, o
                 <label className={labelCls}>Fill colour</label>
                 <ColorRow value={d.fill as string | undefined} onPick={(c) => onChange({ fill: c })} onClear={() => onChange({ fill: "" })} />
             </div>
-            {node.type === "swimlane" && (
-                <div>
-                    <label className={labelCls}>Orientation</label>
-                    <div className="grid grid-cols-2 gap-1.5">
-                        {(["horizontal", "vertical"] as const).map((v) => {
-                            const active = (d.variant ?? "horizontal") === v;
-                            return (
-                                <button key={v} onClick={() => onChange({ variant: v })}
-                                        className={`flex items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-medium capitalize transition-colors ${active ? "border-zinc-900 bg-white text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.05)]" : "border-[var(--line)] bg-white/60 text-zinc-500 hover:bg-white"}`}>
-                                    {v === "horizontal"
-                                        ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M3 8h18M3 16h18" /><path d="M7 5v3M17 5v3M7 13v3M17 13v3" /></svg>
-                                        : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M8 3v18M16 3v18" /><path d="M5 7h3M5 17h3M13 7h3M13 17h3" /></svg>}
-                                    {v}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
             {isClass && (
                 <>
                     <div>
