@@ -623,11 +623,22 @@ export function Editor() {
                     if (patch.multiplicitySource !== undefined) data.multiplicitySource = patch.multiplicitySource;
                     if (patch.multiplicityTarget !== undefined) data.multiplicityTarget = patch.multiplicityTarget;
                     if (patch.flip) {
-                        // swap the two caps to visually reverse the arrow direction
-                        const a = (data.marker as string) ?? "";
-                        const b = (data.markerStart as string) ?? "";
-                        data.marker = b ? endpointEnd(b) : "";
-                        data.markerStart = a ? endpointStart(a) : "";
+                        // Physically swap source and target endpoints to reverse arrow direction
+                        const oldSource = nextEdge.source;
+                        const oldTarget = nextEdge.target;
+                        const oldSourceHandle = nextEdge.sourceHandle;
+                        const oldTargetHandle = nextEdge.targetHandle;
+
+                        nextEdge.source = oldTarget;
+                        nextEdge.target = oldSource;
+                        nextEdge.sourceHandle = oldTargetHandle;
+                        nextEdge.targetHandle = oldSourceHandle;
+
+                        // Also swap multiplicity labels between source and target
+                        const ms = data.multiplicitySource;
+                        const mt = data.multiplicityTarget;
+                        data.multiplicitySource = mt;
+                        data.multiplicityTarget = ms;
                     }
                     nextEdge.data = data;
                     return nextEdge;
