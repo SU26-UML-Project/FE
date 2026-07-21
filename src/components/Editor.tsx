@@ -378,12 +378,10 @@ export function Editor() {
     /* ---------- node / edge ops ---------- */
     const onNodesChange = useCallback(
         (changes: NodeChange<FlowNode>[]) => {
-            // Record history for structural / positional edits only.
+            // Record history for structural edits (remove, replace) only.
+            // Positional edits record history ONCE on drag start via onNodeDragStart.
             const meaningful = changes.some(
-                (c) =>
-                    (c.type === "position" && c.dragging) ||
-                    c.type === "remove" ||
-                    c.type === "replace"
+                (c) => c.type === "remove" || c.type === "replace"
             );
             if (meaningful) beginMutation();
 
@@ -878,6 +876,11 @@ export function Editor() {
         },
         [rf, setNodes, beginMutation, emitCanvasChange]
     );
+
+    /** Record history state ONCE when node drag starts */
+    const handleNodeDragStart = useCallback(() => {
+        beginMutation();
+    }, [beginMutation]);
 
     /** Snap to guides on release, THEN reparent into/out of a swimlane. */
     const handleNodeDragStop = useCallback(
@@ -1898,6 +1901,13 @@ export function Editor() {
 
     const deleteWorkspaceItem = useCallback(async (item: WorkspaceFileItem) => {
         if (!id) return;
+
+        // Cancel any pending debounced auto-save for this document before deleting
+        if (markdownPendingRef.current?.itemId === item.id) {
+            if (markdownPendingRef.current.timer) clearTimeout(markdownPendingRef.current.timer);
+            markdownPendingRef.current = null;
+        }
+
         const removedIds = new Set<string>([item.id]);
         let changed = true;
         while (changed) {
@@ -1925,6 +1935,9 @@ export function Editor() {
 
     const updateMarkdown = useCallback((content: string) => {
         if (!id || !activeWorkspaceItem || activeWorkspaceItem.kind !== "markdown") return;
+        // Safety guard: ensure the active workspace item still exists in tree (not deleted)
+        if (!workspaceTree.items.some(item => item.id === activeWorkspaceItem.id)) return;
+
         setActiveWorkspaceItem(prev => prev ? { ...prev, content } : prev);
         setWorkspaceTree(prev => ({ ...prev, items: prev.items.map(item => item.id === activeWorkspaceItem.id ? { ...item, content } : item) }));
 
@@ -1937,7 +1950,7 @@ export function Editor() {
         }
         const timer = setTimeout(flushMarkdownSave, 1000);
         markdownPendingRef.current = { itemId: activeWorkspaceItem.id, content, timer };
-    }, [id, activeWorkspaceItem, flushMarkdownSave]);
+    }, [id, activeWorkspaceItem, workspaceTree.items, flushMarkdownSave]);
 
     const currentVersionSnapshot = useCallback((): DiagramSnapshot => ({
         schemaVersion: 1,
@@ -2406,6 +2419,7 @@ export function Editor() {
                                         onSelectionChange={onSelectionChange}
                                         onSelectionDragStop={snapOnStop}
                                         onNodeContextMenu={onNodeCtx}
+                                        onNodeDragStart={handleNodeDragStart}
                                         onNodeDragStop={handleNodeDragStop}
                                         onEdgeDoubleClick={onEdgeDoubleClick}
                                         onPaneContextMenu={onPaneCtx}
