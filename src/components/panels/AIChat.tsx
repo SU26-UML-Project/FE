@@ -171,7 +171,8 @@ export function AIChat({
     const loadSessions = async () => {
         try {
             const res = await chatService.getSessions();
-            setSessions(res.result);
+            const list = Array.isArray(res.result) ? res.result : ((res.result as any)?.content || []);
+            setSessions(list);
         } catch (err: any) {
             toast.error(err.message || "Không thể tải lịch sử chat");
         }
@@ -253,7 +254,11 @@ export function AIChat({
             const res = await chatService.getHistory(sid);
             setCurrentSessionId(sid);
 
-            const historyMsgs: Msg[] = res.result.messages.map((m, idx) => {
+            const rawMessages = Array.isArray(res.result)
+                ? res.result
+                : (res.result?.content || (res.result as any)?.messages || []);
+
+            const historyMsgs: Msg[] = rawMessages.map((m, idx) => {
                 const parsed = aiResponseToCanvas({
                     kind: m.kind || 'reply',
                     answer: m.content,
@@ -269,7 +274,7 @@ export function AIChat({
                 let initialDone = false;
 
                 if (m.kind === "questions" && parsed.questions) {
-                    const nextMsg = res.result.messages[idx + 1];
+                    const nextMsg = rawMessages[idx + 1];
                     if (nextMsg && nextMsg.role === "USER" && nextMsg.content.startsWith("Đã xác nhận thông tin:")) {
                         const resolved = parseConfirmedAnswers(nextMsg.content, parsed.questions);
                         initialAnswers = resolved.answers;
@@ -652,15 +657,15 @@ export function AIChat({
                             <span>+ New Chat</span>
                         </button>
                     </div>
-                    {sessions.length === 0 ? (
+                    {!Array.isArray(sessions) || sessions.length === 0 ? (
                         <div className="flex h-40 flex-col items-center justify-center text-admin-secondary/30">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-2 opacity-20"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                             <p className="text-xs">Chưa có phiên chat nào</p>
                         </div>
                     ) : (
-                        sessions.map((s) => (
+                        sessions.map((s, idx) => (
                             <button
-                                key={s.id}
+                                key={s.anythingSessionId || s.id || `session-${idx}`}
                                 onClick={() => selectSession(s)}
                                 className={`group flex w-full flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all hover:border-admin-primary hover:bg-admin-bg/50 ${currentSessionId === s.anythingSessionId ? "border-admin-primary bg-admin-bg/50 ring-1 ring-admin-primary/10" : "border-admin-outline/10 bg-white"}`}
                             >

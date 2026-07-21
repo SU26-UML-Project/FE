@@ -23,6 +23,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getTemplateList } from '../utils/templates';
 import type { TemplateMeta } from '../utils/templates';
 import { projectService, sheetService } from '../services';
+import { workspaceFileService } from '../services/workspaceFileService';
+import { workspaceItemService } from '../services/workspaceItemService';
 import type { ProjectResponse } from '../types/project';
 import toast from 'react-hot-toast';
 
@@ -33,6 +35,9 @@ interface Workspace {
     category: string;
     updatedAt: string;
     sheets?: any[];
+    diagramCount: number;
+    markdownCount: number;
+    totalFiles: number;
 }
 interface PrebuiltMeta {
     id: string;
@@ -149,21 +154,65 @@ const UserDashboard: React.FC = () => {
     const fetchWorkspaces = async () => {
         setWorkspacesLoading(true);
         try {
-            const response = await projectService.getAllProjects({ isDraft: false, page: wsPage, size: PROJECT_PAGE_SIZE });
+            let response;
+            if (activeTab === 'archived') {
+                response = await projectService.getArchivedProjects({ page: wsPage, size: PROJECT_PAGE_SIZE });
+            } else if (activeTab === 'trash') {
+                response = await projectService.getTrashProjects({ page: wsPage, size: PROJECT_PAGE_SIZE });
+            } else {
+                response = await projectService.getAllProjects({ isDraft: false, page: wsPage, size: PROJECT_PAGE_SIZE });
+            }
+
             const projects = response.result?.content || [];
             setWsTotalPages(response.result?.totalPages || 1);
 
-            // Fetch sheet counts for all projects
+            // Fetch file and sheet counts for active projects, use DTO counts for soft-deleted trash projects
             const projectWithSheets = await Promise.all(
                 projects.map(async (p: ProjectResponse) => {
-                    try {
-                        const sheetsRes = await sheetService.getSheetsByProject(p.id);
+                    if (activeTab === 'trash') {
+                        const count = p.diagramCount || 0;
                         return {
                             id: p.id,
                             name: p.projectName,
                             category: p.description || 'general',
                             updatedAt: p.updatedAt,
-                            sheets: sheetsRes.result || []
+                            sheets: [],
+                            diagramCount: count,
+                            markdownCount: 0,
+                            totalFiles: count
+                        };
+                    }
+
+                    try {
+                        const [sheetsRes, itemsRes] = await Promise.all([
+                            sheetService.getSheetsByProject(p.id).catch(() => ({ result: [] })),
+                            workspaceItemService.list(p.id).catch(() => ({ result: [] }))
+                        ]);
+                        const sheets = sheetsRes.result || [];
+                        const rawItems = itemsRes.result || [];
+
+                        let diagramCount = 0;
+                        let markdownCount = 0;
+
+                        if (rawItems.length > 0) {
+                            diagramCount = rawItems.filter((i: any) => (i.kind || "").toUpperCase() === 'DIAGRAM').length;
+                            markdownCount = rawItems.filter((i: any) => (i.kind || "").toUpperCase() === 'MARKDOWN').length;
+                        } else {
+                            diagramCount = sheets.length;
+                            markdownCount = 0;
+                        }
+
+                        const totalFiles = diagramCount + markdownCount;
+
+                        return {
+                            id: p.id,
+                            name: p.projectName,
+                            category: p.description || 'general',
+                            updatedAt: p.updatedAt,
+                            sheets,
+                            diagramCount,
+                            markdownCount,
+                            totalFiles
                         };
                     } catch (e) {
                         return {
@@ -171,7 +220,10 @@ const UserDashboard: React.FC = () => {
                             name: p.projectName,
                             category: p.description || 'general',
                             updatedAt: p.updatedAt,
-                            sheets: []
+                            sheets: [],
+                            diagramCount: 0,
+                            markdownCount: 0,
+                            totalFiles: 0
                         };
                     }
                 })
@@ -183,6 +235,75 @@ const UserDashboard: React.FC = () => {
             setWorkspaces([]);
         } finally {
             setWorkspacesLoading(false);
+        }
+    };
+
+    const handleRestoreProject = async (projectId: string) => {
+        try {
+            await projectService.restoreProject(projectId);
+            toast.success("Khôi phục dự án thành công");
+            fetchWorkspaces();
+        } catch (e) {
+            toast.error("Không thể khôi phục dự án");
+        }
+    };
+
+    const handlePermanentDelete = async (projectId: string) => {
+        try {
+            await projectService.permanentDeleteProject(projectId);
+            toast.success("Đã xóa vĩnh viễn dự án");
+            fetchWorkspaces();
+        } catch (e) {
+            toast.error("Không thể xóa vĩnh viễn dự án");
+        }
+    };
+
+    const handleRestoreBulk = async () => {
+        if (selectedIds.size === 0) return;
+        try {
+            await Promise.all([...selectedIds].map(id => projectService.restoreProject(id)));
+            toast.success(`Đã khôi phục ${selectedIds.size} dự án`);
+            setSelectedIds(new Set());
+            setSelectionMode(false);
+            fetchWorkspaces();
+        } catch (e) {
+            toast.error("Khôi phục thất bại");
+        }
+    };
+
+    const handlePermanentDeleteBulk = async () => {
+        if (selectedIds.size === 0) return;
+        try {
+            await Promise.all([...selectedIds].map(id => projectService.permanentDeleteProject(id)));
+            toast.success(`Đã xóa vĩnh viễn ${selectedIds.size} dự án`);
+            setSelectedIds(new Set());
+            setSelectionMode(false);
+            fetchWorkspaces();
+        } catch (e) {
+            toast.error("Xóa vĩnh viễn thất bại");
+        }
+    };
+
+    const handleToggleArchiveBulk = async () => {
+        if (selectedIds.size === 0) return;
+        try {
+            await Promise.all([...selectedIds].map(id => projectService.toggleArchive(id)));
+            toast.success(`Đã cập nhật trạng thái lưu trữ`);
+            setSelectedIds(new Set());
+            setSelectionMode(false);
+            fetchWorkspaces();
+        } catch (e) {
+            toast.error("Cập nhật lưu trữ thất bại");
+        }
+    };
+
+    const handleToggleArchive = async (projectId: string) => {
+        try {
+            const res = await projectService.toggleArchive(projectId);
+            toast.success(res.message || "Đã cập nhật trạng thái lưu trữ");
+            fetchWorkspaces();
+        } catch (e) {
+            toast.error("Không thể cập nhật trạng thái lưu trữ");
         }
     };
 
@@ -275,8 +396,9 @@ const UserDashboard: React.FC = () => {
     const handleAllClick = () => {
         if (!isAllSelected) {
             setSelectedIds(new Set(workspaces.map(w => w.id)));
+        } else {
+            setSelectedIds(new Set());
         }
-        setShowConfirm(true);
     }
 
     const handleConfirmDelete = async () => {
@@ -355,17 +477,6 @@ const UserDashboard: React.FC = () => {
                             <p className="text-[10px] text-admin-secondary font-bold uppercase tracking-wider">Thiết kế kỹ thuật</p>
                         </div>
                     )}
-                </div>
-
-                {/* Create Button */}
-                <div className={`px-4 mb-8 transition-all duration-300 ${isSidebarCollapsed ? 'px-2' : ''}`}>
-                    <button
-                        onClick={() => setShowCreateModal(true)}
-                        className={`w-full bg-uml-blue text-white rounded font-bold uppercase transition-all flex items-center justify-center gap-2 hover:bg-blue-700 shadow-md active:scale-95 ${isSidebarCollapsed ? 'h-12 w-12 rounded-full p-0' : 'py-3 px-4 text-[13px]'}`}
-                    >
-                        <Plus size={isSidebarCollapsed ? 24 : 18} />
-                        {!isSidebarCollapsed && "Tạo Diagram mới"}
-                    </button>
                 </div>
 
                 {/* Navigation */}
@@ -485,7 +596,7 @@ const UserDashboard: React.FC = () => {
 
                             {/* Grid/List Toggle */}
                             <div className="flex items-center gap-3">
-                                {activeTab !== 'templates' && activeTab !== 'drafts' && (
+                                {(activeTab === 'all' || activeTab === 'drafts') && (
                                     <button
                                         onClick={() => setShowCreateModal(true)}
                                         className="px-4 py-2 bg-uml-blue text-white font-bold rounded-md text-sm hover:bg-blue-700 transition flex items-center gap-2"
@@ -718,55 +829,105 @@ const UserDashboard: React.FC = () => {
                                             Workspace của tôi
                                             <span className="ml-2 text-sm font-normal text-gray-400">({workspaces.length})</span>
                                         </h2>
-                                        <motion.div
-                                            layout
-                                            transition={{ type: 'spring', stiffness: 250, damping: 25 }}
-                                            className={`flex items-center border-2 rounded-full bg-white ${
-                                                selectionMode ? 'border-gray-300 px-1.5 py-1' : 'border-gray-300'
-                                            }`}
-                                        >
+                                        <div className="flex items-center">
                                             <AnimatePresence mode="popLayout">
-                                                {selectionMode && (
+                                                {selectionMode ? (
                                                     <motion.div
-                                                        key="red-pill"
-                                                        initial={{ width: 0, opacity: 0 }}
-                                                        animate={{ width: 120, opacity: 1 }}
-                                                        exit={{ width: 0, opacity: 0 }}
-                                                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                                                        className="flex items-center overflow-hidden bg-red-600 rounded-full h-8"
+                                                        key="action-bar-floating"
+                                                        initial={{ opacity: 0, scale: 0.95 }}
+                                                        animate={{ opacity: 1, scale: 1 }}
+                                                        exit={{ opacity: 0, scale: 0.95 }}
+                                                        transition={{ duration: 0.18 }}
+                                                        className="flex items-center gap-2 rounded-xl border border-admin-outline bg-white px-2.5 py-1.5 shadow-md"
                                                     >
-                                                        <div className="flex items-center h-full shrink-0" style={{ width: 120 }}>
-                                                            <button
-                                                                onClick={handleDeleteClick}
-                                                                disabled={selectedIds.size === 0}
-                                                                className={`h-full font-bold text-xs whitespace-nowrap flex-[7] flex items-center justify-center ${selectedIds.size === 0 ? 'text-gray-400' : 'text-white'}`}
-                                                            >
-                                                                Xoá
-                                                            </button>
-                                                            <div className="w-[1px] h-5 bg-white/80 shrink-0" />
-                                                            <button
-                                                                onClick={handleAllClick}
-                                                                className="h-full font-bold text-xs whitespace-nowrap flex-[3] flex items-center justify-center text-white"
-                                                            >
-                                                                Tất cả
-                                                            </button>
-                                                        </div>
+                                                        <span className="px-2.5 py-1 text-[11px] font-bold text-slate-700 bg-slate-100 rounded-lg">
+                                                            {selectedIds.size} đã chọn
+                                                        </span>
+
+                                                        <button
+                                                            onClick={handleAllClick}
+                                                            className="px-2.5 py-1 text-[11px] font-bold text-slate-600 hover:text-black hover:bg-slate-100 rounded-lg transition-colors whitespace-nowrap"
+                                                        >
+                                                            {isAllSelected ? "Bỏ chọn hết" : "Chọn tất cả"}
+                                                        </button>
+
+                                                        <div className="h-4 w-[1px] bg-slate-200" />
+
+                                                        {activeTab === 'trash' ? (
+                                                            <>
+                                                                <button
+                                                                    onClick={handleRestoreBulk}
+                                                                    disabled={selectedIds.size === 0}
+                                                                    className="px-3 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 shadow-sm transition-all whitespace-nowrap"
+                                                                >
+                                                                    Khôi phục
+                                                                </button>
+                                                                <button
+                                                                    onClick={handlePermanentDeleteBulk}
+                                                                    disabled={selectedIds.size === 0}
+                                                                    className="px-3 py-1 text-[11px] font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-40 shadow-sm transition-all whitespace-nowrap"
+                                                                >
+                                                                    Xóa vĩnh viễn
+                                                                </button>
+                                                            </>
+                                                        ) : activeTab === 'archived' ? (
+                                                            <>
+                                                                <button
+                                                                    onClick={handleToggleArchiveBulk}
+                                                                    disabled={selectedIds.size === 0}
+                                                                    className="px-3 py-1 text-[11px] font-bold rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-40 shadow-sm transition-all whitespace-nowrap"
+                                                                >
+                                                                    Bỏ lưu trữ
+                                                                </button>
+                                                                <button
+                                                                    onClick={handleDeleteClick}
+                                                                    disabled={selectedIds.size === 0}
+                                                                    className="px-3 py-1 text-[11px] font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-40 shadow-sm transition-all whitespace-nowrap"
+                                                                >
+                                                                    Xóa tạm
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <button
+                                                                    onClick={handleToggleArchiveBulk}
+                                                                    disabled={selectedIds.size === 0}
+                                                                    className="px-3 py-1 text-[11px] font-bold rounded-lg bg-uml-blue text-white hover:bg-blue-700 disabled:opacity-40 shadow-sm transition-all whitespace-nowrap"
+                                                                >
+                                                                    Lưu trữ
+                                                                </button>
+                                                                <button
+                                                                    onClick={handleDeleteClick}
+                                                                    disabled={selectedIds.size === 0}
+                                                                    className="px-3 py-1 text-[11px] font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-40 shadow-sm transition-all whitespace-nowrap"
+                                                                >
+                                                                    Xóa
+                                                                </button>
+                                                            </>
+                                                        )}
+
+                                                        <button
+                                                            onClick={() => { setSelectionMode(false); setSelectedIds(new Set()); }}
+                                                            className="px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors whitespace-nowrap"
+                                                            title="Thoát chế độ chọn"
+                                                        >
+                                                            Hủy
+                                                        </button>
                                                     </motion.div>
+                                                ) : (
+                                                    workspaces.length > 0 && (
+                                                        <button
+                                                            onClick={() => setSelectionMode(true)}
+                                                            className="flex h-9 items-center gap-1.5 rounded-xl border border-admin-outline/60 bg-white px-3 text-[12px] font-bold text-admin-secondary transition-all hover:border-uml-blue hover:bg-blue-50/50 hover:text-uml-blue shadow-sm cursor-pointer"
+                                                            title="Bật chế độ chọn hàng loạt"
+                                                        >
+                                                            <Layers size={15} />
+                                                            Chọn nhiều
+                                                        </button>
+                                                    )
                                                 )}
                                             </AnimatePresence>
-
-                                            <button
-                                                onClick={() => { setSelectionMode(!selectionMode); if (selectionMode) setSelectedIds(new Set()); }}
-                                                className={`flex items-center justify-center font-bold text-xs transition-colors cursor-pointer ${
-                                                    selectionMode
-                                                        ? 'px-3 py-1 text-gray-500 hover:text-gray-700'
-                                                        : 'w-9 h-9 text-gray-400 hover:text-red-500 hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]'
-                                                }`}
-                                                title="Xoá dự án"
-                                            >
-                                                {selectionMode ? 'Huỷ' : <Trash2 size={16} />}
-                                            </button>
-                                        </motion.div>
+                                        </div>
                                     </div>
                                     {workspacesLoading ? (
                                         <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
@@ -774,15 +935,31 @@ const UserDashboard: React.FC = () => {
                                         </div>
                                     ) : workspaces.length === 0 ? (
                                         <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
-                                            <Folder size={48} className="text-gray-200 mx-auto mb-3" />
-                                            <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có Workspace nào</h3>
-                                            <p className="text-sm text-gray-300 mb-4">Tạo Workspace đầu tiên của bạn để bắt đầu.</p>
-                                            <button
-                                                onClick={() => setShowCreateModal(true)}
-                                                className="px-4 py-2 bg-uml-blue text-white font-bold rounded-md text-sm hover:bg-blue-700 transition"
-                                            >
-                                                Tạo Workspace
-                                            </button>
+                                            {activeTab === 'trash' ? (
+                                                <>
+                                                    <Trash2 size={48} className="text-gray-200 mx-auto mb-3" />
+                                                    <h3 className="text-lg font-bold text-gray-400 mb-1">Thùng rác rỗng</h3>
+                                                    <p className="text-sm text-gray-300">Không có dự án nào trong thùng rác.</p>
+                                                </>
+                                            ) : activeTab === 'archived' ? (
+                                                <>
+                                                    <Layers size={48} className="text-gray-200 mx-auto mb-3" />
+                                                    <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có dự án lưu trữ</h3>
+                                                    <p className="text-sm text-gray-300">Các dự án được lưu trữ sẽ xuất hiện tại đây.</p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Folder size={48} className="text-gray-200 mx-auto mb-3" />
+                                                    <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có Workspace nào</h3>
+                                                    <p className="text-sm text-gray-300 mb-4">Tạo Workspace đầu tiên của bạn để bắt đầu.</p>
+                                                    <button
+                                                        onClick={() => setShowCreateModal(true)}
+                                                        className="px-4 py-2 bg-uml-blue text-white font-bold rounded-md text-sm hover:bg-blue-700 transition"
+                                                    >
+                                                        Tạo Workspace
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     ) : viewMode === 'grid' ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -790,9 +967,13 @@ const UserDashboard: React.FC = () => {
                                                 <UserWorkspaceCard
                                                     key={ws.id}
                                                     workspace={ws}
+                                                    activeTab={activeTab}
                                                     selectionMode={selectionMode}
                                                     selected={selectedIds.has(ws.id)}
                                                     onToggleSelect={handleToggleSelect}
+                                                    onRestore={handleRestoreProject}
+                                                    onPermanentDelete={handlePermanentDelete}
+                                                    onToggleArchive={handleToggleArchive}
                                                 />
                                             ))}
                                         </div>
@@ -1076,7 +1257,7 @@ const DraftCard = ({ draft, selectionMode, selected, onToggleSelect }: { draft: 
                 }
             }}
             className={`bg-white border rounded flex flex-col group transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px] ${
-                selected ? 'border-red-400 ring-2 ring-red-400/25' : 'border-admin-outline hover:border-amber-400'
+                selected ? 'border-uml-blue ring-2 ring-uml-blue/20' : 'border-admin-outline hover:border-amber-400'
             }`}
         >
             <div className="h-36 bg-gradient-to-br from-amber-50 to-orange-50 border-b border-admin-outline relative overflow-hidden">
@@ -1098,18 +1279,9 @@ const DraftCard = ({ draft, selectionMode, selected, onToggleSelect }: { draft: 
                 </div>
             </div>
             {selected && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="absolute inset-0 bg-red-50/80 z-20 flex items-center justify-center"
-                >
-                    <motion.div
-                        animate={{ opacity: [0.4, 1, 0.4] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                    >
-                        <Trash2 size={28} className="text-red-500/80" />
-                    </motion.div>
-                </motion.div>
+                <div className="absolute top-3 left-3 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-uml-blue text-white shadow-md ring-2 ring-white">
+                    <CheckCircle2 size={16} />
+                </div>
             )}
         </motion.div>
     )
@@ -1127,23 +1299,13 @@ const DraftListRow = ({ draft, selectionMode, selected, onToggleSelect }: { draf
                 }
             }}
             className={`relative overflow-hidden border-b transition-colors group cursor-pointer ${
-                selected ? 'border-red-400 bg-red-50/50' : 'border-admin-outline hover:bg-gray-50/50'
+                selected ? 'border-uml-blue bg-blue-50/40' : 'border-admin-outline hover:bg-gray-50/50'
             }`}
         >
-            {selected && selectionMode && (
-                <td className="absolute inset-0 z-20 flex items-center justify-center bg-red-50/80" colSpan={4}>
-                    <motion.div
-                        animate={{ opacity: [0.4, 1, 0.4] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                    >
-                        <Trash2 size={20} className="text-red-500/80" />
-                    </motion.div>
-                </td>
-            )}
             <td className="py-4 px-6">
                 <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded flex items-center justify-center shrink-0 bg-amber-100 text-amber-700">
-                        <PenTool size={18} />
+                    <div className={`w-10 h-10 rounded flex items-center justify-center shrink-0 transition-colors ${selected ? 'bg-uml-blue text-white' : 'bg-amber-100 text-amber-700'}`}>
+                        {selected ? <CheckCircle2 size={18} /> : <PenTool size={18} />}
                     </div>
                     <span className="font-bold text-black group-hover:text-uml-blue transition-colors">{draft.name}</span>
                 </div>
@@ -1165,54 +1327,107 @@ interface CardActions {
     onToggleSelect: (id: string) => void
 }
 
-const UserWorkspaceCard = ({ workspace, selectionMode, selected, onToggleSelect }: { workspace: Workspace } & CardActions) => {
-    const navigate = useNavigate()
+const UserWorkspaceCard = ({
+                               workspace,
+                               selectionMode,
+                               selected,
+                               onToggleSelect,
+                               activeTab,
+                               onRestore,
+                               onPermanentDelete,
+                               onToggleArchive,
+                           }: {
+    workspace: Workspace;
+    activeTab?: string;
+    onRestore?: (id: string) => void;
+    onPermanentDelete?: (id: string) => void;
+    onToggleArchive?: (id: string) => void;
+} & CardActions) => {
+    const navigate = useNavigate();
+    const isTrash = activeTab === "trash";
+    const isArchived = activeTab === "archived";
+
     return (
         <motion.div
             whileHover={{ y: -4 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             onClick={() => {
                 if (selectionMode) {
-                    onToggleSelect(workspace.id)
-                } else {
-                    navigate(`/workspace/${workspace.id}`)
+                    onToggleSelect(workspace.id);
+                } else if (!isTrash) {
+                    navigate(`/workspace/${workspace.id}`);
                 }
             }}
-            className={`bg-white border rounded flex flex-col group transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px] ${
-                selected ? 'border-red-400 ring-2 ring-red-400/25' : 'border-admin-outline hover:border-uml-blue'
+            className={`bg-white border rounded flex flex-col group transition-all relative overflow-hidden h-[260px] ${
+                isTrash ? "cursor-default" : "cursor-pointer hover:shadow-xl hover:shadow-blue-500/5"
+            } ${
+                selected ? 'border-uml-blue ring-2 ring-uml-blue/20' : 'border-admin-outline hover:border-uml-blue'
             }`}
         >
             <div className="h-36 bg-gradient-to-br from-gray-50 to-blue-50 border-b border-admin-outline relative overflow-hidden">
                 <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
-                <div className="absolute top-3 right-3 flex gap-1.5">
-          <span className="px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border bg-uml-blue/10 text-uml-blue border-uml-blue/20">
-            {workspace.category}
-          </span>
+                <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+                    <span className="px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border bg-uml-blue/10 text-uml-blue border-uml-blue/20">
+                        {workspace.category}
+                    </span>
+                    {onToggleArchive && !isTrash && (
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onToggleArchive(workspace.id); }}
+                            title={isArchived ? "Bỏ lưu trữ" : "Lưu trữ"}
+                            className="px-2 py-1 rounded bg-white/90 hover:bg-white border border-admin-outline/30 text-admin-secondary hover:text-uml-blue shadow-sm text-[10px] font-bold"
+                        >
+                            {isArchived ? "Unarchive" : "Archive"}
+                        </button>
+                    )}
                 </div>
             </div>
             <div className="p-5 flex-1 flex flex-col justify-between">
                 <div>
-                    <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{workspace.name}</h3>
-                    <p className="text-[11px] text-admin-secondary font-bold uppercase tracking-widest">{(workspace.sheets?.length || 0)} diagrams</p>
+                    <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1.5">{workspace.name}</h3>
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
+                        <span className="rounded bg-slate-100 px-2 py-0.5 text-slate-700 uppercase tracking-wider text-[10px]">
+                            {workspace.totalFiles} {workspace.totalFiles === 1 ? 'FILE' : 'FILES'}
+                        </span>
+                        {workspace.totalFiles > 0 && (
+                            <span className="text-admin-secondary text-[10.5px] font-medium">
+                                {[
+                                    workspace.diagramCount > 0 ? `${workspace.diagramCount} Diagram${workspace.diagramCount > 1 ? 's' : ''}` : null,
+                                    workspace.markdownCount > 0 ? `${workspace.markdownCount} Markdown` : null,
+                                ].filter(Boolean).join(" · ")}
+                            </span>
+                        )}
+                    </div>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] text-gray-400">
-                    <Clock size={12} />
-                    {formatRelativeTime(workspace.updatedAt)}
+                <div className="flex items-center justify-between gap-2 text-[10px] text-gray-400 mt-2">
+                    <span className="flex items-center gap-1">
+                        <Clock size={12} />
+                        {formatRelativeTime(workspace.updatedAt)}
+                    </span>
+                    {isTrash && (
+                        <div className="flex items-center gap-1 z-10">
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); onRestore?.(workspace.id); }}
+                                className="px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold hover:bg-emerald-100 transition-colors text-[10px]"
+                            >
+                                Khôi phục
+                            </button>
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); onPermanentDelete?.(workspace.id); }}
+                                className="px-2 py-1 rounded bg-red-50 text-red-700 border border-red-200 font-bold hover:bg-red-100 transition-colors text-[10px]"
+                            >
+                                Xóa vĩnh viễn
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
             {selected && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="absolute inset-0 bg-red-50/80 z-20 flex items-center justify-center"
-                >
-                    <motion.div
-                        animate={{ opacity: [0.4, 1, 0.4] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                    >
-                        <Trash2 size={28} className="text-red-500/80" />
-                    </motion.div>
-                </motion.div>
+                <div className="absolute top-3 left-3 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-uml-blue text-white shadow-md ring-2 ring-white">
+                    <CheckCircle2 size={16} />
+                </div>
             )}
         </motion.div>
     )
@@ -1236,23 +1451,13 @@ const WorkspaceListRow = ({ workspace, selectionMode, selected, onToggleSelect }
                 }
             }}
             className={`relative overflow-hidden border-b transition-colors group cursor-pointer ${
-                selected ? 'border-red-400 bg-red-50/50' : 'border-admin-outline hover:bg-gray-50/50'
+                selected ? 'border-uml-blue bg-blue-50/40' : 'border-admin-outline hover:bg-gray-50/50'
             }`}
         >
-            {selected && selectionMode && (
-                <td className="absolute inset-0 z-20 flex items-center justify-center bg-red-50/80" colSpan={4}>
-                    <motion.div
-                        animate={{ opacity: [0.4, 1, 0.4] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                    >
-                        <Trash2 size={20} className="text-red-500/80" />
-                    </motion.div>
-                </td>
-            )}
             <td className="py-4 px-6">
                 <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded flex items-center justify-center shrink-0 bg-uml-blue/10 text-uml-blue">
-                        <Layers size={18} />
+                    <div className={`w-10 h-10 rounded flex items-center justify-center shrink-0 transition-colors ${selected ? 'bg-uml-blue text-white' : 'bg-uml-blue/10 text-uml-blue'}`}>
+                        {selected ? <CheckCircle2 size={18} /> : <Layers size={18} />}
                     </div>
                     <span className="font-bold text-black group-hover:text-uml-blue transition-colors">{workspace.name}</span>
                 </div>
