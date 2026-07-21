@@ -16,6 +16,11 @@ export interface ProjectResponse {
   diagramCount?: number;
   isDraft?: boolean;
   publicAccess?: boolean;
+  // Thùng rác (chỉ có mặt ở dự án đã xóa mềm) + lưu trữ
+  deletedAt?: string;
+  deletedByName?: string;
+  daysRemaining?: number;
+  archivedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

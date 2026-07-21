@@ -27,6 +27,7 @@ import { workspaceFileService } from '../services/workspaceFileService';
 import { workspaceItemService } from '../services/workspaceItemService';
 import type { ProjectResponse } from '../types/project';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../utils/errorMessage';
 
 // Dummy types to fix errors since I deleted workspace.ts
 interface Workspace {
@@ -38,6 +39,10 @@ interface Workspace {
     diagramCount: number;
     markdownCount: number;
     totalFiles: number;
+    // Metadata thùng rác (chỉ có khi activeTab === 'trash')
+    deletedAt?: string;
+    deletedByName?: string;
+    daysRemaining?: number;
 }
 interface PrebuiltMeta {
     id: string;
@@ -117,6 +122,10 @@ const UserDashboard: React.FC = () => {
     const [draftSelectionMode, setDraftSelectionMode] = useState(false);
     const [draftSelectedIds, setDraftSelectedIds] = useState<Set<string>>(new Set());
     const [showDraftConfirm, setShowDraftConfirm] = useState(false);
+    // Xóa vĩnh viễn 1 dự án (yêu cầu gõ đúng tên) + Dọn sạch thùng rác
+    const [permDeleteTarget, setPermDeleteTarget] = useState<Workspace | null>(null);
+    const [permDeleteInput, setPermDeleteInput] = useState('');
+    const [showEmptyTrashConfirm, setShowEmptyTrashConfirm] = useState(false);
 
     useEffect(() => { sessionStorage.setItem('dashboard_tab', activeTab); }, [activeTab]);
     useEffect(() => { sessionStorage.setItem('dashboard_templateKind', templateKind); }, [templateKind]);
@@ -179,7 +188,10 @@ const UserDashboard: React.FC = () => {
                             sheets: [],
                             diagramCount: count,
                             markdownCount: 0,
-                            totalFiles: count
+                            totalFiles: count,
+                            deletedAt: p.deletedAt,
+                            deletedByName: p.deletedByName,
+                            daysRemaining: p.daysRemaining,
                         };
                     }
 
@@ -238,49 +250,107 @@ const UserDashboard: React.FC = () => {
         }
     };
 
+    // Toast "Hoàn tác" 10 giây sau khi xóa mềm — gọi restore cho đúng các id vừa xóa.
+    const showUndoToast = (ids: string[], reload: () => void) => {
+        toast((t) => (
+            <div className="flex items-center gap-3">
+                <span className="text-sm">Đã chuyển {ids.length} dự án vào thùng rác</span>
+                <button
+                    onClick={async () => {
+                        toast.dismiss(t.id);
+                        try {
+                            await Promise.all(ids.map(id => projectService.restoreProject(id)));
+                            toast.success('Đã hoàn tác');
+                            reload();
+                        } catch (e) {
+                            toast.error(getErrorMessage(e, 'Hoàn tác thất bại'));
+                        }
+                    }}
+                    className="font-bold text-uml-blue hover:underline whitespace-nowrap"
+                >
+                    Hoàn tác
+                </button>
+            </div>
+        ), { duration: 10000 });
+    };
+
     const handleRestoreProject = async (projectId: string) => {
+        const snapshot = workspaces;
+        setWorkspaces(prev => prev.filter(w => w.id !== projectId)); // optimistic
         try {
             await projectService.restoreProject(projectId);
             toast.success("Khôi phục dự án thành công");
-            fetchWorkspaces();
         } catch (e) {
-            toast.error("Không thể khôi phục dự án");
+            setWorkspaces(snapshot); // rollback
+            toast.error(getErrorMessage(e, "Không thể khôi phục dự án"));
         }
     };
 
-    const handlePermanentDelete = async (projectId: string) => {
+    // Xóa vĩnh viễn 1 dự án SAU KHI người dùng gõ đúng tên trong dialog.
+    const handleConfirmPermanentDelete = async () => {
+        const target = permDeleteTarget;
+        if (!target) return;
+        setPermDeleteTarget(null);
+        setPermDeleteInput('');
+        const snapshot = workspaces;
+        setWorkspaces(prev => prev.filter(w => w.id !== target.id)); // optimistic
         try {
-            await projectService.permanentDeleteProject(projectId);
+            await projectService.permanentDeleteProject(target.id);
             toast.success("Đã xóa vĩnh viễn dự án");
-            fetchWorkspaces();
         } catch (e) {
-            toast.error("Không thể xóa vĩnh viễn dự án");
+            setWorkspaces(snapshot); // rollback
+            toast.error(getErrorMessage(e, "Không thể xóa vĩnh viễn dự án"));
+        }
+    };
+
+    // Mở dialog xác nhận (gõ tên) cho card thùng rác.
+    const handlePermanentDelete = (projectId: string) => {
+        const ws = workspaces.find(w => w.id === projectId);
+        if (ws) setPermDeleteTarget(ws);
+    };
+
+    const handleEmptyTrash = async () => {
+        setShowEmptyTrashConfirm(false);
+        const snapshot = workspaces;
+        setWorkspaces([]); // optimistic
+        try {
+            await projectService.emptyTrash();
+            toast.success('Đã dọn sạch thùng rác');
+        } catch (e) {
+            setWorkspaces(snapshot); // rollback
+            toast.error(getErrorMessage(e, 'Không thể dọn sạch thùng rác'));
         }
     };
 
     const handleRestoreBulk = async () => {
         if (selectedIds.size === 0) return;
+        const ids = [...selectedIds];
+        const snapshot = workspaces;
+        setWorkspaces(prev => prev.filter(w => !selectedIds.has(w.id))); // optimistic
+        setSelectedIds(new Set());
+        setSelectionMode(false);
         try {
-            await Promise.all([...selectedIds].map(id => projectService.restoreProject(id)));
-            toast.success(`Đã khôi phục ${selectedIds.size} dự án`);
-            setSelectedIds(new Set());
-            setSelectionMode(false);
-            fetchWorkspaces();
+            await Promise.all(ids.map(id => projectService.restoreProject(id)));
+            toast.success(`Đã khôi phục ${ids.length} dự án`);
         } catch (e) {
-            toast.error("Khôi phục thất bại");
+            setWorkspaces(snapshot); // rollback
+            toast.error(getErrorMessage(e, "Khôi phục thất bại"));
         }
     };
 
     const handlePermanentDeleteBulk = async () => {
         if (selectedIds.size === 0) return;
+        const ids = [...selectedIds];
+        const snapshot = workspaces;
+        setWorkspaces(prev => prev.filter(w => !selectedIds.has(w.id))); // optimistic
+        setSelectedIds(new Set());
+        setSelectionMode(false);
         try {
-            await Promise.all([...selectedIds].map(id => projectService.permanentDeleteProject(id)));
-            toast.success(`Đã xóa vĩnh viễn ${selectedIds.size} dự án`);
-            setSelectedIds(new Set());
-            setSelectionMode(false);
-            fetchWorkspaces();
+            await Promise.all(ids.map(id => projectService.permanentDeleteProject(id)));
+            toast.success(`Đã xóa vĩnh viễn ${ids.length} dự án`);
         } catch (e) {
-            toast.error("Xóa vĩnh viễn thất bại");
+            setWorkspaces(snapshot); // rollback
+            toast.error(getErrorMessage(e, "Xóa vĩnh viễn thất bại"));
         }
     };
 
@@ -293,7 +363,7 @@ const UserDashboard: React.FC = () => {
             setSelectionMode(false);
             fetchWorkspaces();
         } catch (e) {
-            toast.error("Cập nhật lưu trữ thất bại");
+            toast.error(getErrorMessage(e, "Cập nhật lưu trữ thất bại"));
         }
     };
 
@@ -303,7 +373,7 @@ const UserDashboard: React.FC = () => {
             toast.success(res.message || "Đã cập nhật trạng thái lưu trữ");
             fetchWorkspaces();
         } catch (e) {
-            toast.error("Không thể cập nhật trạng thái lưu trữ");
+            toast.error(getErrorMessage(e, "Không thể cập nhật trạng thái lưu trữ"));
         }
     };
 
@@ -403,14 +473,15 @@ const UserDashboard: React.FC = () => {
 
     const handleConfirmDelete = async () => {
         setShowConfirm(false);
+        const ids = [...selectedIds];
         try {
-            await projectService.deleteProjects([...selectedIds]);
-            toast.success(`Đã xoá ${selectedIds.size} dự án`);
+            await projectService.deleteProjects(ids);
             setSelectedIds(new Set());
             setSelectionMode(false);
             fetchWorkspaces();
+            showUndoToast(ids, fetchWorkspaces);
         } catch (error: any) {
-            toast.error(error.message || 'Không thể xoá dự án');
+            toast.error(getErrorMessage(error, 'Không thể xoá dự án'));
         }
     }
 
@@ -439,14 +510,15 @@ const UserDashboard: React.FC = () => {
 
     const handleConfirmDraftDelete = async () => {
         setShowDraftConfirm(false);
+        const ids = [...draftSelectedIds];
         try {
-            await projectService.deleteProjects([...draftSelectedIds]);
-            toast.success(`Đã xoá ${draftSelectedIds.size} bản nháp`);
+            await projectService.deleteProjects(ids);
             setDraftSelectedIds(new Set());
             setDraftSelectionMode(false);
             fetchDrafts();
+            showUndoToast(ids, fetchDrafts);
         } catch (error: any) {
-            toast.error(error.message || 'Không thể xoá bản nháp');
+            toast.error(getErrorMessage(error, 'Không thể xoá bản nháp'));
         }
     }
 
@@ -603,6 +675,15 @@ const UserDashboard: React.FC = () => {
                                     >
                                         <Plus size={16} />
                                         Workspace mới
+                                    </button>
+                                )}
+                                {activeTab === 'trash' && workspaces.length > 0 && (
+                                    <button
+                                        onClick={() => setShowEmptyTrashConfirm(true)}
+                                        className="px-4 py-2 bg-red-600 text-white font-bold rounded-md text-sm hover:bg-red-700 transition flex items-center gap-2"
+                                    >
+                                        <Trash2 size={16} />
+                                        Dọn sạch thùng rác
                                     </button>
                                 )}
                                 <div className="flex bg-gray-100 p-1 rounded-lg">
@@ -993,9 +1074,12 @@ const UserDashboard: React.FC = () => {
                                                     <WorkspaceListRow
                                                         key={ws.id}
                                                         workspace={ws}
+                                                        activeTab={activeTab}
                                                         selectionMode={selectionMode}
                                                         selected={selectedIds.has(ws.id)}
                                                         onToggleSelect={handleToggleSelect}
+                                                        onRestore={handleRestoreProject}
+                                                        onPermanentDelete={handlePermanentDelete}
                                                     />
                                                 ))}
                                                 </tbody>
@@ -1113,6 +1197,96 @@ const UserDashboard: React.FC = () => {
                                     className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition"
                                 >
                                     Xoá
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Xóa vĩnh viễn 1 dự án — yêu cầu gõ đúng tên để xác nhận */}
+            <AnimatePresence>
+                {permDeleteTarget && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 250, damping: 25 }}
+                            className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4"
+                        >
+                            <h3 className="text-lg font-bold text-black mb-2">Xóa vĩnh viễn dự án?</h3>
+                            <p className="text-sm text-gray-500 mb-4">
+                                Hành động này <span className="font-bold text-red-600">không thể hoàn tác</span>. Toàn bộ
+                                diagram, tài liệu và lịch sử phiên bản của dự án sẽ bị xóa khỏi hệ thống.
+                            </p>
+                            <p className="text-sm text-gray-600 mb-2">
+                                Gõ đúng tên dự án <span className="font-bold text-black">"{permDeleteTarget.name}"</span> để xác nhận:
+                            </p>
+                            <input
+                                value={permDeleteInput}
+                                onChange={(e) => setPermDeleteInput(e.target.value)}
+                                placeholder={permDeleteTarget.name}
+                                autoFocus
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/20 mb-6"
+                            />
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => { setPermDeleteTarget(null); setPermDeleteInput(''); }}
+                                    className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 rounded-md transition"
+                                >
+                                    Huỷ
+                                </button>
+                                <button
+                                    onClick={handleConfirmPermanentDelete}
+                                    disabled={permDeleteInput !== permDeleteTarget.name}
+                                    className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    Xóa vĩnh viễn
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Dọn sạch thùng rác */}
+            <AnimatePresence>
+                {showEmptyTrashConfirm && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 250, damping: 25 }}
+                            className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4"
+                        >
+                            <h3 className="text-lg font-bold text-black mb-2">Dọn sạch thùng rác?</h3>
+                            <p className="text-sm text-gray-500 mb-6">
+                                Toàn bộ dự án trong thùng rác sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.
+                            </p>
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setShowEmptyTrashConfirm(false)}
+                                    className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 rounded-md transition"
+                                >
+                                    Huỷ
+                                </button>
+                                <button
+                                    onClick={handleEmptyTrash}
+                                    className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition"
+                                >
+                                    Dọn sạch
                                 </button>
                             </div>
                         </motion.div>
@@ -1367,6 +1541,18 @@ const UserWorkspaceCard = ({
             <div className="h-36 bg-gradient-to-br from-gray-50 to-blue-50 border-b border-admin-outline relative overflow-hidden">
                 <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
                 <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+                    {isTrash && typeof workspace.daysRemaining === 'number' && (
+                        <span
+                            className={`px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border ${
+                                workspace.daysRemaining <= 3
+                                    ? 'bg-red-100 text-red-700 border-red-200'
+                                    : 'bg-amber-100 text-amber-700 border-amber-200'
+                            }`}
+                            title="Số ngày còn lại trước khi bị xóa vĩnh viễn"
+                        >
+                            Còn {workspace.daysRemaining} ngày
+                        </span>
+                    )}
                     <span className="px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border bg-uml-blue/10 text-uml-blue border-uml-blue/20">
                         {workspace.category}
                     </span>
@@ -1400,12 +1586,16 @@ const UserWorkspaceCard = ({
                     </div>
                 </div>
                 <div className="flex items-center justify-between gap-2 text-[10px] text-gray-400 mt-2">
-                    <span className="flex items-center gap-1">
-                        <Clock size={12} />
-                        {formatRelativeTime(workspace.updatedAt)}
+                    <span className="flex items-center gap-1 min-w-0">
+                        <Clock size={12} className="shrink-0" />
+                        <span className="truncate">
+                            {isTrash
+                                ? `Đã xóa ${workspace.deletedAt ? formatRelativeTime(workspace.deletedAt) : ''}${workspace.deletedByName ? ` · bởi ${workspace.deletedByName}` : ''}`
+                                : formatRelativeTime(workspace.updatedAt)}
+                        </span>
                     </span>
                     {isTrash && (
-                        <div className="flex items-center gap-1 z-10">
+                        <div className="flex items-center gap-1 z-10 shrink-0">
                             <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); onRestore?.(workspace.id); }}
@@ -1439,18 +1629,24 @@ interface RowActions {
     onToggleSelect: (id: string) => void
 }
 
-const WorkspaceListRow = ({ workspace, selectionMode, selected, onToggleSelect }: { workspace: Workspace } & RowActions) => {
+const WorkspaceListRow = ({ workspace, activeTab, selectionMode, selected, onToggleSelect, onRestore, onPermanentDelete }: {
+    workspace: Workspace;
+    activeTab?: string;
+    onRestore?: (id: string) => void;
+    onPermanentDelete?: (id: string) => void;
+} & RowActions) => {
     const navigate = useNavigate()
+    const isTrash = activeTab === 'trash'
     return (
         <tr
             onClick={() => {
                 if (selectionMode) {
                     onToggleSelect(workspace.id)
-                } else {
+                } else if (!isTrash) {
                     navigate(`/workspace/${workspace.id}`)
                 }
             }}
-            className={`relative overflow-hidden border-b transition-colors group cursor-pointer ${
+            className={`relative overflow-hidden border-b transition-colors group ${isTrash ? 'cursor-default' : 'cursor-pointer'} ${
                 selected ? 'border-uml-blue bg-blue-50/40' : 'border-admin-outline hover:bg-gray-50/50'
             }`}
         >
@@ -1459,12 +1655,48 @@ const WorkspaceListRow = ({ workspace, selectionMode, selected, onToggleSelect }
                     <div className={`w-10 h-10 rounded flex items-center justify-center shrink-0 transition-colors ${selected ? 'bg-uml-blue text-white' : 'bg-uml-blue/10 text-uml-blue'}`}>
                         {selected ? <CheckCircle2 size={18} /> : <Layers size={18} />}
                     </div>
-                    <span className="font-bold text-black group-hover:text-uml-blue transition-colors">{workspace.name}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="font-bold text-black group-hover:text-uml-blue transition-colors">{workspace.name}</span>
+                        {isTrash && typeof workspace.daysRemaining === 'number' && (
+                            <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest border ${
+                                workspace.daysRemaining <= 3
+                                    ? 'bg-red-100 text-red-700 border-red-200'
+                                    : 'bg-amber-100 text-amber-700 border-amber-200'
+                            }`}>
+                                Còn {workspace.daysRemaining} ngày
+                            </span>
+                        )}
+                    </div>
                 </div>
             </td>
             <td className="py-4 px-6 text-[12px] text-admin-secondary font-bold uppercase">{workspace.category}</td>
-            <td className="py-4 px-6 text-admin-on-surface-variant font-bold text-[12px] uppercase">{formatRelativeTime(workspace.updatedAt)}</td>
-            <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">{(workspace.sheets?.length || 0)}</td>
+            <td className="py-4 px-6 text-admin-on-surface-variant font-bold text-[12px] uppercase">
+                {isTrash
+                    ? `Đã xóa ${workspace.deletedAt ? formatRelativeTime(workspace.deletedAt) : ''}${workspace.deletedByName ? ` · ${workspace.deletedByName}` : ''}`
+                    : formatRelativeTime(workspace.updatedAt)}
+            </td>
+            <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">
+                {isTrash ? (
+                    <div className="flex items-center justify-end gap-1">
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onRestore?.(workspace.id); }}
+                            className="px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold hover:bg-emerald-100 transition-colors text-[10px]"
+                        >
+                            Khôi phục
+                        </button>
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onPermanentDelete?.(workspace.id); }}
+                            className="px-2 py-1 rounded bg-red-50 text-red-700 border border-red-200 font-bold hover:bg-red-100 transition-colors text-[10px]"
+                        >
+                            Xóa vĩnh viễn
+                        </button>
+                    </div>
+                ) : (
+                    (workspace.sheets?.length || 0)
+                )}
+            </td>
         </tr>
     )
 }

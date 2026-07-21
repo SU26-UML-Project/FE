@@ -62,6 +62,11 @@ export const projectService = {
         return apiClient.delete<any, ApiResponse<void>>(`/projects/${projectId}/permanent`);
     },
 
+    // Dọn sạch thùng rác — xóa vĩnh viễn toàn bộ dự án đang trong thùng rác của người dùng.
+    emptyTrash: async (): Promise<ApiResponse<void>> => {
+        return apiClient.delete<any, ApiResponse<void>>('/projects/trash');
+    },
+
     // ─── Admin Projects: 3 nguồn dữ liệu độc lập ────────────────────────────────
 
     // Thống kê toàn hệ thống (độc lập phân trang)
