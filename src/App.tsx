@@ -123,6 +123,17 @@ export default function App() {
     checkAuth()
   }, [checkAuth])
 
+  // Khi tab được focus lại: refresh im lặng /me để bắt kịp gói đã hết hạn (tag về Free).
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        useAuthStore.getState().refreshUser()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
+
   return (
     <div className={`min-h-screen flex flex-col ${!isAdminPage && !isDashboardPage && !isWorkspaceEditorPage ? 'grid-background' : ''}`}>
       <OAuth2Handler />

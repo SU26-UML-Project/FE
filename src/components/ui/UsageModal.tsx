@@ -6,6 +6,7 @@ import { subscriptionService } from '../../services/subscriptionService'
 import { getMyQuota, type QuotaInfo } from '../../services/quotaService'
 import type { MySubscription } from '../../types/payment'
 import { getErrorMessage } from '../../utils/errorMessage'
+import { useAuthStore } from '../../stores/useAuthStore'
 
 const fmtDate = (iso?: string) =>
   iso
@@ -26,8 +27,10 @@ const UsageModal = ({ isOpen, onClose }: UsageModalProps) => {
   const [sub, setSub] = useState<MySubscription | null>(null)
   const [quota, setQuota] = useState<QuotaInfo | null>(null)
   const [acting, setActing] = useState(false)
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
 
   const load = useCallback(() => {
+    setConfirmingCancel(false)
     setLoading(true)
     Promise.all([
       subscriptionService.getMySubscription().catch(() => null),
@@ -49,6 +52,8 @@ const UsageModal = ({ isOpen, onClose }: UsageModalProps) => {
     try {
       const updated = await subscriptionService.cancel()
       setSub(updated)
+      setConfirmingCancel(false)
+      useAuthStore.getState().refreshUser()
       toast.success('Đã hủy gói. Bạn vẫn dùng được tới hết kỳ hiện tại.')
     } catch (err) {
       toast.error(getErrorMessage(err))
@@ -62,6 +67,7 @@ const UsageModal = ({ isOpen, onClose }: UsageModalProps) => {
     try {
       const updated = await subscriptionService.reactivate()
       setSub(updated)
+      useAuthStore.getState().refreshUser()
       toast.success('Đã hoàn tác. Gói sẽ tiếp tục gia hạn.')
     } catch (err) {
       toast.error(getErrorMessage(err))
@@ -200,13 +206,35 @@ const UsageModal = ({ isOpen, onClose }: UsageModalProps) => {
                         {acting ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
                         Hoàn tác hủy
                       </button>
+                    ) : confirmingCancel ? (
+                      <div className="rounded-xl border border-red-200 bg-red-50/60 p-3.5">
+                        <p className="text-[13px] text-gray-700 leading-relaxed mb-3">
+                          Hủy gói <strong>{planLabel}</strong>? Bạn vẫn dùng tới <strong>{fmtDate(sub!.endDate)}</strong>, sau đó về Free.
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setConfirmingCancel(false)}
+                            disabled={acting}
+                            className="flex-1 py-2 rounded-lg font-bold text-sm border-2 border-gray-300 text-gray-600 hover:bg-white transition-colors disabled:opacity-60"
+                          >
+                            Không
+                          </button>
+                          <button
+                            onClick={handleCancel}
+                            disabled={acting}
+                            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-sm bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-60"
+                          >
+                            {acting ? <Loader2 size={16} className="animate-spin" /> : null}
+                            Xác nhận hủy
+                          </button>
+                        </div>
+                      </div>
                     ) : (
                       <button
-                        onClick={handleCancel}
+                        onClick={() => setConfirmingCancel(true)}
                         disabled={acting}
                         className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm border-2 border-red-300 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-60"
                       >
-                        {acting ? <Loader2 size={16} className="animate-spin" /> : null}
                         Hủy gói
                       </button>
                     )}

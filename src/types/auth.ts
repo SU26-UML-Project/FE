@@ -44,6 +44,8 @@ export interface User {
   createdAt?: string;
   profileCompleted?: boolean; // false for Google users who haven't finished onboarding
   currentPlanId?: string;     // UUID of the active subscription plan (null = free/no subscription)
+  effectivePlanId?: string;   // UUID gói hiệu lực (BE tính, đã trừ gói hết hạn) — dùng highlight Pricing
+  planName?: string;          // Tên gói hiệu lực (badge UserMenu). Hết hạn → BE trả "Free"
   role: string | {
     id: string;
     roleName: string;

@@ -28,7 +28,7 @@ const UserMenu = () => {
   useEffect(() => {
     planLoaded.current = false
     setPlanName(null)
-  }, [user?.id, user?.currentPlanId])
+  }, [user?.id, user?.currentPlanId, user?.planName])
 
   useEffect(() => {
     if (!open || !user || planLoaded.current) return
@@ -38,15 +38,21 @@ const UserMenu = () => {
       setPlanName('Unlimited')
       return
     }
-    // Không có gói → Free, khỏi gọi API.
-    if (!user.currentPlanId) {
+    // BE trả sẵn tên gói hiệu lực (đã trừ gói hết hạn) → dùng thẳng, khỏi gọi /plans.
+    if (user.planName) {
+      setPlanName(user.planName)
+      return
+    }
+    // Fallback (BE chưa trả planName): map gói hiệu lực → /plans.
+    const planId = user.effectivePlanId ?? user.currentPlanId
+    if (!planId) {
       setPlanName('Free')
       return
     }
     planService
       .getPublicPlans()
       .then((plans) => {
-        const found = plans.find((p) => p.id === user.currentPlanId)
+        const found = plans.find((p) => p.id === planId)
         setPlanName(found?.name ?? 'Free')
       })
       .catch(() => {

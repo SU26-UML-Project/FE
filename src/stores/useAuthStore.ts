@@ -13,6 +13,7 @@ interface AuthState {
   setLoading: (loading: boolean) => void;
   logout: () => void;
   checkAuth: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()((set, get) => ({
@@ -66,6 +67,19 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     } catch (error) {
       console.error('CheckAuth Error:', error);
       set({ user: null, isAuthenticated: false, loading: false, isChecking: false });
+    }
+  },
+  // Refresh im lặng: cập nhật lại user từ /me mà KHÔNG bật loading (tránh nháy màn hình).
+  // Dùng để đồng bộ gói hiệu lực (planName) khi gói hết hạn hoặc sau khi hủy/hoàn tác.
+  refreshUser: async () => {
+    if (!get().isAuthenticated) return;
+    try {
+      const response = await authService.getCurrentUser();
+      if (response.code === 200 || response.code === 0) {
+        set({ user: response.result, isAuthenticated: true });
+      }
+    } catch (error) {
+      console.error('RefreshUser Error:', error);
     }
   },
 }));
