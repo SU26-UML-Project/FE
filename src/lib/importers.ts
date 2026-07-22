@@ -151,6 +151,24 @@ function decodeMermaid(str: string): string {
         .trim();
 }
 
+function normalizeImportedCode(code: string): string {
+    return decodeMermaid(code)
+        // Code pasted from rendered Markdown sometimes contains emphasis marks
+        // around Mermaid punctuation, e.g. Start**(**( **)**) or **(**COD**)**.
+        // The importer deals with plain diagram source, not rich Markdown, so
+        // strip bold markers before regex parsing.
+        .replace(/\*\*/g, "");
+}
+
+function stripOuterQuotes(value: string): string {
+    const v = decodeMermaid(value).trim();
+    return v.replace(/^["'`](.*)["'`]$/, "$1").trim();
+}
+
+function isMermaidSwimlaneLabel(label: string): boolean {
+    return /^(làn|lan|lane|swimlane|partition)(\s|:|\d|$)/i.test(stripOuterQuotes(label));
+}
+
 function layeredLayout(
     ids: string[],
     edges: { source: string; target: string; label?: string }[],
@@ -216,8 +234,8 @@ function clsSize(label: string, attrs: string[], methods: string[], stereo?: str
    MERMAID
    ============================================================ */
 export function parseMermaid(code: string): ParseResult {
-    // 1. Pre-process: strip comments and YAML frontmatter
-    let processed = code
+    // 1. Pre-process: normalize pasted HTML/Markdown artifacts, strip comments and YAML frontmatter
+    let processed = normalizeImportedCode(code)
         .replace(/%%[^\n]*/g, "") // Strip Mermaid comments
         .replace(/^\s*---[\s\S]*?---\s*/, ""); // Strip YAML frontmatter
 
@@ -793,7 +811,7 @@ function parseFlowchart(lines: string[]): ParseResult {
         const subgraphMatch = trimmed.match(/^subgraph\s+([A-Za-z0-9_]+)(?:\s*\[(.+)\])?/i);
         if (subgraphMatch) {
             const id = subgraphMatch[1];
-            const label = decodeMermaid(subgraphMatch[2] || id);
+            const label = stripOuterQuotes(subgraphMatch[2] || id);
             const uid = nanoid(8);
             parentMap.set(id, uid);
             const parentId = parentStack.length > 0 ? parentMap.get(parentStack[parentStack.length - 1]) : undefined;
@@ -963,6 +981,11 @@ function parseFlowchart(lines: string[]): ParseResult {
     if (hasCompIndicators) {
         finalType = "component";
     }
+    const swimlaneIds = new Set(
+        finalType === "activity"
+            ? ids.filter(id => defs.get(id)!.type === "package" && isMermaidSwimlaneLabel(defs.get(id)!.label))
+            : []
+    );
 
     const nodeMap = new Map<string, string>(); // id -> uid
     const nodes: FlowNode[] = ids.map((id) => {
@@ -972,6 +995,9 @@ function parseFlowchart(lines: string[]): ParseResult {
         const p = posMap.get(id) ?? { x: 0, y: 0 };
 
         let nodeType = d.type;
+        if (swimlaneIds.has(id)) {
+            nodeType = "swimlane";
+        }
         if (finalType === "component" && nodeType === "action") {
             nodeType = "component";
         }
@@ -981,9 +1007,6 @@ function parseFlowchart(lines: string[]): ParseResult {
         nodeMap.set(id, uid);
         return mkNode(nodeType, p.x - w / 2, p.y - h / 2, { label: d.label, stereotype: d.stereotype }, w, h, d.parentId, uid);
     });
-
-    // CRITICAL: Import flow must also use finalizeLayout to wrap packages correctly
-    const finalNodes = finalizeLayout(nodes);
 
     const edges: FlowEdge[] = rawEdges.map((e) => {
         const s = nodeMap.get(e.from);
@@ -999,7 +1022,13 @@ function parseFlowchart(lines: string[]): ParseResult {
     })
         .filter(Boolean) as FlowEdge[];
 
-    const nodesOut = finalizeLayout(finalNodes, edges);
+    if (swimlaneIds.size > 0) {
+        const laid = layoutActivityWithSwimlanes(nodes, edges);
+        if (laid) return { ...laid, type: finalType, preLayouted: true, direction: layoutDir };
+    }
+
+    // CRITICAL: Import flow must also use finalizeLayout to wrap packages correctly
+    const nodesOut = finalizeLayout(nodes, edges);
     return { nodes: nodesOut, edges, type: finalType, preLayouted: true, direction: layoutDir };
 }
 
@@ -2195,23 +2224,23 @@ export function detectAndParse(text: string): ParseResult & { format: string } {
     const plantFence = text.match(/```(?:plantuml|pu|puml)\s*\n([\s\S]*?)```/i);
     const anyFence = text.match(/```(?:\w+)?\s*\n([\s\S]*?)```/i);
 
-    let code = text;
+    let code = normalizeImportedCode(text);
 
     // Prioritise explicit fence markers
     if (mermaidFence) {
-        code = mermaidFence[1];
+        code = normalizeImportedCode(mermaidFence[1]);
         const base = parseMermaid(code);
         const questions = buildQuestions(base);
         return { ...base, questions, format: "Mermaid" };
     }
     if (plantFence) {
-        code = plantFence[1];
+        code = normalizeImportedCode(plantFence[1]);
         const base = parsePlantUml(code);
         const questions = buildQuestions(base);
         return { ...base, questions, format: "PlantUML" };
     }
     if (anyFence) {
-        code = anyFence[1];
+        code = normalizeImportedCode(anyFence[1]);
     }
 
     // ── 2. Explicit PlantUML markers ──────────────────────────────

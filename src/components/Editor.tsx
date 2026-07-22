@@ -1284,7 +1284,13 @@ export function Editor() {
                 }
 
                 // Auto-refine with ELK after a short delay for better spacing,
-                // but ONLY if the user hasn't manually moved anything
+                // but ONLY if the user hasn't manually moved anything.
+                // Mermaid/PlantUML activity imports with containers (swimlanes/packages)
+                // already come pre-layouted. ELK's layered orthogonal routing can throw
+                // "Invalid hitboxes" on nested cross-lane edges, so keep the parser's
+                // semantic layout for these cases instead of destructively refining it.
+                const skipAutoRefine = finalType === "activity" && visibleNodes.some(n => ["swimlane", "package", "boundary"].includes(n.type));
+                if (skipAutoRefine) return;
                 setTimeout(async () => {
                     if (nodesRef.current.length === 0) return;
                     try {
