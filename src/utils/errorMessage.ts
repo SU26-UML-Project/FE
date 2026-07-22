@@ -27,6 +27,9 @@ export const ERROR_CODES = {
   DOWNGRADE_NOT_ALLOWED_WHILE_ACTIVE: 2145,
   QUOTE_EXPIRED: 2146,
   PENDING_PAYMENT_EXISTS: 2147,
+  NO_ACTIVE_SUBSCRIPTION: 2149,
+  SUBSCRIPTION_ALREADY_CANCELLED: 2150,
+  SUBSCRIPTION_NOT_CANCELLED: 2151,
 } as const;
 
 // Thông điệp ưu tiên theo code (ghi đè message thô từ server khi cần rõ nghĩa hơn).
@@ -47,6 +50,9 @@ const MESSAGE_BY_CODE: Record<number, string> = {
   [ERROR_CODES.DOWNGRADE_NOT_ALLOWED_WHILE_ACTIVE]: 'Không thể hạ gói khi gói hiện tại còn hiệu lực.',
   [ERROR_CODES.QUOTE_EXPIRED]: 'Báo giá đã hết hạn, vui lòng thử lại.',
   [ERROR_CODES.PENDING_PAYMENT_EXISTS]: 'Bạn đang có giao dịch chờ thanh toán. Vui lòng hoàn tất hoặc huỷ giao dịch trước.',
+  [ERROR_CODES.NO_ACTIVE_SUBSCRIPTION]: 'Bạn chưa có gói trả phí đang hoạt động.',
+  [ERROR_CODES.SUBSCRIPTION_ALREADY_CANCELLED]: 'Gói của bạn đã được hủy trước đó.',
+  [ERROR_CODES.SUBSCRIPTION_NOT_CANCELLED]: 'Gói của bạn hiện không ở trạng thái đã hủy.',
 };
 
 /** Trả về code lỗi (nếu có) từ object lỗi đã reject bởi apiClient. */
