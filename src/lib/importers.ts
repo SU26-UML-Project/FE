@@ -1812,8 +1812,49 @@ function parsePlantActivity(lines: string[]): ParseResult {
     };
     const forkStack: { forkId: string; branchEnds: string[] }[] = [];
     const ifStack: { decisionId: string; yesBranchEnds: string[]; laneId: string | null }[] = [];
-    /** Stores label to apply to the NEXT sequential edge — used by "else" */
+    /** Stores label to apply to the NEXT sequential edge — used by "then" / "else". */
     let pendingEdgeLabel: string | null = null;
+    /**
+     * Branch labels that must survive an empty branch.
+     *
+     * Example:
+     *   if (Paid?) then (Yes)
+     *     :Capture;
+     *   else (COD)
+     *   endif
+     *   :Check stock;
+     *
+     * The COD branch has no action before endif, so its label must be carried to
+     * the next edge: Paid? --COD--> Check stock. A single global
+     * pendingEdgeLabel is not enough because after endif multiple branch ends can
+     * reconnect to the same next node, each with a different label.
+     */
+    const continuationLabels = new Map<string, string>();
+
+    const normalizeLabel = (value: string | undefined | null) => decodeMermaid((value ?? "").trim());
+
+    const takeEdgeLabel = (fromId: string): string | undefined => {
+        if (pendingEdgeLabel) return pendingEdgeLabel;
+        const label = continuationLabels.get(fromId);
+        if (label) {
+            continuationLabels.delete(fromId);
+            return label;
+        }
+        return undefined;
+    };
+
+    const connectLastTo = (to: string) => {
+        lastIds.forEach(lId => {
+            rawEdges.push({ from: lId, to, label: takeEdgeLabel(lId) });
+        });
+        pendingEdgeLabel = null;
+    };
+
+    const carryPendingLabelForEmptyBranch = () => {
+        if (!pendingEdgeLabel) return;
+        lastIds.forEach(lId => continuationLabels.set(lId, pendingEdgeLabel!));
+        pendingEdgeLabel = null;
+    };
 
     for (let i = 0; i < lines.length; i++) {
         const ln = lines[i].trim();
@@ -1842,10 +1883,7 @@ function parsePlantActivity(lines: string[]): ParseResult {
         }
         if (ln === "stop" || ln === "end") {
             const id = ensureNode("final-" + nanoid(4), "", "final");
-            lastIds.forEach(lId => {
-                rawEdges.push({ from: lId, to: id, label: pendingEdgeLabel || undefined });
-            });
-            pendingEdgeLabel = null;
+            connectLastTo(id);
             lastIds = [];
             continue;
         }
@@ -1854,14 +1892,11 @@ function parsePlantActivity(lines: string[]): ParseResult {
         if (ln.startsWith(":")) {
             let label = ln.slice(1);
             if (label.endsWith(";")) label = label.slice(0, -1);
-            label = label.trim();
+            label = normalizeLabel(label);
 
             const id = nanoid(6);
             ensureNode(id, label, "action");
-            lastIds.forEach(lId => {
-                rawEdges.push({ from: lId, to: id, label: pendingEdgeLabel || undefined });
-            });
-            pendingEdgeLabel = null;
+            connectLastTo(id);
             lastIds = [id];
             continue;
         }
@@ -1869,29 +1904,28 @@ function parsePlantActivity(lines: string[]): ParseResult {
         // If / Else / Endif
         if (ln.startsWith("if")) {
             const m = ln.match(/if\s*\(([^)]+)\)(?:\s+then\s*\(([^)]+)\))?/i);
-            const cond = m ? m[1] : "";
+            const cond = normalizeLabel(m ? m[1] : "");
             const id = ensureNode(nanoid(6), cond, "decision");
-            lastIds.forEach(lId => {
-                rawEdges.push({ from: lId, to: id, label: pendingEdgeLabel || undefined });
-            });
-            pendingEdgeLabel = null;
+            connectLastTo(id);
             ifStack.push({ decisionId: id, yesBranchEnds: [], laneId: currentLaneId });
             lastIds = [id];
             // Set pending label for YES branch (e.g. "yes" from "then (yes)")
-            if (m && m[2]) pendingEdgeLabel = m[2].trim() || "yes";
+            if (m && m[2]) pendingEdgeLabel = normalizeLabel(m[2]) || "yes";
             continue;
         }
         if (ln.startsWith("else") || ln.startsWith("elseif")) {
             const currentIf = ifStack[ifStack.length - 1];
             if (currentIf) {
-                // Save the current YES/previous branch ends
+                // Save the current YES/previous branch ends. If that branch is
+                // empty, preserve its pending label for the next node after endif.
+                carryPendingLabelForEmptyBranch();
                 currentIf.yesBranchEnds = [...currentIf.yesBranchEnds, ...lastIds];
 
                 // Restore the lane ID to what it was before the if block!
                 currentLaneId = currentIf.laneId;
 
                 const m = ln.match(/(?:else|elseif)\s*\(([^)]+)\)(?:\s+then\s*\(([^)]+)\))?/i);
-                const label = m ? m[2] || m[1] : "No";
+                const label = normalizeLabel(m ? m[2] || m[1] : "No");
 
                 if (ln.startsWith("elseif")) {
                     const elseifId = ensureNode(nanoid(6), m ? m[1] : "", "decision");
@@ -1900,7 +1934,7 @@ function parsePlantActivity(lines: string[]): ParseResult {
                     currentIf.decisionId = elseifId;
                     lastIds = [elseifId];
                     // Propagate "then (label)" forward as YES branch label
-                    if (m && m[2]) pendingEdgeLabel = m[2].trim() || "yes";
+                    if (m && m[2]) pendingEdgeLabel = normalizeLabel(m[2]) || "yes";
                 } else {
                     // else: next action connects FROM decision WITH label
                     lastIds = [currentIf.decisionId];
@@ -1910,6 +1944,9 @@ function parsePlantActivity(lines: string[]): ParseResult {
             continue;
         }
         if (ln === "endif") {
+            // The active then/else branch may be empty. Keep its label so the
+            // next statement after endif receives the correct edge label.
+            carryPendingLabelForEmptyBranch();
             const currentIf = ifStack.pop();
             if (currentIf) {
                 lastIds = [...currentIf.yesBranchEnds, ...lastIds];
@@ -1923,9 +1960,7 @@ function parsePlantActivity(lines: string[]): ParseResult {
         // Fork / Join
         if (ln === "fork") {
             const id = ensureNode(nanoid(6), "", "fork");
-            lastIds.forEach(lId => {
-                rawEdges.push({ from: lId, to: id });
-            });
+            connectLastTo(id);
             forkStack.push({ forkId: id, branchEnds: [] });
             lastIds = [id];
             continue;
@@ -1954,32 +1989,33 @@ function parsePlantActivity(lines: string[]): ParseResult {
         // Repeat / While
         if (ln === "repeat") {
             const id = ensureNode(nanoid(6), "Repeat", "action");
-            lastIds.forEach(lId => {
-                rawEdges.push({ from: lId, to: id });
-            });
+            connectLastTo(id);
             lastIds = [id];
             continue;
         }
         if (ln.startsWith("repeat while")) {
-            const cond = ln.match(/\((.+)\)/)?.[1] || "";
+            const cond = normalizeLabel(ln.match(/\((.+)\)/)?.[1] || "");
             const id = ensureNode(nanoid(6), cond, "decision");
             lastIds.forEach(lId => {
-                rawEdges.push({ from: lId, to: id, label: "Loop" });
+                rawEdges.push({ from: lId, to: id, label: takeEdgeLabel(lId) || "Loop" });
             });
+            pendingEdgeLabel = null;
             lastIds = [id];
             continue;
         }
 
         // Notes
         if (ln.startsWith("note")) {
-            const content =
+            const content = normalizeLabel(
                 ln.match(/note\s+(?:right|left|top|bottom)?\s*:\s*(.+)$/)?.[1] ||
                 ln.match(/note\s+(?:right|left|top|bottom)?\s*(.+)$/)?.[1] ||
-                "Note";
+                "Note"
+            );
             const id = ensureNode(nanoid(6), content, "note");
             lastIds.forEach(lId => {
-                rawEdges.push({ from: lId, to: id, label: "note" });
+                rawEdges.push({ from: lId, to: id, label: takeEdgeLabel(lId) || "note" });
             });
+            pendingEdgeLabel = null;
             continue;
         }
     }
