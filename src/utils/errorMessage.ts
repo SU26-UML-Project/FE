@@ -19,6 +19,14 @@ export const ERROR_CODES = {
   PROJECT_IN_TRASH: 1805,
   PROJECT_NOT_IN_TRASH: 1806,
   PLAN_LIMIT_EXCEEDED: 2132,
+  // Upgrade / Subscription errors
+  UPGRADE_REQUIRES_ACTIVE_SUBSCRIPTION: 2141,
+  UPGRADE_TARGET_NOT_HIGHER_TIER: 2142,
+  PLAN_TIER_NOT_CONFIGURED: 2143,
+  SUBSCRIPTION_ALREADY_ACTIVE: 2144,
+  DOWNGRADE_NOT_ALLOWED_WHILE_ACTIVE: 2145,
+  QUOTE_EXPIRED: 2146,
+  PENDING_PAYMENT_EXISTS: 2147,
 } as const;
 
 // Thông điệp ưu tiên theo code (ghi đè message thô từ server khi cần rõ nghĩa hơn).
@@ -31,6 +39,14 @@ const MESSAGE_BY_CODE: Record<number, string> = {
   [ERROR_CODES.PROJECT_IN_TRASH]: 'Dự án đang ở trong thùng rác. Hãy khôi phục trước khi mở.',
   [ERROR_CODES.PROJECT_NOT_IN_TRASH]: 'Dự án không nằm trong thùng rác.',
   [ERROR_CODES.PLAN_LIMIT_EXCEEDED]: 'Bạn đã đạt giới hạn số dự án của gói. Hãy nâng gói để khôi phục thêm.',
+  // Upgrade / Subscription messages
+  [ERROR_CODES.UPGRADE_REQUIRES_ACTIVE_SUBSCRIPTION]: 'Bạn chưa có gói trả phí đang hiệu lực để nâng cấp.',
+  [ERROR_CODES.UPGRADE_TARGET_NOT_HIGHER_TIER]: 'Chỉ có thể nâng lên gói bậc cao hơn.',
+  [ERROR_CODES.PLAN_TIER_NOT_CONFIGURED]: 'Gói chưa được cấu hình bậc.',
+  [ERROR_CODES.SUBSCRIPTION_ALREADY_ACTIVE]: 'Bạn đang sử dụng gói này.',
+  [ERROR_CODES.DOWNGRADE_NOT_ALLOWED_WHILE_ACTIVE]: 'Không thể hạ gói khi gói hiện tại còn hiệu lực.',
+  [ERROR_CODES.QUOTE_EXPIRED]: 'Báo giá đã hết hạn, vui lòng thử lại.',
+  [ERROR_CODES.PENDING_PAYMENT_EXISTS]: 'Bạn đang có giao dịch chờ thanh toán. Vui lòng hoàn tất hoặc huỷ giao dịch trước.',
 };
 
 /** Trả về code lỗi (nếu có) từ object lỗi đã reject bởi apiClient. */

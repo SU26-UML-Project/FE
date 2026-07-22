@@ -4,8 +4,12 @@ import { Check, ArrowRight, ArrowDown, Activity, RefreshCw, HardDrive, Globe, X,
 import AuthModal from '../components/Auth/AuthModal'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/useAuthStore'
+import { toast } from 'react-hot-toast'
 import type { BillingCycle } from '../types/pricing'
+import type { UpgradeQuoteResponse } from '../types/payment'
 import { planService, type PlanResponse } from '../services/planService'
+import { paymentService } from '../services/paymentService'
+import { ERROR_CODES, getErrorCode } from '../utils/errorMessage'
 
 /* ---------- helpers ---------- */
 const fmtVnd = (n: number) => n.toLocaleString('vi-VN')
@@ -333,19 +337,36 @@ const PlanCard = ({
   const isBlurred = isAnyExpanded && !isExpanded
   const canBounce = isHovered && !isExpanded && !isBlurred
 
-  const goCheckout = () => {
+  const goCheckout = async () => {
     if (plan.contactSales) { openAuth('login'); return }
     if (isFree) { openAuth('register'); return }
-    if (isAuthenticated) {
-      navigate('/payment-information', {
-        state: {
-          plan,
-          billing,
-        },
-      })
-    } else {
-      openAuth('login')
+    if (!isAuthenticated) { openAuth('login'); return }
+
+    if (currentPlanId === plan.id) {
+      toast('Bạn đang sử dụng gói này.')
+      return
     }
+
+    if (currentPlanId) {
+      try {
+        const quote = await paymentService.getQuote(plan.id)
+        navigate('/payment-information', { state: { plan, billing, quote } })
+      } catch (err: any) {
+        const code = getErrorCode(err)
+        if (code === ERROR_CODES.SUBSCRIPTION_ALREADY_ACTIVE) {
+          toast('Bạn đang sử dụng gói này.')
+        } else if (code === ERROR_CODES.DOWNGRADE_NOT_ALLOWED_WHILE_ACTIVE) {
+          toast('Không thể hạ gói khi gói hiện tại còn hiệu lực.')
+        } else if (code === ERROR_CODES.PENDING_PAYMENT_EXISTS) {
+          toast('Bạn đang có giao dịch chờ thanh toán. Vui lòng hoàn tất hoặc huỷ trước khi nâng cấp.')
+        } else {
+          toast(err?.message || 'Không thể lấy báo giá, vui lòng thử lại.')
+        }
+      }
+      return
+    }
+
+    navigate('/payment-information', { state: { plan, billing } })
   }
 
   return (

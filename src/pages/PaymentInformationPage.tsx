@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { Shield, Headphones, ArrowRight, CheckCircle, Scan } from 'lucide-react'
+import { ChevronDown, Shield, Headphones, ArrowRight, CheckCircle, Scan } from 'lucide-react'
 import apiClient from '../services/apiClient'
 import { toast } from 'react-hot-toast'
 import type { PlanResponse } from '../services/planService'
+import type { UpgradeQuoteResponse } from '../types/payment'
 
 type PaymentMethod = 'payos'
 type PaymentState = 'idle' | 'qr_shown' | 'paid'
@@ -33,15 +34,21 @@ const PaymentInformationPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const state = location.state as { plan: PlanResponse; billing: 'monthly' | 'yearly' } | null
+  const state = location.state as { plan: PlanResponse; billing: 'monthly' | 'yearly'; quote?: UpgradeQuoteResponse } | null
   const plan = state?.plan
   const billing = state?.billing ?? 'monthly'
+  const quote = state?.quote
   const perMonthYearly = plan ? yearlyPerMonth(plan) : null
   const activePrice = billing === 'yearly' && perMonthYearly != null ? perMonthYearly : (plan?.price ?? 0)
+  const displayAmount = quote ? quote.amountToPay : activePrice
+  const isUpgrade = !!quote
   const planName = plan?.name ?? 'Pro'
   const bullets = plan ? planBullets(plan) : []
   const displayCycle = billing === 'yearly' ? 'Theo năm' : 'Theo tháng'
+  const saving = quote ? quote.oldPrice - displayAmount : 0
+  const pct = quote ? quote.billingRemainingRatio : 0
 
+  const [agreed, setAgreed] = useState(false)
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('payos')
   const [loading, setLoading] = useState(false)
   const [qrCodeData, setQrCodeData] = useState<string | null>(null)
@@ -116,11 +123,15 @@ const PaymentInformationPage = () => {
           </div>
 
           <h1 className="text-[36px] font-bold leading-[1.2] mb-3 text-[#0b1c30]">
-            Thanh toán thành công!
+            {isUpgrade ? 'Nâng cấp thành công!' : 'Thanh toán thành công!'}
           </h1>
           <p className="text-[16px] text-[#434655] leading-[24px] mb-2">
-            Gói <span className="font-semibold text-[#0b1c30]">{paidPlanName}</span> đã được kích
-            hoạt cho tài khoản của bạn.
+            {isUpgrade ? (
+              <>Tài khoản của bạn đã được nâng cấp lên gói <span className="font-semibold text-[#0b1c30]">{paidPlanName}</span>.</>
+            ) : (
+              <>Gói <span className="font-semibold text-[#0b1c30]">{paidPlanName}</span> đã được kích
+              hoạt cho tài khoản của bạn.</>
+            )}
           </p>
           <p className="text-[14px] text-[#737686] mb-10">
             Mã đơn hàng: <span className="font-mono font-bold text-[#0b1c30]">{orderCode}</span>
@@ -158,48 +169,130 @@ const PaymentInformationPage = () => {
       <main className="flex-grow w-full max-w-[1280px] mx-auto px-16 pt-32 pb-16">
         <div className="mb-12">
           <h1 className="text-[48px] font-bold leading-[1.2] tracking-[-0.02em] uppercase mb-2">
-            Nâng cấp gói dịch vụ
+            {isUpgrade ? 'Nâng cấp gói dịch vụ' : 'Đăng ký gói dịch vụ'}
           </h1>
           <p className="text-[18px] leading-[28px] text-[#434655]">
-            Sẵn sàng kiến tạo hệ thống chuẩn chuyên gia cùng DiaUML Studio.
+            {isUpgrade
+              ? 'Nâng cấp ngay để mở khoá thêm tính năng và hạn mức cao hơn.'
+              : 'Sẵn sàng kiến tạo hệ thống chuẩn chuyên gia cùng DiaUML Studio.'}
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-12 items-start">
           {/* Left Column */}
           <div className="space-y-8">
-            {/* Step 1: Selected Plan */}
+            {/* Merged Plan Card */}
             <section className="bg-white border border-[#c3c6d7] rounded-xl p-8">
-              <div className="flex justify-between items-start gap-6 flex-wrap">
+              {/* Header */}
+              <div className="flex justify-between items-start gap-4 mb-5">
                 <div>
-                  <span className="text-[12px] font-semibold text-[#2563eb] uppercase tracking-widest block mb-1">
-                    Gói dịch vụ đã chọn
+                  <span className="text-[12px] font-semibold text-[#2563eb] uppercase tracking-widest block mb-0.5">
+                    {isUpgrade ? 'Gói dịch vụ mới' : 'Gói dịch vụ đã chọn'}
                   </span>
-                  <h2 className="text-[30px] font-bold leading-[1.3] mb-3">
+                  <h2 className="text-[30px] font-bold leading-[1.3]">
                     {planName.toUpperCase()} <span className="text-[#434655] font-normal">PLAN</span>
                   </h2>
-                  <ul className="space-y-2 mb-4">
-                    {bullets.slice(0, 5).map((bullet, i) => (
-                      <li key={i} className="flex items-center gap-2.5 text-[15px] text-[#434655]">
-                        <span className="w-[6px] h-[6px] rounded-full bg-[#2563eb] shrink-0" />
-                        {bullet}
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    onClick={() => navigate('/pricing')}
-                    className="text-[14px] text-[#2563eb] underline hover:text-[#1d4ed8] font-medium transition-colors"
-                  >
-                    ⟵ Thay đổi gói cước
-                  </button>
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="text-[32px] font-extrabold leading-[1.2] text-[#0b1c30]">
-                    {fmtVnd(activePrice)} đ
-                  </div>
-                  <div className="text-[14px] text-[#434655]">/{billing === 'yearly' ? 'năm' : 'tháng'}</div>
-                </div>
+                <button
+                  onClick={() => navigate('/pricing')}
+                  className="text-[13px] text-[#2563eb] hover:text-[#1d4ed8] font-semibold whitespace-nowrap transition-colors flex items-center gap-1"
+                >
+                  Thay đổi gói nâng cấp <ArrowRight size={13} />
+                </button>
               </div>
+
+              {/* Bullets — inline row */}
+              {bullets.length > 0 && (
+                <div className="flex flex-wrap gap-x-5 gap-y-1.5 mb-5 text-[14px] text-[#434655]">
+                  {bullets.slice(0, 5).map((b, i) => (
+                    <span key={i} className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#2563eb] shrink-0" />
+                      {b}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <hr className="border-[#e5e7eb] mb-5" />
+
+              {/* Price section */}
+              {isUpgrade && quote ? (
+                <>
+                  <div className="flex items-baseline gap-3 mb-2">
+                    <span className="text-[28px] font-extrabold text-[#0b1c30]">{fmtVnd(displayAmount)}₫</span>
+                    <span className="text-[13px] line-through text-[#a0a3b1]">{fmtVnd(activePrice)}₫</span>
+                    <span className="text-[12px] text-green-600 font-semibold">theo tỷ lệ</span>
+                  </div>
+                  <span className="inline-block text-[13px] text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-lg mb-5">
+                    Tiết kiệm {fmtVnd(saving)}₫ so với đăng ký mới từ đầu
+                  </span>
+                </>
+              ) : (
+                <div className="text-[15px] text-[#434655] mb-5">
+                  Đơn giá: <strong className="text-[#0b1c30]">{fmtVnd(activePrice)}₫</strong>/{billing === 'yearly' ? 'năm' : 'tháng'}
+                </div>
+              )}
+
+              {/* Quota upgrade — inline */}
+              {isUpgrade && quote && (
+                <>
+                  <hr className="border-[#e5e7eb] mb-4" />
+                  <div className="mb-4">
+                    <div className="text-[13px] text-[#434655] font-semibold mb-2">Hạn mức AI sau nâng cấp</div>
+                    <div className="flex items-baseline gap-2 mb-1.5">
+                      <span className="text-[14px] text-[#434655]">{fmtVnd(quote.oldNominalQuota)}</span>
+                      <ArrowRight size={13} className="text-green-600" />
+                      <span className="text-[14px] text-green-700 font-bold">{fmtVnd(quote.newNominalQuota)}</span>
+                      <span className="text-[12px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded font-semibold">+{quote.quotaDelta}</span>
+                      <span className="text-[12px] text-[#737686]">lượt/kỳ</span>
+                      <span className="text-[12px] text-[#737686] ml-auto">
+                        Có thể dùng ngay <strong className="text-[#0b1c30]">{fmtVnd(quote.availableAfterUpgrade)}</strong>
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500 rounded-full"
+                        style={{ width: `${Math.min((quote.oldNominalQuota / quote.newNominalQuota) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[11px] text-[#737686] mt-0.5">
+                      <span>{fmtVnd(quote.oldNominalQuota)} cũ</span>
+                      <span>{fmtVnd(quote.newNominalQuota)} mới</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Calculation breakdown — collapsible */}
+              {isUpgrade && quote && (
+                <details className="group">
+                  <summary className="cursor-pointer text-[13px] text-[#2563eb] font-medium hover:text-[#1d4ed8] transition-colors select-none list-none flex items-center gap-1">
+                    <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+                    Xem chi tiết cách tính
+                  </summary>
+                  <div className="mt-3 bg-[#f5f7fa] rounded-lg p-4 font-mono text-[13px] space-y-2">
+                    <div className="text-[#434655] text-[12px] font-sans font-semibold">
+                      (Giá mới − Giá cũ) × Tỷ lệ thời gian còn lại
+                    </div>
+                    <div>
+                      <span className="text-[#737686]">Chênh lệch giá:</span>
+                      <span className="block text-[#0b1c30] ml-3">
+                        {fmtVnd(quote.newPrice)} − {fmtVnd(quote.oldPrice)} = <strong>{fmtVnd(quote.priceDifference)}₫</strong>
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[#737686]">Tỷ lệ còn lại:</span>
+                      <span className="block text-[#0b1c30] ml-3">{(pct * 100).toFixed(1)}% <span className="text-[#737686] font-sans font-normal">({quote.billingRemainingDays} / {quote.billingTotalDays} ngày)</span></span>
+                    </div>
+                    <div>
+                      <span className="text-[#737686]">Số tiền cần thanh toán:</span>
+                      <span className="block text-[#0b1c30] ml-3">
+                        {fmtVnd(quote.priceDifference)} × {(pct * 100).toFixed(1)}% = <strong className="text-green-700">{fmtVnd(displayAmount)}₫</strong>
+                      </span>
+                    </div>
+                  </div>
+                </details>
+              )}
             </section>
 
             {qrCodeData ? (
@@ -222,8 +315,14 @@ const PaymentInformationPage = () => {
                   </div>
                   <div className="flex justify-between text-[14px] py-1">
                     <span className="text-[#434655] font-medium">Số tiền:</span>
-                    <span className="font-bold text-[#2563eb]">{fmtVnd(activePrice)} đ</span>
+                    <span className="font-bold text-[#2563eb]">{fmtVnd(displayAmount)} đ</span>
                   </div>
+                  {isUpgrade && (
+                    <div className="flex justify-between text-[13px] py-1">
+                      <span className="text-[#434655] font-medium">Loại giao dịch:</span>
+                      <span className="font-semibold text-[#0b1c30]">Nâng cấp</span>
+                    </div>
+                  )}
                 </div>
                 <div className="mt-6 flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-[#2563eb] border-t-transparent rounded-full animate-spin" />
@@ -233,7 +332,7 @@ const PaymentInformationPage = () => {
                 </div>
               </section>
             ) : (
-              /* Step 2: Payment Method */
+              /* Payment Method */
               <section>
                 <h3 className="text-[12px] font-bold uppercase tracking-widest text-[#434655] mb-4">
                   Phương thức thanh toán
@@ -282,42 +381,85 @@ const PaymentInformationPage = () => {
               </h3>
 
               <div className="space-y-1 mb-6">
-                <div className="flex justify-between items-center py-2 text-[15px]">
-                  <span className="text-[#434655]">Tạm tính</span>
-                  <span className="font-mono font-semibold text-right">{fmtVnd(activePrice)} đ</span>
-                </div>
-                <div className="flex justify-between items-center py-2 text-[15px]">
-                  <span className="text-[#434655]">Thuế (0%)</span>
-                  <span className="font-mono font-semibold text-right">0 đ</span>
-                </div>
-                <div className="flex justify-between items-center py-2 text-[15px]">
-                  <span className="text-[#434655]">Chu kì thanh toán</span>
-                  <span className="font-medium text-[#0b1c30]">{displayCycle}</span>
-                </div>
+                {isUpgrade && quote ? (
+                  <>
+                    <div className="flex justify-between items-center py-2 text-[15px]">
+                      <span className="text-[#434655]">Giá gói cũ</span>
+                      <span className="font-mono font-semibold text-right text-[#a0a3b1] line-through">{fmtVnd(quote.oldPrice)} đ</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 text-[15px]">
+                      <span className="text-[#434655]">Giá gói mới</span>
+                      <span className="font-mono font-semibold text-right">{fmtVnd(activePrice)} đ</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 text-[15px] text-green-700">
+                      <span className="text-[#434655]">Tiết kiệm</span>
+                      <span className="font-mono font-semibold text-right">-{fmtVnd(quote.priceDifference)} đ</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 text-[15px]">
+                      <span className="text-[#434655]">Tỷ lệ còn lại kỳ thanh toán</span>
+                      <span className="font-medium text-[#0b1c30]">{(pct * 100).toFixed(1)}% <span className="text-[#737686] font-normal">({quote.billingRemainingDays}/{quote.billingTotalDays} ngày)</span></span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center py-2 text-[15px]">
+                      <span className="text-[#434655]">Tạm tính</span>
+                      <span className="font-mono font-semibold text-right">{fmtVnd(activePrice)} đ</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 text-[15px]">
+                      <span className="text-[#434655]">Thuế (0%)</span>
+                      <span className="font-mono font-semibold text-right">0 đ</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 text-[15px]">
+                      <span className="text-[#434655]">Chu kì thanh toán</span>
+                      <span className="font-medium text-[#0b1c30]">{displayCycle}</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <hr className="border-t border-[#c3c6d7] my-3" />
 
               <div className="flex justify-between items-center py-3 mb-6">
-                <span className="text-[20px] font-bold">Tổng cộng</span>
+                <span className="text-[20px] font-bold">{isUpgrade ? 'Số tiền cần thanh toán' : 'Tổng cộng'}</span>
                 <span className="font-mono text-[24px] font-extrabold text-[#2563eb]">
-                  {fmtVnd(activePrice)} đ
+                  {fmtVnd(displayAmount)} đ
                 </span>
               </div>
 
               {!qrCodeData && (
                 <>
+                  {/* Confirmation checkbox — bắt buộc cho upgrade */}
+                  {isUpgrade && (
+                    <label className="flex items-start gap-3 mb-5 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={agreed}
+                        onChange={(e) => setAgreed(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-gray-300 text-[#2563eb] focus:ring-[#2563eb] cursor-pointer"
+                      />
+                      <span className="text-[13px] text-[#434655] leading-relaxed select-none group-hover:text-[#0b1c30] transition-colors">
+                        Tôi hiểu: nâng cấp có hiệu lực ngay, thời hạn gói giữ nguyên ngày kết thúc hiện tại.
+                      </span>
+                    </label>
+                  )}
+
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={loading}
-                    className={`w-full py-4 text-[18px] font-bold rounded-lg transition-all flex items-center justify-center gap-2.5 ${loading
+                    disabled={loading || (isUpgrade && !agreed)}
+                    className={`w-full py-4 text-[18px] font-bold rounded-lg transition-all flex items-center justify-center gap-2.5 ${
+                      loading || (isUpgrade && !agreed)
                         ? 'bg-[#93c5fd] cursor-not-allowed text-white'
                         : 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white hover:shadow-[0_8px_32px_rgba(37,99,235,0.35)] active:scale-[0.98] hover:-translate-y-px'
-                      }`}
+                    }`}
                   >
-                    {loading ? 'Đang tạo mã...' : 'Thanh Toán Ngay'}
-                    {!loading && <ArrowRight size={20} strokeWidth={2.5} className="transition-transform group-hover:translate-x-1" />}
+                    {loading
+                      ? 'Đang tạo mã...'
+                      : isUpgrade
+                        ? `Thanh toán ${fmtVnd(displayAmount)}₫`
+                        : 'Thanh Toán Ngay'}
+                    {!loading && <ArrowRight size={20} strokeWidth={2.5} />}
                   </button>
                   <p className="text-[12px] text-[#737686] text-center mt-4 leading-relaxed">
                     Bằng việc hoàn tất thanh toán, bạn đồng ý với <a href="#" className="text-[#2563eb] underline">Điều khoản dịch vụ</a> và <a href="#" className="text-[#2563eb] underline">Chính sách bảo mật</a>.
