@@ -6,12 +6,13 @@ import { ConfirmModal } from "../ConfirmModal";
 import { Modal } from "../Modal";
 import { cn } from "../../../utils/cn";
 import toast from "react-hot-toast";
-import { planService, type PlanResponse, type PlanRequest, type PlanStatus } from "../../../services/planService";
+import { planService, type PlanResponse, type PlanRequest, type PlanStatus, type PlanBillingCycle } from "../../../services/planService";
 import { featureService, type FeatureCatalogItem } from "../../../services/featureService";
+import { getErrorMessage } from "../../../utils/errorMessage";
 
 type PlanFeature = { id: string; label: string; included: boolean };
 type PlanLimits = { projects: number | null; diagrams: number | null; aiQueries: number | null; exportPdf: number | null; collaborators: number | null };
-type SubscriptionPlan = { id: string; name: string; description: string; price: number; currency: string; contactOnly: boolean; status: PlanStatus; popular: boolean; subscribers: number; color: string; features: PlanFeature[]; limits: PlanLimits; yearlyBilling: boolean; yearlyDiscount: number; durationDays: number; rateLimitPer10s: number | null; rateLimitPerMin: number | null; };
+type SubscriptionPlan = { id: string; name: string; description: string; price: number; currency: string; contactOnly: boolean; status: PlanStatus; popular: boolean; subscribers: number; color: string; features: PlanFeature[]; limits: PlanLimits; yearlyBilling: boolean; yearlyDiscount: number; durationDays: number; rateLimitPer10s: number | null; rateLimitPerMin: number | null; tierOrder: number; isBasePlan: boolean; billingCycle: PlanBillingCycle; quotaPeriodDays: number | null; };
 
 const statusLabel: Record<PlanStatus, { tone: "emerald" | "amber" | "slate"; label: string }> = {
   ACTIVE: { tone: "emerald", label: "Đang hoạt động" },
@@ -21,11 +22,12 @@ const statusLabel: Record<PlanStatus, { tone: "emerald" | "amber" | "slate"; lab
 
 const accentColors = ["#e4a11b", "#0ea5e9", "#10b981", "#6366f1", "#ec4899", "#0f172a", "#8b5cf6", "#14b8a6"];
 
-type Draft = { id: string; mode: "create" | "edit"; name: string; description: string; price: number; contactOnly: boolean; currency: string; durationDays: number; yearlyBilling: boolean; yearlyDiscount: number; status: PlanStatus; popular: boolean; subscribers: number; color: string; features: Record<string, boolean>; limits: PlanLimits; rateLimitPer10s: number | null; rateLimitPerMin: number | null; };
+type Draft = { id: string; mode: "create" | "edit"; name: string; description: string; price: number; contactOnly: boolean; currency: string; durationDays: number; yearlyBilling: boolean; yearlyDiscount: number; status: PlanStatus; popular: boolean; subscribers: number; color: string; features: Record<string, boolean>; limits: PlanLimits; rateLimitPer10s: number | null; rateLimitPerMin: number | null; isBasePlan: boolean; billingCycle: PlanBillingCycle; quotaPeriodDays: number | null; };
 type Billing = "monthly" | "yearly";
 
 const fmtVnd = (n: number) => new Intl.NumberFormat("vi-VN").format(n);
 const fmtLimit = (v: number | null) => (v == null ? "—" : v === -1 ? "∞" : fmtVnd(v));
+const sortByTier = (a: SubscriptionPlan, b: SubscriptionPlan) => a.tierOrder - b.tierOrder;
 export const discountLevels = [5, 10, 15, 17, 20, 25, 30];
 
 type PriceInfo = { amount: string; suffix: string; perMonth?: string; saved?: string; isZero: boolean; yearlySupported: boolean; };
@@ -219,9 +221,11 @@ function LimitField({ label, value, onChange }: { label: string; value: number |
   </div>;
 }
 
-function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChange }: { draft: Draft; setDraft: (d: Draft) => void; catalog: FeatureCatalogItem[]; onSave: () => void; onClose: () => void; tab: "info" | "config" | "features" | "review"; onTabChange: (t: "info" | "config" | "features" | "review") => void }) {
+function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChange, otherBasePlanName }: { draft: Draft; setDraft: (d: Draft) => void; catalog: FeatureCatalogItem[]; onSave: () => void; onClose: () => void; tab: "info" | "config" | "features" | "review"; onTabChange: (t: "info" | "config" | "features" | "review") => void; otherBasePlanName?: string }) {
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
   const setLimit = (patch: Partial<PlanLimits>) => set({ limits: { ...draft.limits, ...patch } });
+  // billingCycle auto theo yearlyBilling (vẫn cho override bằng select bên dưới).
+  const toggleYearly = () => { const next = !draft.yearlyBilling; set({ yearlyBilling: next, billingCycle: next ? "YEARLY" : "MONTHLY" }); };
   const inputCls = "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-900 outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100";
 
   const steps = ["info", "config", "features", "review"] as const;
@@ -279,11 +283,11 @@ function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChang
           <Switch on={draft.contactOnly} onClick={() => set({ contactOnly: !draft.contactOnly })} />
         </label>
 
-        {!draft.contactOnly && <label className="block mb-2.5"><span className="mb-1 flex items-center gap-2 text-[12.5px] font-medium text-slate-700"><CalendarDays className="h-3.5 w-3.5 text-slate-400" /> Giá hàng tháng (VNĐ) <span className="font-normal text-slate-400">— đặt 0 cho gói miễn phí</span></span><input type="text" inputMode="numeric" value={draft.price || ""} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); set({ price: v ? Math.max(0, parseInt(v, 10)) : 0 }); }} placeholder="0" className={inputCls} /></label>}
+        {!draft.contactOnly && <label className="block mb-2.5"><span className="mb-1 flex items-center gap-2 text-[12.5px] font-medium text-slate-700"><CalendarDays className="h-3.5 w-3.5 text-slate-400" /> Giá hàng tháng (VNĐ) <span className="font-normal text-slate-400">— đặt 0 cho gói miễn phí</span></span><input type="text" inputMode="numeric" value={draft.price ? fmtVnd(draft.price) : ""} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); set({ price: v ? Math.max(0, parseInt(v, 10)) : 0 }); }} placeholder="0" className={inputCls} /></label>}
 
         {!draft.contactOnly && draft.price > 0 && (
           <div className="overflow-hidden rounded-xl border border-slate-200">
-            <button type="button" onClick={() => set({ yearlyBilling: !draft.yearlyBilling })} className={cn("flex w-full items-center justify-between gap-3 p-3 text-left transition", draft.yearlyBilling ? "bg-indigo-50/50" : "bg-white hover:bg-slate-50")}>
+            <button type="button" onClick={toggleYearly} className={cn("flex w-full items-center justify-between gap-3 p-3 text-left transition", draft.yearlyBilling ? "bg-indigo-50/50" : "bg-white hover:bg-slate-50")}>
               <span className="flex items-center gap-2.5">
                 <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg transition", draft.yearlyBilling ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500")}>
                   <CalendarDays className="h-4 w-4" />
@@ -293,7 +297,7 @@ function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChang
                   <span className="block text-[11.5px] text-slate-400">{draft.yearlyBilling ? "Đang bật — khách hàng có thể trả 1 lần cả năm để được giảm giá." : "Mặc định chỉ thanh toán theo tháng."}</span>
                 </span>
               </span>
-              <Switch on={draft.yearlyBilling} onClick={() => set({ yearlyBilling: !draft.yearlyBilling })} />
+              <Switch on={draft.yearlyBilling} onClick={toggleYearly} />
             </button>
 
             {draft.yearlyBilling && (
@@ -319,6 +323,34 @@ function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChang
             )}
           </div>
         )}
+      </div>
+
+      <div>
+        <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Loại gói & kỳ quota</p>
+        <label className="mb-2.5 flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 p-3">
+          <span className="flex items-center gap-2 text-[13px] font-medium text-slate-700"><Sparkles className="h-4 w-4 text-emerald-500" /> Đặt làm gói cơ bản (base plan)</span>
+          <Switch on={draft.isBasePlan} onClick={() => set({ isBasePlan: !draft.isBasePlan })} />
+        </label>
+        {draft.isBasePlan && otherBasePlanName && (
+          <p className="mb-2.5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-700">
+            <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            Đang có gói cơ bản là “{otherBasePlanName}”. Lưu sẽ chuyển quyền gói cơ bản sang gói này.
+          </p>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block"><span className="mb-1 block text-[12.5px] font-medium text-slate-700">Chu kỳ thanh toán</span>
+            <div className="relative">
+              <select value={draft.billingCycle} onChange={(e) => set({ billingCycle: e.target.value as PlanBillingCycle })} className={cn(inputCls, "appearance-none pr-9")}>
+                <option value="MONTHLY">Hàng tháng (MONTHLY)</option>
+                <option value="YEARLY">Hàng năm (YEARLY)</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            </div>
+          </label>
+          <label className="block"><span className="mb-1 block text-[12.5px] font-medium text-slate-700">Số ngày 1 kỳ quota</span>
+            <input type="text" inputMode="numeric" value={draft.quotaPeriodDays ?? ""} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); set({ quotaPeriodDays: v ? Math.max(1, parseInt(v, 10)) : null }); }} placeholder="VD: 30" className={inputCls} />
+          </label>
+        </div>
       </div>
 
       <div>
@@ -450,13 +482,13 @@ function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChang
 function toDraft(plan: SubscriptionPlan): Draft {
   const features: Record<string, boolean> = {};
   plan.features.forEach((f) => (features[f.id] = f.included));
-  return { id: plan.id, mode: "edit", name: plan.name, description: plan.description, price: plan.price, contactOnly: plan.contactOnly, currency: plan.currency, durationDays: plan.durationDays, yearlyBilling: plan.yearlyBilling, yearlyDiscount: plan.yearlyDiscount, status: plan.status, popular: plan.popular, subscribers: plan.subscribers, color: plan.color, features, limits: { ...plan.limits }, rateLimitPer10s: plan.rateLimitPer10s, rateLimitPerMin: plan.rateLimitPerMin };
+  return { id: plan.id, mode: "edit", name: plan.name, description: plan.description, price: plan.price, contactOnly: plan.contactOnly, currency: plan.currency, durationDays: plan.durationDays, yearlyBilling: plan.yearlyBilling, yearlyDiscount: plan.yearlyDiscount, status: plan.status, popular: plan.popular, subscribers: plan.subscribers, color: plan.color, features, limits: { ...plan.limits }, rateLimitPer10s: plan.rateLimitPer10s, rateLimitPerMin: plan.rateLimitPerMin, isBasePlan: plan.isBasePlan, billingCycle: plan.billingCycle, quotaPeriodDays: plan.quotaPeriodDays };
 }
 
 function blankDraft(catalog: FeatureCatalogItem[]): Draft {
   const features: Record<string, boolean> = {};
   catalog.forEach((f) => (features[f.id] = false));
-  return { id: "", mode: "create", name: "", description: "", price: 0, contactOnly: false, currency: "VND", durationDays: 30, yearlyBilling: false, yearlyDiscount: 20, status: "DRAFT", popular: false, subscribers: 0, color: accentColors[0], features, limits: { projects: 5, diagrams: 50, aiQueries: 100, exportPdf: 10, collaborators: 1 }, rateLimitPer10s: null, rateLimitPerMin: null };
+  return { id: "", mode: "create", name: "", description: "", price: 0, contactOnly: false, currency: "VND", durationDays: 30, yearlyBilling: false, yearlyDiscount: 20, status: "DRAFT", popular: false, subscribers: 0, color: accentColors[0], features, limits: { projects: 5, diagrams: 50, aiQueries: 100, exportPdf: 10, collaborators: 1 }, rateLimitPer10s: null, rateLimitPerMin: null, isBasePlan: false, billingCycle: "MONTHLY", quotaPeriodDays: 30 };
 }
 
 function fromApi(be: PlanResponse): SubscriptionPlan {
@@ -484,6 +516,10 @@ function fromApi(be: PlanResponse): SubscriptionPlan {
     durationDays: be.durationDays ?? 30,
     rateLimitPer10s: be.rateLimitPer10s ?? null,
     rateLimitPerMin: be.rateLimitPerMin ?? null,
+    tierOrder: be.tierOrder ?? 0,
+    isBasePlan: be.isBasePlan ?? false,
+    billingCycle: be.billingCycle ?? "MONTHLY",
+    quotaPeriodDays: be.quotaPeriodDays ?? null,
   };
 }
 
@@ -502,6 +538,9 @@ function draftToRequest(d: Draft): PlanRequest {
     durationDays: d.durationDays,
     rateLimitPer10s: d.rateLimitPer10s,
     rateLimitPerMin: d.rateLimitPerMin,
+    isBasePlan: d.isBasePlan,
+    billingCycle: d.billingCycle,
+    quotaPeriodDays: d.quotaPeriodDays,
     limits: d.limits,
     enabledFeatureIds: Object.entries(d.features).filter(([, on]) => on).map(([id]) => id),
   };
@@ -522,6 +561,9 @@ function planToRequest(p: SubscriptionPlan, patch?: Partial<PlanRequest>): PlanR
     durationDays: p.durationDays,
     rateLimitPer10s: p.rateLimitPer10s,
     rateLimitPerMin: p.rateLimitPerMin,
+    isBasePlan: p.isBasePlan,
+    billingCycle: p.billingCycle,
+    quotaPeriodDays: p.quotaPeriodDays,
     limits: p.limits,
     enabledFeatureIds: p.features.filter((f) => f.included).map((f) => f.id),
     ...patch,
@@ -544,7 +586,7 @@ export default function SubscriptionsSection() {
       .then(([ps, cat]) => {
         if (!alive) return;
         setCatalog(cat ?? []);
-        setPlans((ps ?? []).map(fromApi));
+        setPlans((ps ?? []).map(fromApi).sort(sortByTier));
       })
       .catch(() => { if (alive) toast.error("Không tải được danh sách gói"); })
       .finally(() => { if (alive) setLoading(false); });
@@ -556,33 +598,47 @@ export default function SubscriptionsSection() {
   const yearlyCount = plans.filter((p) => p.yearlyBilling).length;
   const mrr = plans.filter((p) => p.status === "ACTIVE").reduce((s, p) => s + p.price * p.subscribers, 0);
 
+  // BE tự renumber tierOrder sau create/sửa giá/xóa → reload để thấy thứ tự mới.
+  async function reload() {
+    const ps = await planService.getAdminPlans();
+    setPlans((ps ?? []).map(fromApi).sort(sortByTier));
+  }
+
   async function save() {
     if (!draft) return;
     const body = draftToRequest(draft);
     try {
       if (draft.mode === "edit") {
-        const updated = await planService.updatePlan(draft.id, body);
-        setPlans((arr) => arr.map((p) => (p.id === draft.id ? fromApi(updated) : p)));
+        await planService.updatePlan(draft.id, body);
         toast.success("Đã lưu gói");
       } else {
-        const created = await planService.createPlan(body);
-        setPlans((arr) => [...arr, fromApi(created)]);
+        await planService.createPlan(body);
         toast.success("Đã tạo gói");
       }
+      await reload();
       setDraft(null);
-    } catch (e: any) {
-      toast.error(e?.message || "Lưu gói thất bại");
+    } catch (e) {
+      toast.error(getErrorMessage(e, "Lưu gói thất bại"));
     }
   }
   async function doDelete() {
     if (!confirmDel) return;
     try {
       await planService.deletePlan(confirmDel.id);
-      setPlans((arr) => arr.filter((p) => p.id !== confirmDel.id));
       toast.success("Đã xoá gói");
       setConfirmDel(null);
-    } catch (e: any) {
-      toast.error(e?.message || "Xoá gói thất bại");
+      await reload();
+    } catch (e) {
+      toast.error(getErrorMessage(e, "Xoá gói thất bại"));
+    }
+  }
+  async function doReorder() {
+    try {
+      const ps = await planService.reorderPlans();
+      setPlans((ps ?? []).map(fromApi).sort(sortByTier));
+      toast.success("Đã sắp xếp lại theo giá");
+    } catch (e) {
+      toast.error(getErrorMessage(e, "Sắp xếp lại thất bại"));
     }
   }
   async function changeStatus(planId: string, status: PlanStatus) {
@@ -593,9 +649,9 @@ export default function SubscriptionsSection() {
     try {
       const updated = await planService.updatePlan(planId, planToRequest(plan, { status }));
       setPlans((arr) => arr.map((p) => (p.id === planId ? fromApi(updated) : p)));
-    } catch (e: any) {
+    } catch (e) {
       setPlans((arr) => arr.map((p) => (p.id === planId ? { ...p, status: prev } : p)));
-      toast.error(e?.message || "Đổi trạng thái thất bại");
+      toast.error(getErrorMessage(e, "Đổi trạng thái thất bại"));
     }
   }
 
@@ -672,6 +728,11 @@ export default function SubscriptionsSection() {
           <div><h3 className="text-[14px] font-semibold text-slate-900">Các gói subscription</h3><p className="text-[13px] text-slate-500">Tạo gói và bật/tắt từng tính năng đi kèm.</p></div>
           <div className="flex items-center gap-2">
             <Segmented value={view} onChange={setView} options={[{ id: "grid", label: "", icon: <LayoutGrid className="h-4 w-4" /> }, { id: "list", label: "", icon: <List className="h-4 w-4" /> }]} />
+            {plans.length > 1 && (
+              <button onClick={doReorder} title="Renumber tierOrder theo giá" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50">
+                <TrendingUp className="h-4 w-4" /> Sắp xếp theo giá
+              </button>
+            )}
             <button onClick={() => setDraft(blankDraft(catalog))} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-slate-700">
               <Plus className="h-4 w-4" /> Tạo gói
             </button>
@@ -739,7 +800,7 @@ export default function SubscriptionsSection() {
             </button>
           ))}
         </div>}>
-        {draft && <PlanEditor draft={draft} setDraft={setDraft} catalog={catalog} onSave={save} onClose={() => setDraft(null)} tab={editorTab} onTabChange={setEditorTab} />}
+        {draft && <PlanEditor draft={draft} setDraft={setDraft} catalog={catalog} onSave={save} onClose={() => setDraft(null)} tab={editorTab} onTabChange={setEditorTab} otherBasePlanName={plans.find((p) => p.isBasePlan && p.id !== draft.id)?.name} />}
       </Modal>
 
       <ConfirmModal

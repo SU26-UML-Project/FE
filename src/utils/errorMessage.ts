@@ -19,6 +19,11 @@ export const ERROR_CODES = {
   PROJECT_IN_TRASH: 1805,
   PROJECT_NOT_IN_TRASH: 1806,
   PLAN_LIMIT_EXCEEDED: 2132,
+  // Admin — quản lý gói
+  PLAN_NAME_EXISTED: 2113,
+  PLAN_HAS_SUBSCRIBERS: 2114,
+  BASE_PLAN_ALREADY_EXISTS: 2117,
+  PLAN_PRICE_DUPLICATE: 2119,
   // Upgrade / Subscription errors
   UPGRADE_REQUIRES_ACTIVE_SUBSCRIPTION: 2141,
   UPGRADE_TARGET_NOT_HIGHER_TIER: 2142,
@@ -42,6 +47,11 @@ const MESSAGE_BY_CODE: Record<number, string> = {
   [ERROR_CODES.PROJECT_IN_TRASH]: 'Dự án đang ở trong thùng rác. Hãy khôi phục trước khi mở.',
   [ERROR_CODES.PROJECT_NOT_IN_TRASH]: 'Dự án không nằm trong thùng rác.',
   [ERROR_CODES.PLAN_LIMIT_EXCEEDED]: 'Bạn đã đạt giới hạn số dự án của gói. Hãy nâng gói để khôi phục thêm.',
+  // Admin — quản lý gói
+  [ERROR_CODES.PLAN_NAME_EXISTED]: 'Tên gói đã tồn tại. Vui lòng chọn tên khác.',
+  [ERROR_CODES.PLAN_HAS_SUBSCRIBERS]: 'Không thể xoá: gói vẫn còn người dùng đang đăng ký.',
+  [ERROR_CODES.BASE_PLAN_ALREADY_EXISTS]: 'Đã có gói cơ bản khác. Lưu sẽ chuyển quyền gói cơ bản sang gói này.',
+  [ERROR_CODES.PLAN_PRICE_DUPLICATE]: 'Giá này đã trùng với một gói khác. Mỗi gói phải có giá riêng.',
   // Upgrade / Subscription messages
   [ERROR_CODES.UPGRADE_REQUIRES_ACTIVE_SUBSCRIPTION]: 'Bạn chưa có gói trả phí đang hiệu lực để nâng cấp.',
   [ERROR_CODES.UPGRADE_TARGET_NOT_HIGHER_TIER]: 'Chỉ có thể nâng lên gói bậc cao hơn.',

@@ -2,6 +2,7 @@ import apiClient from "./apiClient";
 import type { ApiResponse } from "../types/api";
 
 export type PlanStatus = "ACTIVE" | "DRAFT" | "ARCHIVED";
+export type PlanBillingCycle = "MONTHLY" | "YEARLY";
 
 /** -1 = không giới hạn; null = chưa set. */
 export interface PlanLimits {
@@ -35,6 +36,10 @@ export interface PlanResponse {
   contactSales: boolean; // true → "Liên hệ báo giá", bỏ qua price khi hiển thị
   rateLimitPer10s: number | null; // chỉ có ở /admin/plans; null ở public
   rateLimitPerMin: number | null;
+  tierOrder: number; // BE tự tính theo giá (0 = rẻ nhất), read-only
+  isBasePlan: boolean; // gói cơ bản (chỉ 1 gói)
+  billingCycle: PlanBillingCycle;
+  quotaPeriodDays: number | null; // số ngày 1 kỳ quota
   limits: PlanLimits;
   features: PlanFeatureFlag[]; // đủ catalog, included=true/false
 }
@@ -53,8 +58,12 @@ export interface PlanRequest {
   contactSales?: boolean;
   rateLimitPer10s?: number | null;
   rateLimitPerMin?: number | null;
+  isBasePlan?: boolean;
+  billingCycle?: PlanBillingCycle;
+  quotaPeriodDays?: number | null;
   limits?: PlanLimits;
   enabledFeatureIds?: string[]; // chỉ id feature được bật
+  // KHÔNG gửi tierOrder — BE tự tính theo giá.
 }
 
 export const planService = {
@@ -79,4 +88,8 @@ export const planService = {
   /** Chặn (code 2114) nếu còn subscriber ACTIVE. */
   deletePlan: (id: string) =>
     apiClient.delete<any, ApiResponse<void>>(`/admin/plans/${id}`).then((r) => r.result),
+
+  /** Renumber tierOrder theo giá — không body, trả list đã sắp xếp lại. */
+  reorderPlans: () =>
+    apiClient.post<any, ApiResponse<PlanResponse[]>>("/admin/plans/reorder").then((r) => r.result),
 };
