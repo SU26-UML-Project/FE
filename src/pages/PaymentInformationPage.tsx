@@ -42,7 +42,7 @@ const PaymentInformationPage = () => {
   const bullets = plan ? planBullets(plan) : []
   const displayCycle = billing === 'yearly' ? 'Theo năm' : 'Theo tháng'
 
-  const [upgradeMode, setUpgradeMode] = useState<UpgradeMode>('PRORATED')
+  const [upgradeMode, setUpgradeMode] = useState<UpgradeMode>('DIRECT')
   const [agreed, setAgreed] = useState(false)
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('payos')
   const [loading, setLoading] = useState(false)
