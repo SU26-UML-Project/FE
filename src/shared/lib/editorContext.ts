@@ -1,5 +1,5 @@
-import { createContext, useContext } from "react";
-import type { FlowNodeData } from "../types";
+﻿import { createContext, useContext } from "react";
+import type { FlowNodeData } from "../../types";
 
 interface EditorContextValue {
   updateNodeData: (id: string, patch: Partial<FlowNodeData>) => void;

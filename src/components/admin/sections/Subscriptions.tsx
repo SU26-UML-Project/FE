@@ -1,14 +1,14 @@
 import { useEffect, useState, useRef } from "react";
-import { useClickOutside } from "../../../hooks/useClickOutside";
+import { useClickOutside } from "../../../shared/hooks/useClickOutside";
 import { BadgePercent, Calculator, CalendarDays, Check, ChevronDown, CircleDollarSign, Crown, LayoutGrid, List, Palette, Pencil, Plus, Sparkles, Trash2, TrendingUp, Users, X, Zap } from "lucide-react";
 import { Badge, Card, Segmented, Skeleton } from "../ui";
 import { ConfirmModal } from "../ConfirmModal";
 import { Modal } from "../Modal";
-import { cn } from "../../../utils/cn";
+import { cn } from "../../../shared/lib/cn";
 import toast from "react-hot-toast";
 import { planService, type PlanResponse, type PlanRequest, type PlanStatus, type PlanBillingCycle } from "../../../services/planService";
 import { featureService, type FeatureCatalogItem } from "../../../services/featureService";
-import { getErrorMessage } from "../../../utils/errorMessage";
+import { getErrorMessage } from "../../../shared/lib/errorMessage";
 
 type PlanFeature = { id: string; label: string; included: boolean };
 type PlanLimits = { projects: number | null; diagrams: number | null; aiQueries: number | null; exportPdf: number | null; collaborators: number | null };
@@ -221,14 +221,14 @@ function LimitField({ label, value, onChange }: { label: string; value: number |
   </div>;
 }
 
-function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChange, otherBasePlanName }: { draft: Draft; setDraft: (d: Draft) => void; catalog: FeatureCatalogItem[]; onSave: () => void; onClose: () => void; tab: "info" | "config" | "features" | "review"; onTabChange: (t: "info" | "config" | "features" | "review") => void; otherBasePlanName?: string }) {
+function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChange, otherBasePlanName }: { draft: Draft; setDraft: (d: Draft) => void; catalog: FeatureCatalogItem[]; onSave: () => void; onClose: () => void; tab: "info" | "shared/config" | "features" | "review"; onTabChange: (t: "info" | "shared/config" | "features" | "review") => void; otherBasePlanName?: string }) {
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
   const setLimit = (patch: Partial<PlanLimits>) => set({ limits: { ...draft.limits, ...patch } });
   // billingCycle auto theo yearlyBilling (vẫn cho override bằng select bên dưới).
   const toggleYearly = () => { const next = !draft.yearlyBilling; set({ yearlyBilling: next, billingCycle: next ? "YEARLY" : "MONTHLY" }); };
   const inputCls = "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-900 outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100";
 
-  const steps = ["info", "config", "features", "review"] as const;
+  const steps = ["info", "shared/config", "features", "review"] as const;
   const stepIdx = steps.indexOf(tab);
   const nextStep = () => { if (stepIdx < 3) onTabChange(steps[stepIdx + 1]); };
   const prevStep = () => { if (stepIdx > 0) onTabChange(steps[stepIdx - 1]); };
@@ -274,7 +274,7 @@ function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChang
       </div>
     </div>}
 
-    {tab === "config" && <div className="space-y-4">
+    {tab === "shared/config" && <div className="space-y-4">
       <div>
         <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Giá & chu kỳ thanh toán</p>
 
@@ -577,7 +577,7 @@ export default function SubscriptionsSection() {
   const [confirmDel, setConfirmDel] = useState<SubscriptionPlan | null>(null);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [billing, setBilling] = useState<Billing>("monthly");
-  const [editorTab, setEditorTab] = useState<"info" | "config" | "features" | "review">("info");
+  const [editorTab, setEditorTab] = useState<"info" | "shared/config" | "features" | "review">("info");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -794,9 +794,9 @@ export default function SubscriptionsSection() {
 
       <Modal open={!!draft} onClose={() => setDraft(null)} title={draft?.mode === "edit" ? "Chỉnh sửa gói" : "Tạo gói subscription"} desc={draft?.mode === "edit" ? draft?.name : "Cấu hình giá, giới hạn và tính năng cho gói"} size="xl"
         headerExtra={<div className="flex items-center gap-1">
-          {(["info", "config", "features", "review"] as const).map((t) => (
+          {(["info", "shared/config", "features", "review"] as const).map((t) => (
             <button key={t} onClick={() => setEditorTab(t)} className={cn("rounded-lg px-3 py-1.5 text-[13px] font-medium transition", editorTab === t ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-900")}>
-              {t === "info" ? "Thông tin" : t === "config" ? "Cấu hình gói" : t === "features" ? "Tính năng" : "Xem lại"}
+              {t === "info" ? "Thông tin" : t === "shared/config" ? "Cấu hình gói" : t === "features" ? "Tính năng" : "Xem lại"}
             </button>
           ))}
         </div>}>

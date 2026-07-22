@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Bell, BellDot, Check, CheckCheck, Info, Loader2, Trash2, X } from "lucide-react";
 import { notificationService, type NotificationItem } from "../../services/notificationService";
-import { cn } from "../../utils/cn";
+import { cn } from "../../shared/lib/cn";
 
 const severityIcon: Record<string, React.ComponentType<{ className?: string }>> = {
   WARNING: AlertTriangle,

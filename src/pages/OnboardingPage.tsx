@@ -18,7 +18,7 @@ import {
 import { authService } from '../services/authService'
 import type { User, CompleteProfileRequest } from '../types/auth'
 import { useAuthStore } from '../stores/useAuthStore'
-import { usePasswordStrength } from '../hooks/usePasswordStrength'
+import { usePasswordStrength } from '../shared/hooks/usePasswordStrength'
 
 // Shared input styling, matching AuthModal's design system.
 const INPUT_CLASS =

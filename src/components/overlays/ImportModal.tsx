@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { detectAndParse, parseMermaid, parsePlantUml } from "../../lib/importers";
-import type { ParseResult } from "../../lib/importers";
+﻿import { useState } from "react";
+import { detectAndParse, parseMermaid, parsePlantUml } from "../../shared/lib/importers";
+import type { ParseResult } from "../../shared/lib/importers";
 
 interface ImportModalProps {
   onClose: () => void;

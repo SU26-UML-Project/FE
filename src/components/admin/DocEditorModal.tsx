@@ -3,7 +3,7 @@ import { Loader2, Save, X } from "lucide-react";
 import { Button } from "./ui";
 import { Modal } from "./Modal";
 import { MarkdownEditor } from "./MarkdownView";
-import SmartSelect from "../ui/SmartSelect";
+import SmartSelect from "../../shared/ui/SmartSelect";
 
 const inputCls =
   "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-800 outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100";

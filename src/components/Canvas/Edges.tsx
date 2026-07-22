@@ -1,9 +1,9 @@
-import {
+﻿import {
   BaseEdge, EdgeLabelRenderer,
   getSmoothStepPath, getBezierPath, getStraightPath,
   type EdgeProps, type Position,
 } from "@xyflow/react";
-import { resolveEdgeMultiplicity } from "../../utils/edgeMultiplicity";
+import { resolveEdgeMultiplicity } from "../../shared/lib/edgeMultiplicity";
 
 interface EdgeData {
   marker?: string;

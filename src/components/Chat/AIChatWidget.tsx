@@ -21,7 +21,7 @@ import {
 import { anythingllmService } from '../../services/anythingllmService';
 import type { ChatMessage } from '../../types/ai';
 import { nanoid } from 'nanoid';
-import { useScrollToBottom } from '../../hooks/useScrollToBottom';
+import { useScrollToBottom } from '../../shared/hooks/useScrollToBottom';
 
 
 

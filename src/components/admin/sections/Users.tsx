@@ -23,7 +23,7 @@ import { Badge, Card, Skeleton } from "../ui";
 import { ConfirmModal } from "../ConfirmModal";
 import { Pagination } from "../Pagination";
 import { Modal } from "../Modal";
-import { cn } from "../../../utils/cn";
+import { cn } from "../../../shared/lib/cn";
 
 type RoleDisplay = "Admin" | "User";
 

@@ -1,5 +1,5 @@
-import apiClient from "./apiClient";
-import type { ApiResponse } from "../types/api";
+import apiClient from '../shared/api/apiClient';
+import type { ApiResponse } from '../types/api';
 
 export type RangeKey = "24h" | "7d" | "30d" | "custom";
 

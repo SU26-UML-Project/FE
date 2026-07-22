@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import type { ChatMsg, ChatSession } from "../types";
-import { STORAGE_KEYS } from "../config";
+import { STORAGE_KEYS } from "../shared/config";
 
 const { chats: KEY, activeChat: ACTIVE_KEY, chatSeeded: SEED_FLAG } = STORAGE_KEYS;
 const MIN_AGO = 60 * 1000;

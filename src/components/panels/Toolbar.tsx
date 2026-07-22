@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
-import { DIAGRAMS } from "../../lib/diagrams";
+import { DIAGRAMS } from "../../shared/lib/diagrams";
 import type { DiagramType } from "../../types";
 
 function IconBtn({ label, onClick, active, disabled, children }: {

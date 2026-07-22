@@ -1,7 +1,7 @@
-import { nanoid } from "nanoid";
+﻿import { nanoid } from "nanoid";
 import type { DiagramType, FlowEdge, FlowNode, Sheet } from "../types";
-import { sampleFor } from "../lib/diagrams";
-import { STORAGE_KEYS } from "../config";
+import { sampleFor } from "../shared/lib/diagrams";
+import { STORAGE_KEYS } from "../shared/config";
 
 const { sheets: SHEETS_KEY, activeSheet: ACTIVE_KEY, legacyDiagram: LEGACY_KEY } =
   STORAGE_KEYS;

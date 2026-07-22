@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient from '../shared/api/apiClient';
 import type { ApiResponse, PagedResponse } from '../types/api';
 import type { OwnerGroup, ProjectRequest, ProjectResponse, ProjectStats } from '../types/project';
 

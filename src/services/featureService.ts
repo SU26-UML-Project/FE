@@ -1,5 +1,5 @@
-import apiClient from "./apiClient";
-import type { ApiResponse } from "../types/api";
+import apiClient from '../shared/api/apiClient';
+import type { ApiResponse } from '../types/api';
 
 /** Một dòng trong danh mục tính năng hệ thống (rows của matrix Pricing). */
 export interface FeatureCatalogItem {

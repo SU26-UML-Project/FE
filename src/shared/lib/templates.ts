@@ -1,4 +1,4 @@
-import type { TemplateMeta, TemplateContent } from '../types/template'
+﻿import type { TemplateMeta, TemplateContent } from '../../types/template'
 
 export async function getTemplateList(kind?: 'knowledge' | 'sample'): Promise<TemplateMeta[]> {
   const res = await fetch('/templates/template-list.json')

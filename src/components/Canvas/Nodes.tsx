@@ -7,7 +7,7 @@ import {
 } from "@xyflow/react";
 import { clsx } from "clsx";
 import type { FlowNodeData } from "../../types";
-import { useEditor } from "../../lib/editorContext";
+import { useEditor } from "../../shared/lib/editorContext";
 
 const cx = (...a: (string | false | null | undefined)[]) => clsx(a);
 const INK = "#27272a";

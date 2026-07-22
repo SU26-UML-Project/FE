@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { DIAGRAMS } from "../../lib/diagrams";
+import { DIAGRAMS } from "../../shared/lib/diagrams";
 import type { DiagramDef, DiagramType, PaletteItem } from "../../types";
 
 const GLYPH = "#565e74"; // admin-secondary

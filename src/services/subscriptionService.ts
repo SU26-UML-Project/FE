@@ -1,5 +1,5 @@
-import apiClient from "./apiClient";
-import type { ApiResponse } from "../types/api";
+import apiClient from '../shared/api/apiClient';
+import type { ApiResponse } from '../types/api';
 import type { MySubscription } from "../types/payment";
 
 export const subscriptionService = {

@@ -30,11 +30,11 @@ import {
   embProviderCatalog,
 } from "../data";
 import { Badge, Button, Card, SearchInput, Skeleton } from "../ui";
-import SmartSelect from "../../ui/SmartSelect";
+import SmartSelect from "../../../shared/ui/SmartSelect";
 import DocEditorModal from "../DocEditorModal";
 import { Modal } from "../Modal";
 import { MarkdownView } from "../MarkdownView";
-import { cn } from "../../../utils/cn";
+import { cn } from "../../../shared/lib/cn";
 import { aiAdminService } from "../../../services/aiAdminService";
 import type { AiWorkspaceInfo, AiWorkspace, AiWorkspaceUpdateRequest, AiDocument, AiSystemConfig, AiVersionInfo } from "../../../types/ai";
 

@@ -1,7 +1,7 @@
-import { X } from "lucide-react";
+﻿import { X } from "lucide-react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { cn } from "../../utils/cn";
+import { cn } from "../../shared/lib/cn";
 
 const sizeMap = {
   sm: "max-w-md",

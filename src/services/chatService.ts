@@ -1,5 +1,5 @@
-import apiClient from "./apiClient";
-import type { ApiResponse, PagedResponse } from "../types/api";
+import apiClient from '../shared/api/apiClient';
+import type { ApiResponse, PagedResponse } from '../types/api';
 import type {
   DiagramChatRequest,
   DiagramChatResponse,

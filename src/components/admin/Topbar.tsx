@@ -1,6 +1,6 @@
 import { Bell, Search } from "lucide-react";
 import type { SectionId } from "./data";
-import { cn } from "../../utils/cn";
+import { cn } from "../../shared/lib/cn";
 
 const tabs: { id: SectionId; label: string }[] = [
   { id: "dashboard", label: "Dashboard" },

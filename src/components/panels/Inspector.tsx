@@ -1,12 +1,12 @@
 import type { DiagramType, FlowEdge, FlowNode, FlowNodeData } from "../../types";
-import { getDiagram, patchFromOption } from "../../lib/diagrams";
+import { getDiagram, patchFromOption } from "../../shared/lib/diagrams";
 import {
     COLOR_PALETTE,
     ConnectorGlyph,
     MARKER_SHAPES,
     type MarkerShape,
 } from "../shared/Glyphs";
-import { resolveEdgeMultiplicity } from "../../utils/edgeMultiplicity";
+import { resolveEdgeMultiplicity } from "../../shared/lib/edgeMultiplicity";
 
 const NODE_NAMES: Record<string, string> = {
     action: "Action", decision: "Decision", start: "Start node", final: "Final node",

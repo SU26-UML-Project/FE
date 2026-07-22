@@ -1,4 +1,4 @@
-import type { FlowNodeData } from "../types";
+import type { FlowNodeData } from "../../types";
 
 const MONO_CHAR_W = 7.6;
 const SANS_CHAR_W = 8.2;

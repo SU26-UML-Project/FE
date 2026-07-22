@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
-import { setAuthCookie, clearAuthCookies, COOKIE_KEYS } from '../utils/auth';
+import { setAuthCookie, clearAuthCookies, COOKIE_KEYS } from '../lib/auth';
 
 interface PendingRequest {
   resolve: (token: string | null) => void;
@@ -71,7 +71,7 @@ apiClient.interceptors.response.use(
 
       try {
         // Import authService dynamically to avoid circular dependency
-        const { authService } = await import('./authService');
+        const { authService } = await import('../../services/authService');
         const response = await authService.refresh();
         
         const { token } = response.result;

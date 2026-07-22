@@ -34,7 +34,7 @@ import {
   type AiErrorLogEntry,
   type RangeKey,
 } from "../../../services/dashboardService";
-import { cn } from "../../../utils/cn";
+import { cn } from "../../../shared/lib/cn";
 
 function initialsOf(name: string) {
   const parts = (name || "").trim().split(/\s+/).filter(Boolean);

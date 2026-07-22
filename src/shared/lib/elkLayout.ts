@@ -1,6 +1,6 @@
 import ELK from "elkjs/lib/elk.bundled.js";
 import dagre from "dagre";
-import type { FlowEdge, FlowNode, FlowNodeData, DiagramType } from "../types";
+import type { FlowEdge, FlowNode, FlowNodeData, DiagramType } from "../../types";
 import {
     classMinSize, actionMinSize, noteMinSize, componentMinSize, swimlaneMinSize,
 } from "./sizing";

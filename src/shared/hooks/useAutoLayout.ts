@@ -1,5 +1,5 @@
-import { useCallback } from 'react'
-import { type FlowNode, type FlowEdge, type DiagramType } from '../types'
+﻿import { useCallback } from 'react'
+import { type FlowNode, type FlowEdge, type DiagramType } from '../../types'
 import { layoutElements } from '../lib/elkLayout'
 
 export const useAutoLayout = () => {

@@ -5,8 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { toast } from 'react-hot-toast';
-import { setAuthCookie, COOKIE_KEYS } from '../../utils/auth';
-import { useOtpCountdown } from '../../hooks/useOtpCountdown';
+import { setAuthCookie, COOKIE_KEYS } from '../../shared/lib/auth';
+import { useOtpCountdown } from '../../shared/hooks/useOtpCountdown';
 
 interface AuthModalProps {
   isOpen: boolean;

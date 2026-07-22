@@ -21,15 +21,15 @@ import {
     PieChart,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getTemplateList } from '../utils/templates';
-import type { TemplateMeta } from '../utils/templates';
+import { getTemplateList } from '../shared/lib/templates';
+import type { TemplateMeta } from '../shared/lib/templates';
 import { projectService, sheetService } from '../services';
 import { workspaceFileService } from '../services/workspaceFileService';
 import { workspaceItemService } from '../services/workspaceItemService';
 import type { ProjectResponse } from '../types/project';
 import toast from 'react-hot-toast';
-import { getErrorMessage } from '../utils/errorMessage';
-import UsageModal from '../components/ui/UsageModal';
+import { getErrorMessage } from '../shared/lib/errorMessage';
+import UsageModal from '../shared/ui/UsageModal';
 
 // Dummy types to fix errors since I deleted workspace.ts
 interface Workspace {

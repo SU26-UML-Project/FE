@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient from '../shared/api/apiClient';
 import type { ApiResponse, Page } from '../types/api';
 import type {
   LoginRequest,

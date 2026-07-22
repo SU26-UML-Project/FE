@@ -1,4 +1,4 @@
-import type { DiagramDef, EdgeOption, FlowEdge, FlowNode, FlowNodeData } from "../types";
+import type { DiagramDef, EdgeOption, FlowEdge, FlowNode, FlowNodeData } from "../../types";
 
 const M = {
   arrow: "url(#m-arrow)",

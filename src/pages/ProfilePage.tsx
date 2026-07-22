@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useClickOutside } from '../hooks/useClickOutside'
+import { useClickOutside } from '../shared/hooks/useClickOutside'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'react-hot-toast'

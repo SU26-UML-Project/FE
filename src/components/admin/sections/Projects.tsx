@@ -4,7 +4,7 @@ import { projectService } from "../../../services/projectService";
 import type { OwnerGroup, ProjectResponse, ProjectStats } from "../../../types/project";
 import { Avatar, Badge, Card, Segmented, Skeleton } from "../ui";
 import { Pagination } from "../Pagination";
-import { cn } from "../../../utils/cn";
+import { cn } from "../../../shared/lib/cn";
 
 const OWNERS_PAGE_SIZE = 10;
 const PROJECTS_PAGE_SIZE = 5;

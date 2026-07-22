@@ -1,3 +1,5 @@
+﻿import type { FlowNode } from "../../types";
+
 export interface Box {
   id: string;
   x: number;
@@ -21,7 +23,7 @@ const EMPTY: SnapResult = { dx: 0, dy: 0, guidesX: [], guidesY: [] };
 
 const THRESHOLD = 6;
 
-export function nodeBox(n: any): Box {
+export function nodeBox(n: FlowNode): Box {
   const w = (n.measured?.width ?? n.width ?? 120) as number;
   const h = (n.measured?.height ?? n.height ?? 40) as number;
   return { id: n.id, x: n.position.x, y: n.position.y, w, h };

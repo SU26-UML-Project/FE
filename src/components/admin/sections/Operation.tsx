@@ -24,7 +24,7 @@ import {
 } from "../data";
 import { AreaChart, HBar } from "../charts";
 import { Badge, Card, Segmented, Skeleton } from "../ui";
-import { cn } from "../../../utils/cn";
+import { cn } from "../../../shared/lib/cn";
 
 function StatCard({
   icon: Icon,

@@ -12,7 +12,7 @@ import { chatService } from "../../services/chatService";
 import { getMyQuota, type QuotaInfo } from "../../services/quotaService";
 import { toast } from "react-hot-toast";
 import { QuestionCard } from "../overlays/QuestionBox";
-import { aiResponseToCanvas, type ParseResult, type Answer, type ImportQuestion } from "../../lib/importers";
+import { aiResponseToCanvas, type ParseResult, type Answer, type ImportQuestion } from "../../shared/lib/importers";
 import type { WorkspaceFileItem } from "../../types/workspaceFile";
 import type { AiContextRef } from "../../types/ai";
 

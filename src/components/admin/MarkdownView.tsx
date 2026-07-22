@@ -1,7 +1,7 @@
 import { useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { Eye, Pencil } from "lucide-react";
-import { cn } from "../../utils/cn";
+import { cn } from "../../shared/lib/cn";
 
 const components: Components = {
   h1: ({ node, ...p }) => <h1 className="mb-3 mt-1 text-[17px] font-bold text-slate-900" {...p} />,

@@ -19,9 +19,9 @@ import ProjectOverview from './pages/ProjectOverview'
 import { Editor } from "./components/Editor"
 import { useAuthStore } from './stores/useAuthStore'
 import GlobalAIChatSidebar from './components/Chat/GlobalAIChatSidebar'
-import ScrollToTop from './components/ui/ScrollToTop'
+import ScrollToTop from './shared/ui/ScrollToTop'
 import { authService } from './services/authService'
-import { setAuthCookie, COOKIE_KEYS } from './utils/auth'
+import { setAuthCookie, COOKIE_KEYS } from './shared/lib/auth'
 
 // Protected Route Component
 const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: string[] }) => {

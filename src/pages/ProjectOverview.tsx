@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast'
 import { projectService } from '../services'
 import { workspaceFileService } from '../services/workspaceFileService'
 import { ConfirmDialog } from '../components/overlays/ConfirmDialog'
-import { getErrorMessage, isInTrashError } from '../utils/errorMessage'
+import { getErrorMessage, isInTrashError } from '../shared/lib/errorMessage'
 import type { DiagramType } from '../types'
 import type { WorkspaceFileItem, WorkspaceFileKind, WorkspaceTreeState } from '../types/workspaceFile'
 

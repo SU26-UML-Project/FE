@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Copy, ArrowLeft, Clock, Layers, FileText, Bot } from 'lucide-react'
 import { projectService } from '../services/projectService'
 import { sheetService } from '../services/sheetService'
-import { layoutElements } from '../lib/elkLayout'
+import { layoutElements } from '../shared/lib/elkLayout'
 import type { DiagramType, FlowEdge, FlowNode } from '../types'
 import toast from 'react-hot-toast'
 

@@ -15,8 +15,8 @@
  *   Internal marker/markerStart/dashed → standard tokens per format.
  */
 
-import type { FlowEdge, FlowNode, FlowNodeData, DiagramType } from "../types";
-import { resolveEdgeMultiplicity } from "../utils/edgeMultiplicity";
+import type { FlowEdge, FlowNode, FlowNodeData, DiagramType } from "../../types";
+import { resolveEdgeMultiplicity } from './edgeMultiplicity';
 
 /* ════════════════════════════════════════════════════════════
    HELPERS

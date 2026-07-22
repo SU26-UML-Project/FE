@@ -1,5 +1,5 @@
-import apiClient from "./apiClient";
-import type { ApiResponse } from "../types/api";
+import apiClient from '../shared/api/apiClient';
+import type { ApiResponse } from '../types/api';
 
 export interface QuotaInfo {
   used: number;

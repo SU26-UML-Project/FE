@@ -1,4 +1,4 @@
-import LoadingOverlay from '../ui/LoadingOverlay'
+import LoadingOverlay from '../../shared/ui/LoadingOverlay'
 import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -19,7 +19,7 @@ import { useAuthStore } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { useScrollToBottom } from '../../hooks/useScrollToBottom'
+import { useScrollToBottom } from '../../shared/hooks/useScrollToBottom'
 
 interface GlobalAIChatSidebarProps {
   isOpen: boolean

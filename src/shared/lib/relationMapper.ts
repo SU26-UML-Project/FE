@@ -1,4 +1,4 @@
-import type { RelationKind } from "../types/aiContract";
+import type { RelationKind } from "../../types/aiContract";
 
 const M = {
     arrow: "url(#m-arrow)",

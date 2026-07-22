@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast'
 import type { BillingCycle } from '../types/pricing'
 import { planService, type PlanResponse } from '../services/planService'
 import { paymentService } from '../services/paymentService'
-import { ERROR_CODES, getErrorCode } from '../utils/errorMessage'
+import { ERROR_CODES, getErrorCode } from '../shared/lib/errorMessage'
 
 /* ---------- helpers ---------- */
 const fmtVnd = (n: number) => n.toLocaleString('vi-VN')

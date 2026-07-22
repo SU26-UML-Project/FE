@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient from '../shared/api/apiClient';
 import type { ApiResponse } from '../types/api';
 import type {
   AiSystemConfig,

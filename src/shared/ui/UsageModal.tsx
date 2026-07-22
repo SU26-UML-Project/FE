@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { subscriptionService } from '../../services/subscriptionService'
 import { getMyQuota, type QuotaInfo } from '../../services/quotaService'
 import type { MySubscription } from '../../types/payment'
-import { getErrorMessage } from '../../utils/errorMessage'
+import { getErrorMessage } from '../../shared/lib/errorMessage'
 import { useAuthStore } from '../../stores/useAuthStore'
 
 const fmtDate = (iso?: string) =>

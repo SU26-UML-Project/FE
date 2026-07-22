@@ -1,5 +1,5 @@
-import type { AINode, AIEdge, AIResponse } from "../types/aiContract";
-import type { DiagramType, FlowEdge, FlowNode, FlowNodeData } from "../types";
+import type { AINode, AIEdge, AIResponse } from "../../types/aiContract";
+import type { DiagramType, FlowEdge, FlowNode, FlowNodeData } from "../../types";
 import { resolveRelation } from "./relationMapper";
 import { classMinSize, actionMinSize, noteMinSize, componentMinSize } from "./sizing";
 

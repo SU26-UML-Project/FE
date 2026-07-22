@@ -5,7 +5,7 @@ import CTA from '../components/Landing/CTA'
 import { useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import apiClient from '../services/apiClient'
+import apiClient from '../shared/api/apiClient'
 
 const LandingPage = () => {
   const [searchParams] = useSearchParams()

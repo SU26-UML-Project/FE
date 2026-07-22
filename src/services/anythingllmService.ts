@@ -2,7 +2,7 @@
  * anythingllmService — AI interaction layer (AnythingLLM / LLM backend).
  */
 import type { ChatMsg, DiagramType } from "../types";
-import apiClient from './apiClient';
+import apiClient from '../shared/api/apiClient';
 import type { ApiResponse, PagedResponse } from '../types/api';
 import type { DiagramChatRequest, DiagramChatResponse, ChatSession, ChatMessage } from '../types/ai';
 

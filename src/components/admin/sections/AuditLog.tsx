@@ -9,7 +9,7 @@ import { auditService } from "../../../services/auditService";
 import type { AuditLog } from "../../../types/audit";
 import { Avatar, Badge, Card, Skeleton } from "../ui";
 import { Pagination } from "../Pagination";
-import { cn } from "../../../utils/cn";
+import { cn } from "../../../shared/lib/cn";
 
 const PAGE_SIZE = 20;
 

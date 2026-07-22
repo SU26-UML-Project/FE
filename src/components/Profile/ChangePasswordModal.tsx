@@ -14,8 +14,8 @@ import {
   ArrowLeft,
 } from 'lucide-react'
 import { authService } from '../../services/authService'
-import { useOtpCountdown } from '../../hooks/useOtpCountdown'
-import { usePasswordStrength } from '../../hooks/usePasswordStrength'
+import { useOtpCountdown } from '../../shared/hooks/useOtpCountdown'
+import { usePasswordStrength } from '../../shared/hooks/usePasswordStrength'
 
 // OTP lifetime in seconds — must match the backend Redis TTL (otp.ttl-seconds = 90).
 const OTP_TTL_SECONDS = 90

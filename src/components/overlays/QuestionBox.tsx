@@ -5,7 +5,7 @@ import {
   type ImportQuestion,
   type ParseResult,
   type QuestionOption,
-} from "../../lib/importers";
+} from "../../shared/lib/importers";
 import type { DiagramType, FlowEdge, FlowNode } from "../../types";
 
 /** Is a single-select answer actually filled in? */

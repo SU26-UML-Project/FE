@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { DiagramType } from "../../types";
-import { DIAGRAMS } from "../../lib/diagrams";
+import { DIAGRAMS } from "../../shared/lib/diagrams";
 
 /** Quick diagram-type switcher (open with the "Q" key, pick with 1–6). */
 export function TypeMenu({

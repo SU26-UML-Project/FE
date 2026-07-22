@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { UserCircle, LayoutDashboard, Shield, LogOut, ChevronDown } from 'lucide-react'
 import { useAuthStore } from '../../stores/useAuthStore'
-import { useClickOutside } from '../../hooks/useClickOutside'
+import { useClickOutside } from '../../shared/hooks/useClickOutside'
 import { planService } from '../../services/planService'
 import LogoutConfirmModal from './LogoutConfirmModal'
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { cn } from "../../utils/cn";
+import { cn } from "../lib/cn";
 import { Search, X, Check, ChevronDown } from "lucide-react";
 
 export type SelectOption = { value: string; label: string };

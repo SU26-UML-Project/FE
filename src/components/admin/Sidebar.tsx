@@ -2,9 +2,9 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ChevronLeft, ChevronRight, LogOut, Settings2, Sparkles, X } from "lucide-react";
 import { navSections, type SectionId } from "./data";
-import { cn } from "../../utils/cn";
+import { cn } from "../../shared/lib/cn";
 import type { User } from "../../types/auth";
-import LogoutConfirmModal from "../ui/LogoutConfirmModal";
+import LogoutConfirmModal from "../../shared/ui/LogoutConfirmModal";
 
 function getInitials(name?: string) {
   if (!name) return "?";

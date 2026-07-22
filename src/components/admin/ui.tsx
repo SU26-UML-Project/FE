@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Search, X } from "lucide-react";
-import { cn } from "../../utils/cn";
+import { cn } from "../../shared/lib/cn";
 
 /* ---------- Card ---------- */
 export function Card({

@@ -1,8 +1,8 @@
 import { nanoid } from "nanoid";
 import dagre from "dagre";
-import type { DiagramType, FlowEdge, FlowEdgeData, FlowNode, FlowNodeData } from "../types";
+import type { DiagramType, FlowEdge, FlowEdgeData, FlowNode, FlowNodeData } from "../../types";
 import { classMinSize } from "./sizing";
-import type { DiagramChatResponse, AiQuestionDto } from "../types/ai";
+import type { DiagramChatResponse, AiQuestionDto } from "../../types/ai";
 import { finalizeLayout, layoutActivityWithSwimlanes } from "./elkLayout";
 
 /* Marker URL constants (must match src/lib/markers.tsx ids). */
@@ -2315,7 +2315,7 @@ export function detectAndParse(text: string): ParseResult & { format: string } {
    ============================================================ */
 import { aiNodeToFlow, aiEdgeToFlow } from "./aiToCanvas";
 import { resolveRelation } from "./relationMapper";
-import type { AINode, AIEdge, AINodeType, RelationKind } from "../types/aiContract";
+import type { AINode, AIEdge, AINodeType, RelationKind } from "../../types/aiContract";
 
 export function aiResponseToCanvas(res: DiagramChatResponse, existingEdges?: FlowEdge[]): ParseResult {
     const dto = res as any; // widen for dynamic fields

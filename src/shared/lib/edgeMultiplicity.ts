@@ -1,4 +1,4 @@
-import type { FlowEdgeData } from "../types";
+import type { FlowEdgeData } from "../../types";
 
 export interface ResolvedEdgeMultiplicity {
     /** Association name shown at the middle of the connector. */

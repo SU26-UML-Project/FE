@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { authService } from '../services/authService';
 import type { User } from '../types/auth';
-import { clearAuthCookies, getAuthCookie, COOKIE_KEYS } from '../utils/auth';
+import { clearAuthCookies, getAuthCookie, COOKIE_KEYS } from '../shared/lib/auth';
 
 interface AuthState {
   user: User | null;

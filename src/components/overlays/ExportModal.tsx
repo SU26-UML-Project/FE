@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
-import { toMermaid, toPlantUml } from "../../lib/exporters";
+import { toMermaid, toPlantUml } from "../../shared/lib/exporters";
 import type { DiagramType, FlowEdge, FlowNode } from "../../types";
 
 type ExportFormat = "mermaid" | "plantuml";
