@@ -233,9 +233,10 @@ export default function ProjectExplorer(props: Props) {
       >
         <div style={{ width: 4 + depth * 14 }} className="h-full shrink-0" />
         <div 
+          data-drop-folder={item.kind === 'folder' ? item.id : undefined}
           className={`flex h-full flex-1 items-center gap-1.5 rounded-md px-1 ${dropId === item.id ? 'ring-2 ring-inset ring-uml-blue bg-uml-blue/10' : ''}`}
-          onDragOver={event => { if (item.kind === 'folder') { event.preventDefault(); event.stopPropagation(); setDropId(item.id) } }}
-          onDragLeave={() => setDropId(value => value === item.id ? null : value)}
+          onDragOver={event => { if (item.kind === 'folder') { event.preventDefault(); event.stopPropagation(); setDropId(item.id) } else { event.stopPropagation() } }}
+          onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropId(value => value === item.id ? null : value) }}
           onDrop={event => { event.preventDefault(); event.stopPropagation(); const id = event.dataTransfer.getData('workspace-item'); if (id && id !== item.id) moveItem(id, item.id); setDropId(null) }}
         >
           {item.kind === 'folder' ? (expanded ? <ChevronDown size={13}/> : <ChevronRight size={13}/>) : <span className="w-[13px]"/>}
@@ -266,7 +267,8 @@ export default function ProjectExplorer(props: Props) {
         className={`min-h-0 flex-1 overflow-auto px-1.5 ${dropId === 'root' ? 'bg-uml-blue/5' : ''}`}
         onClick={event => { if (event.target === event.currentTarget) { setFocusedId(null); setContext(null) } }}
         onContextMenu={event => { event.preventDefault(); setFocusedId(null); setContext({ x: event.clientX, y: event.clientY, item: null }) }}
-        onDragOver={event => { event.preventDefault(); setDropId('root') }}
+        onDragOver={event => { event.preventDefault(); /* chỉ highlight root khi con trỏ đang ở vùng trống, không nằm trên folder con */ if ((event.target as HTMLElement).closest('[data-drop-folder]') === null) setDropId('root'); }}
+        onDragLeave={event => { if (event.currentTarget === event.target || !event.currentTarget.contains(event.relatedTarget as Node)) setDropId(value => value === 'root' ? null : value) }}
         onDrop={event => { event.preventDefault(); const id = event.dataTransfer.getData('workspace-item'); if (id) moveItem(id, null); setDropId(null) }}
       >
         {props.items.length ? renderTree(null) : <div className="mx-3 mt-12 text-center"><div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-dashed border-admin-outline bg-admin-bg text-admin-secondary"><Folder size={20}/></div><p className="mt-3 text-xs font-bold">No project files yet</p><p className="mt-1 text-[11px] leading-4 text-admin-secondary">Create documentation, a diagram, or a folder.</p><button onClick={() => openCreate(null)} className="mt-3 rounded-md bg-uml-blue px-3 py-1.5 text-[11px] font-bold text-white hover:bg-blue-700">Create first item</button></div>}
