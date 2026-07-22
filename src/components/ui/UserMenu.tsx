@@ -33,6 +33,11 @@ const UserMenu = () => {
   useEffect(() => {
     if (!open || !user || planLoaded.current) return
     planLoaded.current = true
+    // Admin luôn unlimited, không gắn gói.
+    if (role === 'ADMIN') {
+      setPlanName('Unlimited')
+      return
+    }
     // Không có gói → Free, khỏi gọi API.
     if (!user.currentPlanId) {
       setPlanName('Free')
