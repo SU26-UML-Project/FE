@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/useAuthStore'
 import { toast } from 'react-hot-toast'
 import type { BillingCycle } from '../types/pricing'
-import type { UpgradeQuoteResponse } from '../types/payment'
 import { planService, type PlanResponse } from '../services/planService'
 import { paymentService } from '../services/paymentService'
 import { ERROR_CODES, getErrorCode } from '../utils/errorMessage'
@@ -349,8 +348,8 @@ const PlanCard = ({
 
     if (currentPlanId) {
       try {
-        const quote = await paymentService.getQuote(plan.id)
-        navigate('/payment-information', { state: { plan, billing, quote } })
+        const quotePair = await paymentService.getQuote(plan.id)
+        navigate('/payment-information', { state: { plan, billing, quotePair } })
       } catch (err: any) {
         const code = getErrorCode(err)
         if (code === ERROR_CODES.SUBSCRIPTION_ALREADY_ACTIVE) {

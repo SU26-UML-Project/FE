@@ -5,7 +5,7 @@ import { ChevronDown, Shield, Headphones, ArrowRight, CheckCircle, Scan } from '
 import apiClient from '../services/apiClient'
 import { toast } from 'react-hot-toast'
 import type { PlanResponse } from '../services/planService'
-import type { UpgradeQuoteResponse } from '../types/payment'
+import type { QuotePairResponse, UpgradeQuoteResponse, UpgradeMode } from '../types/payment'
 
 type PaymentMethod = 'payos'
 type PaymentState = 'idle' | 'qr_shown' | 'paid'
@@ -13,9 +13,6 @@ type PaymentState = 'idle' | 'qr_shown' | 'paid'
 const fmtVnd = (n: number) => n.toLocaleString('vi-VN')
 const yearlyPerMonth = (p: PlanResponse): number | null =>
   p.yearlyBilling ? Math.round(p.price * (1 - (p.yearlyDiscount ?? 0) / 100)) : null
-const fmtLimit = (v: number | null | undefined) =>
-  v == null ? '' : v === -1 ? 'Không giới hạn' : fmtVnd(v)
-
 function planBullets(p: PlanResponse): string[] {
   const b: string[] = []
   const L = p.limits
@@ -34,20 +31,18 @@ const PaymentInformationPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const state = location.state as { plan: PlanResponse; billing: 'monthly' | 'yearly'; quote?: UpgradeQuoteResponse } | null
+  const state = location.state as { plan: PlanResponse; billing: 'monthly' | 'yearly'; quotePair?: QuotePairResponse } | null
   const plan = state?.plan
   const billing = state?.billing ?? 'monthly'
-  const quote = state?.quote
+  const quotePair = state?.quotePair
   const perMonthYearly = plan ? yearlyPerMonth(plan) : null
   const activePrice = billing === 'yearly' && perMonthYearly != null ? perMonthYearly : (plan?.price ?? 0)
-  const displayAmount = quote ? quote.amountToPay : activePrice
-  const isUpgrade = !!quote
+  const isUpgrade = !!quotePair
   const planName = plan?.name ?? 'Pro'
   const bullets = plan ? planBullets(plan) : []
   const displayCycle = billing === 'yearly' ? 'Theo năm' : 'Theo tháng'
-  const saving = quote ? quote.oldPrice - displayAmount : 0
-  const pct = quote ? quote.billingRemainingRatio : 0
 
+  const [upgradeMode, setUpgradeMode] = useState<UpgradeMode>('PRORATED')
   const [agreed, setAgreed] = useState(false)
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('payos')
   const [loading, setLoading] = useState(false)
@@ -57,6 +52,13 @@ const PaymentInformationPage = () => {
   const [paidPlanName, setPaidPlanName] = useState<string>('')
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const activeQuote: UpgradeQuoteResponse | null = isUpgrade && quotePair
+    ? (upgradeMode === 'DIRECT' ? quotePair.direct : quotePair.prorated)
+    : null
+  const displayAmount = activeQuote ? activeQuote.amountToPay : activePrice
+  const saving = activeQuote ? activeQuote.oldPrice - displayAmount : 0
+  const pct = activeQuote ? activeQuote.billingRemainingRatio : 0
 
   useEffect(() => {
     if (paymentState === 'qr_shown' && orderCode) {
@@ -90,11 +92,13 @@ const PaymentInformationPage = () => {
       const planId = plan?.id ?? '33333333-3333-3333-3333-333333333333'
       const returnUrl = window.location.origin + '/'
       const cancelUrl = window.location.origin + '/'
-      const response = await apiClient.post('/payments/create', { planId, returnUrl, cancelUrl });
-      const checkoutUrl = response?.result?.checkoutUrl ?? response?.checkoutUrl;
+      const body: Record<string, any> = { planId, returnUrl, cancelUrl }
+      if (isUpgrade) body.upgradeMode = upgradeMode
+      const response = await apiClient.post('/payments/create', body)
+      const checkoutUrl = response?.result?.checkoutUrl ?? response?.checkoutUrl
 
       if (checkoutUrl) {
-        window.location.href = checkoutUrl;
+        window.location.href = checkoutUrl
       } else {
         toast.error('Không lấy được link thanh toán, vui lòng thử lại.')
       }
@@ -215,8 +219,76 @@ const PaymentInformationPage = () => {
 
               <hr className="border-[#e5e7eb] mb-5" />
 
-              {/* Price section */}
-              {isUpgrade && quote ? (
+              {/* Upgrade mode selector */}
+              {isUpgrade && quotePair && (
+                <div className="mb-5">
+                  <h3 className="text-[12px] font-bold uppercase tracking-widest text-[#434655] mb-3">
+                    Hình thức nâng cấp
+                  </h3>
+                  <div className="space-y-3">
+                    <label
+                      className={`relative flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                        upgradeMode === 'DIRECT'
+                          ? 'border-[#2563eb] bg-[#eff6ff]'
+                          : 'border-[#c3c6d7] bg-white hover:border-blue-300'
+                      }`}
+                      onClick={() => { setUpgradeMode('DIRECT'); setAgreed(false) }}
+                    >
+                      <input
+                        type="radio"
+                        name="upgrade_mode"
+                        value="DIRECT"
+                        checked={upgradeMode === 'DIRECT'}
+                        onChange={() => { setUpgradeMode('DIRECT'); setAgreed(false) }}
+                        className="sr-only"
+                      />
+                      <div className={`absolute top-3 right-3 transition-opacity ${upgradeMode === 'DIRECT' ? 'opacity-100' : 'opacity-0'}`}>
+                        <CheckCircle className="text-[#2563eb]" size={22} fill="#2563eb" color="white" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className={`text-[15px] font-semibold ${upgradeMode === 'DIRECT' ? 'text-[#0b1c30]' : 'text-[#434655]'}`}>
+                          Nâng cấp thẳng (kỳ mới)
+                        </span>
+                        <span className="text-[13px] text-[#737686] mt-0.5">
+                          Trả {fmtVnd(quotePair.direct.amountToPay)}₫ — reset quota AI, chu kỳ 30 ngày mới
+                        </span>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`relative flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                        upgradeMode === 'PRORATED'
+                          ? 'border-[#2563eb] bg-[#eff6ff]'
+                          : 'border-[#c3c6d7] bg-white hover:border-blue-300'
+                      }`}
+                      onClick={() => { setUpgradeMode('PRORATED'); setAgreed(false) }}
+                    >
+                      <input
+                        type="radio"
+                        name="upgrade_mode"
+                        value="PRORATED"
+                        checked={upgradeMode === 'PRORATED'}
+                        onChange={() => { setUpgradeMode('PRORATED'); setAgreed(false) }}
+                        className="sr-only"
+                      />
+                      <div className={`absolute top-3 right-3 transition-opacity ${upgradeMode === 'PRORATED' ? 'opacity-100' : 'opacity-0'}`}>
+                        <CheckCircle className="text-[#2563eb]" size={22} fill="#2563eb" color="white" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className={`text-[15px] font-semibold ${upgradeMode === 'PRORATED' ? 'text-[#0b1c30]' : 'text-[#434655]'}`}>
+                          Nâng cấp tiết kiệm
+                        </span>
+                        <span className="text-[13px] text-[#737686] mt-0.5">
+                          Trả {fmtVnd(quotePair.prorated.amountToPay)}₫ — giữ hạn mức AI còn lại
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Price section — PRORATED */}
+              {isUpgrade && activeQuote && upgradeMode === 'PRORATED' ? (
                 <>
                   <div className="flex items-baseline gap-3 mb-2">
                     <span className="text-[28px] font-extrabold text-[#0b1c30]">{fmtVnd(displayAmount)}₫</span>
@@ -227,44 +299,58 @@ const PaymentInformationPage = () => {
                     Tiết kiệm {fmtVnd(saving)}₫ so với đăng ký mới từ đầu
                   </span>
                 </>
+              ) : isUpgrade && activeQuote && upgradeMode === 'DIRECT' ? (
+                <>
+                  <div className="flex items-baseline gap-3 mb-2">
+                    <span className="text-[28px] font-extrabold text-[#0b1c30]">{fmtVnd(displayAmount)}₫</span>
+                    <span className="text-[13px] text-[#737686] font-normal">/ {activeQuote.billingTotalDays} ngày</span>
+                  </div>
+                  <span className="inline-block text-[13px] text-blue-600 font-semibold bg-blue-50 px-3 py-1 rounded-lg mb-5">
+                    Kỳ thanh toán mới — reset toàn bộ hạn mức
+                  </span>
+                </>
               ) : (
                 <div className="text-[15px] text-[#434655] mb-5">
                   Đơn giá: <strong className="text-[#0b1c30]">{fmtVnd(activePrice)}₫</strong>/{billing === 'yearly' ? 'năm' : 'tháng'}
                 </div>
               )}
 
-              {/* Quota upgrade — inline */}
-              {isUpgrade && quote && (
+              {/* Quota upgrade */}
+              {isUpgrade && activeQuote && (
                 <>
                   <hr className="border-[#e5e7eb] mb-4" />
                   <div className="mb-4">
-                    <div className="text-[13px] text-[#434655] font-semibold mb-2">Hạn mức AI sau nâng cấp</div>
+                    <div className="text-[13px] text-[#434655] font-semibold mb-2">
+                      Hạn mức AI sau nâng cấp
+                      {upgradeMode === 'DIRECT' && <span className="text-[12px] text-blue-600 font-normal ml-2">(đã reset)</span>}
+                    </div>
                     <div className="flex items-baseline gap-2 mb-1.5">
-                      <span className="text-[14px] text-[#434655]">{fmtVnd(quote.oldNominalQuota)}</span>
+                      <span className="text-[14px] text-[#434655]">{fmtVnd(activeQuote.oldNominalQuota)}</span>
                       <ArrowRight size={13} className="text-green-600" />
-                      <span className="text-[14px] text-green-700 font-bold">{fmtVnd(quote.newNominalQuota)}</span>
-                      <span className="text-[12px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded font-semibold">+{quote.quotaDelta}</span>
+                      <span className="text-[14px] text-green-700 font-bold">{fmtVnd(activeQuote.newNominalQuota)}</span>
+                      <span className="text-[12px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded font-semibold">+{activeQuote.quotaDelta}</span>
                       <span className="text-[12px] text-[#737686]">lượt/kỳ</span>
                       <span className="text-[12px] text-[#737686] ml-auto">
-                        Có thể dùng ngay <strong className="text-[#0b1c30]">{fmtVnd(quote.availableAfterUpgrade)}</strong>
+                        Có thể dùng ngay <strong className="text-[#0b1c30]">{fmtVnd(activeQuote.availableAfterUpgrade)}</strong>
                       </span>
                     </div>
                     <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-blue-500 rounded-full"
-                        style={{ width: `${Math.min((quote.oldNominalQuota / quote.newNominalQuota) * 100, 100)}%` }}
+                        className={`h-full rounded-full ${upgradeMode === 'DIRECT' ? 'bg-green-500' : 'bg-blue-500'}`}
+                        style={{ width: upgradeMode === 'DIRECT' ? '100%' : `${Math.min((activeQuote.oldNominalQuota / activeQuote.newNominalQuota) * 100, 100)}%` }}
                       />
                     </div>
                     <div className="flex justify-between text-[11px] text-[#737686] mt-0.5">
-                      <span>{fmtVnd(quote.oldNominalQuota)} cũ</span>
-                      <span>{fmtVnd(quote.newNominalQuota)} mới</span>
+                      <span>{fmtVnd(activeQuote.oldNominalQuota)} cũ</span>
+                      {upgradeMode === 'DIRECT' && <span className="text-green-600 font-semibold">Nhận full quota</span>}
+                      <span>{fmtVnd(activeQuote.newNominalQuota)} mới</span>
                     </div>
                   </div>
                 </>
               )}
 
               {/* Calculation breakdown — collapsible */}
-              {isUpgrade && quote && (
+              {isUpgrade && activeQuote && upgradeMode === 'PRORATED' && (
                 <details className="group">
                   <summary className="cursor-pointer text-[13px] text-[#2563eb] font-medium hover:text-[#1d4ed8] transition-colors select-none list-none flex items-center gap-1">
                     <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
@@ -277,18 +363,46 @@ const PaymentInformationPage = () => {
                     <div>
                       <span className="text-[#737686]">Chênh lệch giá:</span>
                       <span className="block text-[#0b1c30] ml-3">
-                        {fmtVnd(quote.newPrice)} − {fmtVnd(quote.oldPrice)} = <strong>{fmtVnd(quote.priceDifference)}₫</strong>
+                        {fmtVnd(activeQuote.newPrice)} − {fmtVnd(activeQuote.oldPrice)} = <strong>{fmtVnd(activeQuote.priceDifference)}₫</strong>
                       </span>
                     </div>
                     <div>
                       <span className="text-[#737686]">Tỷ lệ còn lại:</span>
-                      <span className="block text-[#0b1c30] ml-3">{(pct * 100).toFixed(1)}% <span className="text-[#737686] font-sans font-normal">({quote.billingRemainingDays} / {quote.billingTotalDays} ngày)</span></span>
+                      <span className="block text-[#0b1c30] ml-3">{(pct * 100).toFixed(1)}% <span className="text-[#737686] font-sans font-normal">({activeQuote.billingRemainingDays} / {activeQuote.billingTotalDays} ngày)</span></span>
                     </div>
                     <div>
                       <span className="text-[#737686]">Số tiền cần thanh toán:</span>
                       <span className="block text-[#0b1c30] ml-3">
-                        {fmtVnd(quote.priceDifference)} × {(pct * 100).toFixed(1)}% = <strong className="text-green-700">{fmtVnd(displayAmount)}₫</strong>
+                        {fmtVnd(activeQuote.priceDifference)} × {(pct * 100).toFixed(1)}% = <strong className="text-green-700">{fmtVnd(displayAmount)}₫</strong>
                       </span>
+                    </div>
+                  </div>
+                </details>
+              )}
+
+              {isUpgrade && activeQuote && upgradeMode === 'DIRECT' && (
+                <details className="group">
+                  <summary className="cursor-pointer text-[13px] text-[#2563eb] font-medium hover:text-[#1d4ed8] transition-colors select-none list-none flex items-center gap-1">
+                    <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+                    Xem chi tiết cách tính
+                  </summary>
+                  <div className="mt-3 bg-[#f5f7fa] rounded-lg p-4 font-mono text-[13px] space-y-2">
+                    <div className="text-[#434655] text-[12px] font-sans font-semibold">
+                      Giá gói mới (full) — không prorate
+                    </div>
+                    <div>
+                      <span className="text-[#737686]">Giá gói mới:</span>
+                      <span className="block text-[#0b1c30] ml-3">
+                        <strong className="text-green-700">{fmtVnd(activeQuote.amountToPay)}₫</strong>
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[#737686]">Chu kỳ:</span>
+                      <span className="block text-[#0b1c30] ml-3">{activeQuote.billingTotalDays} ngày mới</span>
+                    </div>
+                    <div>
+                      <span className="text-[#737686]">Trạng thái quota:</span>
+                      <span className="block text-[#0b1c30] ml-3">Reset về 0, hạn mức {fmtVnd(activeQuote.newEffectiveLimit)} lượt/kỳ</span>
                     </div>
                   </div>
                 </details>
@@ -381,11 +495,11 @@ const PaymentInformationPage = () => {
               </h3>
 
               <div className="space-y-1 mb-6">
-                {isUpgrade && quote ? (
+                {isUpgrade && activeQuote && upgradeMode === 'PRORATED' ? (
                   <>
                     <div className="flex justify-between items-center py-2 text-[15px]">
                       <span className="text-[#434655]">Giá gói cũ</span>
-                      <span className="font-mono font-semibold text-right text-[#a0a3b1] line-through">{fmtVnd(quote.oldPrice)} đ</span>
+                      <span className="font-mono font-semibold text-right text-[#a0a3b1] line-through">{fmtVnd(activeQuote.oldPrice)} đ</span>
                     </div>
                     <div className="flex justify-between items-center py-2 text-[15px]">
                       <span className="text-[#434655]">Giá gói mới</span>
@@ -393,11 +507,26 @@ const PaymentInformationPage = () => {
                     </div>
                     <div className="flex justify-between items-center py-2 text-[15px] text-green-700">
                       <span className="text-[#434655]">Tiết kiệm</span>
-                      <span className="font-mono font-semibold text-right">-{fmtVnd(quote.priceDifference)} đ</span>
+                      <span className="font-mono font-semibold text-right">-{fmtVnd(activeQuote.priceDifference)} đ</span>
                     </div>
                     <div className="flex justify-between items-center py-2 text-[15px]">
                       <span className="text-[#434655]">Tỷ lệ còn lại kỳ thanh toán</span>
-                      <span className="font-medium text-[#0b1c30]">{(pct * 100).toFixed(1)}% <span className="text-[#737686] font-normal">({quote.billingRemainingDays}/{quote.billingTotalDays} ngày)</span></span>
+                      <span className="font-medium text-[#0b1c30]">{(pct * 100).toFixed(1)}% <span className="text-[#737686] font-normal">({activeQuote.billingRemainingDays}/{activeQuote.billingTotalDays} ngày)</span></span>
+                    </div>
+                  </>
+                ) : isUpgrade && activeQuote && upgradeMode === 'DIRECT' ? (
+                  <>
+                    <div className="flex justify-between items-center py-2 text-[15px]">
+                      <span className="text-[#434655]">Giá gói mới (full)</span>
+                      <span className="font-mono font-semibold text-right">{fmtVnd(activeQuote.amountToPay)} đ</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 text-[15px]">
+                      <span className="text-[#434655]">Chu kỳ thanh toán</span>
+                      <span className="font-medium text-[#0b1c30]">{activeQuote.billingTotalDays} ngày mới</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 text-[15px]">
+                      <span className="text-[#434655]">Quota AI</span>
+                      <span className="font-medium text-[#0b1c30]">Reset về 0 / {fmtVnd(activeQuote.newEffectiveLimit)}</span>
                     </div>
                   </>
                 ) : (
@@ -439,7 +568,9 @@ const PaymentInformationPage = () => {
                         className="mt-0.5 w-4 h-4 rounded border-gray-300 text-[#2563eb] focus:ring-[#2563eb] cursor-pointer"
                       />
                       <span className="text-[13px] text-[#434655] leading-relaxed select-none group-hover:text-[#0b1c30] transition-colors">
-                        Tôi hiểu: nâng cấp có hiệu lực ngay, thời hạn gói giữ nguyên ngày kết thúc hiện tại.
+                        {upgradeMode === 'DIRECT'
+                          ? 'Tôi hiểu: nâng cấp thẳng sẽ reset toàn bộ hạn mức AI và bắt đầu chu kỳ 30 ngày mới. Quota còn lại ở gói cũ sẽ bị mất.'
+                          : 'Tôi hiểu: nâng cấp có hiệu lực ngay, thời hạn gói giữ nguyên ngày kết thúc hiện tại.'}
                       </span>
                     </label>
                   )}

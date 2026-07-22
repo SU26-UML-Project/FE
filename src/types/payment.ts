@@ -1,3 +1,5 @@
+export type UpgradeMode = 'PRORATED' | 'DIRECT';
+
 export interface UpgradeQuoteResponse {
   targetPlanId: string;
   currentTierOrder: number;
@@ -17,6 +19,11 @@ export interface UpgradeQuoteResponse {
   newEffectiveLimit: number;
   availableAfterUpgrade: number;
   quoteExpiresAt: string;
+}
+
+export interface QuotePairResponse {
+  prorated: UpgradeQuoteResponse;
+  direct: UpgradeQuoteResponse;
 }
 
 export interface PaymentResponse {
