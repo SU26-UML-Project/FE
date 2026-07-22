@@ -18,6 +18,7 @@ import {
     Clock,
     Loader2,
     PenTool,
+    PieChart,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getTemplateList } from '../utils/templates';
@@ -28,6 +29,7 @@ import { workspaceItemService } from '../services/workspaceItemService';
 import type { ProjectResponse } from '../types/project';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../utils/errorMessage';
+import UsageModal from '../components/ui/UsageModal';
 
 // Dummy types to fix errors since I deleted workspace.ts
 interface Workspace {
@@ -93,6 +95,7 @@ function Pagination({ page, totalPages, onChange }: { page: number; totalPages: 
 const UserDashboard: React.FC = () => {
     const navigate = useNavigate();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [usageOpen, setUsageOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('dashboard_tab') || 'all');
     const [templates, setTemplates] = useState<TemplateMeta[]>([]);
@@ -613,10 +616,13 @@ const UserDashboard: React.FC = () => {
 
                 {/* Bottom Navigation */}
                 <div className={`px-4 mt-auto pt-6 border-t border-admin-outline space-y-1 ${isSidebarCollapsed ? 'px-2' : ''}`}>
+                    <SidebarItem icon={<PieChart size={18} />} label="Usage" small collapsed={isSidebarCollapsed} onClick={() => setUsageOpen(true)} />
                     <SidebarItem icon={<HelpCircle size={18} />} label="Hỗ trợ" small collapsed={isSidebarCollapsed} />
                     <SidebarItem icon={<CheckCircle2 size={18} />} label="Trạng thái hệ thống" small collapsed={isSidebarCollapsed} />
                 </div>
             </aside>
+
+            <UsageModal isOpen={usageOpen} onClose={() => setUsageOpen(false)} />
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col h-full overflow-hidden relative z-0">
