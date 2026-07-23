@@ -5,7 +5,6 @@ import DashboardSection from "../components/sections/Dashboard";
 import UsersSection from "../components/sections/Users";
 import ProjectsSection from "../components/sections/Projects";
 import IntelligenceSection from "../components/sections/Intelligence";
-import OperationSection from "../components/sections/Operation";
 import SubscriptionsSection from "../components/sections/Subscriptions";
 import AuditLogSection from "../components/sections/AuditLog";
 import { useAuthStore } from "../../auth/model/useAuthStore";
@@ -16,7 +15,7 @@ const meta: Record<SectionId, { title: string; subtitle: string }> = {
   users: { title: "Quản lý", subtitle: "Quản lý người dùng" },
   projects: { title: "Quản lý", subtitle: "Quản lý dự án toàn hệ thống" },
   intelligence: { title: "Trí tuệ nhân tạo", subtitle: "Cấu hình AI Engine · AnythingLLM" },
-  operation: { title: "Vận hành", subtitle: "Mẫu Workspace & Knowledge" },
+
   subscription: { title: "Vận hành", subtitle: "Gói Subscription" },
   audit: { title: "Hệ thống", subtitle: "Nhật ký thao tác quản trị" },
 };
@@ -71,7 +70,6 @@ export default function AdminDashboard() {
             {section === "users" && <UsersSection />}
             {section === "projects" && <ProjectsSection />}
             {section === "intelligence" && <IntelligenceSection />}
-            {section === "operation" && <OperationSection />}
             {section === "subscription" && <SubscriptionsSection />}
             {section === "audit" && <AuditLogSection />}
           </div>

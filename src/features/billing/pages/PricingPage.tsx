@@ -81,7 +81,7 @@ const faqData = [
 ]
 
 const Pricing = () => {
-  const [billing, setBilling] = useState<BillingCycle>('monthly')
+  const billing: BillingCycle = 'monthly'
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
@@ -111,8 +111,6 @@ const Pricing = () => {
     setIsAuthModalOpen(true)
   }
 
-  const hasYearly = plans.some(p => p.yearlyBilling)
-
   return (
     <>
       <AuthModal
@@ -135,17 +133,6 @@ const Pricing = () => {
               Giá minh bạch, đơn giản — chọn gói phù hợp với đội ngũ và mở rộng khi bạn phát triển.
             </p>
           </motion.div>
-
-          {hasYearly && (
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-              className="flex justify-center mb-12"
-            >
-              <BillingToggle billing={billing} setBilling={setBilling} />
-            </motion.div>
-          )}
 
           {loading ? (
             <div className="flex flex-col md:flex-row gap-4 md:gap-5 items-stretch">
@@ -240,55 +227,6 @@ const Pricing = () => {
 }
 
 export default Pricing
-
-const BillingToggle = ({
-  billing,
-  setBilling,
-}: {
-  billing: BillingCycle
-  setBilling: (b: BillingCycle) => void
-}) => {
-  return (
-    <div
-      role="tablist"
-      aria-label="Chu kỳ thanh toán"
-      className="relative inline-flex items-center bg-white/60 backdrop-blur-sm border-2 border-gray-200/80 rounded-full p-0.5"
-    >
-      {(['monthly', 'yearly'] as BillingCycle[]).map(option => {
-        const isActive = billing === option
-        return (
-          <button
-            key={option}
-            role="tab"
-            aria-selected={isActive}
-            onClick={() => setBilling(option)}
-            className={`relative z-10 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-full capitalize transition-colors duration-300 ${
-              isActive ? 'text-white' : 'text-gray-500 hover:text-gray-800'
-            }`}
-          >
-            {isActive && (
-              <motion.div
-                layoutId="billing-pill"
-                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                className="absolute inset-0 rounded-full bg-uml-blue/85 backdrop-blur-md border border-white/20 shadow-[0_2px_8px_rgba(37,99,235,0.2)]"
-              />
-            )}
-            <span className="relative z-10 flex items-center gap-1">
-              {option === 'monthly' ? 'Hàng tháng' : 'Hàng năm'}
-              {option === 'yearly' && (
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                  isActive ? 'bg-white/20 text-white' : 'bg-green-100 text-green-700'
-                }`}>
-                  Tiết kiệm
-                </span>
-              )}
-            </span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
 
 const PriceCounter = ({ value }: { value: number }) => {
   const count = useMotionValue(0)

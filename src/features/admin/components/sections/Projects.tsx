@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, FolderKanban, LayoutGrid, List, Loader2, Plus } from "lucide-react";
+import { ChevronRight, FolderKanban, LayoutGrid, List, Loader2 } from "lucide-react";
 import { projectService } from "../../../projects/api/projectApi";
 import type { OwnerGroup, ProjectResponse, ProjectStats } from "../../../projects/types";
 import { Avatar, Badge, Card, Segmented, Skeleton } from "../ui";
@@ -239,12 +239,7 @@ export default function Projects() {
         </div>
       ) : (
         <div className="flex-1 min-h-0 space-y-5 overflow-y-auto">
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatCard label="Tổng dự án" value={(stats?.total ?? 0).toLocaleString("vi-VN")} />
-            <StatCard label="Đúng tiến độ" value={(stats?.onTrack ?? 0).toLocaleString("vi-VN")} />
-            <StatCard label="Cần chú ý" value={(stats?.needAttention ?? 0).toLocaleString("vi-VN")} />
-            <StatCard label="Bản nháp" value={(stats?.drafts ?? 0).toLocaleString("vi-VN")} />
-          </div>
+          <StatCard label="Tổng dự án" value={(stats?.total ?? 0).toLocaleString("vi-VN")} />
 
           <Card className="relative p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -260,9 +255,7 @@ export default function Projects() {
                     { id: "table", label: "", icon: <List className="h-4 w-4" /> },
                   ]}
                 />
-                <button className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-slate-700">
-                  <Plus className="h-4 w-4" /> Tạo dự án
-                </button>
+
               </div>
             </div>
 

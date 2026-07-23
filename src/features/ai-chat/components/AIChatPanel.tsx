@@ -49,8 +49,7 @@ const GREETING =
 export function AIChat({
                            open,
                            onToggle,
-                           diagramType,
-                           activeSheetId,
+                            activeSheetId,
                            currentNodes,
                            currentEdges,
                            workspaceItems,
@@ -79,23 +78,16 @@ export function AIChat({
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
     const [input, setInput] = useState("");
     const [busy, setBusy] = useState(false);
-    const [dragOver, setDragOver] = useState(false);
     const [view, setView] = useState<"chat" | "history">("chat");
     const [sidebarWidth, setSidebarWidth] = useState(360);
     const [isResizing, setIsResizing] = useState(false);
     const [quota, setQuota] = useState<QuotaInfo | null>(null);
     const [contexts, setContexts] = useState<AttachedContext[]>([]);
-    const [mentionIndex, setMentionIndex] = useState(0);
-
-    const mentionMatch = input.match(/(?:^|\s)#([^\s#]*)$/);
-    const mentionQuery = mentionMatch?.[1]?.toLowerCase() || '';
-    const mentionItems = mentionMatch ? workspaceItems.filter(item => item.name.toLowerCase().includes(mentionQuery)).slice(0, 8) : [];
 
     const loadQuota = () => { getMyQuota().then(setQuota).catch(() => { /* im lặng */ }); };
     useEffect(() => { if (open) loadQuota(); }, [open]);
 
     const scrollRef = useRef<HTMLDivElement>(null);
-    const fileRef = useRef<HTMLInputElement>(null);
 
     // Resize handler
     useEffect(() => {
@@ -370,30 +362,6 @@ export function AIChat({
         setContexts(previous => previous.some(value => value.id === context.id) ? previous : [...previous, context]);
     };
 
-    const addExternalFiles = async (files: File[]) => {
-        for (const file of files.slice(0, 10)) {
-            const id = `upload:${file.name}:${file.lastModified}`;
-            if (contexts.some(value => value.id === id)) continue;
-            if (file.size > 20 * 1024 * 1024) { toast.error(`${file.name} vượt quá 20 MB`); continue; }
-            const supported = /\.(md|txt|json|csv|xml|puml|mmd|ts|tsx|js|jsx|java|py|sql)$/i.test(file.name);
-            if (!supported) {
-                setContexts(previous => [...previous, { id, type: 'UPLOADED_FILE', name: file.name, mimeType: file.type, size: file.size, pinned: false, status: 'processing' }]);
-                toast(`“${file.name}” cần backend extractor để đọc nội dung`);
-                continue;
-            }
-            try {
-                const content = await file.text();
-                setContexts(previous => [...previous, { id, type: 'UPLOADED_FILE', name: file.name, mimeType: file.type || 'text/plain', inlineContent: content.slice(0, 200000), size: file.size, pinned: false, status: 'ready' }]);
-            } catch { setContexts(previous => [...previous, { id, type: 'UPLOADED_FILE', name: file.name, pinned: false, status: 'failed' }]); }
-        }
-    };
-
-    const chooseMention = (item: WorkspaceFileItem) => {
-        addWorkspaceContext(item);
-        setInput(value => value.replace(/(?:^|\s)#[^\s#]*$/, match => match.startsWith(' ') ? ' ' : ''));
-        setMentionIndex(0);
-    };
-
     const submit = async (overrideText?: string | any) => {
         // If overrideText is a MouseEvent (from onClick={submit}), ignore it
         const actualText = (typeof overrideText === 'string') ? overrideText : undefined;
@@ -442,7 +410,7 @@ export function AIChat({
 
             const res = await chatService.sendChat({
                 message: text,
-                sessionId: activeSessionId,
+                sessionId: activeSessionId ?? undefined,
                 sheetId: currentSheetId,
                 currentNodes: mappedNodes,
                 currentEdges: mappedEdges,
@@ -483,18 +451,9 @@ export function AIChat({
     /* ---------- expanded sidebar ---------- */
     return (
         <aside
-            className={`relative flex shrink-0 flex-col border-l border-admin-outline/30 bg-white ${isResizing ? "" : "transition-all"} ${open ? "translate-x-0" : "translate-x-full"} ${dragOver ? "ring-2 ring-inset ring-admin-primary/10" : ""}`}
+            className={`relative flex shrink-0 flex-col border-l border-admin-outline/30 bg-white ${isResizing ? "" : "transition-all"} ${open ? "translate-x-0" : "translate-x-full"}`}
             style={{ width: open ? sidebarWidth : 0, minWidth: open ? 280 : 0 }}
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as globalThis.Node)) setDragOver(false); }}
-            onDrop={(e) => {
-                e.preventDefault(); setDragOver(false);
-                const itemId = e.dataTransfer.getData('workspace-item');
-                if (itemId) { const item = workspaceItems.find(value => value.id === itemId); if (item) addWorkspaceContext(item); return; }
-                if (e.dataTransfer.files?.length) void addExternalFiles(Array.from(e.dataTransfer.files));
-            }}
         >
-            {dragOver && <div className="pointer-events-none absolute inset-2 z-[80] flex items-center justify-center rounded-xl border-2 border-dashed border-admin-primary bg-admin-primary/10 backdrop-blur-[2px]"><div className="rounded-xl bg-white px-5 py-4 text-center shadow-xl"><b className="block text-sm text-admin-primary">Thả để thêm vào AI context</b><span className="mt-1 block text-[11px] text-admin-secondary">File sẽ chưa được gửi cho tới khi bro nhấn Send</span></div></div>}
             {/* Resize handle */}
             <div
                 onMouseDown={() => setIsResizing(true)}
@@ -613,23 +572,14 @@ export function AIChat({
                     <div className="border-t border-admin-outline/30 bg-white p-4 shrink-0">
                         {contexts.length > 0 && <div className="mb-2"><div className="mb-1.5 flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-admin-secondary"><span>AI context · {contexts.length} items</span><button onClick={() => setContexts(previous => previous.filter(context => context.pinned))} className="normal-case text-admin-primary">Clear unpinned</button></div><div className="flex max-h-24 flex-wrap gap-1.5 overflow-auto">{contexts.map(context => <span key={context.id} className={`group flex max-w-full items-center gap-1 rounded-lg border px-2 py-1 text-[10px] ${context.status === 'failed' ? 'border-red-200 bg-red-50 text-red-700' : context.status === 'processing' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-admin-primary/20 bg-admin-primary/5 text-admin-primary'}`}><button onClick={() => context.itemId && onOpenWorkspaceItem?.(context.itemId)} className="max-w-[170px] truncate font-bold">{context.name}</button><button onClick={() => setContexts(previous => previous.map(value => value.id === context.id ? { ...value, pinned: !value.pinned } : value))} title={context.pinned ? 'Unpin context' : 'Keep in conversation'}>{context.pinned ? '●' : '○'}</button><button onClick={() => setContexts(previous => previous.filter(value => value.id !== context.id))} className="ml-0.5 opacity-60 hover:opacity-100">×</button></span>)}</div></div>}
                         <div className="relative flex items-center gap-2">
-                            {mentionItems.length > 0 && <div className="absolute bottom-12 left-0 right-12 z-50 max-h-64 overflow-auto rounded-xl border border-admin-outline bg-white p-1.5 shadow-2xl"><p className="px-2 py-1 text-[9px] font-black uppercase tracking-widest text-admin-secondary">Add project context</p>{mentionItems.map((item, index) => <button key={item.id} onMouseDown={event => { event.preventDefault(); chooseMention(item) }} className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left ${index === mentionIndex ? 'bg-admin-primary/10 text-admin-primary' : 'hover:bg-admin-bg'}`}><span>{item.kind === 'folder' ? '📁' : item.kind === 'markdown' ? '📄' : '◇'}</span><span className="min-w-0 flex-1"><b className="block truncate text-xs">{item.name}</b><small className="text-[9px] uppercase text-admin-secondary">{item.kind}</small></span></button>)}</div>}
-                            <input ref={fileRef} type="file" multiple className="hidden" accept=".md,.txt,.json,.csv,.xml,.puml,.mmd,.ts,.tsx,.js,.jsx,.java,.py,.sql,.pdf,.docx" onChange={event => { if (event.target.files) void addExternalFiles(Array.from(event.target.files)); event.target.value = ''; }}/>
-                            <button onClick={() => fileRef.current?.click()} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-admin-outline/30 bg-admin-bg text-admin-secondary hover:border-admin-primary hover:text-admin-primary" title="Upload files">📎</button>
                             <input
                                 type="text"
                                 value={input}
-                                onChange={(e) => { setInput(e.target.value); setMentionIndex(0); }}
+                                onChange={(e) => { setInput(e.target.value); }}
                                 onKeyDown={(e) => {
-                                    if (mentionItems.length) {
-                                        if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(value => Math.min(mentionItems.length - 1, value + 1)); return; }
-                                        if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(value => Math.max(0, value - 1)); return; }
-                                        if (e.key === 'Enter') { e.preventDefault(); chooseMention(mentionItems[mentionIndex]); return; }
-                                        if (e.key === 'Escape') { setInput(value => value.replace(/#([^\s#]*)$/, '')); return; }
-                                    }
                                     if (e.key === "Enter") submit();
                                 }}
-                                placeholder="Hỏi AI, nhập # để thêm file..."
+                                placeholder="Hỏi AI..."
                                 disabled={busy}
                                 className="min-w-0 flex-1 rounded-xl border border-admin-outline/30 bg-admin-bg px-4 py-2.5 text-[13.5px] font-medium transition-all focus:border-admin-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-admin-primary/5 disabled:opacity-50"
                             />

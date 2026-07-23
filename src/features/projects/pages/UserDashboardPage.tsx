@@ -16,8 +16,6 @@ import {
     Layers,
     Copy,
     Clock,
-    Loader2,
-    PenTool,
     PieChart,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -108,12 +106,8 @@ const UserDashboard: React.FC = () => {
     const [filterLoading, setFilterLoading] = useState(false);
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [workspacesLoading, setWorkspacesLoading] = useState(false);
-    const [drafts, setDrafts] = useState<Workspace[]>([]);
-    const [draftsLoading, setDraftsLoading] = useState(false);
     const [wsPage, setWsPage] = useState(0);
     const [wsTotalPages, setWsTotalPages] = useState(1);
-    const [draftsPage, setDraftsPage] = useState(0);
-    const [draftsTotalPages, setDraftsTotalPages] = useState(1);
     const PROJECT_PAGE_SIZE = 12;
     const [prebuilts, setPrebuilts] = useState<PrebuiltMeta[]>([]);
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -122,9 +116,6 @@ const UserDashboard: React.FC = () => {
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [showConfirm, setShowConfirm] = useState(false);
-    const [draftSelectionMode, setDraftSelectionMode] = useState(false);
-    const [draftSelectedIds, setDraftSelectedIds] = useState<Set<string>>(new Set());
-    const [showDraftConfirm, setShowDraftConfirm] = useState(false);
     // Xóa vĩnh viễn 1 dự án (yêu cầu gõ đúng tên) + Dọn sạch thùng rác
     const [permDeleteTarget, setPermDeleteTarget] = useState<Workspace | null>(null);
     const [permDeleteInput, setPermDeleteInput] = useState('');
@@ -157,9 +148,6 @@ const UserDashboard: React.FC = () => {
     useEffect(() => {
         if (activeTab === 'all' || activeTab === 'archived' || activeTab === 'trash') {
             fetchWorkspaces();
-        }
-        if (activeTab === 'drafts') {
-            fetchDrafts();
         }
     }, [activeTab]);
 
@@ -380,46 +368,6 @@ const UserDashboard: React.FC = () => {
         }
     };
 
-    const fetchDrafts = async () => {
-        setDraftsLoading(true);
-        try {
-            const response = await projectService.getAllProjects({ isDraft: true, page: draftsPage, size: PROJECT_PAGE_SIZE });
-            const projects = response.result?.content || [];
-            setDraftsTotalPages(response.result?.totalPages || 1);
-
-            // Fetch sheet counts for all drafts
-            const draftsWithSheets = await Promise.all(
-                projects.map(async (p: ProjectResponse) => {
-                    try {
-                        const sheetsRes = await sheetService.getSheetsByProject(p.id);
-                        return {
-                            id: p.id,
-                            name: p.projectName,
-                            category: p.description || 'draft',
-                            updatedAt: p.updatedAt,
-                            sheets: sheetsRes.result || []
-                        };
-                    } catch (e) {
-                        return {
-                            id: p.id,
-                            name: p.projectName,
-                            category: p.description || 'draft',
-                            updatedAt: p.updatedAt,
-                            sheets: []
-                        };
-                    }
-                })
-            );
-
-            setDrafts(draftsWithSheets);
-        } catch (error: any) {
-            toast.error(error.message || 'Không thể tải bản nháp');
-            setDrafts([]);
-        } finally {
-            setDraftsLoading(false);
-        }
-    };
-
     useEffect(() => {
         fetch('/prebuilts/index.json')
             .then(r => r.json())
@@ -488,43 +436,6 @@ const UserDashboard: React.FC = () => {
         }
     }
 
-    const isAllDraftsSelected = drafts.length > 0 && draftSelectedIds.size === drafts.length;
-
-    const handleToggleDraftSelect = (id: string) => {
-        setDraftSelectedIds(prev => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            return next;
-        });
-    }
-
-    const handleDraftDeleteClick = () => {
-        if (draftSelectedIds.size === 0) return;
-        setShowDraftConfirm(true);
-    }
-
-    const handleAllDraftsClick = () => {
-        if (!isAllDraftsSelected) {
-            setDraftSelectedIds(new Set(drafts.map(d => d.id)));
-        }
-        setShowDraftConfirm(true);
-    }
-
-    const handleConfirmDraftDelete = async () => {
-        setShowDraftConfirm(false);
-        const ids = [...draftSelectedIds];
-        try {
-            await projectService.deleteProjects(ids);
-            setDraftSelectedIds(new Set());
-            setDraftSelectionMode(false);
-            fetchDrafts();
-            showUndoToast(ids, fetchDrafts);
-        } catch (error: any) {
-            toast.error(getErrorMessage(error, 'Không thể xoá bản nháp'));
-        }
-    }
-
     return (
         <div className="bg-admin-bg text-admin-on-surface font-priego h-screen flex overflow-hidden pt-[72px]">
             <div className="absolute inset-0 grid-background opacity-30 pointer-events-none" />
@@ -561,13 +472,6 @@ const UserDashboard: React.FC = () => {
                         label="Tất cả dự án"
                         active={activeTab === 'all'}
                         onClick={() => setActiveTab('all')}
-                        collapsed={isSidebarCollapsed}
-                    />
-                    <SidebarItem
-                        icon={<PenTool size={20} />}
-                        label="Bản nháp"
-                        active={activeTab === 'drafts'}
-                        onClick={() => setActiveTab('drafts')}
                         collapsed={isSidebarCollapsed}
                     />
                     <SidebarItem
@@ -646,13 +550,6 @@ const UserDashboard: React.FC = () => {
                                         <h1 className="text-4xl font-black tracking-tight text-black mb-2">Tất cả dự án</h1>
                                         <p className="text-lg text-admin-on-surface-variant">Tạo và quản lý các Workspace thiết kế kiến trúc của bạn.</p>
                                     </>
-                                ) : activeTab === 'drafts' ? (
-                                    <>
-                                        <h1 className="text-4xl font-black tracking-tight text-black mb-2">Bản nháp</h1>
-                                        <p className="text-lg text-admin-on-surface-variant">
-                                            Các diagram nhanh được lưu dưới dạng bản nháp độc lập. Mở và tiếp tục chỉnh sửa bất cứ lúc nào.
-                                        </p>
-                                    </>
                                 ) : activeTab === 'archived' ? (
                                     <>
                                         <h1 className="text-4xl font-black tracking-tight text-black mb-2">Lưu trữ</h1>
@@ -674,7 +571,7 @@ const UserDashboard: React.FC = () => {
 
                             {/* Grid/List Toggle */}
                             <div className="flex items-center gap-3">
-                                {(activeTab === 'all' || activeTab === 'drafts') && (
+                                {(activeTab === 'all') && (
                                     <button
                                         onClick={() => setShowCreateModal(true)}
                                         className="px-4 py-2 bg-uml-blue text-white font-bold rounded-md text-sm hover:bg-blue-700 transition flex items-center gap-2"
@@ -800,113 +697,6 @@ const UserDashboard: React.FC = () => {
                                     </motion.div>
                                 </AnimatePresence>
                             )
-                        ) : activeTab === 'drafts' ? (
-                            <section className="mb-12">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-lg font-bold text-black">
-                                        Bản nháp
-                                        <span className="ml-2 text-sm font-normal text-gray-400">({drafts.length})</span>
-                                    </h2>
-                                    <motion.div
-                                        layout
-                                        transition={{ type: 'spring', stiffness: 250, damping: 25 }}
-                                        className={`flex items-center border-2 rounded-full bg-white ${
-                                            draftSelectionMode ? 'border-gray-300 px-1.5 py-1' : 'border-gray-300'
-                                        }`}
-                                    >
-                                        <AnimatePresence mode="popLayout">
-                                            {draftSelectionMode && (
-                                                <motion.div
-                                                    key="red-pill-draft"
-                                                    initial={{ width: 0, opacity: 0 }}
-                                                    animate={{ width: 120, opacity: 1 }}
-                                                    exit={{ width: 0, opacity: 0 }}
-                                                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                                                    className="flex items-center overflow-hidden bg-red-600 rounded-full h-8"
-                                                >
-                                                    <div className="flex items-center h-full shrink-0" style={{ width: 120 }}>
-                                                        <button
-                                                            onClick={handleDraftDeleteClick}
-                                                            disabled={draftSelectedIds.size === 0}
-                                                            className={`h-full font-bold text-xs whitespace-nowrap flex-[7] flex items-center justify-center ${draftSelectedIds.size === 0 ? 'text-gray-400' : 'text-white'}`}
-                                                        >
-                                                            Xoá
-                                                        </button>
-                                                        <div className="w-[1px] h-5 bg-white/80 shrink-0" />
-                                                        <button
-                                                            onClick={handleAllDraftsClick}
-                                                            className="h-full font-bold text-xs whitespace-nowrap flex-[3] flex items-center justify-center text-white"
-                                                        >
-                                                            Tất cả
-                                                        </button>
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                        <button
-                                            onClick={() => { setDraftSelectionMode(!draftSelectionMode); if (draftSelectionMode) setDraftSelectedIds(new Set()); }}
-                                            className={`flex items-center justify-center font-bold text-xs transition-colors cursor-pointer ${
-                                                draftSelectionMode
-                                                    ? 'px-3 py-1 text-gray-500 hover:text-gray-700'
-                                                    : 'w-9 h-9 text-gray-400 hover:text-red-500 hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]'
-                                            }`}
-                                            title="Xoá bản nháp"
-                                        >
-                                            {draftSelectionMode ? 'Huỷ' : <Trash2 size={16} />}
-                                        </button>
-                                    </motion.div>
-                                </div>
-                                {draftsLoading ? (
-                                    <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
-                                        <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
-                                    </div>
-                                ) : drafts.length === 0 ? (
-                                    <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
-                                        <PenTool size={48} className="text-gray-200 mx-auto mb-3" />
-                                        <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có bản nháp nào</h3>
-                                        <p className="text-sm text-gray-300">Tạo diagram từ canvas và lưu dưới dạng bản nháp.</p>
-                                    </div>
-                                ) : viewMode === 'grid' ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {drafts.map((d) => (
-                                            <DraftCard
-                                                key={d.id}
-                                                draft={d}
-                                                selectionMode={draftSelectionMode}
-                                                selected={draftSelectedIds.has(d.id)}
-                                                onToggleSelect={handleToggleDraftSelect}
-                                            />
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="bg-white border border-admin-outline rounded-sm overflow-hidden">
-                                        <table className="w-full text-left border-collapse">
-                                            <thead>
-                                            <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
-                                                <th className="py-4 px-6">Tên bản nháp</th>
-                                                <th className="py-4 px-6">Danh mục</th>
-                                                <th className="py-4 px-6">Chỉnh sửa lần cuối</th>
-                                                <th className="py-4 px-6 text-right">Diagrams</th>
-                                            </tr>
-                                            </thead>
-                                            <tbody>
-                                            {drafts.map((d) => (
-                                                <DraftListRow
-                                                    key={d.id}
-                                                    draft={d}
-                                                    selectionMode={draftSelectionMode}
-                                                    selected={draftSelectedIds.has(d.id)}
-                                                    onToggleSelect={handleToggleDraftSelect}
-                                                />
-                                            ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                                {!draftsLoading && drafts.length > 0 && (
-                                    <Pagination page={draftsPage} totalPages={draftsTotalPages} onChange={setDraftsPage} />
-                                )}
-                            </section>
                         ) : (
                             <>
                                 {/* My Workspaces */}
@@ -1172,44 +962,6 @@ const UserDashboard: React.FC = () => {
                 )}
             </AnimatePresence>
 
-            <AnimatePresence>
-                {showDraftConfirm && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            transition={{ type: 'spring', stiffness: 250, damping: 25 }}
-                            className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4"
-                        >
-                            <h3 className="text-lg font-bold text-black mb-2">Xoá bản nháp?</h3>
-                            <p className="text-sm text-gray-500 mb-6">
-                                Bạn có chắc muốn xoá {draftSelectedIds.size} bản nháp? Hành động này không thể hoàn tác.
-                            </p>
-                            <div className="flex justify-end gap-3">
-                                <button
-                                    onClick={() => { setShowDraftConfirm(false); setDraftSelectedIds(new Set()); setDraftSelectionMode(false); }}
-                                    className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 rounded-md transition"
-                                >
-                                    Huỷ
-                                </button>
-                                <button
-                                    onClick={handleConfirmDraftDelete}
-                                    className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition"
-                                >
-                                    Xoá
-                                </button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
             {/* Xóa vĩnh viễn 1 dự án — yêu cầu gõ đúng tên để xác nhận */}
             <AnimatePresence>
                 {permDeleteTarget && (
@@ -1419,85 +1171,6 @@ const TemplateListRow = ({ template, index = 0 }: { template: TemplateMeta; inde
                 {template.kind === 'sample' ? `${template.nodeCount}` : '—'}
             </td>
         </motion.tr>
-    )
-}
-
-const DraftCard = ({ draft, selectionMode, selected, onToggleSelect }: { draft: Workspace } & CardActions) => {
-    const navigate = useNavigate()
-    const sheetId = draft.sheets?.[0]?.id
-    return (
-        <motion.div
-            whileHover={{ y: -4 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            onClick={() => {
-                if (selectionMode) {
-                    onToggleSelect(draft.id)
-                } else {
-                    navigate(`/workspace/${draft.id}?draft=true`)
-                }
-            }}
-            className={`bg-white border rounded flex flex-col group transition-all cursor-pointer hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden h-[260px] ${
-                selected ? 'border-uml-blue ring-2 ring-uml-blue/20' : 'border-admin-outline hover:border-amber-400'
-            }`}
-        >
-            <div className="h-36 bg-gradient-to-br from-amber-50 to-orange-50 border-b border-admin-outline relative overflow-hidden">
-                <div className="absolute inset-0 blueprint-grid opacity-30 group-hover:opacity-50 transition-opacity" />
-                <div className="absolute top-3 right-3 flex gap-1.5">
-          <span className="px-2 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest shadow-sm border bg-amber-100 text-amber-700 border-amber-200">
-            Bản nháp
-          </span>
-                </div>
-            </div>
-            <div className="p-5 flex-1 flex flex-col justify-between">
-                <div>
-                    <h3 className="text-lg font-bold text-black group-hover:text-uml-blue transition-colors leading-tight mb-1">{draft.name}</h3>
-                    <p className="text-[11px] text-admin-secondary font-bold uppercase tracking-widest">{(draft.sheets?.length || 0)} diagram</p>
-                </div>
-                <div className="flex items-center gap-2 text-[10px] text-gray-400">
-                    <Clock size={12} />
-                    {formatRelativeTime(draft.updatedAt)}
-                </div>
-            </div>
-            {selected && (
-                <div className="absolute top-3 left-3 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-uml-blue text-white shadow-md ring-2 ring-white">
-                    <CheckCircle2 size={16} />
-                </div>
-            )}
-        </motion.div>
-    )
-}
-
-const DraftListRow = ({ draft, selectionMode, selected, onToggleSelect }: { draft: Workspace } & CardActions) => {
-    const navigate = useNavigate()
-    return (
-        <tr
-            onClick={() => {
-                if (selectionMode) {
-                    onToggleSelect(draft.id)
-                } else {
-                    navigate(`/workspace/${draft.id}?draft=true`)
-                }
-            }}
-            className={`relative overflow-hidden border-b transition-colors group cursor-pointer ${
-                selected ? 'border-uml-blue bg-blue-50/40' : 'border-admin-outline hover:bg-gray-50/50'
-            }`}
-        >
-            <td className="py-4 px-6">
-                <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded flex items-center justify-center shrink-0 transition-colors ${selected ? 'bg-uml-blue text-white' : 'bg-amber-100 text-amber-700'}`}>
-                        {selected ? <CheckCircle2 size={18} /> : <PenTool size={18} />}
-                    </div>
-                    <span className="font-bold text-black group-hover:text-uml-blue transition-colors">{draft.name}</span>
-                </div>
-            </td>
-            <td className="py-4 px-6">
-        <span className="px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest border bg-amber-100 text-amber-700 border-amber-200">
-          Bản nháp
-        </span>
-            </td>
-            <td className="py-4 px-6 text-admin-on-surface-variant font-bold text-[12px] uppercase">{formatRelativeTime(draft.updatedAt)}</td>
-            <td className="py-4 px-6 text-right text-[12px] text-admin-secondary font-bold">{(draft.sheets?.length || 0)}</td>
-        </tr>
     )
 }
 

@@ -576,7 +576,7 @@ export default function SubscriptionsSection() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmDel, setConfirmDel] = useState<SubscriptionPlan | null>(null);
   const [view, setView] = useState<"grid" | "list">("grid");
-  const [billing, setBilling] = useState<Billing>("monthly");
+  const billing: Billing = "monthly";
   const [editorTab, setEditorTab] = useState<"info" | "shared/config" | "features" | "review">("info");
   const [loading, setLoading] = useState(true);
 
@@ -595,7 +595,7 @@ export default function SubscriptionsSection() {
 
   const activePlans = plans.filter((p) => p.status === "ACTIVE").length;
   const totalSubs = plans.reduce((s, p) => s + p.subscribers, 0);
-  const yearlyCount = plans.filter((p) => p.yearlyBilling).length;
+
   const mrr = plans.filter((p) => p.status === "ACTIVE").reduce((s, p) => s + p.price * p.subscribers, 0);
 
   // BE tự renumber tierOrder sau create/sửa giá/xóa → reload để thấy thứ tự mới.
@@ -739,23 +739,7 @@ export default function SubscriptionsSection() {
           </div>
         </div>
 
-        <div className="mb-5 flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 py-3 sm:flex-row sm:gap-4">
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
-            {(["monthly", "yearly"] as const).map((b) => {
-              const disabled = b === "yearly" && yearlyCount === 0;
-              return <button key={b} onClick={() => !disabled && setBilling(b)} disabled={disabled} title={disabled ? "Chưa có gói nào bật thanh toán năm" : undefined}
-                className={cn("inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-[13px] font-medium transition", billing === b ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900", disabled && "cursor-not-allowed opacity-40")}>
-                {b === "monthly" ? "Hàng tháng" : "Hàng năm"}
-                {b === "yearly" && <span className={cn("rounded px-1 text-[10px]", billing === b ? "bg-white/20" : "bg-white text-slate-500")}>{yearlyCount}</span>}
-              </button>;
-            })}
-          </div>
-          {billing === "yearly" ? (
-            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[12px] font-medium text-emerald-700"><BadgePercent className="h-3.5 w-3.5" /> {yearlyCount} gói hỗ trợ giảm giá theo năm</span>
-          ) : (
-            <span className="text-[12px] text-slate-400">{yearlyCount > 0 ? `${yearlyCount} gói đang bật thanh toán năm — chuyển sang xem giá ưu đãi` : "Bật thanh toán năm trong từng gói để hiển thị giá ưu đãi"}</span>
-          )}
-        </div>
+
 
         {plans.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-4 py-16">

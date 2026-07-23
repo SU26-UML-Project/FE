@@ -7,7 +7,7 @@ const tabs: { id: SectionId; label: string }[] = [
   { id: "users", label: "Người dùng" },
   { id: "projects", label: "Dự án" },
   { id: "intelligence", label: "AI Engine" },
-  { id: "operation", label: "Mẫu Workspace" },
+
   { id: "subscription", label: "Gói Subscription" },
 ];
 

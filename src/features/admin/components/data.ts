@@ -9,7 +9,6 @@ import {
   Landmark,
   Layers,
   LayoutDashboard,
-  LayoutTemplate,
   type LucideIcon,
   MessagesSquare,
   ScrollText,
@@ -25,7 +24,6 @@ export type SectionId =
   | "users"
   | "projects"
   | "intelligence"
-  | "operation"
   | "subscription"
   | "audit";
 
@@ -72,12 +70,6 @@ export const navSections: NavSection[] = [
     id: "ops",
     hint: "Vận hành",
     items: [
-      {
-        id: "operation",
-        label: "Mẫu Workspace",
-        sub: "Templates · Knowledge",
-        icon: LayoutTemplate,
-      },
       {
         id: "subscription",
         label: "Gói Subscription",
