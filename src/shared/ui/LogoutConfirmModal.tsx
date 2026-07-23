@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useAuthStore } from "../../stores/useAuthStore";
+import { useAuthStore } from "../../features/auth/model/useAuthStore";
 
 export default function LogoutConfirmModal({
   open,

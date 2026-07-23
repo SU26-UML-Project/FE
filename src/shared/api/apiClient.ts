@@ -71,7 +71,7 @@ apiClient.interceptors.response.use(
 
       try {
         // Import authService dynamically to avoid circular dependency
-        const { authService } = await import('../../services/authService');
+        const { authService } = await import('../../features/auth/api/authApi');
         const response = await authService.refresh();
         
         const { token } = response.result;

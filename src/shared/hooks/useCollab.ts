@@ -1,7 +1,7 @@
 ﻿import { useEffect, useCallback, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import { socketService, CursorData, SelectionData, CanvasChangeData } from "../../services";
-import { useAuthStore } from "../../stores/useAuthStore";
+import { useAuthStore } from "../../features/auth/model/useAuthStore";
 import { FlowNode, FlowEdge } from "../../types";
 import { useReactFlow } from "@xyflow/react";
 

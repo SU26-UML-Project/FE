@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { useAuthStore } from '../../stores/useAuthStore'
-import { authService } from '../../services/authService'
+import { useAuthStore } from '../../features/auth/model/useAuthStore'
+import { authService } from '../../features/auth/api/authApi'
 import { setAuthCookie, COOKIE_KEYS } from '../../shared/lib/auth'
 
 const OAuth2Handler = () => {

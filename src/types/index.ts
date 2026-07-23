@@ -2,4 +2,3 @@
 export * from "./node";
 export * from "./diagram";
 export * from "./sheet";
-export * from "./chat";

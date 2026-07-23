@@ -13,7 +13,7 @@ import {
   ArrowRight,
   ArrowLeft,
 } from 'lucide-react'
-import { authService } from '../../services/authService'
+import { authService } from '../../features/auth/api/authApi'
 import { useOtpCountdown } from '../../shared/hooks/useOtpCountdown'
 import { usePasswordStrength } from '../../shared/hooks/usePasswordStrength'
 

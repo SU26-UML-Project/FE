@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '../../stores/useAuthStore'
+import { useAuthStore } from '../../features/auth/model/useAuthStore'
 
 const CTA = () => {
   const { isAuthenticated } = useAuthStore()

@@ -15,10 +15,10 @@
  *   AI flow         → anythingllmService (chat) + canvasStore (draw result)
  */
 export type { ChatRequest, AIResponse } from "./anythingllmService";
-export type { DiagramTemplate } from "./templateService";
-export { projectService } from "./projectService";
-export { sheetService } from "./sheetService";
-export type { SheetRequest, SheetResponse } from "./sheetService";
-export { socketService } from "./socketService";
-export type { CursorData, SelectionData, CanvasChangeData } from "./socketService";
-export {} from "./templateService";
+export type { DiagramTemplate } from "../features/templates/api/templateApi";
+export { projectService } from "../features/projects/api/projectApi";
+export { sheetService } from "../features/projects/api/sheetApi";
+export type { SheetRequest, SheetResponse } from "../features/projects/api/sheetApi";
+export { socketService } from "../features/workspace/api/socketService";
+export type { CursorData, SelectionData, CanvasChangeData } from "../features/workspace/api/socketService";
+export {} from "../features/templates/api/templateApi";
