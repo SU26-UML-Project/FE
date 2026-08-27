@@ -23,6 +23,17 @@ const elk = new ELK();
 
 const HANDLE_POINTS = [25, 50, 75] as const;
 
+/*
+ * Lưới anchor dày cho node có nhiều cạnh cùng phía
+ * (fan-out >= 4 cạnh ngang). Phải khớp chính xác tập điểm
+ * được render trong AllHandles
+ * (src/features/workspace/Canvas/Nodes.tsx) — React Flow
+ * sẽ drop edge khi handle id không tồn tại trên node.
+ */
+const DENSE_HANDLE_POINTS = [
+    10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90,
+] as const;
+
 const ACTIVITY = {
     NODE_GAP: 45,
     LAYER_GAP: 65,
@@ -54,7 +65,7 @@ const USE_CASE = {
     ACTOR_MIN_GAP: 45,
 
     BOUNDARY_PAD: 40,
-    ACTOR_UC_GAP: 120,
+    ACTOR_UC_GAP: 200, // was 120 — đủ chỗ cho các đường toả góc, tránh chồng lên nhau ở đoạn đầu
 
     GROUP_GAP: 70,
 } as const;
@@ -317,6 +328,7 @@ function assignHandles(
         nodeId: string,
         side: string,
         ideal: number,
+        poolOverride?: readonly number[],
     ): string => {
         const key = `${nodeId}-${side}`;
 
@@ -324,14 +336,25 @@ function assignHandles(
             handleUsage.get(key) ??
             new Set<number>();
 
-        const available = HANDLE_POINTS.filter(
+        /*
+         * poolOverride cho phép một nhánh cụ thể (vd fan-out
+         * >= 4 cạnh ngang) dùng lưới anchor dày hơn thay vì
+         * 3 điểm 25/50/75 mặc định. Mọi giá trị trong pool
+         * phải khớp với các <Handle> được render trong
+         * AllHandles (Nodes.tsx), nếu không React Flow sẽ
+         * drop edge vì không tìm thấy handle id.
+         */
+        const basePoints =
+            poolOverride ?? HANDLE_POINTS;
+
+        const available = basePoints.filter(
             (point) => !used.has(point),
         );
 
         const pool =
             available.length > 0
                 ? available
-                : [...HANDLE_POINTS];
+                : [...basePoints];
 
         const best = pool.reduce(
             (bestPoint, point) =>
@@ -777,12 +800,86 @@ function assignHandles(
             const targetSide =
                 dx >= 0 ? "l" : "r";
 
-            const sourceIdeal = clamp(
-                (
-                    (target.cy - source.y) /
-                    source.h
-                ) * 100,
-            );
+            /*
+             * Nhiều cạnh cùng xuất phát từ 1 actor/node (fan-out
+             * ngang) không thể tính sourceIdeal độc lập theo từng
+             * cạnh rồi để pickPercent xử lý greedy theo thứ tự mảng
+             * edges — thứ tự đó không liên quan gì tới vị trí trên/
+             * dưới thực tế của các target, gây bắt chéo ngay sát
+             * node nguồn (y hệt bug đã sửa ở CLASS HIERARCHY
+             * FAN-IN / FAN-OUT và final-merge). Sắp xếp anh em
+             * theo target.cy rồi trải đều 25→75 để thứ tự handle
+             * luôn khớp thứ tự target trên/dưới.
+             */
+            const siblings = edges
+                .filter(
+                    (e) => e.source === edge.source,
+                )
+                .map((e) => {
+                    const t = posMap.get(e.target);
+
+                    return t
+                        ? { edge: e, cy: t.cy }
+                        : null;
+                })
+                .filter(
+                    (
+                        item,
+                    ): item is {
+                        edge: FlowEdge;
+                        cy: number;
+                    } => Boolean(item),
+                )
+                .sort((a, b) => a.cy - b.cy);
+
+            /*
+             * Fan-out >3 cạnh: 3 điểm 25/50/75 quá sít trên node cao
+             * 124px (height), khiến các đường xuất phát gần như chồng
+             * lên nhau trước khi tách. Dùng lưới DENSE_HANDLE_POINTS
+             * (đã khai báo sẵn, khớp AllHandles trong Nodes.tsx) để
+             * trải rộng điểm xuất phát hơn.
+             */
+            const pool =
+                siblings.length > 3
+                    ? DENSE_HANDLE_POINTS
+                    : undefined;
+
+            const sourceIdeal =
+                siblings.length > 1
+                    ? (() => {
+                          const index =
+                              siblings.findIndex(
+                                  (s) =>
+                                      s.edge.id ===
+                                      edge.id,
+                              );
+
+                          const points =
+                              pool ?? HANDLE_POINTS;
+                          const lo = points[0];
+                          const hi =
+                              points[
+                                  points.length - 1
+                              ];
+
+                          return index >= 0
+                              ? lo +
+                                    (index /
+                                        (siblings.length -
+                                            1)) *
+                                        (hi - lo)
+                              : clamp(
+                                    ((target.cy -
+                                        source.y) /
+                                        source.h) *
+                                        100,
+                                    );
+                      })()
+                    : clamp(
+                          ((target.cy - source.y) /
+                              source.h) *
+                              100,
+                      );
 
             const targetIdeal = clamp(
                 (
@@ -798,6 +895,7 @@ function assignHandles(
                     edge.source,
                     sourceSide,
                     sourceIdeal,
+                    pool,
                 ),
 
                 targetHandle: pickPercent(
@@ -2854,6 +2952,167 @@ function ucGroupMetrics(
     };
 }
 
+/* ============================================================
+ * USE CASE ALIGNMENT NORMALIZATION
+ *
+ * positionUCsByActor stacks use cases in columns to avoid
+ * overlap, which can push a UC away from its actor's ideal Y
+ * and leave a jagged (non-straight) connector. For TRUE 1:1
+ * pairs — one actor with exactly one use case, and that use
+ * case connected to exactly one actor — there is no ambiguity
+ * about "which side to average toward", so we can safely snap
+ * the actor's Y to match the use case's center, producing a
+ * clean straight edge. Fan-out/fan-in cases are left untouched
+ * since placeActors/positionUCsByActor already centered them.
+ * ============================================================ */
+
+function normalizeUseCaseAlignment(
+    nodes: FlowNode[],
+    edges: FlowEdge[],
+): FlowNode[] {
+    const result = nodes.map((node) => ({
+        ...node,
+        position: { ...node.position },
+    }));
+
+    const nodeById =
+        createNodeMap(result);
+
+    const actors = result.filter(
+        (node) => node.type === "actor",
+    );
+
+    const useCases = result.filter(
+        (node) => node.type === "usecase",
+    );
+
+    const actorToUCs =
+        new Map<string, string[]>();
+
+    const ucToActors =
+        new Map<string, string[]>();
+
+    for (const actor of actors) {
+        actorToUCs.set(actor.id, []);
+    }
+
+    for (const uc of useCases) {
+        ucToActors.set(uc.id, []);
+    }
+
+    for (const edge of edges) {
+        const source = nodeById.get(
+            edge.source,
+        );
+
+        const target = nodeById.get(
+            edge.target,
+        );
+
+        if (!source || !target) {
+            continue;
+        }
+
+        if (
+            source.type === "actor" &&
+            target.type === "usecase"
+        ) {
+            actorToUCs
+                .get(source.id)
+                ?.push(target.id);
+
+            ucToActors
+                .get(target.id)
+                ?.push(source.id);
+        } else if (
+            target.type === "actor" &&
+            source.type === "usecase"
+        ) {
+            actorToUCs
+                .get(target.id)
+                ?.push(source.id);
+
+            ucToActors
+                .get(source.id)
+                ?.push(target.id);
+        }
+    }
+
+    const MIN_ACTOR_GAP =
+        USE_CASE.ACTOR_H +
+        USE_CASE.ACTOR_MIN_GAP;
+
+    /*
+     * Process top-to-bottom so gap checks compare against
+     * already finalized neighbors, keeping the result
+     * deterministic.
+     */
+    const sortedActors = [...actors].sort(
+        (a, b) => a.position.y - b.position.y,
+    );
+
+    for (const actor of sortedActors) {
+        const ucIds =
+            actorToUCs.get(actor.id) ?? [];
+
+        if (ucIds.length !== 1) {
+            continue;
+        }
+
+        const uc = nodeById.get(ucIds[0]);
+
+        if (
+            !uc ||
+            (ucToActors.get(uc.id) ?? [])
+                .length !== 1
+        ) {
+            continue;
+        }
+
+        const targetCy =
+            uc.position.y + USE_CASE.UC_H / 2;
+
+        const desiredY =
+            targetCy - USE_CASE.ACTOR_H / 2;
+
+        const index = result.findIndex(
+            (node) => node.id === actor.id,
+        );
+
+        if (index < 0) {
+            continue;
+        }
+
+        const siblings = result.filter(
+            (node) =>
+                node.type === "actor" &&
+                node.id !== actor.id &&
+                node.position.x ===
+                    actor.position.x,
+        );
+
+        const collides = siblings.some(
+            (sibling) =>
+                Math.abs(
+                    sibling.position.y - desiredY,
+                ) < MIN_ACTOR_GAP,
+        );
+
+        if (!collides) {
+            result[index] = {
+                ...result[index],
+                position: {
+                    ...result[index].position,
+                    y: desiredY,
+                },
+            };
+        }
+    }
+
+    return result;
+}
+
+
 function layoutUseCase(
     nodes: FlowNode[],
     edges: FlowEdge[],
@@ -4001,10 +4260,21 @@ function layoutUseCase(
         );
 
     /*
+     * Snap TRUE 1:1 actor <-> use-case pairs onto a straight
+     * horizontal connector, without disturbing fan-out / fan-in
+     * groups (already centered) or re-introducing overlaps.
+     */
+    const alignedNodes =
+        normalizeUseCaseAlignment(
+            finalizedNodes,
+            edges,
+        );
+
+    /*
      * Reposition actors after boundary finalization.
      */
     const finalBoundary =
-        finalizedNodes.find(
+        alignedNodes.find(
             (node) =>
                 node.type ===
                     "boundary" ||
@@ -4014,7 +4284,7 @@ function layoutUseCase(
 
     const finalNodes =
         finalBoundary
-            ? finalizedNodes.map(
+            ? alignedNodes.map(
                   (node) => {
                       if (
                           node.type !==
@@ -4074,16 +4344,23 @@ function layoutUseCase(
                       return node;
                   },
               )
-            : finalizedNodes;
+            : alignedNodes;
 
     /*
-     * Smart use-case edges.
+     * Use-case edges.
+     *
+     * Actor <-> Use case connectors must always be straight lines
+     * (diagonal included) — that is the standard UML look. The
+     * old |source.cy - target.cy| < 12 check almost never passed
+     * because placeActors pins actors to a fixed column while
+     * positionUCsByActor stacks use cases into rows/columns, so
+     * nearly every edge fell through to smoothstep and rendered
+     * as an ugly right-angle staircase. A straight diagonal is
+     * always correct here.
+     *
+     * Dashed edges (include / extend, notes/dependencies) keep
+     * smoothstep routing.
      */
-    const finalPositionMap =
-        buildPositionMap(
-            finalNodes,
-        );
-
     const layoutedEdges =
         assignHandles(
             finalNodes,
@@ -4091,35 +4368,14 @@ function layoutUseCase(
             "usecase",
         ).map(
             (edge) => {
-                const source =
-                    finalPositionMap.get(
-                        edge.source,
-                    );
-
-                const target =
-                    finalPositionMap.get(
-                        edge.target,
-                    );
-
-                if (
-                    !source ||
-                    !target
-                ) {
-                    return edge;
-                }
-
-                const aligned =
-                    Math.abs(
-                        source.cy -
-                            target.cy,
-                    ) < 12;
-
                 return {
                     ...edge,
 
-                    type: aligned
-                        ? "straight"
-                        : "smoothstep",
+                    type: isDashedEdge(
+                        edge,
+                    )
+                        ? "smoothstep"
+                        : "straight",
 
                     zIndex: 10,
                 };
