@@ -128,6 +128,30 @@ button {
     stroke: var(--color-uml-blue);
 }
 
+/* Edge reconnection anchors (end handles) — reveal on hover/selection so users
+   can drag a connector end to re-attach it to another node, like the initial
+   node→node linking. */
+.react-flow__edgeupdater {
+    pointer-events: all;
+    cursor: move;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+}
+.react-flow__edge:hover .react-flow__edgeupdater,
+.react-flow__edge.selected .react-flow__edgeupdater {
+    opacity: 1;
+}
+.react-flow__edgeupdater-source {
+    fill: #10b981;
+    stroke: #ffffff;
+    stroke-width: 1.5;
+}
+.react-flow__edgeupdater-target {
+    fill: #f59e0b;
+    stroke: #ffffff;
+    stroke-width: 1.5;
+}
+
 /* Edge labels */
 .react-flow__edge-text {
     font-size: 11px;
@@ -307,7 +331,73 @@ button {
     animation: pop-in 0.14s ease-out;
 }
 
-/* Range input (zoom slider etc.) */
+/* ---------- Magic Layout button (Auto-arrange) ---------- */
+@keyframes magic-gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes magic-glow {
+    0%, 100% {
+        box-shadow: 0 4px 16px -4px rgba(79, 70, 229, 0.5), 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    50% {
+        box-shadow: 0 4px 24px -4px rgba(124, 58, 237, 0.65), 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+}
+
+@keyframes magic-sparkle {
+    0%, 100% { opacity: 0.35; transform: rotate(0deg) scale(0.8); }
+    50% { opacity: 1; transform: rotate(18deg) scale(1.12); }
+}
+
+.gp-magic-btn {
+    position: relative;
+    isolation: isolate;
+    background: linear-gradient(120deg, #004ac6 0%, #5b21b6 48%, #7c3aed 100%);
+    background-size: 220% 220%;
+    animation:
+        magic-gradient-shift 7s ease-in-out infinite,
+        magic-glow 3.5s ease-in-out infinite;
+    color: #fff;
+    overflow: hidden;
+    box-shadow: 0 4px 16px -4px rgba(79, 70, 229, 0.5), 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Diagonal light sheen sweeping across on hover */
+.gp-magic-btn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(110deg, transparent 32%, rgba(255, 255, 255, 0.38) 50%, transparent 68%);
+    background-size: 220% 100%;
+    background-repeat: no-repeat;
+    background-position: -120% 0;
+    transition: background-position 0.65s ease;
+}
+
+.gp-magic-btn:hover::before {
+    background-position: 120% 0;
+}
+
+.gp-magic-btn:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+}
+
+.gp-magic-btn:active {
+    transform: translateY(0) scale(0.97);
+}
+
+.gp-magic-btn .gp-sparkle {
+    display: inline-block;
+    animation: magic-sparkle 2.4s ease-in-out infinite;
+    transform-origin: center;
+}
+
+/* Range inputs (zoom slider etc.) */
 input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
@@ -326,6 +416,55 @@ input[type="range"]::-webkit-slider-thumb {
     cursor: pointer;
     border: 2px solid #fff;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Zoom slider in the workspace toolbar.
+   Track uses a subtle grey with a brand-blue filled portion. */
+input[type="range"].zoom-range {
+    background:
+        linear-gradient(
+            var(--ink),
+            var(--ink)
+        ) no-repeat left center / var(--zoom-fill, 33%) 100%,
+        var(--line-strong);
+}
+
+input[type="range"].zoom-range::-webkit-slider-thumb {
+    width: 12px;
+    height: 12px;
+    background: var(--color-admin-primary, #004ac6);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(0, 74, 198, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="range"].zoom-range::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 1px 6px rgba(0, 74, 198, 0.45);
+}
+
+input[type="range"].zoom-range::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: var(--color-primary, #004ac6);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(0, 74, 198, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="range"].zoom-range::-moz-range-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 1px 6px rgba(0, 74, 198, 0.45);
+}
+
+input[type="range"].zoom-range::-moz-range-track {
+    background:
+        linear-gradient(var(--ink), var(--ink)) no-repeat left center /
+            var(--zoom-fill, 33%) 100%,
+        var(--line-strong);
+    height: 4px;
+    border-radius: 999px;
 }
 
 @theme {

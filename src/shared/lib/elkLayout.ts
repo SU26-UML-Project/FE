@@ -1,1029 +1,4922 @@
 import ELK from "elkjs/lib/elk.bundled.js";
-import dagre from "dagre";
-import type { FlowEdge, FlowNode, FlowNodeData, DiagramType } from "../../types";
+
+import type {
+    FlowEdge,
+    FlowNode,
+    FlowNodeData,
+    DiagramType,
+} from "../../types";
+
 import {
-    classMinSize, actionMinSize, noteMinSize, componentMinSize, swimlaneMinSize,
+    classMinSize,
+    actionMinSize,
+    noteMinSize,
+    componentMinSize,
+    swimlaneMinSize,
 } from "./sizing";
 
 const elk = new ELK();
 
 /* ============================================================
-   NODE SIZE ESTIMATION
-   ============================================================ */
-function estimateSize(node: FlowNode): { width: number; height: number } {
-    const measured = (node as Record<string, unknown>).measured as { width?: number; height?: number } | undefined;
+ * CONSTANTS
+ * ============================================================ */
+
+const HANDLE_POINTS = [25, 50, 75] as const;
+
+const ACTIVITY = {
+    NODE_GAP: 45,
+    LAYER_GAP: 65,
+    EDGE_NODE_GAP: 35,
+    EDGE_EDGE_GAP: 25,
+
+    MIN_LANE_HEIGHT: 280,
+
+    LANE_HEADER_H: 34,
+    LANE_PADDING_X: 35,
+    LANE_PADDING_TOP: 35,
+    LANE_PADDING_BOTTOM: 40,
+
+    BRANCH_GAP: 55,
+
+    TERMINAL_CENTER_TOLERANCE: 8,
+} as const;
+
+const USE_CASE = {
+    UC_W: 170,
+    UC_H: 76,
+
+    UC_GAP_X: 60,
+    UC_GAP_Y: 40,
+
+    ACTOR_W: 76,
+    ACTOR_H: 124,
+
+    ACTOR_MIN_GAP: 45,
+
+    BOUNDARY_PAD: 40,
+    ACTOR_UC_GAP: 120,
+
+    GROUP_GAP: 70,
+} as const;
+
+/* ============================================================
+ * NODE SIZE ESTIMATION
+ * ============================================================ */
+
+function estimateSize(node: FlowNode): {
+    width: number;
+    height: number;
+} {
+    const measured = (node as Record<string, unknown>).measured as
+        | {
+              width?: number;
+              height?: number;
+          }
+        | undefined;
+
     const w = measured?.width ?? node.width;
     const h = measured?.height ?? node.height;
-    if (w && h && w > 1 && h > 1) return { width: w, height: h };
+
+    if (
+        typeof w === "number" &&
+        typeof h === "number" &&
+        w > 1 &&
+        h > 1
+    ) {
+        return {
+            width: w,
+            height: h,
+        };
+    }
 
     const d = node.data as FlowNodeData;
+
     switch (node.type) {
-        case "cls": { const s = classMinSize(d); return { width: s.w, height: s.h }; }
-        case "action": { const s = actionMinSize(d.label ?? ""); return { width: s.w, height: s.h }; }
-        case "note": { const s = noteMinSize(d); return { width: s.w, height: s.h }; }
-        case "component": { const s = componentMinSize(d); return { width: s.w, height: s.h }; }
-        case "usecase": return { width: 170, height: 76 };
-        case "actor": return { width: 76, height: 124 };
+        case "cls": {
+            const s = classMinSize(d);
+
+            return {
+                width: s.w,
+                height: s.h,
+            };
+        }
+
+        case "action": {
+            const s = actionMinSize(d.label ?? "");
+
+            return {
+                width: s.w,
+                height: s.h,
+            };
+        }
+
+        case "note": {
+            const s = noteMinSize(d);
+
+            return {
+                width: s.w,
+                height: s.h,
+            };
+        }
+
+        case "component": {
+            const s = componentMinSize(d);
+
+            return {
+                width: s.w,
+                height: s.h,
+            };
+        }
+
+        case "usecase":
+            return {
+                width: USE_CASE.UC_W,
+                height: USE_CASE.UC_H,
+            };
+
+        case "actor":
+            return {
+                width: USE_CASE.ACTOR_W,
+                height: USE_CASE.ACTOR_H,
+            };
+
         case "start":
-        case "final": return { width: 40, height: 40 };
+        case "final":
+            return {
+                width: 40,
+                height: 40,
+            };
+
         case "decision": {
             const label = d.label || "";
             const lines = label.split("\n");
-            const maxLen = Math.max(8, ...lines.map(l => l.length));
-            // Decisions are diamonds, they need more width to accommodate text in the center
-            return { width: Math.max(150, maxLen * 10 + 40), height: Math.max(104, lines.length * 20 + 40) };
+
+            const maxLen = Math.max(
+                8,
+                ...lines.map((line) => line.length),
+            );
+
+            return {
+                width: Math.max(120, maxLen * 9 + 50),
+                height: Math.max(80, lines.length * 20 + 40),
+            };
         }
-        case "fork": return { width: 130, height: 14 };
+
+        case "fork":
+            return {
+                width: 130,
+                height: 14,
+            };
+
         case "package":
         case "boundary":
-        case "swimlane": { const s = swimlaneMinSize(d); return { width: s.w, height: s.h }; }
-        default: return { width: 150, height: 60 };
+        case "swimlane": {
+            const s = swimlaneMinSize(d);
+
+            return {
+                width: s.w,
+                height: s.h,
+            };
+        }
+
+        default:
+            return {
+                width: 150,
+                height: 60,
+            };
     }
 }
 
 /* ============================================================
-   HANDLE ASSIGNMENT — multi-point (25/50/75) per side
-   ============================================================ */
-function assignHandles(nodes: FlowNode[], edges: FlowEdge[], diagramType?: DiagramType): FlowEdge[] {
-    const nodeById = new Map(nodes.map(node => [node.id, node]));
-    const absolutePosition = (node: FlowNode): { x: number; y: number } => {
-        let x = node.position.x, y = node.position.y;
-        let parentId = node.parentId;
-        const visited = new Set<string>();
-        while (parentId && !visited.has(parentId)) {
-            visited.add(parentId);
-            const parent = nodeById.get(parentId);
-            if (!parent) break;
-            x += parent.position.x;
-            y += parent.position.y;
-            parentId = parent.parentId;
+ * ABSOLUTE POSITION HELPERS
+ * ============================================================ */
+
+function createNodeMap(
+    nodes: FlowNode[],
+): Map<string, FlowNode> {
+    return new Map(nodes.map((node) => [node.id, node]));
+}
+
+function getAbsolutePosition(
+    node: FlowNode,
+    nodeById: Map<string, FlowNode>,
+): {
+    x: number;
+    y: number;
+} {
+    let x = node.position.x;
+    let y = node.position.y;
+
+    let parentId = node.parentId;
+
+    const visited = new Set<string>();
+
+    while (parentId && !visited.has(parentId)) {
+        visited.add(parentId);
+
+        const parent = nodeById.get(parentId);
+
+        if (!parent) {
+            break;
         }
-        return { x, y };
+
+        x += parent.position.x;
+        y += parent.position.y;
+
+        parentId = parent.parentId;
+    }
+
+    return {
+        x,
+        y,
     };
-    const posMap = new Map<string, { x: number; y: number; w: number; h: number; cx: number; cy: number }>();
-    for (const n of nodes) {
-        const sz = estimateSize(n);
-        const position = absolutePosition(n);
-        posMap.set(n.id, {
-            x: position.x, y: position.y,
-            w: sz.width, h: sz.height,
-            cx: position.x + sz.width / 2,
-            cy: position.y + sz.height / 2,
+}
+
+function buildPositionMap(nodes: FlowNode[]) {
+    const nodeById = createNodeMap(nodes);
+
+    const result = new Map<
+        string,
+        {
+            x: number;
+            y: number;
+            w: number;
+            h: number;
+            cx: number;
+            cy: number;
+        }
+    >();
+
+    for (const node of nodes) {
+        const size = estimateSize(node);
+        const position = getAbsolutePosition(node, nodeById);
+
+        result.set(node.id, {
+            x: position.x,
+            y: position.y,
+            w: size.width,
+            h: size.height,
+            cx: position.x + size.width / 2,
+            cy: position.y + size.height / 2,
         });
     }
 
-    const handleUsage = new Map<string, Set<number>>();
-    const POINTS = [25, 50, 75];
+    return result;
+}
 
-    const pickPercent = (nodeId: string, side: string, ideal: number, isTarget = false): string => {
+/* ============================================================
+ * EDGE HELPERS
+ * ============================================================ */
+
+function isDashedEdge(edge: FlowEdge): boolean {
+    return (edge.data as { dashed?: boolean } | undefined)?.dashed === true;
+}
+
+function isNoteLink(edge: FlowEdge): boolean {
+    return isDashedEdge(edge);
+}
+
+function isIncludeExtend(edge: FlowEdge): boolean {
+    const label =
+        typeof edge.label === "string"
+            ? edge.label
+            : "";
+
+    const marker =
+        (edge.data as { marker?: string } | undefined)?.marker ?? "";
+
+    return (
+        label.includes("«") ||
+        marker.includes("open")
+    );
+}
+
+/* ============================================================
+ * HANDLE ASSIGNMENT
+ *
+ * Activity / State:
+ *   - Control flow => TOP/BOTTOM
+ *   - Note link => LEFT/RIGHT
+ *   - Decision => LEFT/RIGHT branch
+ *
+ * Class / Component / UseCase:
+ *   - Automatically choose horizontal/vertical
+ * ============================================================ */
+
+function assignHandles(
+    nodes: FlowNode[],
+    edges: FlowEdge[],
+    diagramType?: DiagramType,
+): FlowEdge[] {
+    const nodeById = createNodeMap(nodes);
+    const posMap = buildPositionMap(nodes);
+
+    const handleUsage = new Map<string, Set<number>>();
+
+    const pickPercent = (
+        nodeId: string,
+        side: string,
+        ideal: number,
+    ): string => {
         const key = `${nodeId}-${side}`;
-        const used = handleUsage.get(key) ?? new Set<number>();
-        const available = POINTS.filter((p) => !used.has(p));
-        const pool = available.length ? available : POINTS;
-        const best = pool.reduce((b, p) => (Math.abs(p - ideal) < Math.abs(b - ideal) ? p : b), pool[0]);
+
+        const used =
+            handleUsage.get(key) ??
+            new Set<number>();
+
+        const available = HANDLE_POINTS.filter(
+            (point) => !used.has(point),
+        );
+
+        const pool =
+            available.length > 0
+                ? available
+                : [...HANDLE_POINTS];
+
+        const best = pool.reduce(
+            (bestPoint, point) =>
+                Math.abs(point - ideal) <
+                Math.abs(bestPoint - ideal)
+                    ? point
+                    : bestPoint,
+            pool[0],
+        );
+
         used.add(best);
+
         handleUsage.set(key, used);
+
         return `${side}-${best}`;
     };
 
-    const clamp = (v: number) => Math.max(0, Math.min(100, v));
+    const clamp = (value: number) =>
+        Math.max(0, Math.min(100, value));
 
-    // State Machines also use Initial/Final pseudostates. Infer Activity only
-    // from the explicit diagram type so State transitions can use side handles
-    // for branches instead of being forced into a bottom-to-top flow.
-    const isActivity = diagramType === "activity";
+    /*
+     * Activity and State Machine share the same geometric
+     * vocabulary: start / decision / final nodes with control
+     * flow that should always run vertically. State Machine is
+     * treated as an Activity-style diagram here so it benefits
+     * from the same handle-assignment rules (decision fan-out,
+     * note-link routing, final-merge alignment, vertical control
+     * flow) instead of falling through to the generic
+     * horizontal/vertical heuristic below.
+     */
+    const isActivity =
+        diagramType === "activity" ||
+        diagramType === "state";
 
-    return edges.map((e) => {
-        const s = posMap.get(e.source);
-        const t = posMap.get(e.target);
-        if (!s || !t) return e;
+    return edges.map((edge) => {
+        const source = posMap.get(edge.source);
+        const target = posMap.get(edge.target);
 
-        const dx = t.cx - s.cx;
-        const dy = t.cy - s.cy;
+        if (!source || !target) {
+            return edge;
+        }
 
-        const sn = nodes.find(n => n.id === e.source);
-        const tn = nodes.find(n => n.id === e.target);
+        const sourceNode =
+            nodeById.get(edge.source);
+
+        const targetNode =
+            nodeById.get(edge.target);
+
+        const dx =
+            target.cx - source.cx;
+
+        const dy =
+            target.cy - source.cy;
+
+        /* ====================================================
+         * ACTIVITY / STATE
+         * ==================================================== */
 
         if (isActivity) {
-            if (sn && sn.type === "decision") {
-                const outEdges = edges.filter(x => x.source === e.source);
-                if (outEdges.length > 1) {
-                    const isLeft = t.cx < s.cx;
+            /*
+             * Decision fan-out:
+             *
+             *             Action
+             *            /
+             * Decision
+             *            \
+             *             Action
+             *
+             * Keep branches horizontally separated.
+             */
+            if (
+                sourceNode?.type === "decision"
+            ) {
+                const outgoing =
+                    edges.filter(
+                        (e) =>
+                            e.source === edge.source,
+                    );
+
+                if (outgoing.length > 1) {
+                    const targetIsLeft =
+                        target.cx < source.cx;
+
                     return {
-                        ...e,
-                        sourceHandle: isLeft ? "l-50" : "r-50",
-                        targetHandle: "t-50"
+                        ...edge,
+                        sourceHandle: targetIsLeft
+                            ? "l-50"
+                            : "r-50",
+                        targetHandle: "t-50",
                     };
                 }
             }
 
-            // Default for activity diagram: bottom to top
-            return {
-                ...e,
-                sourceHandle: "b-50",
-                targetHandle: "t-50"
-            };
-        }
+            /*
+             * Note links are semantic relations.
+             *
+             * They are allowed to exit horizontally.
+             */
+            if (isNoteLink(edge)) {
+                const horizontalRatio =
+                    Math.abs(dx) /
+                    (
+                        Math.abs(dx) +
+                        Math.abs(dy) ||
+                        1
+                    );
 
-        // Check both label and marker data for special relations (include/extend)
-        const isIncludeExtend =
-            (e.label as string)?.includes("«") ||
-            (e.data as { marker?: string })?.marker?.includes("open");
+                if (horizontalRatio > 0.45) {
+                    const sourceSide =
+                        dx >= 0 ? "r" : "l";
 
-        const horizontalRatio = Math.abs(dx) / (Math.abs(dx) + Math.abs(dy) || 1);
+                    const targetSide =
+                        dx >= 0 ? "l" : "r";
 
-        // Fallback for nodes without multi-handles (like package)
-        const isPackage = nodes.find(n => n.id === e.source)?.type === "package" || nodes.find(n => n.id === e.target)?.type === "package";
-        if (isPackage) {
-            if (horizontalRatio > 0.6 || isIncludeExtend) {
+                    const sourceIdeal = clamp(
+                        (
+                            (target.cy - source.y) /
+                            source.h
+                        ) * 100,
+                    );
+
+                    const targetIdeal = clamp(
+                        (
+                            (source.cy - target.y) /
+                            target.h
+                        ) * 100,
+                    );
+
+                    return {
+                        ...edge,
+
+                        sourceHandle: pickPercent(
+                            edge.source,
+                            sourceSide,
+                            sourceIdeal,
+                        ),
+
+                        targetHandle: pickPercent(
+                            edge.target,
+                            targetSide,
+                            targetIdeal,
+                        ),
+                    };
+                }
+            }
+
+            /*
+             * Three edges into one Final node:
+             *
+             *   left  -> t-25
+             *   middle -> t-50  (perfectly vertical)
+             *   right -> t-75
+             *
+             * The middle source node is normalized to the Final
+             * center by normalizeActivityFinalMerges(), so the
+             * middle edge can remain a true straight vertical line.
+             */
+            if (targetNode?.type === "final") {
+                const incoming = edges
+                    .filter((e) => e.target === edge.target)
+                    .map((e) => {
+                        const sourcePosition = posMap.get(e.source);
+
+                        return sourcePosition
+                            ? {
+                                  edge: e,
+                                  cx: sourcePosition.cx,
+                              }
+                            : null;
+                    })
+                    .filter(
+                        (item): item is {
+                            edge: FlowEdge;
+                            cx: number;
+                        } => Boolean(item),
+                    )
+                    .sort((a, b) => a.cx - b.cx);
+
+                /*
+                 * Any number of edges merging into Final:
+                 * spread their target handles evenly across
+                 * the 25/50/75 points instead of only handling
+                 * the exact-3 case. This keeps 2, 4, 5+ merges
+                 * from falling back to the generic (and less
+                 * predictable) percent heuristic below.
+                 */
+                if (incoming.length >= 2) {
+                    const index = incoming.findIndex(
+                        (item) => item.edge.id === edge.id,
+                    );
+
+                    if (index >= 0) {
+                        const idealPercent =
+                            incoming.length === 1
+                                ? 50
+                                : 25 +
+                                  (
+                                      index /
+                                      (incoming.length - 1)
+                                  ) *
+                                      50;
+
+                        const nearestPoint =
+                            HANDLE_POINTS.reduce(
+                                (best, point) =>
+                                    Math.abs(
+                                        point -
+                                            idealPercent,
+                                    ) <
+                                    Math.abs(
+                                        best -
+                                            idealPercent,
+                                    )
+                                        ? point
+                                        : best,
+                                HANDLE_POINTS[0],
+                            );
+
+                        return {
+                            ...edge,
+                            sourceHandle: "b-50",
+                            targetHandle: `t-${nearestPoint}`,
+                        };
+                    }
+                }
+            }
+
+            /*
+             * Edges leaving a Start node all exit from the
+             * same bottom-center point.
+             *
+             * Start nodes are tiny (40px), so spreading their
+             * exits across separate handle percents (25/50/75)
+             * produces a visible zig-zag hook right after
+             * leaving the node, with no real benefit — the
+             * edges diverge naturally once they clear the node.
+             * Only the target side still gets a personalized
+             * percent so multiple branches land cleanly.
+             */
+            if (sourceNode?.type === "start") {
+                const targetIdeal = clamp(
+                    (
+                        (source.cx - target.x) /
+                        target.w
+                    ) * 100,
+                );
+
                 return {
-                    ...e,
-                    sourceHandle: dx >= 0 ? "r-50" : "l-50",
-                    targetHandle: dx >= 0 ? "l-50" : "r-50"
+                    ...edge,
+
+                    sourceHandle: "b-50",
+
+                    targetHandle: pickPercent(
+                        edge.target,
+                        "t",
+                        targetIdeal,
+                    ),
                 };
             }
+
+            /*
+             * Main Activity / State control flow.
+             *
+             * ALWAYS vertical.
+             */
+            const sourceSide =
+                dy >= 0 ? "b" : "t";
+
+            const targetSide =
+                dy >= 0 ? "t" : "b";
+
+            const sourceIdeal = clamp(
+                (
+                    (target.cx - source.x) /
+                    source.w
+                ) * 100,
+            );
+
+            const targetIdeal = clamp(
+                (
+                    (source.cx - target.x) /
+                    target.w
+                ) * 100,
+            );
+
             return {
-                ...e,
-                sourceHandle: dy >= 0 ? "b-50" : "t-50",
-                targetHandle: dy >= 0 ? "t-50" : "b-50"
+                ...edge,
+
+                sourceHandle: pickPercent(
+                    edge.source,
+                    sourceSide,
+                    sourceIdeal,
+                ),
+
+                targetHandle: pickPercent(
+                    edge.target,
+                    targetSide,
+                    targetIdeal,
+                ),
             };
         }
 
-        if (horizontalRatio > 0.6 || isIncludeExtend) {
-            const ss = dx >= 0 ? "r" : "l";
-            const ts = dx >= 0 ? "l" : "r";
-            const sIdeal = clamp(((t.cy - s.y) / s.h) * 100);
-            const tIdeal = clamp(((s.cy - t.y) / t.h) * 100);
+        /* ====================================================
+         * CLASS HIERARCHY FAN-OUT
+         *
+         * Comparable
+         *    /  |  |  \
+         * Animal Animal Animal Animal
+         *
+         * Với generalization/realization một-nhiều, không thể xử
+         * lý từng cạnh độc lập theo thứ tự mảng `edges` — thứ tự
+         * đó không liên quan gì tới vị trí trái/phải thực tế của
+         * các node con, nên các "thân" xuất phát từ node cha bị
+         * lệch tâm ngẫu nhiên (do pickPercent xử lý greedy theo
+         * thứ tự cạnh, không theo toạ độ), kéo theo đoạn ngang dài
+         * bất đối xứng ở các nhánh ngoài cùng.
+         *
+         * Sắp xếp các "anh em" (cùng nguồn) theo cx rồi trải đều
+         * 25→75 và snap về điểm gần nhất — cùng kỹ thuật đã dùng ở
+         * normalizeActivityFinalMerges/targetHandle phía trên cho
+         * nhiều nhánh đổ vào 1 Final — để thân cây luôn đối xứng,
+         * bất kể thứ tự khai báo cạnh trong dữ liệu.
+         * ==================================================== */
+
+        if (
+            diagramType === "class" &&
+            sourceNode?.type === "cls" &&
+            targetNode?.type === "cls" &&
+            !isDashedEdge(edge)
+        ) {
+            const siblings = edges
+                .filter(
+                    (e) =>
+                        e.source === edge.source &&
+                        nodeById.get(e.target)?.type === "cls" &&
+                        !isDashedEdge(e),
+                )
+                .map((e) => {
+                    const t = posMap.get(e.target);
+
+                    return t
+                        ? { edge: e, cx: t.cx }
+                        : null;
+                })
+                .filter(
+                    (item): item is { edge: FlowEdge; cx: number } =>
+                        Boolean(item),
+                )
+                .sort((a, b) => a.cx - b.cx);
+
+            if (siblings.length > 1) {
+                const index = siblings.findIndex(
+                    (s) => s.edge.id === edge.id,
+                );
+
+                if (index >= 0) {
+                    const idealPercent =
+                        25 +
+                        (index / (siblings.length - 1)) * 50;
+
+                    const nearestPoint = HANDLE_POINTS.reduce(
+                        (best, point) =>
+                            Math.abs(point - idealPercent) <
+                            Math.abs(best - idealPercent)
+                                ? point
+                                : best,
+                        HANDLE_POINTS[0],
+                    );
+
+                    return {
+                        ...edge,
+                        sourceHandle: `b-${nearestPoint}`,
+                        targetHandle: "t-50",
+                    };
+                }
+            }
+        }
+
+        /* ====================================================
+         * PACKAGE / BOUNDARY
+         * ==================================================== */
+
+        const isPackage =
+            sourceNode?.type === "package" ||
+            targetNode?.type === "package" ||
+            sourceNode?.type === "boundary" ||
+            targetNode?.type === "boundary";
+
+        const horizontalRatio =
+            Math.abs(dx) /
+            (
+                Math.abs(dx) +
+                Math.abs(dy) ||
+                1
+            );
+
+        if (isPackage) {
+            if (
+                horizontalRatio > 0.6 ||
+                isIncludeExtend(edge)
+            ) {
+                return {
+                    ...edge,
+
+                    sourceHandle:
+                        dx >= 0
+                            ? "r-50"
+                            : "l-50",
+
+                    targetHandle:
+                        dx >= 0
+                            ? "l-50"
+                            : "r-50",
+                };
+            }
+
             return {
-                ...e,
-                sourceHandle: pickPercent(e.source, ss, sIdeal),
-                targetHandle: pickPercent(e.target, ts, tIdeal, true),
+                ...edge,
+
+                sourceHandle:
+                    dy >= 0
+                        ? "b-50"
+                        : "t-50",
+
+                targetHandle:
+                    dy >= 0
+                        ? "t-50"
+                        : "b-50",
             };
         }
-        const ss = dy >= 0 ? "b" : "t";
-        const ts = dy >= 0 ? "t" : "b";
-        const sIdeal = clamp(((t.cx - s.x) / s.w) * 100);
-        const tIdeal = clamp(((s.cx - t.x) / t.w) * 100);
+
+        /* ====================================================
+         * HORIZONTAL RELATION
+         * ==================================================== */
+
+        if (
+            horizontalRatio > 0.6 ||
+            isIncludeExtend(edge)
+        ) {
+            const sourceSide =
+                dx >= 0 ? "r" : "l";
+
+            const targetSide =
+                dx >= 0 ? "l" : "r";
+
+            const sourceIdeal = clamp(
+                (
+                    (target.cy - source.y) /
+                    source.h
+                ) * 100,
+            );
+
+            const targetIdeal = clamp(
+                (
+                    (source.cy - target.y) /
+                    target.h
+                ) * 100,
+            );
+
+            return {
+                ...edge,
+
+                sourceHandle: pickPercent(
+                    edge.source,
+                    sourceSide,
+                    sourceIdeal,
+                ),
+
+                targetHandle: pickPercent(
+                    edge.target,
+                    targetSide,
+                    targetIdeal,
+                ),
+            };
+        }
+
+        /* ====================================================
+         * VERTICAL RELATION
+         * ==================================================== */
+
+        const sourceSide =
+            dy >= 0 ? "b" : "t";
+
+        const targetSide =
+            dy >= 0 ? "t" : "b";
+
+        const sourceIdeal = clamp(
+            (
+                (target.cx - source.x) /
+                source.w
+            ) * 100,
+        );
+
+        const targetIdeal = clamp(
+            (
+                (source.cx - target.x) /
+                target.w
+            ) * 100,
+        );
+
         return {
-            ...e,
-            sourceHandle: pickPercent(e.source, ss, sIdeal),
-            targetHandle: pickPercent(e.target, ts, tIdeal, true),
+            ...edge,
+
+            sourceHandle: pickPercent(
+                edge.source,
+                sourceSide,
+                sourceIdeal,
+            ),
+
+            targetHandle: pickPercent(
+                edge.target,
+                targetSide,
+                targetIdeal,
+            ),
         };
     });
 }
 
 /* ============================================================
-   ELK LAYERED (Activity / State / Class / Component)
-   ============================================================ */
-function elkOptions(type?: DiagramType, direction?: "TB" | "LR"): Record<string, string> {
-    const base = {
-        "elk.algorithm": "layered",
-        "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
-        "elk.layered.nodePlacement.bk.fixedAlignment": "BALANCED",
-        "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
-        "elk.layered.cycleBreaking.strategy": "GREEDY",
-        "elk.layered.edgeRouting": "ORTHOGONAL",
-        "elk.layered.unnecessaryBendpoints": "false",
-        "elk.layered.spacing.edgeNode": "80",
-        "elk.layered.spacing.edgeNodeBetweenLayers": "80",
-        "elk.layered.spacing.edgeEdge": "40",
-        "elk.spacing.edgeEdge": "40",
-        "elk.layered.spacing.labelNode": "50",
-        "elk.layered.spacing.labelLabel": "30",
-        "elk.edgeLabels.placement": "CENTER",
-        "elk.layered.edgeLabels.sideSelection": "ALWAYS_UP",
-        "elk.layered.compaction.postCompaction.strategy": "EDGE_LENGTH",
-        "elk.hierarchyHandling": "INCLUDE_CHILDREN",
-        "elk.layered.hierarchyHandling": "INCLUDE_CHILDREN",
-        "elk.padding": "[top=70,left=70,bottom=70,right=70]",
-        "elk.spacing.componentComponent": "140",
-    };
+ * ELK OPTIONS
+ * ============================================================ */
 
-    const dir = direction === "LR" ? "RIGHT" : (direction === "TB" ? "DOWN" : null);
+function elkOptions(
+    type?: DiagramType,
+    direction?: "TB" | "LR",
+): Record<string, string> {
+    const base: Record<string, string> = {
+        "elk.algorithm": "layered",
+
+        /*
+         * Crossing minimization
+         */
+        "elk.layered.crossingMinimization.strategy":
+            "LAYER_SWEEP",
+
+        "elk.layered.crossingMinimization.greedySwitch.type1":
+            "true",
+
+        "elk.layered.crossingMinimization.greedySwitch.type2":
+            "true",
+
+        /*
+         * Straight edges
+         */
+        "elk.layered.nodePlacement.favorStraightEdges":
+            "true",
+
+        /*
+         * Routing
+         */
+        "elk.layered.edgeRouting":
+            "ORTHOGONAL",
+
+        "elk.layered.unnecessaryBendpoints":
+            "false",
+
+        /*
+         * Hierarchy
+         */
+        "elk.hierarchyHandling":
+            "INCLUDE_CHILDREN",
+
+        "elk.layered.hierarchyHandling":
+            "INCLUDE_CHILDREN",
+
+        /*
+         * Labels
+         */
+        "elk.edgeLabels.placement":
+            "CENTER",
+
+        "elk.layered.edgeLabels.sideSelection":
+            "ALWAYS_UP",
+
+        /*
+         * Components
+         */
+        "elk.separateConnectedComponents":
+            "true",
+
+        /*
+         * General spacing
+         */
+        "elk.layered.spacing.edgeNode":
+            String(ACTIVITY.EDGE_NODE_GAP),
+
+        "elk.layered.spacing.edgeEdge":
+            String(ACTIVITY.EDGE_EDGE_GAP),
+
+        "elk.spacing.edgeEdge":
+            String(ACTIVITY.EDGE_EDGE_GAP),
+
+        "elk.layered.spacing.labelNode":
+            "35",
+
+        "elk.layered.spacing.labelLabel":
+            "25",
+
+        /*
+         * Padding
+         */
+        "elk.padding":
+            "[top=35,left=40,bottom=40,right=40]",
+
+        /*
+         * Quality
+         */
+        "elk.layered.thoroughness":
+            "8",
+
+        /*
+         * Component spacing
+         */
+        "elk.spacing.componentComponent":
+            "100",
+    };
 
     switch (type) {
+        /* ====================================================
+         * ACTIVITY
+         * ==================================================== */
+
         case "activity":
+            return {
+                ...base,
+
+                /*
+                 * Activity ALWAYS flows down.
+                 */
+                "elk.direction":
+                    "DOWN",
+
+                /*
+                 * Longest path produces a much more
+                 * natural lifecycle than NETWORK_SIMPLEX
+                 * for Activity diagrams.
+                 */
+                "elk.layered.layering.strategy":
+                    "LONGEST_PATH",
+
+                /*
+                 * Brandes-Koepf gives much better
+                 * horizontal alignment.
+                 */
+                "elk.layered.nodePlacement.strategy":
+                    "BRANDES_KOEPF",
+
+                "elk.layered.nodePlacement.bk.fixedAlignment":
+                    "BALANCED",
+
+                "elk.layered.nodePlacement.bk.edgeStraightening":
+                    "IMPROVE_STRAIGHTNESS",
+
+                /*
+                 * Activity spacing.
+                 */
+                "elk.layered.spacing.nodeNodeBetweenLayers":
+                    String(ACTIVITY.LAYER_GAP),
+
+                "elk.spacing.nodeNode":
+                    String(ACTIVITY.NODE_GAP),
+
+                /*
+                 * Keep Activity compact.
+                 */
+                "elk.padding":
+                    "[top=30,left=35,bottom=35,right=35]",
+
+                /*
+                 * Prefer model order.
+                 */
+                "elk.layered.considerModelOrder.strategy":
+                    "NODES_AND_EDGES",
+            };
+
+        /* ====================================================
+         * STATE
+         *
+         * State Machine shares the same start/decision/final
+         * vocabulary as Activity, so it uses the same layering
+         * strategy, node placement, spacing, and padding to get
+         * the same compact, straight-edge result.
+         * ==================================================== */
+
         case "state":
-            return { ...base, "elk.direction": dir || "DOWN",
-                "elk.layered.spacing.nodeNodeBetweenLayers": "100", "elk.spacing.nodeNode": "80" };
+            return {
+                ...base,
+
+                "elk.direction":
+                    direction === "LR"
+                        ? "RIGHT"
+                        : "DOWN",
+
+                "elk.layered.layering.strategy":
+                    "LONGEST_PATH",
+
+                "elk.layered.nodePlacement.strategy":
+                    "BRANDES_KOEPF",
+
+                "elk.layered.nodePlacement.bk.fixedAlignment":
+                    "BALANCED",
+
+                "elk.layered.nodePlacement.bk.edgeStraightening":
+                    "IMPROVE_STRAIGHTNESS",
+
+                "elk.layered.spacing.nodeNodeBetweenLayers":
+                    String(ACTIVITY.LAYER_GAP),
+
+                "elk.spacing.nodeNode":
+                    String(ACTIVITY.NODE_GAP),
+
+                "elk.padding":
+                    "[top=30,left=35,bottom=35,right=35]",
+
+                "elk.layered.considerModelOrder.strategy":
+                    "NODES_AND_EDGES",
+            };
+
+        /* ====================================================
+         * CLASS
+         *
+         * Class diagrams read most naturally top-down for
+         * generalization/inheritance (parent above, children
+         * below), the same way UML tools typically render them.
+         * Default to DOWN and only go horizontal (RIGHT) when
+         * the caller explicitly asks for "LR". This mirrors the
+         * Activity/State pattern above but is scoped entirely to
+         * this case block, so Activity/State behavior above is
+         * untouched.
+         *
+         * edgeStraightening + considerModelOrder are added here
+         * (same options Activity/State already use) so that:
+         *   - parent/child classes stay vertically aligned
+         *     instead of drifting a few px and creating the
+         *     small zig-zags seen with the previous RIGHT default
+         *   - ELK keeps classes close to their declared order,
+         *     avoiding the long, wrap-around edges that appeared
+         *     when nodes got reordered freely.
+         * ==================================================== */
+
         case "class":
-            return { ...base, "elk.direction": dir || "RIGHT",
-                "elk.layered.spacing.nodeNodeBetweenLayers": "100", "elk.spacing.nodeNode": "55" };
+            return {
+                ...base,
+
+                "elk.direction":
+                    direction === "LR"
+                        ? "RIGHT"
+                        : "DOWN",
+
+                "elk.layered.layering.strategy":
+                    "NETWORK_SIMPLEX",
+
+                "elk.layered.nodePlacement.strategy":
+                    "BRANDES_KOEPF",
+
+                "elk.layered.nodePlacement.bk.fixedAlignment":
+                    "BALANCED",
+
+                "elk.layered.nodePlacement.bk.edgeStraightening":
+                    "IMPROVE_STRAIGHTNESS",
+
+                "elk.layered.considerModelOrder.strategy":
+                    "NODES_AND_EDGES",
+
+                /*
+                 * Realization / generalization fan-out:
+                 *
+                 *          Comparable
+                 *         /   |   |   \
+                 *    Animal Animal Animal Animal
+                 *
+                 * ORTHOGONAL forces every segment to be
+                 * perfectly horizontal/vertical, so edges to
+                 * the outermost siblings (which aren't directly
+                 * below the interface) have nowhere to go but
+                 * around the box — producing the long loop seen
+                 * with 4+ implementers. POLYLINE allows short
+                 * diagonal segments, letting those edges fan out
+                 * directly instead of detouring.
+                 */
+                "elk.layered.edgeRouting":
+                    "POLYLINE",
+
+                /*
+                 * Bundle edges leaving the same node (e.g. the
+                 * interface) into a single trunk near the node,
+                 * splitting only close to each target. This is
+                 * what keeps multi-implementer fan-outs looking
+                 * like a clean "comb" instead of separate wires
+                 * each finding their own long path.
+                 */
+                "elk.layered.mergeEdges":
+                    "true",
+
+                /*
+                 * Clearance between a node box and any edge it
+                 * is not directly connected to. Defaults are too
+                 * tight, so an edge passing a neighbouring class
+                 * used to slide under / hug the box and get
+                 * hidden behind the node. Raising this forces
+                 * ELK to route around boxes instead of through
+                 * the space right beside them.
+                 */
+                "elk.layered.spacing.edgeNode":
+                    "34",
+
+                "elk.spacing.edgeNode":
+                    "34",
+                /*
+                 * Room for fan-out edges to separate from node
+                 * borders before bending, instead of hugging
+                 * edges and looping further out to avoid the
+                 * overlap.
+                 */
+                "elk.layered.spacing.edgeNodeBetweenLayers":
+                    "55",
+
+                "elk.layered.spacing.nodeNodeBetweenLayers":
+                    "95",
+
+                "elk.spacing.nodeNode":
+                    "60",
+
+                "elk.padding":
+                    "[top=48,left=48,bottom=48,right=48]",
+            };
+
+        /* ====================================================
+         * COMPONENT
+         * ==================================================== */
+
         case "component":
-            return { ...base, "elk.direction": dir || "RIGHT",
-                "elk.layered.spacing.nodeNodeBetweenLayers": "90", "elk.spacing.nodeNode": "50" };
+            return {
+                ...base,
+
+                "elk.direction":
+                    direction === "TB"
+                        ? "DOWN"
+                        : "RIGHT",
+
+                "elk.layered.layering.strategy":
+                    "NETWORK_SIMPLEX",
+
+                "elk.layered.nodePlacement.strategy":
+                    "BRANDES_KOEPF",
+
+                "elk.layered.nodePlacement.bk.fixedAlignment":
+                    "BALANCED",
+
+                "elk.layered.spacing.nodeNodeBetweenLayers":
+                    "80",
+
+                "elk.spacing.nodeNode":
+                    "50",
+            };
+
         default:
-            return { ...base, "elk.direction": dir || "DOWN",
-                "elk.layered.spacing.nodeNodeBetweenLayers": "80", "elk.spacing.nodeNode": "50" };
+            return {
+                ...base,
+
+                "elk.direction":
+                    direction === "LR"
+                        ? "RIGHT"
+                        : "DOWN",
+
+                "elk.layered.spacing.nodeNodeBetweenLayers":
+                    "70",
+
+                "elk.spacing.nodeNode":
+                    "50",
+            };
     }
 }
 
-/**
- * Finalize layout by calculating bounding boxes for packages/subgraphs,
- * converting child coordinates to relative, and determining smart edge types.
- */
-export function finalizeLayout(nodes: FlowNode[], edges: FlowEdge[] = []): FlowNode[] {
-    const PADDING = 30;
-    // Both `package` (module/namespace) and `boundary` (use-case system
-    // boundary) are container nodes that wrap their children. `swimlane` is the
-    // UML Activity partition container.
-    const packages = nodes.filter((n) => n.type === "package" || n.type === "boundary" || n.type === "swimlane");
+/* ============================================================
+ * FINALIZE CONTAINERS
+ * ============================================================ */
 
-    // 1. Calculate depth for each package to process from inside-out
-    const getDepth = (id: string | undefined): number => {
-        if (!id) return 0;
-        const parent = nodes.find(n => n.id === id);
-        return 1 + getDepth(parent?.parentId);
+export function finalizeLayout(
+    nodes: FlowNode[],
+    edges: FlowEdge[] = [],
+): FlowNode[] {
+    const PADDING = 30;
+
+    const nodeById = createNodeMap(nodes);
+
+    const containers = nodes.filter(
+        (node) =>
+            node.type === "package" ||
+            node.type === "boundary" ||
+            node.type === "swimlane",
+    );
+
+    /*
+     * ELK positions are absolute at this point.
+     */
+    const absolute = new Map<
+        string,
+        {
+            x: number;
+            y: number;
+        }
+    >();
+
+    for (const node of nodes) {
+        absolute.set(node.id, {
+            x: node.position.x,
+            y: node.position.y,
+        });
+    }
+
+    const depthOf = (
+        id: string,
+    ): number => {
+        let depth = 0;
+
+        let current =
+            nodeById.get(id);
+
+        const visited =
+            new Set<string>();
+
+        while (
+            current?.parentId &&
+            !visited.has(
+                current.parentId,
+            )
+        ) {
+            visited.add(
+                current.parentId,
+            );
+
+            depth++;
+
+            current =
+                nodeById.get(
+                    current.parentId,
+                );
+        }
+
+        return depth;
     };
 
-    const packagesWithDepth = packages.map(pkg => ({
-        pkg,
-        depth: getDepth(pkg.id)
-    }));
+    /*
+     * Process deepest containers first.
+     */
+    [...containers]
+        .sort(
+            (a, b) =>
+                depthOf(b.id) -
+                depthOf(a.id),
+        )
+        .forEach((container) => {
+            const children =
+                nodes.filter(
+                    (node) =>
+                        node.parentId ===
+                        container.id,
+                );
 
-    // Sort by depth descending (deepest first) to handle nested packages correctly
-    packagesWithDepth.sort((a, b) => b.depth - a.depth);
+            if (!children.length) {
+                return;
+            }
 
-    // 2. Pass 1: Calculate absolute sizes for all packages
-    for (const { pkg } of packagesWithDepth) {
-        const children = nodes.filter((n) => n.parentId === pkg.id);
-        if (children.length > 0) {
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            const containerAbs =
+                absolute.get(
+                    container.id,
+                );
+
+            if (!containerAbs) {
+                return;
+            }
+
+            let minX =
+                Number.POSITIVE_INFINITY;
+
+            let minY =
+                Number.POSITIVE_INFINITY;
+
+            let maxX =
+                Number.NEGATIVE_INFINITY;
+
+            let maxY =
+                Number.NEGATIVE_INFINITY;
 
             for (const child of children) {
-                const w = child.width || 150;
-                const h = child.height || 100;
-                minX = Math.min(minX, child.position.x);
-                minY = Math.min(minY, child.position.y);
-                maxX = Math.max(maxX, child.position.x + w);
-                maxY = Math.max(maxY, child.position.y + h);
+                const childAbs =
+                    absolute.get(
+                        child.id,
+                    );
+
+                if (!childAbs) {
+                    continue;
+                }
+
+                const size =
+                    estimateSize(child);
+
+                const relativeX =
+                    childAbs.x -
+                    containerAbs.x;
+
+                const relativeY =
+                    childAbs.y -
+                    containerAbs.y;
+
+                minX = Math.min(
+                    minX,
+                    relativeX,
+                );
+
+                minY = Math.min(
+                    minY,
+                    relativeY,
+                );
+
+                maxX = Math.max(
+                    maxX,
+                    relativeX +
+                        size.width,
+                );
+
+                maxY = Math.max(
+                    maxY,
+                    relativeY +
+                        size.height,
+                );
             }
 
-            const pkgX = minX - PADDING;
-            const pkgY = minY - PADDING;
-            const pkgW = maxX - minX + PADDING * 2;
-            const pkgH = maxY - minY + PADDING * 2;
+            if (!Number.isFinite(minX)) {
+                return;
+            }
 
-            pkg.position = { x: pkgX, y: pkgY };
-            pkg.width = pkgW;
-            pkg.height = pkgH;
-            pkg.style = { ...pkg.style, width: pkgW, height: pkgH, pointerEvents: "none" };
-            pkg.zIndex = -1; // Ensure package is behind everything
+            const minimum =
+                estimateSize(container);
+
+            const width = Math.max(
+                minimum.width,
+                container.width ?? 0,
+                maxX + PADDING,
+            );
+
+            const height = Math.max(
+                minimum.height,
+                container.height ?? 0,
+                maxY + PADDING,
+            );
+
+            container.width = width;
+            container.height = height;
+
+            container.style = {
+                ...(container.style as object),
+                width,
+                height,
+                pointerEvents: "none",
+            };
+
+            container.zIndex = -1;
+        });
+
+    /*
+     * Convert child coordinates from absolute
+     * to React Flow relative coordinates ONCE.
+     */
+    const finalNodes =
+        nodes.map((node) => {
+            const position =
+                absolute.get(
+                    node.id,
+                );
+
+            if (!position) {
+                return node;
+            }
+
+            let finalPosition = {
+                x: position.x,
+                y: position.y,
+            };
+
+            if (node.parentId) {
+                const parentAbs =
+                    absolute.get(
+                        node.parentId,
+                    );
+
+                if (parentAbs) {
+                    finalPosition = {
+                        x:
+                            position.x -
+                            parentAbs.x,
+
+                        y:
+                            position.y -
+                            parentAbs.y,
+                    };
+                }
+            }
+
+            const size =
+                estimateSize(node);
+
+            return {
+                ...node,
+
+                position:
+                    finalPosition,
+
+                width:
+                    node.width ??
+                    size.width,
+
+                height:
+                    node.height ??
+                    size.height,
+
+                zIndex:
+                    node.parentId
+                        ? 10
+                        : node.zIndex ??
+                          10,
+
+                style: {
+                    ...(node.style as object),
+
+                    width:
+                        node.width ??
+                        size.width,
+
+                    height:
+                        node.height ??
+                        size.height,
+                },
+            };
+        });
+
+    /*
+     * Edge visual type.
+     */
+    for (const edge of edges) {
+        const source =
+            nodeById.get(
+                edge.source,
+            );
+
+        const target =
+            nodeById.get(
+                edge.target,
+            );
+
+        if (!source || !target) {
+            continue;
+        }
+
+        const sourceAbs =
+            absolute.get(
+                source.id,
+            );
+
+        const targetAbs =
+            absolute.get(
+                target.id,
+            );
+
+        if (!sourceAbs || !targetAbs) {
+            continue;
+        }
+
+        const sourceSize =
+            estimateSize(source);
+
+        const targetSize =
+            estimateSize(target);
+
+        const sx =
+            sourceAbs.x +
+            sourceSize.width / 2;
+
+        const sy =
+            sourceAbs.y +
+            sourceSize.height / 2;
+
+        const tx =
+            targetAbs.x +
+            targetSize.width / 2;
+
+        const ty =
+            targetAbs.y +
+            targetSize.height / 2;
+
+        const dx =
+            Math.abs(tx - sx);
+
+        const dy =
+            Math.abs(ty - sy);
+
+        const dashed =
+            isDashedEdge(edge);
+
+        /*
+         * Notes are always smoothstep.
+         */
+        if (dashed) {
+            edge.type = "smoothstep";
+            edge.zIndex = 20;
+            continue;
+        }
+
+        /*
+         * Cross-container relations should
+         * stay above containers.
+         */
+        if (
+            source.parentId !==
+            target.parentId
+        ) {
+            edge.type = "smoothstep";
+            edge.zIndex = 200;
+        } else if (
+            dx < 12 ||
+            dy < 12
+        ) {
+            edge.type = "straight";
+            edge.zIndex = 5;
+        } else {
+            edge.type = "smoothstep";
+            edge.zIndex = 5;
         }
     }
 
-    // 3. Pass 2: Determine Smart Edge Types BEFORE making coordinates relative
-    edges.forEach(edge => {
-        const s = nodes.find(n => n.id === edge.source);
-        const t = nodes.find(n => n.id === edge.target);
-        if (s && t) {
-            const dx = Math.abs(s.position.x - t.position.x);
-            const dy = Math.abs(s.position.y - t.position.y);
-
-            // Smart Routing Logic:
-            if (s.parentId !== t.parentId) {
-                edge.type = "smoothstep"; // Use smoothstep for cross-package to né node tốt hơn
-                edge.zIndex = 200;
-            } else if (dx < 20 || dy < 20) {
-                edge.type = "straight";
-                edge.zIndex = 5;
-            } else {
-                edge.type = "smoothstep";
-                edge.zIndex = 5;
-            }
-        }
-    });
-
-    // 4. Pass 3: Convert children to relative coordinates
-    for (const node of nodes) {
-        node.zIndex = 10; // Nodes stay on top
-        if (node.parentId) {
-            const parent = nodes.find(p => p.id === node.parentId);
-            if (parent) {
-                node.position.x -= parent.position.x;
-                node.position.y -= parent.position.y;
-            }
-        }
-    }
-
-    return nodes;
+    return finalNodes;
 }
 
-async function elkLayout(
-    nodes: FlowNode[], edges: FlowEdge[], type?: DiagramType, direction?: "TB" | "LR"
-): Promise<{ nodes: FlowNode[]; edges: FlowEdge[] }> {
-    if (!nodes.length) return { nodes, edges };
+/* ============================================================
+ * BUILD ELK HIERARCHY
+ * ============================================================ */
 
-    // Filter out any dangling edges whose source or target node is missing from nodes list!
-    const nodeIds = new Set(nodes.map(n => n.id));
-    const validEdges = edges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target));
+function buildElkGraph(
+    nodes: FlowNode[],
+    validEdges: FlowEdge[],
+    parentId?: string,
+    depth = 0,
+): {
+    children: any[];
+    edges: any[];
+} {
+    if (depth > 32) {
+        throw new Error(
+            "ELK hierarchy is too deep or contains a parentId cycle",
+        );
+    }
 
-    // Helper to build ELK hierarchy. Recursion depth is bounded to prevent
-    // stack overflow if the AI emits a circular parentId chain (which would
-    // otherwise loop forever). We also track visited node ids per recursion
-    // branch to short-circuit any cycle.
-    const buildElkGraph = (parentId: string | undefined, depth = 0) => {
-        if (depth > 16) {
-            // Safety net — practical hierarchies are < 4 levels deep. If we ever
-            // hit this, the input is malformed (likely a cycle) and we return an
-            // empty subgraph instead of crashing the page.
-            return { children: [], edges: [] };
+    const children =
+        parentId == null
+            ? nodes.filter(
+                  (node) =>
+                      node.parentId ==
+                      null,
+              )
+            : nodes.filter(
+                  (node) =>
+                      node.parentId ===
+                      parentId,
+              );
+
+    const elkChildren: any[] = [];
+
+    for (const node of children) {
+        const size =
+            estimateSize(node);
+
+        const isContainer =
+            node.type === "package" ||
+            node.type === "boundary" ||
+            node.type === "swimlane" ||
+            node.type === "cls";
+
+        if (isContainer) {
+            const childGraph =
+                buildElkGraph(
+                    nodes,
+                    validEdges,
+                    node.id,
+                    depth + 1,
+                );
+
+            elkChildren.push({
+                id: node.id,
+
+                width:
+                    size.width,
+
+                height:
+                    size.height,
+
+                children:
+                    childGraph.children,
+
+                edges:
+                    childGraph.edges,
+
+                layoutOptions: {
+                    "elk.padding":
+                        node.type ===
+                        "swimlane"
+                            ? "[top=45,left=30,bottom=30,right=30]"
+                            : "[top=40,left=40,bottom=40,right=40]",
+
+                    "elk.hierarchyHandling":
+                        "INCLUDE_CHILDREN",
+                },
+            });
+        } else {
+            elkChildren.push({
+                id: node.id,
+
+                width:
+                    size.width,
+
+                height:
+                    size.height,
+            });
         }
-        // Filter children theo parentId truyền vào:
-        // - Root call: parentId === undefined → match node top-level
-        //   (parentId === undefined || null).
-        // - Recursive call: parentId === "<id>" → match node có parentId === "<id>".
-        // Dùng `== null` cho top-level để bắt cả `null` lẫn `undefined` (BE có thể
-        // trả cả 2). Dùng strict `===` cho recursive để tránh match nhầm node khác.
-        const children = parentId == null
-            ? nodes.filter(n => n.parentId == null)
-            : nodes.filter(n => n.parentId === parentId);
-        const elkChildren: any[] = children.map(n => {
-            const sz = estimateSize(n);
-            // Container nodes (package / boundary / swimlane / cls) are nested in
-            // ELK so children are laid out inside them. Pure leaf nodes (action,
-            // decision, start, final, fork, usecase, actor, note, component) are
-            // flat children.
-            const isContainer = n.type === "package" || n.type === "boundary" || n.type === "swimlane" || n.type === "cls";
-            if (isContainer) {
+    }
+
+    const elkEdges =
+        validEdges
+            .filter((edge) => {
+                const source =
+                    nodes.find(
+                        (node) =>
+                            node.id ===
+                            edge.source,
+                    );
+
+                const target =
+                    nodes.find(
+                        (node) =>
+                            node.id ===
+                            edge.target,
+                    );
+
+                if (
+                    parentId == null
+                ) {
+                    return (
+                        source?.parentId ==
+                            null &&
+                        target?.parentId ==
+                            null
+                    );
+                }
+
+                return (
+                    source?.parentId ===
+                        parentId &&
+                    target?.parentId ===
+                        parentId
+                );
+            })
+            .map((edge) => {
+                const label =
+                    typeof edge.label ===
+                    "string"
+                        ? edge.label
+                        : "";
+
                 return {
-                    id: n.id,
-                    width: sz.width,
-                    height: sz.height,
-                    children: buildElkGraph(n.id, depth + 1).children,
-                    edges: buildElkGraph(n.id, depth + 1).edges,
-                    layoutOptions: { "elk.padding": "[top=40,left=40,bottom=40,right=40]" }
+                    id: edge.id,
+
+                    sources: [
+                        edge.source,
+                    ],
+
+                    targets: [
+                        edge.target,
+                    ],
+
+                    ...(label
+                        ? {
+                              labels: [
+                                  {
+                                      id: `${edge.id}-label`,
+                                      text: label,
+                                      width:
+                                          Math.max(
+                                              20,
+                                              label.length *
+                                                  8 +
+                                                  20,
+                                          ),
+                                      height: 20,
+                                  },
+                              ],
+                          }
+                        : {}),
                 };
-            }
-            return { id: n.id, width: sz.width, height: sz.height };
-        });
+            });
 
-        const elkEdges = validEdges.filter(e => {
-            const s = nodes.find(n => n.id === e.source);
-            const t = nodes.find(n => n.id === e.target);
-            // Cùng logic với children: so sánh parentId của source và target với
-            // parentId đang xét. Cả 2 phải cùng parent (cùng `== null` hoặc cùng
-            // string id) thì edge thuộc subgraph này.
-            if (parentId == null) {
-                return s?.parentId == null && t?.parentId == null;
-            }
-            return s?.parentId === parentId && t?.parentId === parentId;
-        }).map(e => {
-            const label = e.label as string;
-            const labels = label ? [{
-                id: `${e.id}-label`,
-                text: label,
-                width: label.length * 8 + 20, // Estimate label width
-                height: 20
-            }] : [];
-            return { id: e.id, sources: [e.source], targets: [e.target], labels };
-        });
-
-        return { children: elkChildren, edges: elkEdges };
+    return {
+        children: elkChildren,
+        edges: elkEdges,
     };
+}
 
-    const rootGraph = buildElkGraph(undefined);
+/* ============================================================
+ * ELK LAYOUT
+ * ============================================================ */
 
-    // Cross-hierarchy edges (edges between nodes in different packages)
-    const crossEdges = validEdges.filter(e => {
-        const s = nodes.find(n => n.id === e.source);
-        const t = nodes.find(n => n.id === e.target);
-        return s?.parentId !== t?.parentId;
-    }).map(e => {
-        const label = e.label as string;
-        const labels = label ? [{
-            id: `${e.id}-label`,
-            text: label,
-            width: label.length * 8 + 20,
-            height: 20
-        }] : [];
-        return { id: e.id, sources: [e.source], targets: [e.target], labels };
-    });
+async function elkLayout(
+    nodes: FlowNode[],
+    edges: FlowEdge[],
+    type?: DiagramType,
+    direction?: "TB" | "LR",
+): Promise<{
+    nodes: FlowNode[];
+    edges: FlowEdge[];
+}> {
+    if (!nodes.length) {
+        return {
+            nodes,
+            edges,
+        };
+    }
+
+    const nodeIds =
+        new Set(
+            nodes.map(
+                (node) =>
+                    node.id,
+            ),
+        );
+
+    /*
+     * Ignore dangling edges.
+     */
+    const validEdges =
+        edges.filter(
+            (edge) =>
+                nodeIds.has(
+                    edge.source,
+                ) &&
+                nodeIds.has(
+                    edge.target,
+                ),
+        );
+
+    const rootGraph =
+        buildElkGraph(
+            nodes,
+            validEdges,
+        );
+
+    /*
+     * Cross hierarchy edges.
+     */
+    const crossEdges =
+        validEdges
+            .filter((edge) => {
+                const source =
+                    nodes.find(
+                        (node) =>
+                            node.id ===
+                            edge.source,
+                    );
+
+                const target =
+                    nodes.find(
+                        (node) =>
+                            node.id ===
+                            edge.target,
+                    );
+
+                return (
+                    source?.parentId !==
+                    target?.parentId
+                );
+            })
+            .map((edge) => {
+                const label =
+                    typeof edge.label ===
+                    "string"
+                        ? edge.label
+                        : "";
+
+                return {
+                    id: edge.id,
+
+                    sources: [
+                        edge.source,
+                    ],
+
+                    targets: [
+                        edge.target,
+                    ],
+
+                    labels: label
+                        ? [
+                              {
+                                  id: `${edge.id}-label`,
+                                  text: label,
+                                  width:
+                                      label.length *
+                                          8 +
+                                      20,
+                                  height: 20,
+                              },
+                          ]
+                        : [],
+                };
+            });
 
     const graph = {
         id: "root",
-        layoutOptions: elkOptions(type, direction),
-        children: rootGraph.children,
-        edges: [...rootGraph.edges, ...crossEdges],
+
+        layoutOptions:
+            elkOptions(
+                type,
+                direction,
+            ),
+
+        children:
+            rootGraph.children,
+
+        edges: [
+            ...rootGraph.edges,
+            ...crossEdges,
+        ],
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await elk.layout(graph as any);
+    const result =
+        await elk.layout(
+            graph as any,
+        );
 
-    const posMap = new Map<string, { x: number; y: number; width?: number; height?: number }>();
-    const flattenResult = (parent: any, offsetX = 0, offsetY = 0) => {
-        for (const c of parent.children ?? []) {
-            posMap.set(c.id, { x: c.x + offsetX, y: c.y + offsetY, width: c.width, height: c.height });
-            if (c.children) {
-                flattenResult(c, c.x + offsetX, c.y + offsetY);
+    /*
+     * Flatten ELK hierarchy into absolute coordinates.
+     */
+    const positionMap =
+        new Map<
+            string,
+            {
+                x: number;
+                y: number;
+                width?: number;
+                height?: number;
+            }
+        >();
+
+    const flattenResult = (
+        parent: any,
+        offsetX = 0,
+        offsetY = 0,
+    ) => {
+        for (
+            const child of
+                parent.children ?? []
+        ) {
+            const x =
+                child.x +
+                offsetX;
+
+            const y =
+                child.y +
+                offsetY;
+
+            positionMap.set(
+                child.id,
+                {
+                    x,
+                    y,
+
+                    width:
+                        child.width,
+
+                    height:
+                        child.height,
+                },
+            );
+
+            if (
+                child.children
+            ) {
+                flattenResult(
+                    child,
+                    x,
+                    y,
+                );
             }
         }
     };
+
     flattenResult(result);
 
-    const layoutedNodes = nodes.map((n) => {
-        const pos = posMap.get(n.id);
-        if (!pos) return n;
-        return {
-            ...n,
-            position: { x: pos.x, y: pos.y },
-            width: pos.width ?? n.width,
-            height: pos.height ?? n.height,
-            style: { ...(n.style as object), width: pos.width ?? n.width, height: pos.height ?? n.height }
-        };
-    });
+    /*
+     * Apply ELK coordinates.
+     */
+    let layoutedNodes =
+        nodes.map(
+            (node) => {
+                const position =
+                    positionMap.get(
+                        node.id,
+                    );
 
-    // Re-run finalizeLayout to fix package sizes and relative positions
-    const finalNodes = finalizeLayout(layoutedNodes);
-    // State branches must remain orthogonal. A straight diagonal can cross the
-    // main lifecycle and makes terminal states difficult to follow.
-    const routedEdges = type === "state" ? edges.map(edge => ({ ...edge, type: "smoothstep" })) : edges;
-    const layoutedEdges = assignHandles(finalNodes, routedEdges, type);
+                if (!position) {
+                    return {
+                        ...node,
+                    };
+                }
 
-    return { nodes: finalNodes, edges: layoutedEdges };
-}
+                const size =
+                    estimateSize(
+                        node,
+                    );
 
-/* ============================================================
-   USE CASE LAYOUT — COMPLETE REWRITE
-   Key changes:
-   1. Actors positioned at AVERAGE Y of their connected UCs
-   2. Edges set to "bezier" (smooth curves, NOT orthogonal L-bends)
-   3. Generous spacing to prevent overlap
-   4. Boundary wraps UCs tightly
-   ============================================================ */
-const UC_W = 170, UC_H = 76;
-const UC_GAP_X = 60, UC_GAP_Y = 40;
-const ACTOR_W = 76, ACTOR_H = 124;
-const ACTOR_MIN_GAP = 45;
-const BOUNDARY_PAD = 40;
-const ACTOR_UC_GAP = 120;
-const GROUP_GAP = 70;
+                const width =
+                    position.width ??
+                    node.width ??
+                    size.width;
 
-function ucGroupMetrics(count: number) {
-    const cols = count <= 2 ? 1 : Math.min(2, Math.ceil(count / 2));
-    const rows = Math.ceil(count / cols);
+                const height =
+                    position.height ??
+                    node.height ??
+                    size.height;
+
+                return {
+                    ...node,
+
+                    position: {
+                        x: position.x,
+                        y: position.y,
+                    },
+
+                    width,
+
+                    height,
+
+                    style: {
+                        ...(node.style as object),
+                        width,
+                        height,
+                    },
+                };
+            },
+        );
+
+    /*
+     * Container finalization.
+     */
+    layoutedNodes =
+        finalizeLayout(
+            layoutedNodes,
+            edges,
+        );
+
+    /*
+     * Activity / State post processing.
+     *
+     * State Machine shares the same terminal / decision /
+     * final-merge geometry as Activity, so it gets the same
+     * normalization passes.
+     */
+    if (
+        type === "activity" ||
+        type === "state"
+    ) {
+        layoutedNodes =
+            normalizeActivityTerminals(
+                layoutedNodes,
+                edges,
+            );
+
+        layoutedNodes =
+            normalizeActivityBranches(
+                layoutedNodes,
+                edges,
+            );
+
+        layoutedNodes =
+            normalizeActivityFinalMerges(
+                layoutedNodes,
+                edges,
+            );
+    }
+
+    /*
+     * Class post processing.
+     *
+     * Generalization / realization edges are straightened so a
+     * single parent / child pair sits on the same vertical line,
+     * producing clean top-center → bottom-center connectors that
+     * never cross sibling class boxes. Sibling fan-outs under an
+     * interface are re-centered symmetrically under the parent.
+     */
+    if (type === "class") {
+        layoutedNodes =
+            normalizeClassHierarchy(
+                layoutedNodes,
+                edges,
+            );
+    }
+
+    /*
+     * Edge type.
+     */
+    const routedEdges =
+        edges.map(
+            (edge) => {
+                if (
+                    type ===
+                    "state"
+                ) {
+                    return {
+                        ...edge,
+                        type:
+                            "smoothstep",
+                    };
+                }
+
+                if (
+                    type ===
+                    "activity"
+                ) {
+                    return {
+                        ...edge,
+
+                        type:
+                            isDashedEdge(
+                                edge,
+                            )
+                                ? "smoothstep"
+                                : "smoothstep",
+                    };
+                }
+
+                return {
+                    ...edge,
+                };
+            },
+        );
+
+    const finalEdges =
+        assignHandles(
+            layoutedNodes,
+            routedEdges,
+            type,
+        );
+
+    /*
+     * Re-evaluate straight edges after
+     * final node normalization.
+     */
+    const finalPositionMap =
+        buildPositionMap(
+            layoutedNodes,
+        );
+
+    const smartEdges =
+        finalEdges.map(
+            (edge) => {
+                const source =
+                    finalPositionMap.get(
+                        edge.source,
+                    );
+
+                const target =
+                    finalPositionMap.get(
+                        edge.target,
+                    );
+
+                if (
+                    !source ||
+                    !target
+                ) {
+                    return edge;
+                }
+
+                if (
+                    isDashedEdge(
+                        edge,
+                    )
+                ) {
+                    return {
+                        ...edge,
+                        type:
+                            "smoothstep",
+                    };
+                }
+
+                const dx =
+                    Math.abs(
+                        target.cx -
+                            source.cx,
+                    );
+
+                const dy =
+                    Math.abs(
+                        target.cy -
+                            source.cy,
+                    );
+
+                if (
+                    (type === "activity" ||
+                        type === "state") &&
+                    dx < 1
+                ) {
+                    return {
+                        ...edge,
+                        type:
+                            "straight",
+                    };
+                }
+
+                if (
+                    type ===
+                        "state" &&
+                    dx < 10
+                ) {
+                    return {
+                        ...edge,
+                        type:
+                            "smoothstep",
+                    };
+                }
+
+                return edge;
+            },
+        );
+
     return {
-        cols, rows,
-        width: cols * UC_W + (cols - 1) * UC_GAP_X,
-        height: rows * UC_H + (rows - 1) * UC_GAP_Y,
+        nodes: layoutedNodes,
+        edges: smartEdges,
     };
 }
 
-function resolveOverlaps<T extends { idealY: number }>(
-    items: T[], itemHeight: number, minGap: number
-): T[] {
-    const sorted = [...items].sort((a, b) => a.idealY - b.idealY);
-    for (let i = 1; i < sorted.length; i++) {
-        const minBottom = sorted[i - 1].idealY + itemHeight + minGap;
-        if (sorted[i].idealY < minBottom) sorted[i].idealY = minBottom;
+
+/* ============================================================
+ * ACTIVITY FINAL MERGE NORMALIZATION
+ *
+ * When exactly 3 activity/state edges enter the same Final node,
+ * keep the middle branch perfectly centered on the Final node.
+ * This removes the small horizontal jog that can appear after
+ * ELK routing because the source node center and Final center
+ * differ by a few pixels.
+ * ============================================================ */
+function normalizeActivityFinalMerges(
+    nodes: FlowNode[],
+    edges: FlowEdge[],
+): FlowNode[] {
+    const result = nodes.map((node) => ({
+        ...node,
+        position: {
+            ...node.position,
+        },
+    }));
+
+    const nodeById = createNodeMap(result);
+    const absolute = buildPositionMap(result);
+
+    const finals = result.filter(
+        (node) => node.type === "final",
+    );
+
+    for (const finalNode of finals) {
+        const incoming = edges
+            .filter((edge) => edge.target === finalNode.id)
+            .map((edge) => {
+                const source = absolute.get(edge.source);
+                const sourceNode = nodeById.get(edge.source);
+
+                return source && sourceNode
+                    ? {
+                          edge,
+                          source,
+                          sourceNode,
+                      }
+                    : null;
+            })
+            .filter(
+                (item): item is {
+                    edge: FlowEdge;
+                    source: {
+                        x: number;
+                        y: number;
+                        w: number;
+                        h: number;
+                        cx: number;
+                        cy: number;
+                    };
+                    sourceNode: FlowNode;
+                } => Boolean(item),
+            )
+            .sort((a, b) => a.source.cx - b.source.cx);
+
+        /*
+         * Only an odd count has a true middle branch to
+         * align straight under Final's center. Even counts
+         * are split symmetrically already by the handle
+         * spread above, so nudging one of them off-center
+         * would just reintroduce a jog.
+         */
+        if (
+            incoming.length < 3 ||
+            incoming.length % 2 === 0
+        ) {
+            continue;
+        }
+
+        const middle =
+            incoming[
+                Math.floor(
+                    incoming.length / 2,
+                )
+            ];
+
+        const finalAbs = absolute.get(finalNode.id);
+
+        if (!finalAbs) {
+            continue;
+        }
+
+        const desiredSourceCenterX = finalAbs.cx;
+        const desiredSourceX =
+            desiredSourceCenterX - middle.source.w / 2;
+
+        const parentAbs = middle.sourceNode.parentId
+            ? absolute.get(middle.sourceNode.parentId)
+            : undefined;
+
+        const desiredRelativeX =
+            desiredSourceX - (parentAbs?.x ?? 0);
+
+        const index = result.findIndex(
+            (node) => node.id === middle.sourceNode.id,
+        );
+
+        if (index < 0) {
+            continue;
+        }
+
+        result[index] = {
+            ...result[index],
+            position: {
+                ...result[index].position,
+                x: desiredRelativeX,
+            },
+        };
     }
-    return sorted;
+
+    return result;
+}
+
+/* ============================================================
+ * ACTIVITY TERMINAL NORMALIZATION
+ *
+ * Start / Final should not randomly drift horizontally.
+ *
+ * If they belong to a swimlane/container:
+ *
+ *        ┌──────────────────────┐
+ *        │          ●           │
+ *        │          │           │
+ *        │        Action        │
+ *        │          │           │
+ *        │          ●           │
+ *        └──────────────────────┘
+ * ============================================================ */
+
+function normalizeActivityTerminals(
+    nodes: FlowNode[],
+    edges: FlowEdge[],
+): FlowNode[] {
+    const nodeById =
+        createNodeMap(nodes);
+
+    const terminals =
+        nodes.filter(
+            (node) =>
+                node.type ===
+                    "start" ||
+                node.type ===
+                    "final",
+        );
+
+    if (!terminals.length) {
+        return nodes;
+    }
+
+    /*
+     * Find a reasonable central X for each terminal.
+     *
+     * Priority:
+     * 1. Container center
+     * 2. Average of connected nodes
+     */
+    const getConnectedCenterX = (
+        terminal: FlowNode,
+    ): number | undefined => {
+        const connected =
+            edges
+                .filter(
+                    (edge) =>
+                        edge.source ===
+                            terminal.id ||
+                        edge.target ===
+                            terminal.id,
+                )
+                .map((edge) => {
+                    const id =
+                        edge.source ===
+                            terminal.id
+                            ? edge.target
+                            : edge.source;
+
+                    return nodeById.get(
+                        id,
+                    );
+                })
+                .filter(
+                    (
+                        node,
+                    ): node is FlowNode =>
+                        Boolean(node),
+                );
+
+        if (!connected.length) {
+            return undefined;
+        }
+
+        let total = 0;
+
+        for (
+            const node of
+                connected
+        ) {
+            total +=
+                node.position.x +
+                (
+                    node.width ??
+                    estimateSize(
+                        node,
+                    ).width
+                ) /
+                    2;
+        }
+
+        return (
+            total /
+            connected.length
+        );
+    };
+
+    return nodes.map(
+        (node) => {
+            if (
+                node.type !==
+                    "start" &&
+                node.type !==
+                    "final"
+            ) {
+                return node;
+            }
+
+            const size =
+                estimateSize(
+                    node,
+                );
+
+            /*
+             * If inside a container,
+             * center relative to container.
+             */
+            if (node.parentId) {
+                const parent =
+                    nodeById.get(
+                        node.parentId,
+                    );
+
+                if (parent) {
+                    const parentSize =
+                        estimateSize(
+                            parent,
+                        );
+
+                    const centeredX =
+                        (
+                            parentSize.width -
+                            size.width
+                        ) / 2;
+
+                    /*
+                     * Only center if the
+                     * terminal is not part
+                     * of a horizontal branch.
+                     */
+                    const connectedX =
+                        getConnectedCenterX(
+                            node,
+                        );
+
+                    if (
+                        connectedX ===
+                            undefined ||
+                        Math.abs(
+                            connectedX -
+                                (
+                                    parent.position.x +
+                                    parentSize.width /
+                                        2
+                                ),
+                        ) <
+                            parentSize.width *
+                                0.35
+                    ) {
+                        return {
+                            ...node,
+
+                            position: {
+                                ...node.position,
+
+                                x: centeredX,
+                            },
+                        };
+                    }
+                }
+            }
+
+            return node;
+        },
+    );
+}
+
+/* ============================================================
+ * ACTIVITY BRANCH NORMALIZATION
+ *
+ * Decision:
+ *
+ *                  Decision
+ *                 /        \
+ *              Left       Right
+ *
+ * Keep branch nodes separated.
+ * ============================================================ */
+
+function normalizeActivityBranches(
+    nodes: FlowNode[],
+    edges: FlowEdge[],
+): FlowNode[] {
+    const nodeById =
+        createNodeMap(nodes);
+
+    const result =
+        nodes.map(
+            (node) => ({
+                ...node,
+                position: {
+                    ...node.position,
+                },
+            }),
+        );
+
+    const decisions =
+        result.filter(
+            (node) =>
+                node.type ===
+                "decision",
+        );
+
+    for (
+        const decision of
+            decisions
+    ) {
+        const outgoing =
+            edges.filter(
+                (edge) =>
+                    edge.source ===
+                    decision.id,
+            );
+
+        if (
+            outgoing.length !==
+            2
+        ) {
+            continue;
+        }
+
+        const targets =
+            outgoing
+                .map(
+                    (edge) =>
+                        nodeById.get(
+                            edge.target,
+                        ),
+                )
+                .filter(
+                    (
+                        node,
+                    ): node is FlowNode =>
+                        Boolean(node),
+                );
+
+        if (
+            targets.length !==
+            2
+        ) {
+            continue;
+        }
+
+        const sorted =
+            [...targets].sort(
+                (a, b) =>
+                    a.position.x -
+                    b.position.x,
+            );
+
+        const left =
+            sorted[0];
+
+        const right =
+            sorted[1];
+
+        const decisionCenter =
+            decision.position.x +
+            (
+                decision.width ??
+                estimateSize(
+                    decision,
+                ).width
+            ) /
+                2;
+
+        const leftSize =
+            estimateSize(left);
+
+        const rightSize =
+            estimateSize(right);
+
+        /*
+         * If ELK already separated them,
+         * don't touch.
+         */
+        const currentGap =
+            right.position.x -
+            (
+                left.position.x +
+                leftSize.width
+            );
+
+        if (
+            currentGap >=
+            ACTIVITY.BRANCH_GAP
+        ) {
+            continue;
+        }
+
+        const desiredLeftX =
+            decisionCenter -
+            ACTIVITY.BRANCH_GAP / 2 -
+            leftSize.width;
+
+        const desiredRightX =
+            decisionCenter +
+            ACTIVITY.BRANCH_GAP / 2;
+
+        /*
+         * Only change X.
+         * Never modify Y.
+         */
+        const leftIndex =
+            result.findIndex(
+                (node) =>
+                    node.id ===
+                    left.id,
+            );
+
+        const rightIndex =
+            result.findIndex(
+                (node) =>
+                    node.id ===
+                    right.id,
+            );
+
+        if (
+            leftIndex >= 0
+        ) {
+            result[leftIndex] = {
+                ...result[leftIndex],
+
+                position: {
+                    ...result[
+                        leftIndex
+                    ].position,
+
+                    x:
+                        desiredLeftX,
+                },
+            };
+        }
+
+        if (
+            rightIndex >= 0
+        ) {
+            result[
+                rightIndex
+            ] = {
+                ...result[
+                    rightIndex
+                ],
+
+                position: {
+                    ...result[
+                        rightIndex
+                    ].position,
+
+                    x:
+                        desiredRightX,
+                },
+            };
+        }
+    }
+
+    return result;
+}
+
+/* ============================================================
+ * CLASS GENERALIZATION NORMALIZATION
+ *
+ * Push a child class directly under its (single) generalization /
+ * realization parent so that vertical inheritance edges become
+ * clean straight lines instead of detouring diagonally across
+ * sibling boxes.
+ *
+ *         ┌─────────────┐
+ *         │   Shape     │
+ *         └─────┬───────┘
+ *               │  (straight)
+ *         ┌─────┴───────┐
+ *         │   Circle    │
+ *         └─────────────┘
+ * ============================================================ */
+
+function normalizeClassHierarchy(
+    nodes: FlowNode[],
+    edges: FlowEdge[],
+): FlowNode[] {
+    const nodeById = createNodeMap(nodes);
+    const result = nodes.map((node) => ({
+        ...node,
+        position: { ...node.position },
+    }));
+
+    /*
+     * Only straighten nodes that have a SINGLE upward edge
+     * (one parent). Nodes with multiple parents (multiple
+     * inheritance) are left to ELK so the fan keeps its shape.
+     */
+    const singleParentTargets = new Set<string>();
+
+    for (const edge of edges) {
+        const source = nodeById.get(edge.source);
+        const target = nodeById.get(edge.target);
+
+        if (!source || !target) continue;
+
+        if (source.type !== "cls" || target.type !== "cls") continue;
+
+        if (singleParentTargets.has(target.id)) {
+            singleParentTargets.delete(target.id);
+        } else {
+            singleParentTargets.add(target.id);
+        }
+    }
+
+    for (const id of singleParentTargets) {
+        const child = nodeById.get(id);
+        if (!child) continue;
+
+        const parentEdge = edges.find((e) => e.target === id);
+        if (!parentEdge) continue;
+
+        const parent = nodeById.get(parentEdge.source);
+        if (!parent || parent.type !== "cls") continue;
+
+        const childSize = estimateSize(child);
+        const parentAbs = getAbsolutePosition(parent, nodeById);
+        const parentSize = estimateSize(parent);
+
+        const parentCenterX = parentAbs.x + parentSize.width / 2;
+        const childAbs = getAbsolutePosition(child, nodeById);
+
+        /*
+         * Only straighten if the parent is truly ABOVE the child
+         * (downward flow) and they aren't already perfectly
+         * aligned. If the parent is to the left/right, ELK already
+         * chose a horizontal relation we should respect.
+         */
+        const parentAbove = parentAbs.y + parentSize.height < childAbs.y;
+        const alreadyAligned = Math.abs(parentCenterX - (childAbs.x + childSize.width / 2)) < 4;
+
+        if (!parentAbove || alreadyAligned) continue;
+
+        const parentContainer = parent.parentId
+            ? nodeById.get(parent.parentId)
+            : undefined;
+
+        const desiredRelativeX =
+            parentCenterX -
+            childSize.width / 2 -
+            (parentContainer?.position.x ?? 0);
+
+        const index = result.findIndex((n) => n.id === child.id);
+        if (index >= 0) {
+            result[index] = {
+                ...result[index],
+                position: {
+                    ...result[index].position,
+                    x: desiredRelativeX,
+                },
+            };
+        }
+    }
+
+    /*
+     * Fan-out alignment: when an interface/abstract class has
+     * 2+ child pairs at the same depth, nudge siblings so their
+     * gap around the parent center is symmetric.
+     */
+    const parents = new Set(
+        edges
+            .filter((e) => nodeById.get(e.source)?.type === "cls" && nodeById.get(e.target)?.type === "cls")
+            .map((e) => e.source),
+    );
+
+    for (const parentId of parents) {
+        const childrenIn = edges.filter((e) => e.source === parentId && nodeById.get(e.target)?.type === "cls");
+
+        if (childrenIn.length < 2) continue;
+
+        const children = childrenIn
+            .map((e) => nodeById.get(e.target))
+            .filter((n): n is FlowNode => Boolean(n));
+
+        if (children.length !== childrenIn.length) continue;
+
+        const sorted = [...children].sort((a, b) => a.position.x - b.position.x);
+        const parentNode = nodeById.get(parentId);
+        if (!parentNode) continue;
+        const parentAbs = getAbsolutePosition(parentNode, nodeById);
+        const parentSize = estimateSize(parentNode);
+
+        const totalWidth = children.reduce((sum, child) => sum + estimateSize(child).width, 0);
+        const gaps = (children.length - 1) * 55;
+        const startX = parentAbs.x + parentSize.width / 2 - (totalWidth + gaps) / 2;
+
+        let cursor = startX;
+        for (const child of sorted) {
+            const childSize = estimateSize(child);
+            const childAbs = getAbsolutePosition(child, nodeById);
+            const childContainer = child.parentId
+                ? nodeById.get(child.parentId)
+                : undefined;
+            const relativeX = cursor - (childContainer?.position.x ?? 0);
+            const index = result.findIndex((n) => n.id === child.id);
+            if (index >= 0 && childAbs.y > parentAbs.y + parentSize.height) {
+                result[index] = {
+                    ...result[index],
+                    position: {
+                        ...result[index].position,
+                        x: relativeX,
+                    },
+                };
+            }
+            cursor += childSize.width + 55;
+        }
+    }
+
+    return result;
+}
+
+/* ============================================================
+ * USE CASE LAYOUT
+ * ============================================================ */
+
+function ucGroupMetrics(
+    count: number,
+) {
+    const cols =
+        count <= 2
+            ? 1
+            : Math.min(
+                  2,
+                  Math.ceil(
+                      count / 2,
+                  ),
+              );
+
+    const rows =
+        Math.ceil(
+            count / cols,
+        );
+
+    return {
+        cols,
+        rows,
+
+        width:
+            cols *
+                USE_CASE.UC_W +
+            (cols - 1) *
+                USE_CASE.UC_GAP_X,
+
+        height:
+            rows *
+                USE_CASE.UC_H +
+            (rows - 1) *
+                USE_CASE.UC_GAP_Y,
+    };
 }
 
 function layoutUseCase(
-    nodes: FlowNode[], edges: FlowEdge[]
-): { nodes: FlowNode[]; edges: FlowEdge[] } {
-    const actors = nodes.filter((n) => n.type === "actor");
-    const useCases = nodes.filter((n) => n.type === "usecase");
-    // Use-case system boundaries are stored as `boundary` (not `package`) so they
-    // render with the dedicated UML boundary notation. Treat both as containers.
-    const packages = nodes.filter((n) => n.type === "package" || n.type === "boundary");
-    const others = nodes.filter((n) => n.type !== "actor" && n.type !== "usecase" && n.type !== "package" && n.type !== "boundary");
+    nodes: FlowNode[],
+    edges: FlowEdge[],
+): {
+    nodes: FlowNode[];
+    edges: FlowEdge[];
+} {
+    const actors =
+        nodes.filter(
+            (node) =>
+                node.type ===
+                "actor",
+        );
 
-    if (!useCases.length && !actors.length) {
-        return { nodes, edges: assignHandles(nodes, edges, "usecase") };
+    const useCases =
+        nodes.filter(
+            (node) =>
+                node.type ===
+                "usecase",
+        );
+
+    const packages =
+        nodes.filter(
+            (node) =>
+                node.type ===
+                    "package" ||
+                node.type ===
+                    "boundary",
+        );
+
+    const others =
+        nodes.filter(
+            (node) =>
+                node.type !==
+                    "actor" &&
+                node.type !==
+                    "usecase" &&
+                node.type !==
+                    "package" &&
+                node.type !==
+                    "boundary",
+        );
+
+    if (
+        !useCases.length &&
+        !actors.length
+    ) {
+        return {
+            nodes,
+            edges:
+                assignHandles(
+                    nodes,
+                    edges,
+                    "usecase",
+                ),
+        };
     }
 
-    // 1. Build adjacency
-    const actorToUCs = new Map<string, string[]>();
-    const ucToActors = new Map<string, string[]>();
-    for (const a of actors) actorToUCs.set(a.id, []);
-    for (const uc of useCases) ucToActors.set(uc.id, []);
+    /*
+     * Build adjacency.
+     */
+    const actorToUCs =
+        new Map<
+            string,
+            string[]
+        >();
 
-    for (const e of edges) {
-        const sActor = actors.find((a) => a.id === e.source);
-        const tUC = useCases.find((u) => u.id === e.target);
-        const tActor = actors.find((a) => a.id === e.target);
-        const sUC = useCases.find((u) => u.id === e.source);
-        if (sActor && tUC) {
-            actorToUCs.get(sActor.id)?.push(tUC.id);
-            ucToActors.get(tUC.id)?.push(sActor.id);
-        } else if (tActor && sUC) {
-            actorToUCs.get(tActor.id)?.push(sUC.id);
-            ucToActors.get(sUC.id)?.push(tActor.id);
+    const ucToActors =
+        new Map<
+            string,
+            string[]
+        >();
+
+    for (
+        const actor of
+            actors
+    ) {
+        actorToUCs.set(
+            actor.id,
+            [],
+        );
+    }
+
+    for (
+        const useCase of
+            useCases
+    ) {
+        ucToActors.set(
+            useCase.id,
+            [],
+        );
+    }
+
+    for (
+        const edge of edges
+    ) {
+        const sourceActor =
+            actors.find(
+                (actor) =>
+                    actor.id ===
+                    edge.source,
+            );
+
+        const targetActor =
+            actors.find(
+                (actor) =>
+                    actor.id ===
+                    edge.target,
+            );
+
+        const sourceUC =
+            useCases.find(
+                (uc) =>
+                    uc.id ===
+                    edge.source,
+            );
+
+        const targetUC =
+            useCases.find(
+                (uc) =>
+                    uc.id ===
+                    edge.target,
+            );
+
+        if (
+            sourceActor &&
+            targetUC
+        ) {
+            actorToUCs
+                .get(
+                    sourceActor.id,
+                )
+                ?.push(
+                    targetUC.id,
+                );
+
+            ucToActors
+                .get(
+                    targetUC.id,
+                )
+                ?.push(
+                    sourceActor.id,
+                );
+        } else if (
+            targetActor &&
+            sourceUC
+        ) {
+            actorToUCs
+                .get(
+                    targetActor.id,
+                )
+                ?.push(
+                    sourceUC.id,
+                );
+
+            ucToActors
+                .get(
+                    sourceUC.id,
+                )
+                ?.push(
+                    targetActor.id,
+                );
         }
     }
 
-    // 2. Assign primary actor + split
-    const ucPrimaryActor = new Map<string, string>();
-    for (const uc of useCases) {
-        const connected = ucToActors.get(uc.id) ?? [];
-        if (!connected.length) continue;
-        let best = connected[0], bestCount = Infinity;
-        for (const aId of connected) {
-            const count = (actorToUCs.get(aId) ?? []).length;
-            if (count < bestCount) { bestCount = count; best = aId; }
+    /*
+     * Primary actor.
+     */
+    const ucPrimaryActor =
+        new Map<
+            string,
+            string
+        >();
+
+    for (
+        const uc of
+            useCases
+    ) {
+        const connected =
+            ucToActors.get(
+                uc.id,
+            ) ?? [];
+
+        if (
+            !connected.length
+        ) {
+            continue;
         }
-        ucPrimaryActor.set(uc.id, best);
+
+        let best =
+            connected[0];
+
+        let bestCount =
+            Infinity;
+
+        for (
+            const actorId of
+                connected
+        ) {
+            const count =
+                (
+                    actorToUCs.get(
+                        actorId,
+                    ) ?? []
+                ).length;
+
+            if (
+                count <
+                bestCount
+            ) {
+                bestCount =
+                    count;
+
+                best =
+                    actorId;
+            }
+        }
+
+        ucPrimaryActor.set(
+            uc.id,
+            best,
+        );
     }
 
-    const sortedActors = [...actors].sort((a, b) => a.position.y - b.position.y);
-    const boundary = packages[0];
-    const boundaryCenterX = boundary ? boundary.position.x + estimateSize(boundary).width / 2 : 0;
-    const leftActorIds = new Set<string>();
-    const rightActorIds = new Set<string>();
-    for (const actor of sortedActors) {
-        // Preserve the designer's intent: actors originally placed left/right of
-        // the boundary stay on that side after Auto-layout. This is especially
-        // important for external systems such as Payment Gateway.
-        if (!boundary || actor.position.x <= boundaryCenterX) leftActorIds.add(actor.id);
-        else rightActorIds.add(actor.id);
-    }
-    // A diagram created without an initial boundary-side convention still gets
-    // a balanced layout instead of placing every actor on one side.
-    if (!rightActorIds.size && sortedActors.length > 1) {
-        const split = Math.ceil(sortedActors.length / 2);
-        sortedActors.forEach((actor, index) => {
-            leftActorIds.delete(actor.id);
-            (index < split ? leftActorIds : rightActorIds).add(actor.id);
-        });
+    const sortedActors =
+        [...actors].sort(
+            (a, b) =>
+                a.position.y -
+                b.position.y,
+        );
+
+    const boundary =
+        packages[0];
+
+    const boundaryCenterX =
+        boundary
+            ? boundary.position.x +
+              estimateSize(
+                  boundary,
+              ).width /
+                  2
+            : 0;
+
+    const leftActorIds =
+        new Set<string>();
+
+    const rightActorIds =
+        new Set<string>();
+
+    /*
+     * Preserve existing side intent.
+     */
+    for (
+        const actor of
+            sortedActors
+    ) {
+        if (
+            !boundary ||
+            actor.position.x <=
+                boundaryCenterX
+        ) {
+            leftActorIds.add(
+                actor.id,
+            );
+        } else {
+            rightActorIds.add(
+                actor.id,
+            );
+        }
     }
 
-    // 3. Group UCs
-    const leftUCs: string[] = [];
-    const rightUCs: string[] = [];
-    const centerUCs: string[] = [];
-    for (const uc of useCases) {
-        const primary = ucPrimaryActor.get(uc.id);
-        const connected = ucToActors.get(uc.id) ?? [];
-        const hasLeft = connected.some((id) => leftActorIds.has(id));
-        const hasRight = connected.some((id) => rightActorIds.has(id));
-        if (hasLeft && hasRight) centerUCs.push(uc.id);
-        else if (primary && leftActorIds.has(primary)) leftUCs.push(uc.id);
-        else if (primary && rightActorIds.has(primary)) rightUCs.push(uc.id);
-        else centerUCs.push(uc.id);
+    /*
+     * Balance actors.
+     */
+    while (
+        Math.abs(
+            leftActorIds.size -
+                rightActorIds.size,
+        ) > 1
+    ) {
+        const takeFromLeft =
+            leftActorIds.size >
+            rightActorIds.size;
+
+        const pool =
+            sortedActors.filter(
+                (actor) =>
+                    takeFromLeft
+                        ? leftActorIds.has(
+                              actor.id,
+                          )
+                        : rightActorIds.has(
+                              actor.id,
+                          ),
+            );
+
+        if (!pool.length) {
+            break;
+        }
+
+        pool.sort(
+            (a, b) =>
+                Math.abs(
+                    a.position.x -
+                        boundaryCenterX,
+                ) -
+                Math.abs(
+                    b.position.x -
+                        boundaryCenterX,
+                ),
+        );
+
+        const moved =
+            pool[0];
+
+        if (
+            takeFromLeft
+        ) {
+            leftActorIds.delete(
+                moved.id,
+            );
+
+            rightActorIds.add(
+                moved.id,
+            );
+        } else {
+            rightActorIds.delete(
+                moved.id,
+            );
+
+            leftActorIds.add(
+                moved.id,
+            );
+        }
     }
 
-    // 4. Layout geometry
-    const leftM = ucGroupMetrics(leftUCs.length);
-    const centerM = ucGroupMetrics(centerUCs.length);
-    const rightM = ucGroupMetrics(rightUCs.length);
+    /*
+     * Group use cases.
+     */
+    const leftUCs: string[] =
+        [];
 
-    const ucMaxH = Math.max(leftM.height, centerM.height, rightM.height, 120);
-    let boundaryH = ucMaxH + BOUNDARY_PAD * 2;
+    const rightUCs: string[] =
+        [];
+
+    const centerUCs: string[] =
+        [];
+
+    for (
+        const uc of
+            useCases
+    ) {
+        const primary =
+            ucPrimaryActor.get(
+                uc.id,
+            );
+
+        const connected =
+            ucToActors.get(
+                uc.id,
+            ) ?? [];
+
+        const hasLeft =
+            connected.some(
+                (id) =>
+                    leftActorIds.has(
+                        id,
+                    ),
+            );
+
+        const hasRight =
+            connected.some(
+                (id) =>
+                    rightActorIds.has(
+                        id,
+                    ),
+            );
+
+        if (
+            hasLeft &&
+            hasRight
+        ) {
+            centerUCs.push(
+                uc.id,
+            );
+        } else if (
+            primary &&
+            leftActorIds.has(
+                primary,
+            )
+        ) {
+            leftUCs.push(
+                uc.id,
+            );
+        } else if (
+            primary &&
+            rightActorIds.has(
+                primary,
+            )
+        ) {
+            rightUCs.push(
+                uc.id,
+            );
+        } else {
+            centerUCs.push(
+                uc.id,
+            );
+        }
+    }
+
+    /*
+     * Geometry.
+     */
+    const leftMetrics =
+        ucGroupMetrics(
+            leftUCs.length,
+        );
+
+    const centerMetrics =
+        ucGroupMetrics(
+            centerUCs.length,
+        );
+
+    const rightMetrics =
+        ucGroupMetrics(
+            rightUCs.length,
+        );
+
+    const ucMaxH =
+        Math.max(
+            leftMetrics.height,
+            centerMetrics.height,
+            rightMetrics.height,
+            120,
+        );
+
+    let boundaryH =
+        ucMaxH +
+        USE_CASE.BOUNDARY_PAD *
+            2;
 
     let cursorX = 0;
-    const leftActorX = cursorX;
-    cursorX += ACTOR_W + ACTOR_UC_GAP;
 
-    const leftUCStartX = cursorX;
-    cursorX += leftM.width + (leftM.width > 0 ? GROUP_GAP : 0);
+    const leftActorX =
+        cursorX;
 
-    const centerUCStartX = cursorX;
-    cursorX += centerM.width + (centerM.width > 0 ? GROUP_GAP : 0);
+    cursorX +=
+        USE_CASE.ACTOR_W +
+        USE_CASE.ACTOR_UC_GAP;
 
-    const rightUCStartX = cursorX;
-    cursorX += rightM.width + (rightM.width > 0 ? ACTOR_UC_GAP : 0);
+    const leftUCStartX =
+        cursorX;
 
-    const rightActorX = cursorX;
+    cursorX +=
+        leftMetrics.width +
+        (
+            leftMetrics.width
+                ? USE_CASE.GROUP_GAP
+                : 0
+        );
 
-    // 5. Position actors
-    const positionActorsEvenly = (ids: Set<string>) => {
-        const list = sortedActors.filter((a) => ids.has(a.id));
-        if (!list.length) return [];
-        const n = list.length;
-        const actorBlockH = n * ACTOR_H + (n - 1) * ACTOR_MIN_GAP;
-        if (actorBlockH + BOUNDARY_PAD * 2 > boundaryH) {
-            boundaryH = actorBlockH + BOUNDARY_PAD * 2;
+    const centerUCStartX =
+        cursorX;
+
+    cursorX +=
+        centerMetrics.width +
+        (
+            centerMetrics.width
+                ? USE_CASE.GROUP_GAP
+                : 0
+        );
+
+    const rightUCStartX =
+        cursorX;
+
+    cursorX +=
+        rightMetrics.width +
+        (
+            rightMetrics.width
+                ? USE_CASE.ACTOR_UC_GAP
+                : 0
+        );
+
+    const rightActorX =
+        cursorX;
+
+    /*
+     * Actor placement.
+     */
+    const placeActors = (
+        list: FlowNode[],
+        x: number,
+    ): FlowNode[] => {
+        const count =
+            list.length;
+
+        if (!count) {
+            return [];
         }
-        return list;
+
+        const blockHeight =
+            count *
+                USE_CASE.ACTOR_H +
+            (count - 1) *
+                USE_CASE.ACTOR_MIN_GAP;
+
+        boundaryH =
+            Math.max(
+                boundaryH,
+                blockHeight +
+                    USE_CASE.BOUNDARY_PAD *
+                        2,
+            );
+
+        const centerY =
+            boundaryH / 2;
+
+        const startY =
+            centerY -
+            blockHeight / 2;
+
+        return list.map(
+            (actor, index) => ({
+                ...actor,
+
+                position: {
+                    x,
+
+                    y:
+                        startY +
+                        index *
+                            (
+                                USE_CASE.ACTOR_H +
+                                USE_CASE.ACTOR_MIN_GAP
+                            ),
+                },
+
+                width:
+                    USE_CASE.ACTOR_W,
+
+                height:
+                    USE_CASE.ACTOR_H,
+
+                style: {
+                    ...(actor.style as object),
+
+                    width:
+                        USE_CASE.ACTOR_W,
+
+                    height:
+                        USE_CASE.ACTOR_H,
+                },
+
+                zIndex: 5,
+            }),
+        );
     };
-    const leftActorList = positionActorsEvenly(leftActorIds);
-    const rightActorList = positionActorsEvenly(rightActorIds);
 
-    const finalCenterY = boundaryH / 2;
+    const leftActors =
+        placeActors(
+            sortedActors.filter(
+                (actor) =>
+                    leftActorIds.has(
+                        actor.id,
+                    ),
+            ),
+            leftActorX,
+        );
 
-    const placeActors = (list: FlowNode[], x: number): FlowNode[] => {
-        const n = list.length;
-        if (!n) return [];
-        const blockH = n * ACTOR_H + (n - 1) * ACTOR_MIN_GAP;
-        const startY = finalCenterY - blockH / 2;
-        return list.map((a, i) => ({
-            ...a,
-            position: { x, y: startY + i * (ACTOR_H + ACTOR_MIN_GAP) },
-            width: ACTOR_W, height: ACTOR_H,
-            style: { ...(a.style as object), width: ACTOR_W, height: ACTOR_H },
-            zIndex: 5,
-        }));
-    };
-    const posLeftActors = placeActors(leftActorList, leftActorX);
-    const posRightActors = placeActors(rightActorList, rightActorX);
+    const rightActors =
+        placeActors(
+            sortedActors.filter(
+                (actor) =>
+                    rightActorIds.has(
+                        actor.id,
+                    ),
+            ),
+            rightActorX,
+        );
 
-    const actorCenterY = new Map<string, number>();
-    for (const a of [...posLeftActors, ...posRightActors]) {
-        actorCenterY.set(a.id, a.position.y + ACTOR_H / 2);
+    const actorCenterY =
+        new Map<
+            string,
+            number
+        >();
+
+    for (
+        const actor of [
+            ...leftActors,
+            ...rightActors,
+        ]
+    ) {
+        actorCenterY.set(
+            actor.id,
+            actor.position.y +
+                USE_CASE.ACTOR_H /
+                    2,
+        );
     }
 
-    // 6. Position UCs by actor Y
+    /*
+     * Position UCs.
+     */
     const positionUCsByActor = (
-        ucIds: string[], startX: number, sideActors: Set<string>
+        ucIds: string[],
+        startX: number,
+        sideActors: Set<string>,
     ): FlowNode[] => {
-        if (!ucIds.length) return [];
-        const { cols } = ucGroupMetrics(ucIds.length);
+        if (!ucIds.length) {
+            return [];
+        }
 
-        const items = ucIds.map((ucId) => {
-            const connected = (ucToActors.get(ucId) ?? []).filter((id) => sideActors.has(id));
-            let idealY: number;
-            if (connected.length) {
-                const ys = connected
-                    .map((id) => actorCenterY.get(id))
-                    .filter((y): y is number => y !== undefined);
-                idealY = ys.length ? ys.reduce((s, y) => s + y, 0) / ys.length - UC_H / 2 : finalCenterY - UC_H / 2;
-            } else {
-                idealY = finalCenterY - UC_H / 2;
+        const {
+            cols,
+        } =
+            ucGroupMetrics(
+                ucIds.length,
+            );
+
+        const items =
+            ucIds.map(
+                (ucId) => {
+                    const connected =
+                        (
+                            ucToActors.get(
+                                ucId,
+                            ) ?? []
+                        ).filter(
+                            (id) =>
+                                sideActors.has(
+                                    id,
+                                ),
+                        );
+
+                    let idealY =
+                        boundaryH /
+                            2 -
+                        USE_CASE.UC_H /
+                            2;
+
+                    if (
+                        connected.length
+                    ) {
+                        const ys =
+                            connected
+                                .map(
+                                    (
+                                        id,
+                                    ) =>
+                                        actorCenterY.get(
+                                            id,
+                                        ),
+                                )
+                                .filter(
+                                    (
+                                        y,
+                                    ): y is number =>
+                                        y !==
+                                        undefined,
+                                );
+
+                        if (
+                            ys.length
+                        ) {
+                            idealY =
+                                ys.reduce(
+                                    (
+                                        sum,
+                                        y,
+                                    ) =>
+                                        sum +
+                                        y,
+                                    0,
+                                ) /
+                                    ys.length -
+                                USE_CASE.UC_H /
+                                    2;
+                        }
+                    }
+
+                    return {
+                        ucId,
+                        idealY,
+                    };
+                },
+            );
+
+        const sourceKey = (
+            ucId: string,
+        ) => {
+            const connected =
+                (
+                    ucToActors.get(
+                        ucId,
+                    ) ?? []
+                ).filter(
+                    (id) =>
+                        sideActors.has(
+                            id,
+                        ),
+                );
+
+            return connected.length ===
+                1
+                ? connected[0]
+                : "__multi__";
+        };
+
+        const sorted =
+            [...items].sort(
+                (a, b) =>
+                    a.idealY -
+                    b.idealY,
+            );
+
+        const usedBySource =
+            new Map<
+                string,
+                number
+            >();
+
+        const colNext =
+            new Array<number>(
+                cols,
+            ).fill(
+                Number.NEGATIVE_INFINITY,
+            );
+
+        const slotHeight =
+            USE_CASE.UC_H +
+            USE_CASE.UC_GAP_Y;
+
+        const placed: {
+            ucId: string;
+            col: number;
+            y: number;
+        }[] = [];
+
+        for (
+            const item of
+                sorted
+        ) {
+            const source =
+                sourceKey(
+                    item.ucId,
+                );
+
+            /*
+             * Choose the least occupied
+             * column instead of simply
+             * using i % cols.
+             */
+            let bestColumn = 0;
+
+            for (
+                let col = 1;
+                col < cols;
+                col++
+            ) {
+                if (
+                    colNext[col] <
+                    colNext[
+                        bestColumn
+                    ]
+                ) {
+                    bestColumn =
+                        col;
+                }
             }
-            return { ucId, idealY };
-        });
 
-        const resolved = resolveOverlaps(items, UC_H, UC_GAP_Y);
+            const sourceFloor =
+                usedBySource.get(
+                    source,
+                ) ??
+                Number.NEGATIVE_INFINITY;
 
-        return resolved.map((item, i) => {
-            const col = i % cols;
-            const node = useCases.find((u) => u.id === item.ucId)!;
-            return {
+            let y = Math.max(
+                item.idealY,
+                sourceFloor +
+                    slotHeight,
+                colNext[
+                    bestColumn
+                ] +
+                    slotHeight,
+            );
+
+            if (
+                !usedBySource.has(
+                    source,
+                )
+            ) {
+                y = Math.max(
+                    item.idealY,
+                    colNext[
+                        bestColumn
+                    ] +
+                        slotHeight,
+                );
+            }
+
+            usedBySource.set(
+                source,
+                y,
+            );
+
+            colNext[
+                bestColumn
+            ] = y;
+
+            placed.push({
+                ucId:
+                    item.ucId,
+
+                col:
+                    bestColumn,
+
+                y,
+            });
+        }
+
+        const results: FlowNode[] =
+            [];
+
+        for (
+            const item of
+                placed
+        ) {
+            const node =
+                useCases.find(
+                    (uc) =>
+                        uc.id ===
+                        item.ucId,
+                );
+
+            if (!node) {
+                continue;
+            }
+
+            results.push({
                 ...node,
-                position: { x: startX + col * (UC_W + UC_GAP_X), y: item.idealY },
-                width: UC_W, height: UC_H,
-                style: { ...(node.style as object), width: UC_W, height: UC_H },
+
+                position: {
+                    x:
+                        startX +
+                        item.col *
+                            (
+                                USE_CASE.UC_W +
+                                USE_CASE.UC_GAP_X
+                            ),
+
+                    y:
+                        item.y,
+                },
+
+                width:
+                    USE_CASE.UC_W,
+
+                height:
+                    USE_CASE.UC_H,
+
+                style: {
+                    ...(node.style as object),
+
+                    width:
+                        USE_CASE.UC_W,
+
+                    height:
+                        USE_CASE.UC_H,
+                },
+
                 zIndex: 5,
-            };
-        });
+            });
+        }
+
+        return results;
     };
 
-    const posLeftUCs = positionUCsByActor(leftUCs, leftUCStartX, leftActorIds);
-    const posRightUCs = positionUCsByActor(rightUCs, rightUCStartX, rightActorIds);
+    const leftUCNodes =
+        positionUCsByActor(
+            leftUCs,
+            leftUCStartX,
+            leftActorIds,
+        );
 
-    const posCenterUCs = (() => {
-        if (!centerUCs.length) return [];
-        const { cols, height } = ucGroupMetrics(centerUCs.length);
-        const startY = finalCenterY - height / 2;
-        return centerUCs.map((ucId, i) => {
-            const col = i % cols;
-            const row = Math.floor(i / cols);
-            const node = useCases.find((u) => u.id === ucId)!;
-            return {
-                ...node,
-                position: { x: centerUCStartX + col * (UC_W + UC_GAP_X), y: startY + row * (UC_H + UC_GAP_Y) },
-                width: UC_W, height: UC_H,
-                style: { ...(node.style as object), width: UC_W, height: UC_H },
-                zIndex: 5,
-            };
-        });
-    })();
+    const rightUCNodes =
+        positionUCsByActor(
+            rightUCs,
+            rightUCStartX,
+            rightActorIds,
+        );
 
-    const allUCNodes = [...posLeftUCs, ...posCenterUCs, ...posRightUCs].map((useCase) =>
-        boundary ? { ...useCase, parentId: boundary.id, extent: "parent" as const } : useCase
+    /*
+     * Center UCs.
+     */
+    const centerUCNodes =
+        centerUCs.map(
+            (ucId, index) => {
+                const col =
+                    index % 2;
+
+                const row =
+                    Math.floor(
+                        index / 2,
+                    );
+
+                const node =
+                    useCases.find(
+                        (uc) =>
+                            uc.id ===
+                            ucId,
+                    )!;
+
+                const metrics =
+                    centerMetrics;
+
+                const startY =
+                    boundaryH /
+                        2 -
+                    metrics.height /
+                        2;
+
+                return {
+                    ...node,
+
+                    position: {
+                        x:
+                            centerUCStartX +
+                            col *
+                                (
+                                    USE_CASE.UC_W +
+                                    USE_CASE.UC_GAP_X
+                                ),
+
+                        y:
+                            startY +
+                            row *
+                                (
+                                    USE_CASE.UC_H +
+                                    USE_CASE.UC_GAP_Y
+                                ),
+                    },
+
+                    width:
+                        USE_CASE.UC_W,
+
+                    height:
+                        USE_CASE.UC_H,
+
+                    style: {
+                        ...(node.style as object),
+
+                        width:
+                            USE_CASE.UC_W,
+
+                        height:
+                            USE_CASE.UC_H,
+                    },
+
+                    zIndex: 5,
+                };
+            },
+        );
+
+    /*
+     * Attach UCs to boundary.
+     */
+    const allUCNodes = [
+        ...leftUCNodes,
+        ...centerUCNodes,
+        ...rightUCNodes,
+    ].map(
+        (useCase) =>
+            boundary
+                ? {
+                      ...useCase,
+
+                      parentId:
+                          boundary.id,
+
+                      extent:
+                          "parent" as const,
+                  }
+                : useCase,
     );
 
-    // Boundary - Recalculate based on ACTUAL positions after resolveOverlaps
-    let ucMinX = Infinity, ucMaxX = -Infinity;
-    let ucMinY = Infinity, ucMaxY = -Infinity;
-    for (const uc of allUCNodes) {
-        ucMinX = Math.min(ucMinX, uc.position.x);
-        ucMaxX = Math.max(ucMaxX, uc.position.x + UC_W);
-        ucMinY = Math.min(ucMinY, uc.position.y);
-        ucMaxY = Math.max(ucMaxY, uc.position.y + UC_H);
+    /*
+     * Calculate boundary bounds.
+     */
+    let ucMinX =
+        Number.POSITIVE_INFINITY;
+
+    let ucMaxX =
+        Number.NEGATIVE_INFINITY;
+
+    let ucMinY =
+        Number.POSITIVE_INFINITY;
+
+    let ucMaxY =
+        Number.NEGATIVE_INFINITY;
+
+    for (
+        const uc of
+            allUCNodes
+    ) {
+        ucMinX =
+            Math.min(
+                ucMinX,
+                uc.position.x,
+            );
+
+        ucMaxX =
+            Math.max(
+                ucMaxX,
+                uc.position.x +
+                    USE_CASE.UC_W,
+            );
+
+        ucMinY =
+            Math.min(
+                ucMinY,
+                uc.position.y,
+            );
+
+        ucMaxY =
+            Math.max(
+                ucMaxY,
+                uc.position.y +
+                    USE_CASE.UC_H,
+            );
     }
 
-    const boundaryX = (isFinite(ucMinX) ? ucMinX : 0) - BOUNDARY_PAD;
-    const boundaryY = (isFinite(ucMinY) ? ucMinY : 0) - BOUNDARY_PAD;
-    const boundaryHeight = (isFinite(ucMaxY) ? ucMaxY - ucMinY : 200) + BOUNDARY_PAD * 2;
+    const boundaryX =
+        (
+            Number.isFinite(
+                ucMinX,
+            )
+                ? ucMinX
+                : 0
+        ) -
+        USE_CASE.BOUNDARY_PAD;
 
-    const positionedOthers = others.map((o, i) => {
-        const sz = estimateSize(o);
-        return { ...o, position: { x: boundaryX + 20 + i * 180, y: boundaryY + boundaryHeight + BOUNDARY_PAD },
-            width: sz.width, height: sz.height, zIndex: 5 };
-    });
+    const boundaryY =
+        (
+            Number.isFinite(
+                ucMinY,
+            )
+                ? ucMinY
+                : 0
+        ) -
+        USE_CASE.BOUNDARY_PAD;
 
-    // IMPORTANT: the boundary (parent) MUST come BEFORE its children in the
-    // nodes array. React Flow (@xyflow/system `adoptUserNodes`) computes each
-    // node's absolute position by looking up its parent in `nodeLookup`, which is
-    // built incrementally in array order. If the parent is listed AFTER its
-    // children, the lookup misses it and the children are positioned at their
-    // relative coordinates as if absolute -> they end up shifted outside the
-    // boundary. Parsers emit the boundary first; we must keep that invariant here.
+    const boundaryHeight =
+        (
+            Number.isFinite(
+                ucMaxY,
+            )
+                ? ucMaxY -
+                  ucMinY
+                : 200
+        ) +
+        USE_CASE.BOUNDARY_PAD *
+            2;
+
+    /*
+     * Other nodes.
+     */
+    const positionedOthers =
+        others.map(
+            (node, index) => {
+                const size =
+                    estimateSize(
+                        node,
+                    );
+
+                return {
+                    ...node,
+
+                    position: {
+                        x:
+                            boundaryX +
+                            20 +
+                            index *
+                                180,
+
+                        y:
+                            boundaryY +
+                            boundaryHeight +
+                            USE_CASE.BOUNDARY_PAD,
+                    },
+
+                    width:
+                        size.width,
+
+                    height:
+                        size.height,
+
+                    zIndex: 5,
+                };
+            },
+        );
+
+    /*
+     * Parent MUST appear before children.
+     */
     const allNodes = [
-        ...packages.map(p => ({ ...p, zIndex: -1 })), // parent boundary FIRST
-        ...posLeftActors.map((n) => ({ ...n, zIndex: 5 })),
-        ...posRightActors.map((n) => ({ ...n, zIndex: 5 })),
-        ...allUCNodes.map((n) => ({ ...n, zIndex: 5 })),
+        ...packages.map(
+            (node) => ({
+                ...node,
+
+                position: {
+                    x:
+                        boundaryX,
+
+                    y:
+                        boundaryY,
+                },
+
+                width:
+                    node.width ??
+                    Math.max(
+                        node.width ??
+                            0,
+                        cursorX -
+                            boundaryX,
+                    ),
+
+                height:
+                    boundaryHeight,
+            }),
+        ),
+
+        ...leftActors,
+
+        ...rightActors,
+
+        ...allUCNodes,
+
         ...positionedOthers,
     ];
 
-    // Use finalizeLayout to wrap packages around their children
-    const finalNodes = finalizeLayout(allNodes);
+    const finalizedNodes =
+        finalizeLayout(
+            allNodes,
+            edges,
+        );
 
-    const layoutedEdges = assignHandles(finalNodes, edges, "usecase").map((e) => ({
-        ...e,
-        type: "bezier",
-        zIndex: 10,
-    }));
+    /*
+     * Reposition actors after boundary finalization.
+     */
+    const finalBoundary =
+        finalizedNodes.find(
+            (node) =>
+                node.type ===
+                    "boundary" ||
+                node.type ===
+                    "package",
+        );
 
-    return { nodes: finalNodes, edges: layoutedEdges as FlowEdge[] };
+    const finalNodes =
+        finalBoundary
+            ? finalizedNodes.map(
+                  (node) => {
+                      if (
+                          node.type !==
+                              "actor" ||
+                          node.parentId
+                      ) {
+                          return node;
+                      }
+
+                      const width =
+                          finalBoundary.width ??
+                          estimateSize(
+                              finalBoundary,
+                          ).width;
+
+                      const gap =
+                          USE_CASE.ACTOR_UC_GAP;
+
+                      if (
+                          leftActorIds.has(
+                              node.id,
+                          )
+                      ) {
+                          return {
+                              ...node,
+
+                              position: {
+                                  ...node.position,
+
+                                  x:
+                                      finalBoundary.position.x -
+                                      USE_CASE.ACTOR_W -
+                                      gap,
+                              },
+                          };
+                      }
+
+                      if (
+                          rightActorIds.has(
+                              node.id,
+                          )
+                      ) {
+                          return {
+                              ...node,
+
+                              position: {
+                                  ...node.position,
+
+                                  x:
+                                      finalBoundary.position.x +
+                                      width +
+                                      gap,
+                              },
+                          };
+                      }
+
+                      return node;
+                  },
+              )
+            : finalizedNodes;
+
+    /*
+     * Smart use-case edges.
+     */
+    const finalPositionMap =
+        buildPositionMap(
+            finalNodes,
+        );
+
+    const layoutedEdges =
+        assignHandles(
+            finalNodes,
+            edges,
+            "usecase",
+        ).map(
+            (edge) => {
+                const source =
+                    finalPositionMap.get(
+                        edge.source,
+                    );
+
+                const target =
+                    finalPositionMap.get(
+                        edge.target,
+                    );
+
+                if (
+                    !source ||
+                    !target
+                ) {
+                    return edge;
+                }
+
+                const aligned =
+                    Math.abs(
+                        source.cy -
+                            target.cy,
+                    ) < 12;
+
+                return {
+                    ...edge,
+
+                    type: aligned
+                        ? "straight"
+                        : "smoothstep",
+
+                    zIndex: 10,
+                };
+            },
+        );
+
+    return {
+        nodes: finalNodes,
+        edges: layoutedEdges,
+    };
 }
 
 /* ============================================================
-   ACTIVITY + SWIMLANE LAYOUT (UML ActivityPartition)
-   ============================================================ */
-/**
- * Layout for Activity diagrams with UML swimlanes (ActivityPartitions).
- * - Global topological sort for correct node ordering
- * - Activities positioned by GLOBAL Y order across swimlanes
- * - Flexible swimlane widths, touching edges, equal heights
- */
+ * ACTIVITY + SWIMLANE FALLBACK
+ *
+ * Used only if ELK fails.
+ * ============================================================ */
+
 export function layoutActivityWithSwimlanes(
-    nodes: FlowNode[],
-    edges: FlowEdge[]
-): { nodes: FlowNode[]; edges: FlowEdge[] } | null {
-    const lanes = nodes.filter((n) => n.type === "swimlane");
-    if (lanes.length === 0) return null;
+    inputNodes: FlowNode[],
+    edges: FlowEdge[],
+): {
+    nodes: FlowNode[];
+    edges: FlowEdge[];
+} | null {
+    const lanes =
+        inputNodes.filter(
+            (node) =>
+                node.type ===
+                "swimlane",
+        );
 
-    const activities = nodes.filter((n) => n.type !== "swimlane");
-    const kidsOf = (lid: string) => activities.filter((n) => n.parentId === lid);
+    if (!lanes.length) {
+        return null;
+    }
 
-    // Layout settings
-    const SWIMLANE_HEADER_H = 32;
-    const SWIMLANE_PADDING_X = 30;
-    const SWIMLANE_PADDING_TOP = 50;
-    const ACTIVITY_GAP = 60;
-    const HORIZONTAL_GAP = 40; // Gap between side-by-side nodes (if-else branches)
+    const nodes =
+        inputNodes.map(
+            (node) => ({
+                ...node,
 
-    // Sort lanes by declaration order (laneIndex)
-    const sortedLanes = [...lanes].sort((a, b) => {
-        const aIdx = (a.data as FlowNodeData)?.laneIndex ?? 0;
-        const bIdx = (b.data as FlowNodeData)?.laneIndex ?? 0;
-        return aIdx - bIdx;
-    });
+                position: {
+                    ...node.position,
+                },
 
-    // ============================================
-    // STEP 1: Build adjacency for topological sort
-    // ============================================
-    const activityIds = new Set(activities.map(a => a.id));
+                style: node.style
+                    ? {
+                          ...(node.style as object),
+                      }
+                    : node.style,
+            }),
+        );
 
-    const outgoing = new Map<string, string[]>();
-    const incoming = new Map<string, string[]>();
-    activities.forEach(a => {
-        outgoing.set(a.id, []);
-        incoming.set(a.id, []);
-    });
+    const activities =
+        nodes.filter(
+            (node) =>
+                node.type !==
+                "swimlane",
+        );
 
-    edges.forEach(e => {
-        if (activityIds.has(e.source) && activityIds.has(e.target)) {
-            outgoing.get(e.source)?.push(e.target);
-            incoming.get(e.target)?.push(e.source);
+    const sortedLanes =
+        [...lanes].sort(
+            (a, b) => {
+                const aIndex =
+                    (
+                        a.data as FlowNodeData
+                    )?.laneIndex ??
+                    0;
+
+                const bIndex =
+                    (
+                        b.data as FlowNodeData
+                    )?.laneIndex ??
+                    0;
+
+                return (
+                    aIndex -
+                    bIndex
+                );
+            },
+        );
+
+    /*
+     * Build adjacency.
+     */
+    const outgoing =
+        new Map<
+            string,
+            string[]
+        >();
+
+    const incoming =
+        new Map<
+            string,
+            string[]
+        >();
+
+    for (
+        const node of
+            activities
+    ) {
+        outgoing.set(
+            node.id,
+            [],
+        );
+
+        incoming.set(
+            node.id,
+            [],
+        );
+    }
+
+    const activityIds =
+        new Set(
+            activities.map(
+                (node) =>
+                    node.id,
+            ),
+        );
+
+    for (
+        const edge of edges
+    ) {
+        if (
+            !activityIds.has(
+                edge.source,
+            ) ||
+            !activityIds.has(
+                edge.target,
+            )
+        ) {
+            continue;
         }
-    });
 
-    // ============================================
-    // STEP 2: Topological Rank Assignment (Kahn's Algorithm)
-    // ============================================
-    const startNodes = activities.filter(a => (incoming.get(a.id)?.length ?? 0) === 0);
-    const ranks = new Map<string, number>();
-    activities.forEach(a => ranks.set(a.id, 0));
+        outgoing
+            .get(
+                edge.source,
+            )
+            ?.push(
+                edge.target,
+            );
 
-    const inDegree = new Map<string, number>();
-    activities.forEach(a => inDegree.set(a.id, incoming.get(a.id)?.length ?? 0));
+        incoming
+            .get(
+                edge.target,
+            )
+            ?.push(
+                edge.source,
+            );
+    }
 
-    const queue: string[] = [];
-    startNodes.forEach(n => {
-        queue.push(n.id);
-        ranks.set(n.id, 0);
-    });
+    /*
+     * Kahn rank.
+     */
+    const ranks =
+        new Map<
+            string,
+            number
+        >();
 
-    const tempInDegree = new Map(inDegree);
-    while (queue.length > 0) {
-        const currId = queue.shift()!;
-        const currRank = ranks.get(currId)!;
+    const inDegree =
+        new Map<
+            string,
+            number
+        >();
 
-        const out = outgoing.get(currId) ?? [];
-        for (const nextId of out) {
-            ranks.set(nextId, Math.max(ranks.get(nextId)!, currRank + 1));
+    const queue: string[] =
+        [];
 
-            const deg = (tempInDegree.get(nextId) ?? 0) - 1;
-            tempInDegree.set(nextId, deg);
-            if (deg === 0) {
-                queue.push(nextId);
+    for (
+        const node of
+            activities
+    ) {
+        const degree =
+            incoming.get(
+                node.id,
+            )?.length ?? 0;
+
+        inDegree.set(
+            node.id,
+            degree,
+        );
+
+        ranks.set(
+            node.id,
+            0,
+        );
+
+        if (degree === 0) {
+            queue.push(
+                node.id,
+            );
+        }
+    }
+
+    while (
+        queue.length
+    ) {
+        const current =
+            queue.shift()!;
+
+        const currentRank =
+            ranks.get(
+                current,
+            ) ?? 0;
+
+        for (
+            const next of
+                outgoing.get(
+                    current,
+                ) ?? []
+        ) {
+            ranks.set(
+                next,
+                Math.max(
+                    ranks.get(
+                        next,
+                    ) ?? 0,
+                    currentRank +
+                        1,
+                ),
+            );
+
+            const degree =
+                (
+                    inDegree.get(
+                        next,
+                    ) ?? 0
+                ) - 1;
+
+            inDegree.set(
+                next,
+                degree,
+            );
+
+            if (
+                degree ===
+                0
+            ) {
+                queue.push(
+                    next,
+                );
             }
         }
     }
 
-    // Handle any disconnected or cyclic nodes by giving them a fallback rank
-    activities.forEach(a => {
-        if (!ranks.has(a.id)) ranks.set(a.id, 0);
-    });
+    /*
+     * Rank Y.
+     */
+    const uniqueRanks =
+        [
+            ...new Set(
+                ranks.values(),
+            ),
+        ].sort(
+            (a, b) =>
+                a - b,
+        );
 
-    // ============================================
-    // STEP 3: Group activities by lane and Y level (rank)
-    // ============================================
-    const laneKidsByRank = new Map<string, Map<number, FlowNode[]>>();
-    sortedLanes.forEach(lane => {
-        const kids = kidsOf(lane.id);
-        const rankGroups = new Map<number, FlowNode[]>();
-        kids.forEach(k => {
-            const r = ranks.get(k.id) ?? 0;
-            const arr = rankGroups.get(r) ?? [];
-            arr.push(k);
-            rankGroups.set(r, arr);
-        });
-        laneKidsByRank.set(lane.id, rankGroups);
-    });
+    const rankY =
+        new Map<
+            number,
+            number
+        >();
 
-    // Calculate Y coordinates for each rank to ensure side-by-side nodes align
-    const uniqueRanks = [...new Set(ranks.values())].sort((a, b) => a - b);
-    const rankY = new Map<number, number>();
-    const rankHeight = new Map<number, number>();
+    const rankHeight =
+        new Map<
+            number,
+            number
+        >();
 
-    let currentY = SWIMLANE_HEADER_H + SWIMLANE_PADDING_TOP;
+    let currentY =
+        ACTIVITY.LANE_HEADER_H +
+        ACTIVITY.LANE_PADDING_TOP;
 
-    for (const r of uniqueRanks) {
-        rankY.set(r, currentY);
+    for (
+        const rank of
+            uniqueRanks
+    ) {
+        rankY.set(
+            rank,
+            currentY,
+        );
 
-        // Find max height of any node at this rank
-        const nodesAtRank = activities.filter(a => ranks.get(a.id) === r);
-        let maxH = 54;
-        for (const n of nodesAtRank) {
-            const s = estimateSize(n);
-            maxH = Math.max(maxH, s.height);
-        }
-        rankHeight.set(r, maxH);
-        currentY += maxH + ACTIVITY_GAP;
-    }
+        const nodesAtRank =
+            activities.filter(
+                (node) =>
+                    (
+                        ranks.get(
+                            node.id,
+                        ) ?? 0
+                    ) === rank,
+            );
 
-    // ============================================
-    // STEP 4: Calculate each swimlane's flexible width
-    // ============================================
-    const laneInfo = new Map<string, { x: number; width: number; height: number }>();
+        let maxHeight =
+            40;
 
-    for (const lane of sortedLanes) {
-        const kids = kidsOf(lane.id);
-        const rankGroups = laneKidsByRank.get(lane.id)!;
-
-        // Flexible width based on horizontal groups (side-by-side)
-        let maxContentW = 220;
-        rankGroups.forEach((nodesAtRank) => {
-            let groupW = 0;
-            nodesAtRank.forEach((n, idx) => {
-                const s = estimateSize(n);
-                groupW += s.width;
-                if (idx > 0) groupW += HORIZONTAL_GAP;
-            });
-            maxContentW = Math.max(maxContentW, groupW);
-        });
-
-        // Max Y for lane height
-        let maxY = SWIMLANE_HEADER_H + SWIMLANE_PADDING_TOP;
-        for (const k of kids) {
-            const r = ranks.get(k.id) ?? 0;
-            const y = rankY.get(r) ?? 0;
-            const s = estimateSize(k);
-            maxY = Math.max(maxY, y + s.height);
+        for (
+            const node of
+                nodesAtRank
+        ) {
+            maxHeight =
+                Math.max(
+                    maxHeight,
+                    estimateSize(
+                        node,
+                    ).height,
+                );
         }
 
-        laneInfo.set(lane.id, {
-            x: 0,
-            width: maxContentW + SWIMLANE_PADDING_X * 2,
-            height: maxY + SWIMLANE_PADDING_TOP
-        });
+        rankHeight.set(
+            rank,
+            maxHeight,
+        );
+
+        currentY +=
+            maxHeight +
+            ACTIVITY.NODE_GAP;
     }
 
-    // Calculate X positions for lanes (touching edges)
+    /*
+     * Lane widths.
+     */
+    const laneInfo =
+        new Map<
+            string,
+            {
+                x: number;
+                width: number;
+                height: number;
+            }
+        >();
+
+    for (
+        const lane of
+            sortedLanes
+    ) {
+        const kids =
+            activities.filter(
+                (node) =>
+                    node.parentId ===
+                    lane.id,
+            );
+
+        let maxContentWidth =
+            220;
+
+        const rankGroups =
+            new Map<
+                number,
+                FlowNode[]
+            >();
+
+        for (
+            const child of
+                kids
+        ) {
+            const rank =
+                ranks.get(
+                    child.id,
+                ) ?? 0;
+
+            const list =
+                rankGroups.get(
+                    rank,
+                ) ?? [];
+
+            list.push(
+                child,
+            );
+
+            rankGroups.set(
+                rank,
+                list,
+            );
+        }
+
+        rankGroups.forEach(
+            (group) => {
+                let width = 0;
+
+                group.forEach(
+                    (
+                        node,
+                        index,
+                    ) => {
+                        width +=
+                            estimateSize(
+                                node,
+                            ).width;
+
+                        if (
+                            index >
+                            0
+                        ) {
+                            width +=
+                                ACTIVITY.BRANCH_GAP;
+                        }
+                    },
+                );
+
+                maxContentWidth =
+                    Math.max(
+                        maxContentWidth,
+                        width,
+                    );
+            },
+        );
+
+        let maxY =
+            ACTIVITY.LANE_HEADER_H +
+            ACTIVITY.LANE_PADDING_TOP;
+
+        for (
+            const child of
+                kids
+        ) {
+            const rank =
+                ranks.get(
+                    child.id,
+                ) ?? 0;
+
+            const y =
+                rankY.get(
+                    rank,
+                ) ?? 0;
+
+            const size =
+                estimateSize(
+                    child,
+                );
+
+            maxY =
+                Math.max(
+                    maxY,
+                    y +
+                        size.height,
+                );
+        }
+
+        laneInfo.set(
+            lane.id,
+            {
+                x: 0,
+
+                width:
+                    maxContentWidth +
+                    ACTIVITY.LANE_PADDING_X *
+                        2,
+
+                height:
+                    maxY +
+                    ACTIVITY.LANE_PADDING_BOTTOM,
+            },
+        );
+    }
+
+    /*
+     * Touching lanes.
+     */
     let cursorX = 0;
-    for (const lane of sortedLanes) {
-        const info = laneInfo.get(lane.id)!;
-        info.x = cursorX;
-        cursorX += info.width;
+
+    for (
+        const lane of
+            sortedLanes
+    ) {
+        const info =
+            laneInfo.get(
+                lane.id,
+            )!;
+
+        info.x =
+            cursorX;
+
+        cursorX +=
+            info.width;
     }
 
-    const maxHeight = Math.max(...[...laneInfo.values()].map(l => l.height), 400);
+    const maxHeight =
+        Math.max(
+            ACTIVITY.MIN_LANE_HEIGHT,
+            ...[
+                ...laneInfo.values(),
+            ].map(
+                (info) =>
+                    info.height,
+            ),
+        );
 
-    // ============================================
-    // STEP 5: Position activities & swimlanes
-    // ============================================
-    for (const lane of sortedLanes) {
-        const info = laneInfo.get(lane.id)!;
-        const rankGroups = laneKidsByRank.get(lane.id)!;
+    /*
+     * Position children.
+     */
+    for (
+        const lane of
+            sortedLanes
+    ) {
+        const info =
+            laneInfo.get(
+                lane.id,
+            )!;
 
-        rankGroups.forEach((nodesAtRank, r) => {
-            let totalGroupW = 0;
-            nodesAtRank.forEach((n, idx) => {
-                const s = estimateSize(n);
-                totalGroupW += s.width;
-                if (idx > 0) totalGroupW += HORIZONTAL_GAP;
-            });
+        const groups =
+            new Map<
+                number,
+                FlowNode[]
+            >();
 
-            const laneContentW = info.width - SWIMLANE_PADDING_X * 2;
-            const groupStartX = info.x + SWIMLANE_PADDING_X + (laneContentW - totalGroupW) / 2;
+        for (
+            const child of
+                activities.filter(
+                    (node) =>
+                        node.parentId ===
+                        lane.id,
+                )
+        ) {
+            const rank =
+                ranks.get(
+                    child.id,
+                ) ?? 0;
 
-            let currentX = groupStartX;
-            nodesAtRank.forEach((n) => {
-                const s = estimateSize(n);
-                n.position = { x: currentX - info.x, y: rankY.get(r)! };
-                n.width = s.width;
-                n.height = s.height;
-                n.style = { ...(n.style as object), width: s.width, height: s.height };
-                currentX += s.width + HORIZONTAL_GAP;
-            });
-        });
-    }
+            const group =
+                groups.get(
+                    rank,
+                ) ?? [];
 
-    // Handle Free nodes (with parentId undefined)
-    const freeNodes = activities.filter(a => !a.parentId);
-    freeNodes.forEach(fn => {
-        const s = estimateSize(fn);
-        const firstInfo = laneInfo.get(sortedLanes[0]?.id ?? '');
-        const r = ranks.get(fn.id) ?? 0;
-        if (firstInfo) {
-            fn.position = { x: firstInfo.x + SWIMLANE_PADDING_X + (firstInfo.width - SWIMLANE_PADDING_X * 2 - s.width) / 2, y: rankY.get(r)! };
+            group.push(
+                child,
+            );
+
+            groups.set(
+                rank,
+                group,
+            );
         }
-        fn.width = s.width;
-        fn.height = s.height;
-        fn.style = { ...(fn.style as object), width: s.width, height: s.height };
-    });
 
-    // Set swimlane dimensions
-    for (const lane of sortedLanes) {
-        const info = laneInfo.get(lane.id)!;
-        lane.width = info.width;
-        lane.height = maxHeight;
-        lane.position = { x: info.x, y: 0 };
-        lane.style = { ...(lane.style as object), width: info.width, height: maxHeight, pointerEvents: "none" };
+        groups.forEach(
+            (
+                group,
+                rank,
+            ) => {
+                let totalWidth =
+                    0;
+
+                group.forEach(
+                    (
+                        node,
+                        index,
+                    ) => {
+                        totalWidth +=
+                            estimateSize(
+                                node,
+                            ).width;
+
+                        if (
+                            index >
+                            0
+                        ) {
+                            totalWidth +=
+                                ACTIVITY.BRANCH_GAP;
+                        }
+                    },
+                );
+
+                const contentWidth =
+                    info.width -
+                    ACTIVITY.LANE_PADDING_X *
+                        2;
+
+                let x =
+                    info.x +
+                    ACTIVITY.LANE_PADDING_X +
+                    (
+                        contentWidth -
+                        totalWidth
+                    ) /
+                        2;
+
+                for (
+                    const node of
+                        group
+                ) {
+                    const size =
+                        estimateSize(
+                            node,
+                        );
+
+                    node.position = {
+                        x:
+                            x -
+                            info.x,
+
+                        y:
+                            rankY.get(
+                                rank,
+                            )!,
+                    };
+
+                    node.width =
+                        size.width;
+
+                    node.height =
+                        size.height;
+
+                    node.style = {
+                        ...(node.style as object),
+
+                        width:
+                            size.width,
+
+                        height:
+                            size.height,
+                    };
+
+                    x +=
+                        size.width +
+                        ACTIVITY.BRANCH_GAP;
+                }
+            },
+        );
     }
 
-    // ============================================
-    // STEP 6: Normalize to start at x=0
-    // ============================================
-    const minX = Math.min(...sortedLanes.map(l => l.position.x));
+    /*
+     * Lane sizes.
+     */
+    for (
+        const lane of
+            sortedLanes
+    ) {
+        const info =
+            laneInfo.get(
+                lane.id,
+            )!;
 
-    for (const n of nodes) {
-        n.position.x -= minX;
+        lane.position = {
+            x: info.x,
+            y: 0,
+        };
+
+        lane.width =
+            info.width;
+
+        lane.height =
+            maxHeight;
+
+        lane.style = {
+            ...(lane.style as object),
+
+            width:
+                info.width,
+
+            height:
+                maxHeight,
+
+            pointerEvents:
+                "none",
+        };
+
+        lane.zIndex = -1;
     }
 
-    // ============================================
-    // STEP 7: Smart Edge Routing
-    // For cross-swimlane edges, ensure smooth routing
-    // ============================================
-    const layoutedEdges = edges.map(e => {
-        const s = nodes.find(n => n.id === e.source);
-        const t = nodes.find(n => n.id === e.target);
+    /*
+     * Smart edges.
+     */
+    const layoutedEdges =
+        assignHandles(
+            nodes,
+            edges.map(
+                (edge) => ({
+                    ...edge,
 
-        if (s && t) {
-            const crossLane = s.parentId !== t.parentId;
+                    type:
+                        "smoothstep",
+                }),
+            ),
+            "activity",
+        );
 
-            // Calculate absolute horizontal difference to decide if they are aligned
-            const sParent = s.parentId ? nodes.find(p => p.id === s.parentId) : null;
-            const tParent = t.parentId ? nodes.find(p => p.id === t.parentId) : null;
-            const sAbsX = s.position.x + (sParent ? sParent.position.x : 0) + (s.width ?? 150) / 2;
-            const tAbsX = t.position.x + (tParent ? tParent.position.x : 0) + (t.width ?? 150) / 2;
-
-            const dx = Math.abs(sAbsX - tAbsX);
-
-            let edgeType = "smoothstep";
-            if (crossLane) {
-                edgeType = "smoothstep";
-            } else if (dx < 10) {
-                edgeType = "straight"; // Use beautiful straight line for vertically-aligned nodes!
-            }
-
-            return {
-                ...e,
-                type: edgeType,
-                zIndex: crossLane ? 200 : 5
-            };
-        }
-        return e;
-    });
-
-    const finalEdges = assignHandles(nodes, layoutedEdges as FlowEdge[], "activity");
-    return { nodes, edges: finalEdges };
+    return {
+        nodes,
+        edges:
+            layoutedEdges,
+    };
 }
 
-export async function layoutElements(
-    nodes: FlowNode[], edges: FlowEdge[],
-    options: { diagramType?: DiagramType; direction?: "TB" | "LR" } = {}
-): Promise<{ nodes: FlowNode[]; edges: FlowEdge[] }> {
-    if (!nodes.length) return { nodes, edges };
+/* ============================================================
+ * PUBLIC API
+ * ============================================================ */
 
-    const hasActors = nodes.some((n) => n.type === "actor");
-    const hasUseCases = nodes.some((n) => n.type === "usecase");
-    if (options.diagramType === "usecase" || (hasActors && hasUseCases)) {
-        return layoutUseCase(nodes, edges);
+export async function layoutElements(
+    nodes: FlowNode[],
+    edges: FlowEdge[],
+    options: {
+        diagramType?: DiagramType;
+        direction?: "TB" | "LR";
+    } = {},
+): Promise<{
+    nodes: FlowNode[];
+    edges: FlowEdge[];
+}> {
+    if (!nodes.length) {
+        return {
+            nodes,
+            edges,
+        };
     }
-    // Activity diagrams that contain swimlanes get a dedicated band-aware layout
-    // so lanes stay ordered and children stay inside their partition.
-    const lanes = nodes.filter((n) => n.type === "swimlane");
-    if (lanes.length) {
-        const laid = layoutActivityWithSwimlanes(nodes, edges);
-        if (laid) return laid;
+
+    /*
+     * ========================================================
+     * USE CASE
+     * ========================================================
+     */
+
+    const hasActors =
+        nodes.some(
+            (node) =>
+                node.type ===
+                "actor",
+        );
+
+    const hasUseCases =
+        nodes.some(
+            (node) =>
+                node.type ===
+                "usecase",
+        );
+
+    if (
+        options.diagramType ===
+            "usecase" ||
+        (
+            hasActors &&
+            hasUseCases
+        )
+    ) {
+        return layoutUseCase(
+            nodes,
+            edges,
+        );
     }
-    return elkLayout(nodes, edges, options.diagramType, options.direction);
+
+    /*
+     * ========================================================
+     * ACTIVITY + SWIMLANE
+     * ========================================================
+     */
+
+    const hasSwimlanes =
+        nodes.some(
+            (node) =>
+                node.type ===
+                "swimlane",
+        );
+
+    if (
+        hasSwimlanes
+    ) {
+        try {
+            return await elkLayout(
+                nodes,
+                edges,
+                options.diagramType,
+                options.direction,
+            );
+        } catch (
+            error
+        ) {
+            console.warn(
+                "ELK Activity/Swimlane layout failed. Using fallback layout.",
+                error,
+            );
+
+            const fallback =
+                layoutActivityWithSwimlanes(
+                    nodes,
+                    edges,
+                );
+
+            if (
+                fallback
+            ) {
+                return fallback;
+            }
+
+            throw error;
+        }
+    }
+
+    /*
+     * ========================================================
+     * NORMAL ELK
+     * ========================================================
+     */
+
+    return elkLayout(
+        nodes,
+        edges,
+        options.diagramType,
+        options.direction,
+    );
 }

@@ -16,7 +16,7 @@ import TemplateDetail from './features/templates/pages/TemplateDetailPage'
 import PrebuiltDetail from './features/templates/pages/PrebuiltDetailPage'
 import ProjectOverview from './features/projects/pages/ProjectOverviewPage'
 
-import { Editor } from "./features/workspace/Editor"
+import { Editor } from "./features/workspace/panels/Editor"
 import { useAuthStore } from './features/auth/model/useAuthStore'
 import GlobalAIChatSidebar from './features/ai-chat/components/GlobalAIChatSidebar'
 import ScrollToTop from './shared/ui/ScrollToTop'

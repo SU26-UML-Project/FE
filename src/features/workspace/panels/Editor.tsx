@@ -21,45 +21,46 @@ import { toPng } from "html-to-image";
 import { nanoid } from "nanoid";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { projectService, sheetService, type SheetResponse } from "../../services";
+import { projectService, sheetService } from "../../../services";
 
-import { nodeTypes } from "./Canvas/Nodes";
-import { edgeTypes } from "./Canvas/Edges";
-import { layoutElements } from "../../shared/lib/elkLayout";
-import { MarkerDefs } from "./shared/MarkerDefs";
-import { computeSnap, nodeBox } from "../../shared/lib/snap";
-import { EditorContext } from "../../shared/lib/editorContext";
-import { getDiagram, getEdgeOption, patchFromOption, sampleFor } from "../../shared/lib/diagrams";
-import { detectAndParse } from "../../shared/lib/importers";
-import type { DiagramType, FlowEdge, FlowNode, FlowNodeData, PaletteItem, Sheet } from "../../types";
-import { Toolbar } from "./panels/Toolbar";
-import { Sidebar } from "./panels/Sidebar";
-import { Inspector, type AlignMode } from "./panels/Inspector";
-import { ContextMenu, CtxIcons, type CtxItem } from "./overlays/ContextMenu";
-import { SmartGuides, type GuidesState } from "./Canvas/SmartGuides";
-import { QuickAdd } from "./Canvas/QuickAdd";
-import { RemoteCursors } from "./Canvas/RemoteCursors";
-import { ImportModal } from "./overlays/ImportModal";
-import { ExportModal } from "./overlays/ExportModal";
-import { HelpOverlay } from "./overlays/HelpOverlay";
-import { AIChat } from "../ai-chat/components/AIChatPanel";
-import { SheetBar } from "./panels/SheetBar";
-import { ConfirmDialog } from "./overlays/ConfirmDialog";
-import { QuestionCard } from "../ai-chat/components/QuestionBox";
-import { TypeMenu } from "./overlays/TypeMenu";
-import { loadSheets, saveSheets, saveActiveId, loadActiveId, createSheet } from "./model/sheetStore";
-import { useCollab } from "../../shared/hooks/useCollab";
-import { socketService, type CanvasChangeData } from "../../services";
-import { useAuthStore } from "../auth/model/useAuthStore";
-import ProjectExplorer from "./Workspace/ProjectExplorer";
-import MarkdownEditor from "./Workspace/MarkdownEditor";
-import { workspaceFileService } from "./api/workspaceFileService";
-import type { WorkspaceFileItem, WorkspaceTreeState, WorkspaceFileKind } from "./types";
-import VersionHistoryPanel from "./Workspace/VersionHistoryPanel";
-import { diagramVersionService } from "../projects/api/diagramVersionApi";
-import type { DiagramSnapshot, DiagramVersion } from "./types";
-import WorkspaceTabs, { type WorkspaceTab } from "./Workspace/WorkspaceTabs";
-import { getErrorMessage, isInTrashError } from "../../shared/lib/errorMessage";
+import { nodeTypes } from "../Canvas/Nodes";
+import { edgeTypes } from "../Canvas/Edges";
+import { layoutElements } from "../../../shared/lib/elkLayout";
+import { MarkerDefs } from "../shared/MarkerDefs";
+import { computeSnap, nodeBox } from "../../../shared/lib/snap";
+import { EditorContext } from "../../../shared/lib/editorContext";
+import { getDiagram, getEdgeOption, patchFromOption, sampleFor } from "../../../shared/lib/diagrams";
+import { detectAndParse } from "../../../shared/lib/importers";
+import type { DiagramType, FlowEdge, FlowNode, FlowNodeData, PaletteItem, Sheet } from "../../../types";
+import { Toolbar } from "./Toolbar";
+import { Sidebar } from "./Sidebar";
+import { Inspector } from "./Inspector";
+import { Properties } from "./Properties";
+import type { AlignMode } from "./Properties";
+import { ContextMenu, CtxIcons, type CtxItem } from "../overlays/ContextMenu";
+import { SmartGuides, type GuidesState } from "../Canvas/SmartGuides";
+import { QuickAdd } from "../Canvas/QuickAdd";
+import { RemoteCursors } from "../Canvas/RemoteCursors";
+import { ImportModal } from "../overlays/ImportModal";
+import { ExportModal } from "../overlays/ExportModal";
+import { HelpOverlay } from "../overlays/HelpOverlay";
+import { AIChat } from "../../ai-chat/components/AIChatPanel";
+import { ConfirmDialog } from "../overlays/ConfirmDialog";
+import { QuestionCard } from "../../ai-chat/components/QuestionBox";
+import { TypeMenu } from "../overlays/TypeMenu";
+import { saveActiveId, loadActiveId, createSheet } from "../model/sheetStore";
+import { useCollab } from "../../../shared/hooks/useCollab";
+import { socketService, type CanvasChangeData } from "../../../services";
+import { useAuthStore } from "../../auth/model/useAuthStore";
+import ProjectExplorer from "../Workspace/ProjectExplorer";
+import MarkdownEditor from "../Workspace/MarkdownEditor";
+import { workspaceFileService } from "../api/workspaceFileService";
+import type { WorkspaceFileItem, WorkspaceTreeState, WorkspaceFileKind } from "../types";
+import VersionHistoryPanel from "../Workspace/VersionHistoryPanel";
+import { diagramVersionService } from "../../projects/api/diagramVersionApi";
+import type { DiagramSnapshot, DiagramVersion } from "../types";
+import WorkspaceTabs, { type WorkspaceTab } from "../Workspace/WorkspaceTabs";
+import { getErrorMessage, isInTrashError } from "../../../shared/lib/errorMessage";
 
 type Snap = { nodes: FlowNode[]; edges: FlowEdge[] };
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -149,21 +150,6 @@ function sortParentBeforeChild(list: FlowNode[]): FlowNode[] {
     return [...list].sort((a, b) => depth(a) - depth(b));
 }
 
-/** Convert a marker URL to its "start" (source) form. */
-function endpointStart(id: string): string {
-    if (!id) return "";
-    if (id.includes("m-diamond-filled")) return "url(#m-diamond-filled-start)";
-    if (id.includes("m-diamond-open")) return "url(#m-diamond-open-start)";
-    return id; // arrow / open arrow / triangle use auto-start-reverse
-}
-/** Convert a marker URL to its "end" (target) form. */
-function endpointEnd(id: string): string {
-    if (!id) return "";
-    if (id.includes("m-diamond-filled")) return "url(#m-diamond-filled)";
-    if (id.includes("m-diamond-open")) return "url(#m-diamond-open)";
-    return id;
-}
-
 function download(filename: string, content: string) {
     const blob = new Blob([content], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -196,7 +182,8 @@ export function Editor() {
     const [saved, setSaved] = useState(true);
     const [loaded, setLoaded] = useState(false);
     const [inspectorOpen, setInspectorOpen] = useState(false);
-    const [inspectorManualOpen, setInspectorManualOpen] = useState(false);
+    const [propertiesOpen, setPropertiesOpen] = useState(false);
+    const propertiesTargetId = useRef<string | null>(null);
     const [guides, setGuides] = useState<GuidesState>({ guidesX: [], guidesY: [] });
     const [ctxMenu, setCtxMenu] = useState<{
         x: number;
@@ -222,7 +209,34 @@ export function Editor() {
     const [confirmExit, setConfirmExit] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [typeMenu, setTypeMenu] = useState(false);
-    const [aiOpen, setAiOpen] = useState(true);
+    const [aiOpen, setAiOpen] = useState<boolean>(() => {
+        /*
+         * Show the AI Assistant when the editor first mounts
+         * (a fresh page load / SPA navigation into the editor),
+         * but keep it CLOSED when the user hard-reloads (F5 /
+         * refresh). Auto-reopening the chat on every refresh is
+         * annoying, so reloads remember the "closed" default.
+         *
+         * performance navigation type: "reload" => refresh,
+         * "navigate" => first load / SPA entry.
+         */
+        const nav = performance.getEntriesByType(
+            "navigation",
+        )[0] as
+            | (PerformanceNavigationTiming & {
+                  type?: string;
+              })
+            | undefined;
+
+        if (
+            nav &&
+            nav.type === "reload"
+        ) {
+            return false;
+        }
+
+        return true;
+    });
     const [sheets, setSheets] = useState<Sheet[]>([]);
     const [activeSheetId, setActiveSheetId] = useState<string>("");
     const [projectName, setProjectName] = useState<string>("");
@@ -288,7 +302,6 @@ export function Editor() {
 
     const {
         remoteCursors,
-        remoteSelections,
         emitCursorMove,
         emitSelectionChange,
         emitCanvasChange,
@@ -509,6 +522,39 @@ export function Editor() {
         [beginMutation, diagramType, activeEdgeId, setEdges, emitCanvasChange]
     );
 
+    /**
+     * Reconnect an existing connector to a different node/handle by dragging its
+     * end anchors (React Flow's built-in edge-updater). Persists the new
+     * source/target and keeps the connector's style data.
+     */
+    const handleReconnect = useCallback(
+        (oldEdge: FlowEdge, conn: Connection) => {
+            beginMutation();
+            const normalizeHandle = (h?: string | null): string | undefined => {
+                if (!h) return undefined;
+                return h.endsWith("-t") ? h.slice(0, -2) : h;
+            };
+            setEdges((prev) => {
+                const next = prev.map((e) =>
+                    e.id === oldEdge.id
+                        ? {
+                            ...e,
+                            source: conn.source,
+                            target: conn.target,
+                            sourceHandle: normalizeHandle(conn.sourceHandle) ?? undefined,
+                            targetHandle: normalizeHandle(conn.targetHandle) ?? undefined,
+                        }
+                        : e
+                );
+                if (!skipCollabEmit.current) {
+                    emitCanvasChange({ edges: next, type: "update" });
+                }
+                return next;
+            });
+        },
+        [beginMutation, setEdges, emitCanvasChange]
+    );
+
     const updateNodeData = useCallback(
         (id: string, patch: Partial<FlowNodeData>) => {
             beginMutation();
@@ -602,8 +648,12 @@ export function Editor() {
                 dashed?: boolean;
                 color?: string;
                 flip?: boolean;
+                markerSize?: number;
                 multiplicitySource?: string;
                 multiplicityTarget?: string;
+                sourcePull?: number;
+                targetPull?: number;
+                bend?: { x: number; y: number };
             }
         ) => {
             beginMutation();
@@ -616,6 +666,7 @@ export function Editor() {
                     if (patch.type !== undefined) nextEdge.type = patch.type as FlowEdge["type"];
                     if (patch.marker !== undefined) data.marker = patch.marker;
                     if (patch.markerStart !== undefined) data.markerStart = patch.markerStart;
+                    if (patch.markerSize !== undefined) data.markerSize = patch.markerSize;
                     if (patch.dashed !== undefined) data.dashed = patch.dashed;
                     if (patch.color !== undefined) {
                         // "" clears the override → falls back to default ink
@@ -623,6 +674,12 @@ export function Editor() {
                     }
                     if (patch.multiplicitySource !== undefined) data.multiplicitySource = patch.multiplicitySource;
                     if (patch.multiplicityTarget !== undefined) data.multiplicityTarget = patch.multiplicityTarget;
+                    if (patch.sourcePull !== undefined) data.sourcePull = patch.sourcePull;
+                    if (patch.targetPull !== undefined) data.targetPull = patch.targetPull;
+                    if (patch.bend !== undefined) {
+                        // null clears the bend (back to the auto route)
+                        data.bend = patch.bend || undefined;
+                    }
                     if (patch.flip) {
                         // Physically swap source and target endpoints to reverse arrow direction
                         const oldSource = nextEdge.source;
@@ -641,7 +698,7 @@ export function Editor() {
                         data.multiplicitySource = mt;
                         data.multiplicityTarget = ms;
                     }
-                    nextEdge.data = data;
+                    nextEdge.data = data as FlowEdge["data"];
                     return nextEdge;
                 });
                 if (!skipCollabEmit.current) {
@@ -669,11 +726,11 @@ export function Editor() {
                 type: item.type,
                 position,
                 data: {
+                    ...item.data,
                     label: item.data?.label || "",
                     attributes: item.data?.attributes || "",
                     methods: item.data?.methods || "",
                     stereotype: item.data?.stereotype || "",
-                    ...item.data
                 },
                 width: item.width,
                 height: item.height,
@@ -1039,6 +1096,8 @@ export function Editor() {
         [beginMutation, setNodes, emitCanvasChange]
     );
 
+    void alignSelection;
+
     const copy = useCallback(() => {
         const selNodes = nodesRef.current.filter((n) => n.selected);
         if (selNodes.length) clipboard.current = clone(selNodes);
@@ -1063,6 +1122,7 @@ export function Editor() {
     const onNodeCtx = useCallback(
         (e: React.MouseEvent, _node: FlowNode) => {
             e.preventDefault();
+            e.stopPropagation();
             const node = _node as FlowNode;
             // Select just the right-clicked node if it isn't already selected, so
             // the menu actions act on a predictable set of nodes.
@@ -1075,7 +1135,18 @@ export function Editor() {
                 typeof navigator !== "undefined" &&
                 /Mac|iPhone|iPad/.test(navigator.platform);
             const mod = isMac ? "⌘" : "Ctrl";
+            const editNode = () => {
+                // Edit always targets the node that opened this context menu.
+                setNodes((prev) =>
+                    prev.map((n) => ({ ...n, selected: n.id === node.id }))
+                );
+                propertiesTargetId.current = node.id;
+                setSel({ nodes: [node], edges: [] });
+                setPropertiesOpen(true);
+            };
             const items: CtxItem[] = [
+                { label: "Edit", icon: CtxIcons.edit, onClick: editNode },
+                { divider: true, label: "" },
                 { label: "Duplicate", shortcut: `${mod}+D`, icon: CtxIcons.duplicate, onClick: duplicateSelected },
                 { label: "Copy", shortcut: `${mod}+C`, icon: CtxIcons.copy, onClick: copy },
                 { divider: true, label: "" },
@@ -1093,11 +1164,39 @@ export function Editor() {
         (e: MouseEvent | React.MouseEvent) => {
             if (!e) return;
             e.preventDefault();
+
             const isMac =
                 typeof navigator !== "undefined" &&
                 /Mac|iPhone|iPad/.test(navigator.platform);
             const mod = isMac ? "⌘" : "Ctrl";
             const canPaste = !!clipboard.current?.length;
+            const selectedNodes = nodesRef.current.filter((n) => n.selected);
+            const selectedEdges = edgesRef.current.filter((edge) => edge.selected);
+
+            // Use selection actions when the user right-clicks after drag-selecting.
+            if (selectedNodes.length || selectedEdges.length) {
+                const editSelected = selectedNodes.length === 1 && selectedEdges.length === 0
+                    ? () => {
+                        const selected = selectedNodes[0];
+                        propertiesTargetId.current = selected.id;
+                        setSel({ nodes: [selected], edges: [] });
+                        setPropertiesOpen(true);
+                    }
+                    : undefined;
+                const items: CtxItem[] = [
+                    ...(editSelected ? [{ label: "Edit", icon: CtxIcons.edit, onClick: editSelected }, { divider: true, label: "" }] : []),
+                    { label: "Duplicate", shortcut: `${mod}+D`, icon: CtxIcons.duplicate, onClick: duplicateSelected },
+                    { label: "Copy", shortcut: `${mod}+C`, icon: CtxIcons.copy, onClick: copy },
+                    { divider: true, label: "" },
+                    { label: "Bring to front", icon: CtxIcons.front, onClick: bringToFront },
+                    { label: "Send to back", icon: CtxIcons.back, onClick: sendToBack },
+                    { divider: true, label: "" },
+                    { label: "Delete", shortcut: "Del", icon: CtxIcons.delete, danger: true, onClick: deleteSelected },
+                ];
+                setCtxMenu({ x: e.clientX, y: e.clientY, items });
+                return;
+            }
+
             const items: CtxItem[] = [
                 {
                     label: "Add shape here",
@@ -1119,7 +1218,7 @@ export function Editor() {
             ];
             setCtxMenu({ x: e.clientX, y: e.clientY, items });
         },
-        [paste, selectAll, diagramType, rf, addNode]
+        [paste, selectAll, diagramType, rf, addNode, duplicateSelected, copy, bringToFront, sendToBack, deleteSelected]
     );
 
     const onEdgeDoubleClick = useCallback(
@@ -1156,17 +1255,22 @@ export function Editor() {
 
     const onSelectionChange = useCallback(
         ({ nodes: n, edges: edg }: { nodes: FlowNode[]; edges: FlowEdge[] }) => {
+            const targetId = propertiesTargetId.current;
+            const isEditSelection = targetId !== null &&
+                n.length === 1 &&
+                n[0].id === targetId &&
+                edg.length === 0;
+
+            if (isEditSelection) {
+                propertiesTargetId.current = null;
+            } else {
+                setPropertiesOpen(false);
+            }
+
             setSel({ nodes: n, edges: edg });
             emitSelectionChange(n.map(x => x.id), edg.map(x => x.id));
-
-            // Auto-open/close logic for Inspector
-            if (n.length > 0 || edg.length > 0) {
-                setInspectorOpen(true);
-            } else if (!inspectorManualOpen) {
-                setInspectorOpen(false);
-            }
         },
-        [inspectorManualOpen]
+        []
     );
 
     const layoutCanvas = useCallback(
@@ -1324,10 +1428,14 @@ export function Editor() {
             const hiddenNodes = inNodes.map(n => ({ ...n, style: { ...n.style, opacity: 0 } }));
             const hiddenEdges = inEdges.map(e => {
                 const old = existingEdgesMap.get(e.id);
+                // For Activity, elkLayout.assignHandles always (re)computes Control
+                // flow handles to top/bottom. Do NOT overlay the user's original
+                // left/right handles here, or the arrow would revert to horizontal.
+                const reuseOld = finalType !== "activity" && old;
                 return {
                     ...e,
-                    sourceHandle: old?.sh || e.sourceHandle,
-                    targetHandle: old?.th || e.targetHandle,
+                    sourceHandle: (reuseOld && old?.sh) || e.sourceHandle,
+                    targetHandle: (reuseOld && old?.th) || e.targetHandle,
                     style: { ...e.style, opacity: 0 }
                 };
             });
@@ -1373,8 +1481,11 @@ export function Editor() {
 
             const stabilizedFinalEdges = finalEdges.map(e => {
                 const old = existingEdgesMap.get(e.id);
-                // Only restore handles if source and target are the same as before
-                if (old && e.source === edgesRef.current.find(oe => oe.id === e.id)?.source &&
+                // Only restore handles if source and target are the same as before.
+                // Skip for Activity so elkLayout's top/bottom Control-flow handles
+                // survive the import/refine instead of reverting to left/right.
+                if (finalType !== "activity" && old &&
+                    e.source === edgesRef.current.find(oe => oe.id === e.id)?.source &&
                     e.target === edgesRef.current.find(oe => oe.id === e.id)?.target) {
                     return { ...e, sourceHandle: old.sh, targetHandle: old.th };
                 }
@@ -2081,6 +2192,8 @@ export function Editor() {
         [beginMutation, rf, setNodes, setEdges]
     );
 
+    void onPickTemplate;
+
     const onClear = useCallback(() => {
         beginMutation();
         setNodes([]);
@@ -2263,7 +2376,7 @@ export function Editor() {
         .filter(Boolean) as FlowEdge[];
 
     return (
-        <EditorContext.Provider value={{ updateNodeData, growNode }}>
+        <EditorContext.Provider value={{ updateNodeData, updateEdge, growNode }}>
             <div className="flex h-screen w-full min-w-0 max-w-full flex-col overflow-hidden bg-white text-admin-on-surface">
                 <Toolbar
                     diagramType={diagramType}
@@ -2286,6 +2399,11 @@ export function Editor() {
                     onZoomIn={() => rf.zoomIn({ duration: 200 })}
                     onZoomOut={() => rf.zoomOut({ duration: 200 })}
                     onZoomReset={() => rf.zoomTo(1, { duration: 200 })}
+                    onZoomChange={(value) => rf.zoomTo(value, { duration: 0 })}
+                    // Flow diagram (activity/sequence) layout is always TOP → BOTTOM:
+                    // Magic Layout must keep `Start` at the top and `Final` at the bottom,
+                    // with the connecting edge running downward. Forcing "LR" here would
+                    // collapse a Start → Final chain into a horizontal (trái → phải) flow.
                     onLayout={() => layoutCanvas("TB")}
                     zoom={zoom}
                     showGrid={showGrid}
@@ -2298,7 +2416,6 @@ export function Editor() {
                     onToggleInspector={() => {
                         const next = !inspectorOpen;
                         setInspectorOpen(next);
-                        setInspectorManualOpen(next);
                     }}
                     onClear={() => setConfirmClear(true)}
                     onImportCode={() => setImportOpen(true)}
@@ -2402,7 +2519,39 @@ export function Editor() {
                                         const flowPos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
                                         emitCursorMove(flowPos.x, flowPos.y);
                                     }}
-                                    onContextMenu={(e) => e.preventDefault()}
+                                    onContextMenuCapture={(e) => {
+                                        e.preventDefault();
+                                        const target = e.target as HTMLElement | null;
+                                        const clickedNode = target?.closest(".react-flow__node");
+                                        if (!clickedNode) return;
+
+                                        const selectedNodes = nodesRef.current.filter((n) => n.selected);
+                                        const selectedEdges = edgesRef.current.filter((edge) => edge.selected);
+                                        if (!selectedNodes.length && !selectedEdges.length) return;
+                                        e.stopPropagation();
+
+                                        const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+                                        const mod = isMac ? "⌘" : "Ctrl";
+                                        const editSelected = selectedNodes.length === 1 && selectedEdges.length === 0
+                                            ? () => {
+                                                const selected = selectedNodes[0];
+                                                propertiesTargetId.current = selected.id;
+                                                setSel({ nodes: [selected], edges: [] });
+                                                setPropertiesOpen(true);
+                                            }
+                                            : undefined;
+                                        const items: CtxItem[] = [
+                                            ...(editSelected ? [{ label: "Edit", icon: CtxIcons.edit, onClick: editSelected }, { divider: true, label: "" }] : []),
+                                            { label: "Duplicate", shortcut: `${mod}+D`, icon: CtxIcons.duplicate, onClick: duplicateSelected },
+                                            { label: "Copy", shortcut: `${mod}+C`, icon: CtxIcons.copy, onClick: copy },
+                                            { divider: true, label: "" },
+                                            { label: "Bring to front", icon: CtxIcons.front, onClick: bringToFront },
+                                            { label: "Send to back", icon: CtxIcons.back, onClick: sendToBack },
+                                            { divider: true, label: "" },
+                                            { label: "Delete", shortcut: "Del", icon: CtxIcons.delete, danger: true, onClick: deleteSelected },
+                                        ];
+                                        setCtxMenu({ x: e.clientX, y: e.clientY, items });
+                                    }}
                                 >
                                     <MarkerDefs />
                                     <SmartGuides guides={guides} />
@@ -2439,6 +2588,9 @@ export function Editor() {
                                         onNodesChange={onNodesChange}
                                         onEdgesChange={onEdgesChange}
                                         onConnect={onConnect}
+                                        onReconnect={previewVersionId ? undefined : handleReconnect}
+                                        reconnectRadius={8}
+                                        edgesReconnectable={!previewVersionId}
                                         onSelectionChange={onSelectionChange}
                                         onSelectionDragStop={snapOnStop}
                                         onNodeContextMenu={onNodeCtx}
@@ -2449,7 +2601,7 @@ export function Editor() {
                                         onMove={(_, vp) => setZoom(vp.zoom)}
                                         connectionMode={ConnectionMode.Loose}
                                         connectionRadius={24}
-                                        connectionLineType="straight"
+                                        connectionLineType="bezier"
                                         connectionLineStyle={{ stroke: "#2563eb", strokeWidth: 2, strokeDasharray: "5,5" }}
                                         deleteKeyCode={null}
                                         selectionOnDrag
@@ -2510,7 +2662,6 @@ export function Editor() {
                                         <button
                                             onClick={() => {
                                                 setInspectorOpen(true);
-                                                setInspectorManualOpen(true);
                                             }}
                                             title="Show properties"
                                             className="animate-fade-in absolute right-0 top-1/2 z-20 flex h-20 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-admin-outline/30 bg-white text-admin-secondary/40 shadow-[-4px_0_12px_rgba(0,74,198,0.06)] transition-colors hover:bg-admin-bg hover:text-admin-primary"
@@ -2527,21 +2678,41 @@ export function Editor() {
                                         nodesLen={nodes.length}
                                         edgesLen={edges.length}
                                         activeConnectorName={activeConnectorName}
-                                        selNodes={selNodes}
-                                        selEdges={selEdges}
-                                        diagramType={diagramType}
-                                        allNodes={nodes}
-                                        onUpdateNodeParent={updateNodeParent}
-                                        onUpdateNode={updateNodeData}
-                                        onUpdateEdge={updateEdge}
-                                        onDelete={deleteSelected}
-                                        onDuplicate={duplicateSelected}
-                                        onAlign={alignSelection}
                                         onClose={() => {
                                             setInspectorOpen(false);
-                                            setInspectorManualOpen(false);
                                         }}
                                     />
+                                )}
+
+                                {propertiesOpen && (selNodes[0] || selEdges[0]) && (
+                                    <aside className="flex w-72 shrink-0 flex-col border-l border-admin-outline/30 bg-admin-bg/30">
+                                        <div className="flex h-12 shrink-0 items-center justify-between border-b border-admin-outline/30 pl-4 pr-2">
+                                            <span className="text-[13px] font-bold text-admin-on-surface">Inspector</span>
+                                            <button
+                                                title="Hide inspector"
+                                                onClick={() => {
+                                                    propertiesTargetId.current = null;
+                                                    setPropertiesOpen(false);
+                                                }}
+                                                className="flex h-7 w-7 items-center justify-center rounded-md text-admin-secondary/50 transition-colors hover:bg-admin-surface hover:text-admin-on-surface"
+                                            >
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>
+                                            </button>
+                                        </div>
+                                        <div className="flex-1 overflow-y-auto scroll-thin px-4 py-4">
+                                            <Properties
+                                                node={selNodes[0]}
+                                                edge={selEdges[0]}
+                                                allNodes={nodes}
+                                                diagramType={diagramType}
+                                                onUpdateNodeParent={updateNodeParent}
+                                                onUpdateNode={updateNodeData}
+                                                onUpdateEdge={updateEdge}
+                                                onDelete={deleteSelected}
+                                                onDuplicate={duplicateSelected}
+                                            />
+                                        </div>
+                                    </aside>
                                 )}
 
                             </div>

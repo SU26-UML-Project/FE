@@ -37,6 +37,7 @@ export function Toolbar(props: {
     onZoomIn: () => void;
     onZoomOut: () => void;
     onZoomReset: () => void;
+    onZoomChange: (value: number) => void;
     onLayout: () => void;
     zoom: number;
     showGrid: boolean;
@@ -136,6 +137,18 @@ export function Toolbar(props: {
                 <IconBtn label="Zoom out" onClick={props.onZoomOut}>
                     <I><circle cx="11" cy="11" r="7" /><line x1="8" y1="11" x2="14" y2="11" /><line x1="16.5" y1="16.5" x2="21" y2="21" /></I>
                 </IconBtn>
+                <input
+                    type="range"
+                    min={0.2}
+                    max={3}
+                    step={0.05}
+                    value={props.zoom}
+                    onChange={(e) => props.onZoomChange(Number(e.target.value))}
+                    style={{ "--zoom-fill": `${((props.zoom - 0.2) / (3 - 0.2)) * 100}%` } as React.CSSProperties}
+                    title="Drag to zoom"
+                    aria-label="Zoom level"
+                    className="zoom-range w-24 cursor-pointer"
+                />
                 <button onClick={props.onZoomReset} className="min-w-[3rem] rounded-lg px-1 py-1 text-center text-[12px] font-bold tabular-nums text-admin-secondary hover:bg-admin-bg hover:text-admin-primary" title="Reset zoom to 100%">
                     {Math.round(props.zoom * 100)}%
                 </button>
@@ -145,9 +158,15 @@ export function Toolbar(props: {
                 <IconBtn label="Fit to screen" onClick={props.onFit}>
                     <I><path d="M4 9V4h5" /><path d="M20 9V4h-5" /><path d="M4 15v5h5" /><path d="M20 15v5h-5" /></I>
                 </IconBtn>
-                <IconBtn label="Magic Layout (Auto-arrange)" onClick={props.onLayout}>
-                    <I><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3v-3z" /><path d="M3 3l1.5 1.5" /><path d="M14 3l1 1" /><path d="M3 14l1 1" /></I>
-                </IconBtn>
+                <button title="Magic Layout (Auto-arrange)" onClick={props.onLayout}
+                        className="gp-magic-btn group flex h-8 items-center gap-1.5 rounded-lg border border-white/20 pl-2 pr-2.5 text-[12.5px] font-bold text-white transition-[filter,transform] duration-200">
+                    <span className="gp-sparkle">
+                        <I size={15}><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3v-3z" /><path d="M3 3l1.5 1.5" /><path d="M14 3l1 1" /><path d="M3 14l1 1" /></I>
+                    </span>
+                    <span className="flex items-center gap-1 leading-none">
+                        <span>Magic</span>
+                    </span>
+                </button>
 
                 <Divider />
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity, Boxes, ChevronDown, ChevronRight, FileText, Folder, FolderOpen,
-  GitBranch, MoreHorizontal, Network, Plus, Search, Share2, Trash2, Workflow, X,
+  GitBranch, MoreHorizontal, Network, PanelLeftClose, PanelLeftOpen, Plus, Search, Share2, Trash2, Workflow, X,
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import type { DiagramType } from '../../../types'
@@ -252,14 +252,14 @@ export default function ProjectExplorer(props: Props) {
     </div>
   })
 
-  if (collapsed) return <button onClick={() => setCollapsed(false)} className="flex w-10 shrink-0 items-start justify-center border-r border-admin-outline bg-white pt-4 text-admin-secondary hover:text-uml-blue" title="Open Project Explorer"><ChevronRight size={17}/></button>
+  if (collapsed) return <button onClick={() => setCollapsed(false)} className="group flex w-10 shrink-0 cursor-pointer flex-col items-center justify-start gap-2 border-r border-admin-outline bg-white py-4 text-admin-secondary transition-colors hover:bg-uml-blue/5 hover:text-uml-blue" title="Open Project Explorer"><PanelLeftOpen size={16} className="transition-transform group-hover:-translate-x-0.5"/><span className="select-none text-[8px] font-black uppercase tracking-[0.2em] [writing-mode:vertical-rl] rotate-180">Files</span></button>
 
   return <>
     <aside tabIndex={0} onKeyDown={handleExplorerKeyDown} className="relative flex shrink-0 flex-col border-r border-admin-outline bg-white outline-none focus-within:ring-1 focus-within:ring-inset focus-within:ring-uml-blue/10" style={{ width }}>
       <header className="flex h-12 items-center gap-2 border-b border-admin-outline px-3">
         <div className="min-w-0 flex-1"><p className="truncate text-xs font-black uppercase tracking-wider">{props.projectName || 'Project'}</p><p className="text-[9px] font-bold uppercase tracking-widest text-admin-secondary">Project explorer</p></div>
         <button onClick={() => openCreate(null)} className="rounded-md p-1.5 text-admin-secondary transition hover:bg-admin-bg hover:text-uml-blue" title="Create item"><Plus size={16}/></button>
-        <button onClick={() => setCollapsed(true)} className="rounded-md p-1.5 text-admin-secondary transition hover:bg-admin-bg" title="Collapse Explorer"><X size={15}/></button>
+        <button onClick={() => setCollapsed(true)} className="rounded-md p-1.5 text-admin-secondary transition hover:bg-admin-bg hover:text-uml-blue" title="Collapse Explorer"><PanelLeftClose size={15}/></button>
       </header>
       <div className="relative m-2 mb-1"><Search size={13} className="absolute left-2.5 top-2.5 text-admin-secondary"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search files…" className="h-8 w-full rounded-md border border-admin-outline bg-admin-bg pl-8 pr-8 text-xs outline-none transition focus:border-uml-blue focus:bg-white"/>{query && <button onClick={() => setQuery('')} className="absolute right-2 top-2 text-admin-secondary"><X size={14}/></button>}</div>
       <div className="flex items-center justify-between px-3 py-2"><span className="text-[9px] font-black uppercase tracking-[0.16em] text-admin-secondary">Files</span><span className="text-[10px] text-admin-secondary">{props.items.length}</span></div>

@@ -49,25 +49,14 @@ export function computeSnap(
   const dCy = dragged.y + dragged.h / 2;
   const dBottom = dragged.y + dragged.h;
 
-  let dx = 0;
-  let dy = 0;
-
-  const tryX = (candidate: number, target: number) => {
-    if (dx !== 0) return;
-    const diff = target - candidate;
-    if (Math.abs(diff) <= THRESHOLD) {
-      dx = diff;
-      guidesX.add(target);
-    }
-  };
-  const tryY = (candidate: number, target: number) => {
-    if (dy !== 0) return;
-    const diff = target - candidate;
-    if (Math.abs(diff) <= THRESHOLD) {
-      dy = diff;
-      guidesY.add(target);
-    }
-  };
+  // Instead of greedily taking the FIRST candidate inside the threshold (which
+  // made edge-splints "pull" a node away while you were trying to eyeball the
+  // center), we evaluate every candidate and keep the NEAREST one per axis —
+  // Figma-style. When you are aiming for center, the center-to-center snap is
+  // the closest match, so it wins and the node stays put instead of being
+  // yanked onto some far edge guide.
+  const xCands: Array<[number, number]> = [];
+  const yCands: Array<[number, number]> = [];
 
   for (const o of others) {
     const oLeft = o.x;
@@ -77,44 +66,46 @@ export function computeSnap(
     const oCy = o.y + o.h / 2;
     const oBottom = o.y + o.h;
 
-    tryX(dLeft, oLeft);
-    tryX(dLeft, oCx);
-    tryX(dCx, oCx);
-    tryX(dCx, oLeft);
-    tryX(dCx, oRight);
-    tryX(dRight, oRight);
-    tryX(dRight, oCx);
-    tryX(dLeft, oRight);
-    tryX(dRight, oLeft);
-
-    tryY(dTop, oTop);
-    tryY(dTop, oCy);
-    tryY(dCy, oCy);
-    tryY(dCy, oTop);
-    tryY(dCy, oBottom);
-    tryY(dBottom, oBottom);
-    tryY(dBottom, oCy);
-    tryY(dTop, oBottom);
-    tryY(dBottom, oTop);
+    xCands.push(
+      [dLeft, oLeft], [dLeft, oCx],
+      [dCx, oCx], [dCx, oLeft], [dCx, oRight],
+      [dRight, oRight], [dRight, oCx],
+      [dLeft, oRight], [dRight, oLeft],
+    );
+    yCands.push(
+      [dTop, oTop], [dTop, oCy],
+      [dCy, oCy], [dCy, oTop], [dCy, oBottom],
+      [dBottom, oBottom], [dBottom, oCy],
+      [dTop, oBottom], [dBottom, oTop],
+    );
   }
 
-  // Snap to canvas center too (only center-to-center).
+  // Snap to canvas center too (only center-to-center), still nearest-wins.
   if (viewCenter) {
-    if (dx === 0) {
-      const diff = viewCenter.x - dCx;
-      if (Math.abs(diff) <= THRESHOLD) {
-        dx = diff;
-        guidesX.add(viewCenter.x);
-      }
-    }
-    if (dy === 0) {
-      const diff = viewCenter.y - dCy;
-      if (Math.abs(diff) <= THRESHOLD) {
-        dy = diff;
-        guidesY.add(viewCenter.y);
-      }
-    }
+    xCands.push([dCx, viewCenter.x]);
+    yCands.push([dCy, viewCenter.y]);
   }
+
+  const nearest = (
+    cands: Array<[number, number]>
+  ): { diff: number; guide: number } | null => {
+    let best: { diff: number; guide: number } | null = null;
+    for (const [candidate, target] of cands) {
+      const diff = target - candidate;
+      if (Math.abs(diff) > THRESHOLD) continue;
+      if (!best || Math.abs(diff) < Math.abs(best.diff)) {
+        best = { diff, guide: target };
+      }
+    }
+    return best;
+  };
+
+  const nX = nearest(xCands);
+  const nY = nearest(yCands);
+  const dx = nX ? nX.diff : 0;
+  const dy = nY ? nY.diff : 0;
+  if (nX) guidesX.add(nX.guide);
+  if (nY) guidesY.add(nY.guide);
 
   return {
     dx,

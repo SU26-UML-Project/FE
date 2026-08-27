@@ -20,6 +20,8 @@ export interface FlowEdgeData {
   markerStart?: string;
   dashed: boolean;
   color?: string;
+  /** Arrow-head scale factor for both ends (1 = default; e.g. 1.5 for 150%). */
+  markerSize?: number;
   /** Human-in-the-Loop: flag for ambiguous relations */
   ambiguous?: boolean;
   /** Metadata for ambiguous relation resolution */
@@ -29,6 +31,16 @@ export interface FlowEdgeData {
   multiplicitySource?: string;
   /** UML class association multiplicity at the target end */
   multiplicityTarget?: string;
+  /**
+   * Manual connector adjustments (set by dragging the edge handles on canvas).
+   * `sourcePull` / `targetPull` move the line's end away from (positive) or into
+   * (negative) its node, letting the user pick how long/short each end of the
+   * wire is. `bend` is a flow-space point the middle of the wire is routed
+   * through, so the connector can be dragged to a different spot.
+   */
+  sourcePull?: number;
+  targetPull?: number;
+  bend?: { x: number; y: number };
   [key: string]: unknown;
 }
 

@@ -27,6 +27,17 @@ export function actionMinSize(label: string): { w: number; h: number } {
     };
 }
 
+export function stateMinSize(d: FlowNodeData): { w: number; h: number } {
+    // Optional name + region lines (e.g. "Idle\nentry / setTimer()"). Sizes the
+    // rounded UML State rectangle so long state names don't get clipped by ELK.
+    const lines = (d.label || "").split("\n");
+    const maxLen = Math.max(4, ...lines.map((l) => (l || "").length));
+    return {
+        w: Math.max(120, Math.ceil(maxLen * 7.6) + 44),
+        h: Math.max(52, lines.length * 22 + 26),
+    };
+}
+
 export function noteMinSize(d: FlowNodeData): { w: number; h: number } {
     const lines = (d.label || "").split("\n");
     const maxLen = Math.max(4, ...lines.map((l) => (l || "").length));

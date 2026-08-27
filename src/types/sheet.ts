@@ -8,5 +8,6 @@ export interface Sheet {
   diagramType: DiagramType;
   nodes: FlowNode[];
   edges: FlowEdge[];
+  viewport?: { x: number; y: number; zoom: number };
   updatedAt: number;
 }

@@ -43,18 +43,53 @@ export const MARKER_SHAPES: MarkerShape[] = [
   },
 ];
 
+/**
+ * Arrow-head size options (multipliers applied to the base marker). `size === 1`
+ * is the default and keeps the legacy marker ids, so already-saved diagrams
+ * render identically. Other sizes map a marker id to a scaled variant:
+ * `m-arrow` → `m-arrow-s150` for 1.5×.
+ */
+export const MARKER_SIZES: { key: string; size: number }[] = [
+  { key: "", size: 1 },
+  { key: "s60", size: 0.6 },
+  { key: "s80", size: 0.8 },
+  { key: "s120", size: 1.2 },
+  { key: "s150", size: 1.5 },
+  { key: "s200", size: 2 },
+];
+
+/** Base marker id → scaled id for a given size (unchanged when size === 1). */
+export function sizedMarkerId(baseId: string, size: number): string {
+  if (size === 1) return baseId;
+  const found = MARKER_SIZES.find((s) => s.size === size);
+  return found ? `${baseId}-${found.key}` : baseId;
+}
+
+/**
+ * Given a marker string (`""` or `url(#id)`) and a size factor, return the
+ * marker string that points to the matching scaled marker definition.
+ */
+export function sizedMarker(marker: string, size: number): string {
+  if (!marker || size === 1) return marker;
+  const m = /url\(#([^)]+)\)/.exec(marker);
+  if (!m) return marker;
+  return `url(#${sizedMarkerId(m[1], size)})`;
+}
+
 /** Render a connector line preview with its markers + dash + colour. */
 export function ConnectorGlyph({
   markerEnd,
   markerStart,
   dashed,
   color,
+  size = 1,
   width = 64,
 }: {
   markerEnd?: string;
   markerStart?: string;
   dashed?: boolean;
   color?: string;
+  size?: number;
   width?: number;
 }) {
   const h = 16;
@@ -69,8 +104,8 @@ export function ConnectorGlyph({
         stroke={color || INK}
         strokeWidth="1.6"
         strokeDasharray={dashed ? "5 4" : undefined}
-        markerStart={markerStart || undefined}
-        markerEnd={markerEnd || undefined}
+        markerStart={markerStart ? sizedMarker(markerStart, size) : undefined}
+        markerEnd={markerEnd ? sizedMarker(markerEnd, size) : undefined}
       />
     </svg>
   );
