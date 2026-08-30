@@ -23,7 +23,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { authService } from '../api/authApi'
-import type { User } from '../../../types/auth'
+import type { User } from '../types'
 import { fileService } from '../../workspace/api/fileService'
 import { useAuthStore } from '../model/useAuthStore'
 import ChangePasswordModal from '../../../components/Profile/ChangePasswordModal'
@@ -472,7 +472,7 @@ const ProfilePage = () => {
             <div className="bg-white border border-admin-outline rounded-xl p-6">
               <h3 className="text-xs font-black uppercase tracking-widest text-admin-secondary mb-4">Bảo mật</h3>
               <p className="text-xs text-gray-500 mb-3">
-                Đổi mật khẩu. Chúng tôi sẽ xác minh bằng mã OTP gửi tới email của bạn.
+                Đổi mật khẩu bằng mã OTP: nhập email, xác minh OTP rồi đặt mật khẩu mới.
               </p>
               <button
                 onClick={() => setChangePwOpen(true)}

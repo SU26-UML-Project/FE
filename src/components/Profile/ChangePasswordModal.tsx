@@ -12,6 +12,7 @@ import {
   X,
   ArrowRight,
   ArrowLeft,
+  Mail,
 } from 'lucide-react'
 import { authService } from '../../features/auth/api/authApi'
 import { useOtpCountdown } from '../../shared/hooks/useOtpCountdown'
@@ -24,10 +25,10 @@ const OTP_TTL_SECONDS = 90
 const INPUT_CLASS =
   'w-full h-[54px] pl-12 pr-4 bg-white border-[1.5px] border-black/80 rounded-[14px] text-[15px] focus:outline-none focus:ring-2 focus:ring-uml-blue/20 transition-all placeholder:text-gray-400 disabled:opacity-50'
 
-type Step = 'current' | 'otp' | 'new'
+type Step = 'email' | 'otp' | 'new'
 
 const STEPS: { id: Step; title: string }[] = [
-  { id: 'current', title: 'Xác minh' },
+  { id: 'email', title: 'Email' },
   { id: 'otp', title: 'OTP' },
   { id: 'new', title: 'Mật khẩu mới' },
 ]
@@ -39,15 +40,14 @@ interface ChangePasswordModalProps {
 }
 
 const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalProps) => {
-  const [step, setStep] = useState<Step>('current')
+  const [step, setStep] = useState<Step>('email')
   const [submitting, setSubmitting] = useState(false)
 
-  const [currentPassword, setCurrentPassword] = useState('')
+  const [emailInput, setEmailInput] = useState(email)
   const [otpCode, setOtpCode] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
-  const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -58,18 +58,18 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
 
   const apiError = (e: any, fallback: string) => toast.error(e?.message || fallback)
 
-  // Step 1 — verify current password & send OTP
+  // Step 1 — gửi OTP tới email người dùng nhập (public forgot-password API)
   const handleSendOtp = async () => {
-    if (!currentPassword) return
+    if (!emailInput || !emailInput.includes('@')) return
     setSubmitting(true)
     try {
-      await authService.initChangePassword({ currentPassword })
+      await authService.forgotPassword({ email: emailInput })
       setStep('otp')
       setOtpCode('')
       startOtpCountdown(OTP_TTL_SECONDS)
       toast.success('Mã OTP xác minh đã được gửi tới email của bạn')
     } catch (e) {
-      apiError(e, 'Không thể xác minh mật khẩu hiện tại')
+      apiError(e, 'Không thể gửi mã OTP — kiểm tra lại email')
     } finally {
       setSubmitting(false)
     }
@@ -80,7 +80,7 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
     if (otpCode.length !== 6) return
     setSubmitting(true)
     try {
-      await authService.verifyOtp({ email, otpCode })
+      await authService.verifyOtp({ email: emailInput, otpCode })
       setStep('new')
       toast.success('Xác minh OTP thành công — đặt mật khẩu mới')
     } catch (e) {
@@ -94,7 +94,7 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
     if (secondsLeft > 0 || submitting) return
     setSubmitting(true)
     try {
-      await authService.initChangePassword({ currentPassword })
+      await authService.forgotPassword({ email: emailInput })
       setOtpCode('')
       startOtpCountdown(OTP_TTL_SECONDS)
       toast.success('Mã OTP mới đã được gửi tới email của bạn')
@@ -105,13 +105,13 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
     }
   }
 
-  // Step 3 — confirm new password
+  // Step 3 — reset password (re-validates OTP, consumes it, revokes old sessions)
   const handleConfirm = async () => {
     if (!newPasswordValid) return
     setSubmitting(true)
     try {
-      await authService.confirmChangePassword({ otpCode, newPassword, confirmPassword })
-      toast.success('Đổi mật khẩu thành công')
+      await authService.resetPassword({ email: emailInput, otpCode, newPassword, confirmPassword })
+      toast.success('Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.')
       onSuccess?.()
       onClose()
     } catch (e) {
@@ -155,10 +155,10 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
             </div>
             <h2 className="text-[22px] font-black tracking-tight text-black leading-tight">Đổi mật khẩu</h2>
             <p className="mt-1.5 text-[13px] text-gray-500 font-medium">
-              {step === 'current' && 'Xác nhận mật khẩu hiện tại để tiếp tục.'}
+              {step === 'email' && 'Nhập email của bạn — chúng tôi sẽ gửi mã OTP để xác minh.'}
               {step === 'otp' && (
                 <>
-                  Nhập mã 6 chữ số đã gửi tới <span className="font-bold text-gray-700">{email}</span>
+                  Nhập mã 6 chữ số đã gửi tới <span className="font-bold text-gray-700">{emailInput}</span>
                 </>
               )}
               {step === 'new' && 'Chọn một mật khẩu mới đủ mạnh.'}
@@ -196,37 +196,36 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
           </div>
 
           <AnimatePresence mode="wait">
-            {/* STEP 1 — current password */}
-            {step === 'current' && (
+            {/* STEP 1 — email nhận OTP */}
+            {step === 'email' && (
               <motion.div
-                key="current"
+                key="email"
                 initial={{ opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -16 }}
                 transition={{ duration: 0.18 }}
                 className="space-y-5"
               >
-                <Field label="Mật khẩu hiện tại" icon={<Lock size={20} strokeWidth={1.5} />}>
+                <Field label="Email" icon={<Mail size={20} strokeWidth={1.5} />}>
                   <input
-                    type={showCurrent ? 'text' : 'password'}
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    type="email"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
-                    placeholder="••••••••••••"
-                    autoComplete="current-password"
+                    placeholder="ban@email.com"
+                    autoComplete="email"
                     autoFocus
-                    className={`${INPUT_CLASS} pr-12`}
+                    className={INPUT_CLASS}
                   />
-                  <EyeToggle shown={showCurrent} onClick={() => setShowCurrent((v) => !v)} />
                 </Field>
 
                 <button
                   type="button"
                   onClick={handleSendOtp}
-                  disabled={!currentPassword || submitting}
+                  disabled={!emailInput || submitting}
                   className="w-full h-[54px] bg-uml-blue text-white font-bold text-[16px] rounded-[14px] hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                 >
-                  {submitting ? <Loader2 size={20} className="animate-spin" /> : <>Gửi OTP <ArrowRight size={18} /></>}
+                  {submitting ? <Loader2 size={20} className="animate-spin" /> : <>Gửi mã OTP <ArrowRight size={18} /></>}
                 </button>
               </motion.div>
             )}
@@ -278,7 +277,7 @@ const ChangePasswordModal = ({ email, onClose, onSuccess }: ChangePasswordModalP
                 <div className="flex items-center gap-3 pt-1">
                   <button
                     type="button"
-                    onClick={() => setStep('current')}
+                    onClick={() => setStep('email')}
                     disabled={submitting}
                     className="h-[54px] px-5 border-[1.5px] border-black/80 rounded-[14px] font-bold text-[15px] text-black hover:bg-gray-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                   >
