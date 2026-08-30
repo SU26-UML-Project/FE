@@ -4,7 +4,7 @@ import { Check, ArrowRight, ArrowDown, Activity, RefreshCw, HardDrive, Globe, X,
 import AuthModal from '../../auth/components/AuthModal'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../../features/auth/model/useAuthStore'
-import { toast } from 'react-hot-toast'
+import { toast } from '../../../shared/lib/toast'
 import type { BillingCycle } from '../types/pricing'
 import { planService, type PlanResponse } from '../api/planApi'
 import { paymentService } from '../api/paymentApi'

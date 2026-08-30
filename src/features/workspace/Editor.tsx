@@ -10,6 +10,7 @@ import {
     applyEdgeChanges,
     addEdge,
     ConnectionMode,
+    ConnectionLineType,
     SelectionMode,
     useReactFlow,
     type Connection,
@@ -20,34 +21,33 @@ import {
 import { toPng } from "html-to-image";
 import { nanoid } from "nanoid";
 import { useParams, useNavigate } from "react-router-dom";
-import { toast } from "react-hot-toast";
-import { projectService, sheetService, type SheetResponse } from "../../services";
+import { toast } from "../../shared/lib/toast";
+import { projectService, sheetService } from "../../services";
 
-import { nodeTypes } from "./Canvas/Nodes";
-import { edgeTypes } from "./Canvas/Edges";
+import { nodeTypes } from "./canvas/Nodes";
+import { edgeTypes } from "./canvas/Edges";
 import { layoutElements } from "../../shared/lib/elkLayout";
 import { MarkerDefs } from "./shared/MarkerDefs";
 import { computeSnap, nodeBox } from "../../shared/lib/snap";
 import { EditorContext } from "../../shared/lib/editorContext";
-import { getDiagram, getEdgeOption, patchFromOption, sampleFor } from "../../shared/lib/diagrams";
+import { getDiagram, getEdgeOption, patchFromOption } from "../../shared/lib/diagrams";
 import { detectAndParse } from "../../shared/lib/importers";
-import type { DiagramType, FlowEdge, FlowNode, FlowNodeData, PaletteItem, Sheet } from "../../types";
+import type { DiagramType, FlowEdge, FlowEdgeData, FlowNode, FlowNodeData, PaletteItem, Sheet } from "../../types";
 import { Toolbar } from "./panels/Toolbar";
 import { Sidebar } from "./panels/Sidebar";
 import { Inspector, type AlignMode } from "./panels/Inspector";
 import { ContextMenu, CtxIcons, type CtxItem } from "./overlays/ContextMenu";
-import { SmartGuides, type GuidesState } from "./Canvas/SmartGuides";
-import { QuickAdd } from "./Canvas/QuickAdd";
-import { RemoteCursors } from "./Canvas/RemoteCursors";
+import { SmartGuides, type GuidesState } from "./canvas/SmartGuides";
+import { QuickAdd } from "./canvas/QuickAdd";
+import { RemoteCursors } from "./canvas/RemoteCursors";
 import { ImportModal } from "./overlays/ImportModal";
 import { ExportModal } from "./overlays/ExportModal";
 import { HelpOverlay } from "./overlays/HelpOverlay";
 import { AIChat } from "../ai-chat/components/AIChatPanel";
-import { SheetBar } from "./panels/SheetBar";
 import { ConfirmDialog } from "./overlays/ConfirmDialog";
 import { QuestionCard } from "../ai-chat/components/QuestionBox";
 import { TypeMenu } from "./overlays/TypeMenu";
-import { loadSheets, saveSheets, saveActiveId, loadActiveId, createSheet } from "./model/sheetStore";
+import { saveActiveId, loadActiveId, createSheet } from "./model/sheetStore";
 import { useCollab } from "../../shared/hooks/useCollab";
 import { socketService, type CanvasChangeData } from "../../services";
 import { useAuthStore } from "../auth/model/useAuthStore";
@@ -149,21 +149,6 @@ function sortParentBeforeChild(list: FlowNode[]): FlowNode[] {
     return [...list].sort((a, b) => depth(a) - depth(b));
 }
 
-/** Convert a marker URL to its "start" (source) form. */
-function endpointStart(id: string): string {
-    if (!id) return "";
-    if (id.includes("m-diamond-filled")) return "url(#m-diamond-filled-start)";
-    if (id.includes("m-diamond-open")) return "url(#m-diamond-open-start)";
-    return id; // arrow / open arrow / triangle use auto-start-reverse
-}
-/** Convert a marker URL to its "end" (target) form. */
-function endpointEnd(id: string): string {
-    if (!id) return "";
-    if (id.includes("m-diamond-filled")) return "url(#m-diamond-filled)";
-    if (id.includes("m-diamond-open")) return "url(#m-diamond-open)";
-    return id;
-}
-
 function download(filename: string, content: string) {
     const blob = new Blob([content], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -172,6 +157,19 @@ function download(filename: string, content: string) {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+}
+
+/**
+ * Stable fingerprint of the canvas content. Volatile fields (`selected`,
+ * `measured`) are stripped so the comparison only reacts to real content
+ * changes — used by the autosave effect to skip redundant saves.
+ */
+function canvasSnapshotKey(nodes: FlowNode[], edges: FlowEdge[], diagramType: DiagramType): string {
+    return JSON.stringify({
+        n: nodes.map((n) => ({ ...n, selected: undefined, measured: undefined })),
+        e: edges.map((e) => ({ ...e, selected: undefined })),
+        t: diagramType,
+    });
 }
 
 export function Editor() {
@@ -261,6 +259,10 @@ export function Editor() {
     const skipCollabEmit = useRef(false);
     const previewBaseRef = useRef<DiagramSnapshot | null>(null);
     const lastAutoVersionRef = useRef(0);
+    // Snapshot of the canvas the server already knows about. The autosave effect
+    // compares against it and skips when nothing really changed — kills the
+    // "Saved → Saving…" flash + redundant write that fired after every reload.
+    const persistedSnapshotRef = useRef<string>("");
 
     /* ---------- collab ---------- */
     const onRemoteCanvasChange = useCallback((data: CanvasChangeData) => {
@@ -288,7 +290,6 @@ export function Editor() {
 
     const {
         remoteCursors,
-        remoteSelections,
         emitCursorMove,
         emitSelectionChange,
         emitCanvasChange,
@@ -611,7 +612,7 @@ export function Editor() {
                 const next = prev.map((e) => {
                     if (e.id !== id) return e;
                     const nextEdge = { ...e };
-                    const data: Record<string, unknown> = { ...(e.data as object) };
+                    const data: FlowEdgeData = { ...(e.data as FlowEdgeData) };
                     if (patch.label !== undefined) nextEdge.label = patch.label;
                     if (patch.type !== undefined) nextEdge.type = patch.type as FlowEdge["type"];
                     if (patch.marker !== undefined) data.marker = patch.marker;
@@ -669,11 +670,11 @@ export function Editor() {
                 type: item.type,
                 position,
                 data: {
+                    ...item.data,
                     label: item.data?.label || "",
                     attributes: item.data?.attributes || "",
                     methods: item.data?.methods || "",
                     stereotype: item.data?.stereotype || "",
-                    ...item.data
                 },
                 width: item.width,
                 height: item.height,
@@ -1491,6 +1492,9 @@ export function Editor() {
                     edgesRef.current = active.edges;
                     setNodesState(active.nodes);
                     setEdgesState(active.edges);
+                    // Mark this content as already persisted so the autosave effect
+                    // doesn't fire right after the reload finishes.
+                    persistedSnapshotRef.current = canvasSnapshotKey(active.nodes, active.edges, active.diagramType);
                     if (active.viewport) rf.setViewport(active.viewport);
                     void diagramVersionService.create(active.id, {
                         schemaVersion: 1,
@@ -1529,6 +1533,11 @@ export function Editor() {
     useEffect(() => {
         if (!loaded || !activeSheetId || !id || previewVersionId) return;
 
+        // Canvas is identical to what the server already has (fresh reload /
+        // sheet switch)? Nothing to save — keeps "Saved" steady, no flash.
+        const snapshot = persistedSnapshotRef.current;
+        if (snapshot && snapshot === canvasSnapshotKey(nodesRef.current, edgesRef.current, diagramType)) return;
+
         const t = setTimeout(async () => {
             const currentSheets = sheetsRef.current;
             const idx = currentSheets.findIndex(s => s.id === activeSheetId);
@@ -1558,6 +1567,7 @@ export function Editor() {
                         viewport: updatedSheet.viewport
                     })
                 });
+                persistedSnapshotRef.current = canvasSnapshotKey(updatedSheet.nodes, updatedSheet.edges, updatedSheet.diagramType);
                 setSaved(true);
             } catch (error: any) {
                 console.error("Save failed", error);
@@ -1618,6 +1628,7 @@ export function Editor() {
                     viewport: updatedSheet.viewport
                 })
             });
+            persistedSnapshotRef.current = canvasSnapshotKey(updatedSheet.nodes, updatedSheet.edges, updatedSheet.diagramType);
             setSaved(true);
         } catch (error) {
             console.error("Immediate save failed", error);
@@ -1647,6 +1658,7 @@ export function Editor() {
             edgesRef.current = sheet.edges;
             setNodesState(sheet.nodes);
             setEdgesState(sheet.edges);
+            persistedSnapshotRef.current = canvasSnapshotKey(sheet.nodes, sheet.edges, sheet.diagramType);
 
             // Restore viewport
             if (sheet.viewport) {
@@ -1722,6 +1734,7 @@ export function Editor() {
             edgesRef.current = newSheet.edges;
             setNodesState(newSheet.nodes);
             setEdgesState(newSheet.edges);
+            persistedSnapshotRef.current = canvasSnapshotKey(newSheet.nodes, newSheet.edges, newSheet.diagramType);
             past.current = [];
             future.current = [];
             syncHist();
@@ -2034,6 +2047,7 @@ export function Editor() {
         setActiveEdgeId(getDiagram(restored.diagramType).defaultEdge);
         setNodes(restored.nodes);
         setEdges(restored.edges);
+        persistedSnapshotRef.current = canvasSnapshotKey(restored.nodes, restored.edges, restored.diagramType);
         if (restored.viewport) rf.setViewport(restored.viewport);
         emitCanvasChange({ nodes: restored.nodes, edges: restored.edges, type: "update" });
         toast.success("Version restored. The previous state was backed up.");
@@ -2063,23 +2077,6 @@ export function Editor() {
         setDiagramType(dt);
         setActiveEdgeId(getDiagram(dt).defaultEdge);
     }, []);
-
-    const onPickTemplate = useCallback(
-        (type: DiagramType) => {
-            beginMutation();
-            setDiagramType(type);
-            setActiveEdgeId(getDiagram(type).defaultEdge);
-            const s = sampleFor(type);
-            setNodes(s.nodes);
-            setEdges(s.edges);
-            if (!skipCollabEmit.current) {
-                emitCanvasChange({ nodes: s.nodes, edges: s.edges, type: "add" });
-            }
-            setSel({ nodes: [], edges: [] });
-            // setTimeout(() => rf.fitView({ padding: 0.25, duration: 450 }), 60); // Disable auto-zoom
-        },
-        [beginMutation, rf, setNodes, setEdges]
-    );
 
     const onClear = useCallback(() => {
         beginMutation();
@@ -2286,6 +2283,9 @@ export function Editor() {
                     onZoomIn={() => rf.zoomIn({ duration: 200 })}
                     onZoomOut={() => rf.zoomOut({ duration: 200 })}
                     onZoomReset={() => rf.zoomTo(1, { duration: 200 })}
+                    onZoomChange={(z) => rf.zoomTo(z)}
+                    minZoom={0.2}
+                    maxZoom={3}
                     onLayout={() => layoutCanvas("TB")}
                     zoom={zoom}
                     showGrid={showGrid}
@@ -2326,7 +2326,7 @@ export function Editor() {
                     }}
                 />
                 <div className="flex min-h-0 flex-1">
-                    <ProjectExplorer
+                    {loaded && (<ProjectExplorer
                         projectName={projectName}
                         items={workspaceTree.items}
                         activeId={activeWorkspaceItem?.id ?? null}
@@ -2351,15 +2351,23 @@ export function Editor() {
                                 toast.error(error instanceof Error ? error.message : "Unable to move item");
                             }
                         }}
-                    />
+                    />)}
 
                     <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                        <WorkspaceTabs tabs={workspaceTabs} items={workspaceTree.items} activeId={activeWorkspaceItem?.id ?? null} onSelect={selectWorkspaceTab} onClose={closeWorkspaceTab} onCloseMany={closeWorkspaceTabs} onReorder={reorderWorkspaceTabs}/>
+                        {loaded && <WorkspaceTabs tabs={workspaceTabs} items={workspaceTree.items} activeId={activeWorkspaceItem?.id ?? null} onSelect={selectWorkspaceTab} onClose={closeWorkspaceTab} onCloseMany={closeWorkspaceTabs} onReorder={reorderWorkspaceTabs}/>}
                         <div className={`flex min-h-0 flex-1 transform-gpu transition-[opacity,transform] duration-150 ease-out ${contentVisible ? 'translate-y-0 opacity-100' : 'translate-y-[2px] opacity-0'}`}>
+                            {!loaded && (
+                                <div className="flex min-w-0 flex-1 items-center justify-center">
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-uml-blue border-t-transparent" />
+                                        <p className="text-[12.5px] font-bold text-admin-secondary">Loading workspace…</p>
+                                    </div>
+                                </div>
+                            )}
                             {activeWorkspaceItem?.kind === "markdown" && (
                                 <MarkdownEditor name={activeWorkspaceItem.name} value={activeWorkspaceItem.content || ""} onChange={updateMarkdown} />
                             )}
-                            {(activeWorkspaceItem?.kind === "folder" || !activeWorkspaceItem) && (
+                            {loaded && (activeWorkspaceItem?.kind === "folder" || !activeWorkspaceItem) && (
                                 <div className="flex min-w-0 flex-1 items-center justify-center overflow-auto bg-admin-bg/30 p-8">
                                     <div className="w-full max-w-2xl text-center">
                                         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-uml-blue/20 bg-uml-blue/10 text-uml-blue shadow-sm">
@@ -2449,7 +2457,7 @@ export function Editor() {
                                         onMove={(_, vp) => setZoom(vp.zoom)}
                                         connectionMode={ConnectionMode.Loose}
                                         connectionRadius={24}
-                                        connectionLineType="straight"
+                                        connectionLineType={ConnectionLineType.Straight}
                                         connectionLineStyle={{ stroke: "#2563eb", strokeWidth: 2, strokeDasharray: "5,5" }}
                                         deleteKeyCode={null}
                                         selectionOnDrag

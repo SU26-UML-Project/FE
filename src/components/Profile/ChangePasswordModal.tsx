@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { toast } from 'react-hot-toast'
+import { toast } from '../../shared/lib/toast'
 import {
   Lock,
   KeyRound,

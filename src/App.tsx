@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, useLocation, useSearchParams, useNavigate, Navigate, Outlet } from 'react-router-dom'
-import { Toaster, toast } from 'react-hot-toast'
+import { Toaster } from 'react-hot-toast'
+import { toast } from './shared/lib/toast'
 import { ReactFlowProvider } from "@xyflow/react"
 
 import Navbar from './components/Landing/Navbar'
 import Footer from './components/Landing/Footer'
-import LandingPage from './pages/LandingPage'
+import LandingPage from './app/pages/LandingPage'
 import Pricing from './features/billing/pages/PricingPage'
 import PaymentInformationPage from './features/billing/pages/PaymentInformationPage'
 import AdminDashboard from './features/admin/pages/AdminDashboardPage'

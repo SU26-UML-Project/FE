@@ -1,5 +1,5 @@
 ﻿import { useEffect, useCallback, useRef, useState } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "../lib/toast";
 import { socketService, CursorData, SelectionData, CanvasChangeData } from "../../services";
 import { useAuthStore } from "../../features/auth/model/useAuthStore";
 import { FlowNode, FlowEdge } from "../../types";

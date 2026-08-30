@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useClickOutside } from '../../../shared/hooks/useClickOutside'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { toast } from 'react-hot-toast'
+import { toast } from '../../../shared/lib/toast'
 import {
   User as UserIcon,
   Mail,

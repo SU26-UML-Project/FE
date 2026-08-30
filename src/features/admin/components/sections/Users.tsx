@@ -15,7 +15,7 @@ import {
   UserPlus,
   Users as UsersIcon,
 } from "lucide-react";
-import { toast } from "react-hot-toast";
+import { toast } from "../../../../shared/lib/toast";
 import { authService } from "../../../auth/api/authApi";
 import type { AdminUserListItem } from "../../../auth/types";
 import { useAuthStore } from "../../../auth/model/useAuthStore";

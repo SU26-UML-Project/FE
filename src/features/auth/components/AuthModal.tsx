@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../api/authApi';
 import { useAuthStore } from '../model/useAuthStore';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../../shared/lib/toast';
 import { setAuthCookie, COOKIE_KEYS } from '../../../shared/lib/auth';
 import { useOtpCountdown } from '../../../shared/hooks/useOtpCountdown';
 
@@ -120,7 +120,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
         const user = userResponse.result;
         setAuth(user);
 
-        toast.success(userResponse.message || 'Đăng nhập thành công!');
         onClose();
 
         // Redirect based on role

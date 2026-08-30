@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Loader2, AlertTriangle, RotateCcw, Sparkles } from 'lucide-react'
-import toast from 'react-hot-toast'
+import toast from '../../../shared/lib/toast'
 import { subscriptionService } from '../api/subscriptionApi'
 import { getMyQuota, type QuotaInfo } from '../api/quotaApi'
 import type { MySubscription } from '../types/payment'

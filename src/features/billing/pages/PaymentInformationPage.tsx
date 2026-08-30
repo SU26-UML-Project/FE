@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { ChevronDown, Shield, Headphones, ArrowRight, CheckCircle, Scan } from 'lucide-react'
 import apiClient from '../../../shared/api/apiClient'
-import { toast } from 'react-hot-toast'
+import { toast } from '../../../shared/lib/toast'
 import type { PlanResponse } from '../api/planApi'
 import type { QuotePairResponse, UpgradeQuoteResponse, UpgradeMode } from '../types/payment'
 

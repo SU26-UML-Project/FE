@@ -5,7 +5,7 @@ import { Badge, Card, Segmented, Skeleton } from "../ui";
 import { ConfirmModal } from "../ConfirmModal";
 import { Modal } from "../Modal";
 import { cn } from "../../../../shared/lib/cn";
-import toast from "react-hot-toast";
+import toast from "../../../../shared/lib/toast";
 import { planService, type PlanResponse, type PlanRequest, type PlanStatus, type PlanBillingCycle } from "../../../billing/api/planApi";
 import { featureService, type FeatureCatalogItem } from "../../api/featureApi";
 import { getErrorMessage } from "../../../../shared/lib/errorMessage";

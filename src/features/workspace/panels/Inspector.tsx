@@ -432,7 +432,7 @@ function Toggle({
 function DangerBtn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
     return (
         <button onClick={onClick}
-                className="flex-1 rounded-lg border border-[var(--line-strong)] bg-white px-3 py-1.5 text-[12.5px] font-medium text-zinc-700 transition-colors hover:border-zinc-900 hover:bg-zinc-900 hover:text-white">
+                className="flex-1 rounded-lg border border-red-200 bg-red-50/70 px-3 py-1.5 text-[12.5px] font-bold text-red-600 transition-all hover:border-red-300 hover:bg-red-100 hover:text-red-700 hover:shadow-[0_2px_8px_rgba(220,38,38,0.15)] active:scale-[0.97]">
             {children}
         </button>
     );

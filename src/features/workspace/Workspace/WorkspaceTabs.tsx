@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, FileText, GripVertical, Workflow, X } from 'lucide-react'
-import type { WorkspaceFileItem } from '../../types'
+import type { WorkspaceFileItem } from '../types'
 
 export interface WorkspaceTab { itemId: string; pinned: boolean }
 

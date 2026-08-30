@@ -328,6 +328,27 @@ input[type="range"]::-webkit-slider-thumb {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
+/* Zoom slider (Toolbar) — blue thumb that grows on hover/press */
+input[type="range"].zoom-slider::-webkit-slider-thumb {
+    background: var(--color-uml-blue);
+    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.45);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+input[type="range"].zoom-slider:hover::-webkit-slider-thumb,
+input[type="range"].zoom-slider:active::-webkit-slider-thumb {
+    transform: scale(1.2);
+    box-shadow: 0 1px 6px rgba(37, 99, 235, 0.6);
+}
+input[type="range"].zoom-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--color-uml-blue);
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.45);
+}
+
 @theme {
     --color-uml-blue: #2563eb;
     --color-uml-dark: #000000;

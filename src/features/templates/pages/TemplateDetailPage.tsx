@@ -7,7 +7,7 @@ import type { TemplateContent } from '../../../shared/lib/templates'
 import { projectService } from '../../../features/projects/api/projectApi'
 import { sheetService } from '../../../features/projects/api/sheetApi'
 import { layoutElements } from '../../../shared/lib/elkLayout'
-import toast from 'react-hot-toast'
+import toast from '../../../shared/lib/toast'
 
 function GraphCanvas({ previewImage, name }: { previewImage: string | null; name: string }) {
   if (!previewImage) return <div className="flex h-full w-full items-center justify-center bg-gray-50 text-sm text-gray-400">Preview chưa khả dụng</div>

@@ -10,7 +10,7 @@ import type {
 } from "../../../types/ai";
 import { chatService } from "../api/chatApi";
 import { getMyQuota, type QuotaInfo } from "../../billing/api/quotaApi";
-import { toast } from "react-hot-toast";
+import { toast } from "../../../shared/lib/toast";
 import { QuestionCard } from "./QuestionBox";
 import { aiResponseToCanvas, type ParseResult, type Answer, type ImportQuestion } from "../../../shared/lib/importers";
 import type { WorkspaceFileItem } from "../../workspace/types";

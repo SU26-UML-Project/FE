@@ -3,9 +3,9 @@ import {
   Activity, Boxes, ChevronDown, ChevronRight, FileText, Folder, FolderOpen,
   GitBranch, MoreHorizontal, Network, Plus, Search, Share2, Trash2, Workflow, X,
 } from 'lucide-react'
-import { toast } from 'react-hot-toast'
+import { toast } from '../../../shared/lib/toast'
 import type { DiagramType } from '../../../types'
-import type { WorkspaceFileItem, WorkspaceFileKind } from '../../types'
+import type { WorkspaceFileItem, WorkspaceFileKind } from '../types'
 
 interface Props {
   projectName: string

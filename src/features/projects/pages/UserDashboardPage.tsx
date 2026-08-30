@@ -25,7 +25,7 @@ import { projectService, sheetService } from '../../../services';
 import { workspaceFileService } from '../../workspace/api/workspaceFileService';
 import { workspaceItemService } from '../../workspace/api/workspaceItemService';
 import type { ProjectResponse } from '../../../types/project';
-import toast from 'react-hot-toast';
+import toast from '../../../shared/lib/toast';
 import { getErrorMessage } from '../../../shared/lib/errorMessage';
 import UsageModal from '../../billing/components/UsageModal';
 

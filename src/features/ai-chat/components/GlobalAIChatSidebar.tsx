@@ -16,7 +16,7 @@ import {
 import { anythingllmService } from '../../../services/anythingllmService'
 import type { ChatMessage, ChatSession } from '../../../types/ai'
 import { useAuthStore } from '../../../features/auth/model/useAuthStore'
-import toast from 'react-hot-toast'
+import toast from '../../../shared/lib/toast'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useScrollToBottom } from '../../../shared/hooks/useScrollToBottom'

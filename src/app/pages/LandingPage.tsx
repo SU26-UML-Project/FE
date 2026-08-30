@@ -1,11 +1,11 @@
-import Hero from '../components/Landing/Hero'
-import Features from '../components/Landing/Features'
-import Templates from '../components/Landing/Templates'
-import CTA from '../components/Landing/CTA'
+import Hero from '../../components/Landing/Hero'
+import Features from '../../components/Landing/Features'
+import Templates from '../../components/Landing/Templates'
+import CTA from '../../components/Landing/CTA'
 import { useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { toast } from 'react-hot-toast'
-import apiClient from '../shared/api/apiClient'
+import { toast } from '../../shared/lib/toast'
+import apiClient from '../../shared/api/apiClient'
 
 const LandingPage = () => {
   const [searchParams] = useSearchParams()

@@ -5,7 +5,7 @@ import { projectService } from '../../../features/projects/api/projectApi'
 import { sheetService } from '../../../features/projects/api/sheetApi'
 import { layoutElements } from '../../../shared/lib/elkLayout'
 import type { DiagramType, FlowEdge, FlowNode } from '../../../types'
-import toast from 'react-hot-toast'
+import toast from '../../../shared/lib/toast'
 
 // Minimal types to fix errors
 interface WorkspaceSheet {

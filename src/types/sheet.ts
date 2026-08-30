@@ -8,5 +8,7 @@ export interface Sheet {
   diagramType: DiagramType;
   nodes: FlowNode[];
   edges: FlowEdge[];
+  /** Last saved canvas viewport (React Flow { x, y, zoom }). */
+  viewport?: { x: number; y: number; zoom: number };
   updatedAt: number;
 }

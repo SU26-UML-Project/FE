@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "../../../shared/lib/toast";
 import { toMermaid, toPlantUml } from "../../../shared/lib/exporters";
 import type { DiagramType, FlowEdge, FlowNode } from "../../../types";
 
