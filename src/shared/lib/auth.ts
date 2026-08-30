@@ -8,20 +8,8 @@ export const COOKIE_KEYS = {
   REFRESH_TOKEN: 'refresh_token',
 };
 
-/**
- * Flags cookie tự động theo protocol:
- * - HTTPS: SameSite=None; Secure (cho phép cross-site, ví dụ FE Vercel + BE Render)
- * - HTTP (dev localhost / LAN IP): browser ÂM THẦM BỎ cookie có "Secure" trên host
- *   không phải localhost -> phải dùng SameSite=Lax không Secure để cookie được lưu.
- *   (Với Vite proxy thì request là same-origin nên Lax là đủ.)
- */
-const isHttps = () =>
-  typeof window !== 'undefined' && window.location.protocol === 'https:';
-
 export const setAuthCookie = (key: string, value: string, maxAge: number = 604800) => {
-  const cookieOptions = isHttps()
-    ? `; Path=/; Max-Age=${maxAge}; SameSite=None; Secure`
-    : `; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+  const cookieOptions = `; Path=/; Max-Age=${maxAge}; SameSite=None; Secure`;
   document.cookie = `${key}=${value}${cookieOptions}`;
 };
 
@@ -36,12 +24,8 @@ export const getAuthCookie = (name: string): string | null => {
 };
 
 export const clearAuthCookies = () => {
-  // Xoá cả 2 biến thể (đã từng set SameSite=None; Secure và SameSite=Lax)
-  // để dọn sạch cookie cũ trên mọi môi trường (https / http).
-  const expiredHttp = '; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
-  const expiredHttps = '; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=None; Secure';
-  [COOKIE_KEYS.ACCESS_TOKEN, COOKIE_KEYS.REFRESH_TOKEN, 'JSESSIONID'].forEach((key) => {
-    document.cookie = `${key}=${expiredHttp}`;
-    document.cookie = `${key}=${expiredHttps}`;
-  });
+  const expired = '; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=None; Secure';
+  document.cookie = `${COOKIE_KEYS.ACCESS_TOKEN}=${expired}`;
+  document.cookie = `${COOKIE_KEYS.REFRESH_TOKEN}=${expired}`;
+  document.cookie = `JSESSIONID=${expired}`;
 };
