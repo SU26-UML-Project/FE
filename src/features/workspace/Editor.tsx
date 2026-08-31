@@ -56,6 +56,7 @@ import MarkdownEditor from "./Workspace/MarkdownEditor";
 import { workspaceFileService } from "./api/workspaceFileService";
 import type { WorkspaceFileItem, WorkspaceTreeState, WorkspaceFileKind } from "./types";
 import VersionHistoryPanel from "./Workspace/VersionHistoryPanel";
+import { Skeleton, SkeletonText } from "../../shared/ui/Skeleton";
 import { diagramVersionService } from "../projects/api/diagramVersionApi";
 import type { DiagramSnapshot, DiagramVersion } from "./types";
 import WorkspaceTabs, { type WorkspaceTab } from "./Workspace/WorkspaceTabs";
@@ -2259,9 +2260,18 @@ export function Editor() {
         .map((s) => edges.find((e) => e.id === s.id))
         .filter(Boolean) as FlowEdge[];
 
+    // Any modal-style popup open in the editor (Clear-canvas confirm, unsaved-exit
+    // confirm, Import/Export/Help, AI clarification) → drop the toolbar BELOW the
+    // popup backdrops (z-0 < z-50…z-100) so it gets dimmed/blurred exactly like the
+    // rest of the page instead of floating above the dialog.
+    const editorPopupOpen = helpOpen || importOpen || exportOpen || confirmClear || confirmExit || importResult !== null;
+
     return (
         <EditorContext.Provider value={{ updateNodeData, growNode }}>
             <div className="flex h-screen w-full min-w-0 max-w-full flex-col overflow-hidden bg-white text-admin-on-surface">
+                {/* Popup open → demote the toolbar's z-index below the modal backdrops
+                    so it fades behind them like every other element on screen. */}
+                <div aria-hidden={editorPopupOpen} className={editorPopupOpen ? "relative z-0" : undefined}>
                 <Toolbar
                     diagramType={diagramType}
                     sheetName={sheets.find((s) => s.id === activeSheetId)?.name ?? ""}
@@ -2325,6 +2335,7 @@ export function Editor() {
                         }
                     }}
                 />
+                </div>
                 <div className="flex min-h-0 flex-1">
                     {loaded && (<ProjectExplorer
                         projectName={projectName}
@@ -2357,10 +2368,28 @@ export function Editor() {
                         {loaded && <WorkspaceTabs tabs={workspaceTabs} items={workspaceTree.items} activeId={activeWorkspaceItem?.id ?? null} onSelect={selectWorkspaceTab} onClose={closeWorkspaceTab} onCloseMany={closeWorkspaceTabs} onReorder={reorderWorkspaceTabs}/>}
                         <div className={`flex min-h-0 flex-1 transform-gpu transition-[opacity,transform] duration-150 ease-out ${contentVisible ? 'translate-y-0 opacity-100' : 'translate-y-[2px] opacity-0'}`}>
                             {!loaded && (
-                                <div className="flex min-w-0 flex-1 items-center justify-center">
-                                    <div className="flex flex-col items-center gap-3">
-                                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-uml-blue border-t-transparent" />
-                                        <p className="text-[12.5px] font-bold text-admin-secondary">Loading workspace…</p>
+                                <div aria-hidden className="flex min-w-0 flex-1 gap-4 p-4">
+                                    {/* Sidebar placeholder */}
+                                    <div className="hidden w-56 shrink-0 space-y-3 border-r border-admin-outline/40 bg-white p-3 lg:block">
+                                        <Skeleton className="h-7 w-40" />
+                                        <Skeleton className="h-8 w-full rounded-lg" />
+                                        <Skeleton className="h-8 w-5/6 rounded-lg" />
+                                        <Skeleton className="h-8 w-4/6 rounded-lg" />
+                                        <Skeleton className="h-8 w-5/6 rounded-lg" />
+                                        <Skeleton className="h-8 w-3/6 rounded-lg" />
+                                    </div>
+                                    {/* Canvas placeholder */}
+                                    <div className="flex min-w-0 flex-1 flex-col gap-4 rounded-xl bg-admin-bg/40 p-6">
+                                        <Skeleton className="h-9 w-72 rounded-lg" />
+                                        <div className="grid flex-1 grid-cols-3 gap-4">
+                                            <Skeleton className="h-28 rounded-xl" />
+                                            <Skeleton className="h-28 rounded-xl" />
+                                            <Skeleton className="h-28 rounded-xl" />
+                                            <Skeleton className="h-28 rounded-xl" />
+                                            <Skeleton className="h-28 rounded-xl" />
+                                            <Skeleton className="h-28 rounded-xl" />
+                                        </div>
+                                        <SkeletonText lines={2} className="w-1/2" />
                                     </div>
                                 </div>
                             )}

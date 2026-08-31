@@ -6,6 +6,7 @@ import { sheetService } from '../../../features/projects/api/sheetApi'
 import { layoutElements } from '../../../shared/lib/elkLayout'
 import type { DiagramType, FlowEdge, FlowNode } from '../../../types'
 import toast from '../../../shared/lib/toast'
+import { Skeleton, SkeletonText } from '../../../shared/ui/Skeleton'
 
 // Minimal types to fix errors
 interface WorkspaceSheet {
@@ -92,8 +93,26 @@ export default function PrebuiltDetail() {
 
   if (loading) {
     return (
-        <div className="h-screen flex items-center justify-center bg-white">
-          <div className="w-10 h-10 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
+        <div aria-hidden className="min-h-screen bg-gray-50 pt-[72px]">
+          <div className="max-w-5xl mx-auto px-6 py-8">
+            <Skeleton className="mb-6 h-4 w-32" />
+            <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+              <Skeleton className="h-56 w-full rounded-none" />
+              <div className="p-8 border-b border-gray-100 space-y-4">
+                <Skeleton className="h-8 w-1/2" />
+                <SkeletonText lines={2} className="max-w-2xl" />
+                <div className="flex gap-3">
+                  <Skeleton className="h-6 w-24 rounded" />
+                  <Skeleton className="h-6 w-28 rounded" />
+                </div>
+              </div>
+              <div className="p-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-24 rounded-lg" />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
     )
   }

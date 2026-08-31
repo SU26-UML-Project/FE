@@ -1,27 +1,29 @@
 import { motion } from 'framer-motion'
+import { useT } from '../../langue'
 import feature1 from '../../assets/images_features/787D8154-7C70-48F2-B2CF-53E7762ACF99.png'
 import feature2 from '../../assets/images_features/IMG_5496 (1).PNG'
 import feature3 from '../../assets/images_features/3075BC6F-69E5-4E7F-9B4F-09309FDE4DAB.png'
 
-const features = [
-    {
-        src: feature1,
-        title: 'Sơ đồ UML hỗ trợ bởi AI',
-        description: 'Sinh và tinh chỉnh sơ đồ tự động, để AI lo phần cấu trúc còn bạn tập trung vào thiết kế.',
-    },
-    {
-        src: feature2,
-        title: 'Cộng tác thời gian thực',
-        description: 'Cùng nhau chỉnh sửa trên một bản vẽ, thay đổi được đồng bộ tức thì cho cả đội.',
-    },
-    {
-        src: feature3,
-        title: 'Tải lên tài liệu SRS',
-        description: 'Nhập tài liệu đặc tả yêu cầu và chuyển hóa thành sơ đồ UML chỉ trong vài bước.',
-    },
-]
-
 const Features = () => {
+    const t = useT()
+    const features = [
+        {
+            src: feature1,
+            title: t('features.ai.title'),
+            description: t('features.ai.description'),
+        },
+        {
+            src: feature2,
+            title: t('features.collab.title'),
+            description: t('features.collab.description'),
+        },
+        {
+            src: feature3,
+            title: t('features.srs.title'),
+            description: t('features.srs.description'),
+        },
+    ]
+
     return (
         <section id="key-features" className="pt-4 pb-16 px-4">
             <motion.div
@@ -31,11 +33,11 @@ const Features = () => {
                 transition={{ duration: 0.8, ease: "easeOut" }}
                 className="max-w-7xl mx-auto"
             >
-                <h2 className="text-4xl font-priego-extrabold font-bold text-center mb-12 uppercase tracking-tight text-black">TÍNH NĂNG NỔI BẬT</h2>
+                <h2 className="text-4xl font-priego-extrabold font-bold text-center mb-12 uppercase tracking-tight text-black">{t('features.heading')}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 justify-items-center py-4">
                     {features.map((feature, idx) => (
                         <motion.div
-                            key={feature.title}
+                            key={feature.src}
                             initial={{ y: 40, opacity: 0 }}
                             whileInView={{ y: 0, opacity: 1 }}
                             viewport={{ once: true, margin: '-60px' }}

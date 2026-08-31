@@ -6,6 +6,7 @@ import { subscriptionService } from '../api/subscriptionApi'
 import { getMyQuota, type QuotaInfo } from '../api/quotaApi'
 import type { MySubscription } from '../types/payment'
 import { getErrorMessage } from '../../../shared/lib/errorMessage'
+import { Skeleton, SkeletonText } from '../../../shared/ui/Skeleton'
 import { useAuthStore } from '../../../features/auth/model/useAuthStore'
 
 const fmtDate = (iso?: string) =>
@@ -120,8 +121,20 @@ const UsageModal = ({ isOpen, onClose }: UsageModalProps) => {
             {/* Body */}
             <div className="px-6 py-5">
               {loading ? (
-                <div className="flex items-center justify-center py-12 text-gray-400">
-                  <Loader2 size={24} className="animate-spin" />
+                <div aria-hidden className="space-y-5 py-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-7 w-32" />
+                    </div>
+                    <Skeleton className="h-16 w-16 rounded-xl" />
+                  </div>
+                  <div className="space-y-2.5 border-t border-gray-100 pt-4">
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-2.5 w-full" />
+                    <Skeleton className="h-2.5 w-5/6" />
+                  </div>
+                  <SkeletonText lines={2} />
                 </div>
               ) : (
                 <div className="space-y-5">

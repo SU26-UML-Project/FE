@@ -500,8 +500,14 @@ export default function Dashboard() {
             </div>
             <div className="max-h-[60vh] min-h-[200px] overflow-y-auto p-5">
               {loadingErrors ? (
-                <div className="flex items-center justify-center py-10">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                <div aria-hidden className="space-y-2 py-4">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+                      <Skeleton className="mb-1.5 h-3 w-40" />
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="mt-1.5 h-3 w-5/6" />
+                    </div>
+                  ))}
                 </div>
               ) : errorLogs.length === 0 ? (
                 <p className="py-10 text-center text-[14px] text-slate-400">Không có lỗi nào.</p>

@@ -1,0 +1,125 @@
+{
+  "lang": {
+    "label": "Language",
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "admin": "Admin",
+    "features": "Features",
+    "templates": "Templates",
+    "pricing": "Pricing",
+    "login": "Sign in",
+    "tryFree": "Try for free"
+  },
+  "hero": {
+    "title1": "SIMPLIFY EVERY",
+    "title2": "COMPLEX SYSTEM",
+    "subtitle": "Visualize software architecture and workflows with precise UML diagrams. A design solution tailored for engineering teams.",
+    "ctaTry": "TRY FOR FREE",
+    "ctaDiagrams": "VIEW ALL DIAGRAMS",
+    "altLaptop": "DiaUML interface on a laptop",
+    "altTablet": "DiaUML interface on a tablet",
+    "altPhone": "DiaUML interface on a phone"
+  },
+  "features": {
+    "heading": "KEY FEATURES",
+    "ai": {
+      "title": "AI-powered UML diagrams",
+      "description": "Generate and refine diagrams automatically — let AI handle the structure while you focus on the design."
+    },
+    "collab": {
+      "title": "Real-time collaboration",
+      "description": "Edit the same canvas together, with every change synced instantly across the team."
+    },
+    "srs": {
+      "title": "Upload SRS documents",
+      "description": "Import your software requirements specification and turn it into UML diagrams in just a few steps."
+    }
+  },
+  "templates": {
+    "heading": "POPULAR TEMPLATES",
+    "alts": [
+      "Class diagram of an online booking system",
+      "Use case diagram of an online booking system",
+      "Activity diagram of a booking system",
+      "Sequence diagram for flight ticket booking",
+      "State machine diagram of the booking lifecycle",
+      "Component diagram of a booking system architecture"
+    ],
+    "prevAria": "Previous templates",
+    "nextAria": "Next templates",
+    "navAria": "Templates navigation",
+    "goToPage": "Go to page {n}"
+  },
+  "cta": {
+    "title1": "ACCELERATE YOUR",
+    "title2": "ENGINEERING WORKFLOW.",
+    "subtitle": "Start for free today — no credit card required. Upgrade as your team grows.",
+    "register": "SIGN UP FREE",
+    "viewPricing": "VIEW PRICING"
+  },
+  "footer": {
+    "tagline": "A modern UML platform for engineering teams. Design complex systems with absolute precision.",
+    "product": {
+      "title": "Product",
+      "items": ["Class diagram", "Sequence diagram", "Use case diagram"]
+    },
+    "resources": {
+      "title": "Resources",
+      "items": ["Documentation", "Ready-made templates", "Pricing"]
+    },
+    "company": {
+      "title": "Company",
+      "items": ["About us", "Blog", "Contact"]
+    },
+    "legal": {
+      "title": "Legal",
+      "items": ["Privacy policy", "Terms of service"]
+    },
+    "rights": "© 2026 DiaUML Studio. All rights reserved by DiaTeam."
+  },
+  "toolbar": {
+    "backTo": "Back to",
+    "dashboard": "Dashboard",
+    "untitled": "Untitled",
+    "shortcuts": "Keyboard shortcuts (?)",
+    "historyTitle": "Version history — browse & restore previous snapshots",
+    "history": "History",
+    "undo": "Undo (Ctrl+Z)",
+    "redo": "Redo (Ctrl+Shift+Z)",
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "zoomSlider": "Drag to zoom — double-click to reset",
+    "zoomLevel": "Zoom level",
+    "zoomReset": "Reset zoom to 100%",
+    "fit": "Fit to screen",
+    "magicTitle": "Magic Layout — auto-arrange all nodes into a clean, tidy layout",
+    "magic": "Magic Layout",
+    "grid": "Toggle grid",
+    "minimap": "Toggle minimap",
+    "snap": "Snap to grid",
+    "showProps": "Show properties",
+    "hideProps": "Hide properties",
+    "clearTitle": "Clear canvas — remove all shapes & connectors (can be undone with Ctrl+Z)",
+    "clear": "Clear",
+    "importTitle": "Import from file or code",
+    "import": "Import",
+    "fromFile": "From file",
+    "fromCode": "From code",
+    "ownerOnly": "Only project owner can toggle collaboration",
+    "enableCollab": "Enable collaboration (Max 4 members) & copy link",
+    "disableCollab": "Disable collaboration & copy link",
+    "online": "Online",
+    "offline": "Offline",
+    "exportTitle": "Export diagram",
+    "export": "Export",
+    "png": "PNG image",
+    "json": "JSON file",
+    "code": "Mermaid / PlantUML code",
+    "toastCollabOn": "Collaboration enabled! Link copied to clipboard.",
+    "toastCollabOff": "Collaboration disabled. Project is now private.",
+    "toastCopyFail": "Failed to copy link"
+  }
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useT } from '../../langue'
 import classdiagram from '../../assets/images_populartemplate/Gemini_Generated_Image_oruyqmoruyqmoruy.png'
 import usecase from '../../assets/images_populartemplate/Gemini_Generated_Image_olgywzolgywzolgy.png'
 import activitydiagram from '../../assets/images_populartemplate/Gemini_Generated_Image_9x41y79x41y79x41.png'
@@ -9,18 +10,20 @@ import statemachine from '../../assets/images_populartemplate/Gemini_Generated_I
 import componentdiagram from '../../assets/images_populartemplate/Gemini_Generated_Image_ep5jorep5jorep5j.png'
 
 const templateData = [
-  { id: 1, src: classdiagram, alt: "Sơ đồ lớp hệ thống đặt chỗ trực tuyến" },
-  { id: 2, src: usecase, alt: "Sơ đồ ca sử dụng hệ thống đặt chỗ trực tuyến" },
-  { id: 3, src: activitydiagram, alt: "Sơ đồ hoạt động hệ thống đặt chỗ" },
-  { id: 4, src: sequencediagram, alt: "Sơ đồ tuần tự đặt vé máy bay" },
-  { id: 5, src: statemachine, alt: "Sơ đồ máy trạng thái vòng đời đặt chỗ" },
-  { id: 6, src: componentdiagram, alt: "Sơ đồ thành phần kiến trúc hệ thống đặt chỗ" },
+  { id: 1, src: classdiagram },
+  { id: 2, src: usecase },
+  { id: 3, src: activitydiagram },
+  { id: 4, src: sequencediagram },
+  { id: 5, src: statemachine },
+  { id: 6, src: componentdiagram },
 ]
 
 const AUTOPLAY_MS = 4000
 const SWIPE_THRESHOLD = 50
 
 const Templates = () => {
+  const t = useT()
+  const alts = t.list('templates.alts')
   const [currentPage, setCurrentPage] = useState(0)
   const [direction, setDirection] = useState(1)
   const [isPaused, setIsPaused] = useState(false)
@@ -75,7 +78,7 @@ const Templates = () => {
         transition={{ duration: 0.8, ease: "easeOut" }}
         className="max-w-7xl mx-auto"
       >
-        <h2 className="text-4xl font-priego-extrabold font-bold text-left mb-12 ml-4 md:ml-0 uppercase tracking-tight text-black">MẪU PHỔ BIẾN</h2>
+        <h2 className="text-4xl font-priego-extrabold font-bold text-left mb-12 ml-4 md:ml-0 uppercase tracking-tight text-black">{t('templates.heading')}</h2>
 
         <div
           className="group relative"
@@ -87,7 +90,7 @@ const Templates = () => {
           {/* Prev arrow */}
           <button
             onClick={prev}
-            aria-label="Mẫu trước"
+            aria-label={t('templates.prevAria')}
             className="absolute left-0 md:-left-5 top-1/2 -translate-y-1/2 z-20 h-11 w-11 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-md text-gray-700 opacity-40 hover:opacity-100 hover:text-uml-blue hover:border-uml-blue group-hover:opacity-100 transition-all duration-300"
           >
             <ChevronLeft size={22} strokeWidth={2.5} />
@@ -96,7 +99,7 @@ const Templates = () => {
           {/* Next arrow */}
           <button
             onClick={next}
-            aria-label="Mẫu tiếp theo"
+            aria-label={t('templates.nextAria')}
             className="absolute right-0 md:-right-5 top-1/2 -translate-y-1/2 z-20 h-11 w-11 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-md text-gray-700 opacity-40 hover:opacity-100 hover:text-uml-blue hover:border-uml-blue group-hover:opacity-100 transition-all duration-300"
           >
             <ChevronRight size={22} strokeWidth={2.5} />
@@ -122,7 +125,7 @@ const Templates = () => {
                   >
                     <img
                       src={template.src}
-                      alt={template.alt}
+                      alt={alts[template.id - 1] ?? ''}
                       className="w-full h-full object-contain rounded-[1.5rem]"
                     />
                   </motion.div>
@@ -132,7 +135,7 @@ const Templates = () => {
           </div>
         </div>
 
-        <nav aria-label="Điều hướng mẫu" className="flex justify-center items-center space-x-4 mt-12" data-purpose="slider-pagination">
+        <nav aria-label={t('templates.navAria')} className="flex justify-center items-center space-x-4 mt-12" data-purpose="slider-pagination">
           {Array.from({ length: totalPages }).map((_, idx) => (
             <button
               key={idx}
@@ -140,7 +143,7 @@ const Templates = () => {
               className={`h-4 w-4 rounded-full transition-colors duration-300 ${
                 currentPage === idx ? 'bg-blue-600' : 'bg-gray-300 hover:bg-gray-400'
               }`}
-              aria-label={`Đến trang ${idx + 1}`}
+              aria-label={t('templates.goToPage', { n: idx + 1 })}
             />
           ))}
         </nav>

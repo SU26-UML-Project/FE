@@ -1,4 +1,4 @@
-import LoadingOverlay from '../../../shared/ui/LoadingOverlay'
+import { Skeleton } from '../../../shared/ui/Skeleton'
 import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -419,7 +419,17 @@ const GlobalAIChatSidebar: React.FC<GlobalAIChatSidebarProps> = ({
 
                   <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                     {loadingHistory ? (
-                        <LoadingOverlay message="Đang tải..." absolute={false} />
+                        <div aria-hidden className="space-y-4">
+                            {[0, 1, 2, 3].map((i) => (
+                                <div key={i} className={`flex items-start gap-2.5 ${i % 2 === 1 ? "flex-row-reverse" : ""}`}>
+                                    <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
+                                    <div className="max-w-[75%] space-y-2">
+                                        <Skeleton className="h-2.5 w-16" />
+                                        <Skeleton className={i % 2 === 1 ? "h-16 w-52 rounded-2xl rounded-tr-sm" : "h-16 w-52 rounded-2xl rounded-tl-sm"} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     ) : messages.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-center space-y-4 px-6">
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-uml-blue to-indigo-600 flex items-center justify-center shadow-lg shadow-uml-blue/20">

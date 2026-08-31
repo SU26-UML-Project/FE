@@ -4,6 +4,8 @@ import { LogIn } from 'lucide-react'
 import AuthModal from '../../features/auth/components/AuthModal'
 import UserMenu from '../../features/auth/components/UserMenu'
 import { useAuthStore } from '../../features/auth/model/useAuthStore'
+import { useT } from '../../langue'
+import LanguageSwitcher from '../../shared/ui/LanguageSwitcher'
 
 const Navbar = () => {
   const navigate = useNavigate()
@@ -12,7 +14,8 @@ const Navbar = () => {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
   
   const { user, isAuthenticated } = useAuthStore()
-  
+  const t = useT()
+
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const isDashboardPage = location.pathname.startsWith('/dashboard')
@@ -86,7 +89,7 @@ const Navbar = () => {
             }}
             className={`${linkBase} ${location.pathname === '/dashboard' ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`}
           >
-            Bảng điều khiển
+            {t('nav.dashboard')}
           </button>
           
           {userRole === 'ADMIN' && (
@@ -96,18 +99,18 @@ const Navbar = () => {
                 `${linkBase} ${isActive ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`
               }
             >
-              Quản trị
+              {t('nav.admin')}
             </NavLink>
           )}
           {onHome ? (
-            <a href="#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Tính năng</a>
+            <a href="#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>{t('nav.features')}</a>
           ) : (
-            <Link to="/#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Tính năng</Link>
+            <Link to="/#key-features" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>{t('nav.features')}</Link>
           )}
           {onHome ? (
-            <a href="#popular-templates" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Mẫu</a>
+            <a href="#popular-templates" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>{t('nav.templates')}</a>
           ) : (
-            <Link to="/#popular-templates" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>Mẫu</Link>
+            <Link to="/#popular-templates" className={`${linkBase} text-gray-900 hover:text-uml-blue`}>{t('nav.templates')}</Link>
           )}
           <NavLink
             to="/pricing"
@@ -115,11 +118,13 @@ const Navbar = () => {
               `${linkBase} ${isActive ? 'text-uml-blue' : 'text-gray-900 hover:text-uml-blue'}`
             }
           >
-            Bảng giá
+            {t('nav.pricing')}
           </NavLink>
         </nav>
 
           <div className="flex items-center gap-2 lg:gap-3" data-purpose="header-buttons">
+            {/* Language switcher — sits right next to UserMenu / auth buttons */}
+            <LanguageSwitcher className="mr-1" />
             {!isAuthenticated ? (
               <>
                 {isScrolled ? (
@@ -130,21 +135,21 @@ const Navbar = () => {
                     <div className="sign">
                       <LogIn size={18} strokeWidth={2.5} />
                     </div>
-                    <div className="btn-text">Đăng nhập</div>
+                    <div className="btn-text">{t('nav.login')}</div>
                   </button>
                 ) : (
                   <button 
                     onClick={() => openAuth('login')}
                     className="px-6 py-2 text-[16px] font-semibold border border-black rounded-md hover:bg-gray-100 transition-all duration-500"
                   >
-                    Đăng nhập
+                    {t('nav.login')}
                   </button>
                 )}
                 <button 
                   onClick={() => openAuth('register')}
                   className={`font-semibold bg-uml-blue text-white rounded-md hover:bg-blue-700 transition-all duration-500 ${isScrolled ? 'px-4 py-1.5 text-[14px]' : 'px-6 py-2 text-[16px]'}`}
                 >
-                  Dùng thử miễn phí
+                  {t('nav.tryFree')}
                 </button>
               </>
             ) : (

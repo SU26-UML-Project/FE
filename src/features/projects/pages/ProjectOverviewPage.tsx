@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, ChevronRight, Clock3, FileText, Folder, FolderOpen, Grid2X2, List, Loader2, MoreHorizontal, Plus, Search, Trash2, Workflow, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronRight, Clock3, FileText, Folder, FolderOpen, Grid2X2, List, MoreHorizontal, Plus, Search, Trash2, Workflow, X } from 'lucide-react'
 import { toast } from '../../../shared/lib/toast'
+import { Skeleton, SkeletonText } from '../../../shared/ui/Skeleton'
 import { projectService } from '../../../services'
 import { workspaceFileService } from '../../workspace/api/workspaceFileService'
 import { ConfirmDialog } from '../../workspace/overlays/ConfirmDialog'
@@ -131,7 +132,39 @@ export default function ProjectOverview() {
   const remove = (item: WorkspaceFileItem) => { setAction({ mode: 'delete', item }); setMenuId(null) }
 
 
-  if (loading) return <div className="flex min-h-screen items-center justify-center bg-admin-bg"><Loader2 className="animate-spin text-uml-blue"/></div>
+  if (loading) return (
+    <div aria-hidden className="min-h-screen bg-admin-bg/40 px-5 pb-16 pt-28 sm:px-8 lg:px-12">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-6 flex items-center gap-2">
+          <Skeleton className="h-9 w-32 rounded-lg" />
+        </div>
+        <section className="flex flex-col gap-5 border-b border-admin-outline pb-6 md:flex-row md:items-center">
+          <div className="flex min-w-0 flex-1 items-center gap-4">
+            <Skeleton className="h-12 w-12 shrink-0 rounded-xl" />
+            <div className="min-w-0 space-y-2">
+              <Skeleton className="h-7 w-64" />
+              <SkeletonText lines={1} className="w-80" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-36 rounded-lg" />
+            <Skeleton className="h-10 w-24 rounded-lg" />
+          </div>
+        </section>
+        <div className="mt-8 grid gap-3 md:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 rounded-xl border border-admin-outline bg-white p-4">
+              <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
   if (trashPrompt) return (
     <ConfirmDialog
       title="Dự án đang trong thùng rác"

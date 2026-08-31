@@ -1,45 +1,33 @@
 import { Link } from 'react-router-dom'
+import { useT } from '../../langue'
 
 interface FooterLink {
   title: string
   links: { label: string; to: string }[]
 }
 
-const footerLinks: FooterLink[] = [
-  {
-    title: 'Sản phẩm',
-    links: [
-      { label: 'Sơ đồ lớp', to: '/dashboard' },
-      { label: 'Sơ đồ tuần tự', to: '/dashboard' },
-      { label: 'Sơ đồ ca sử dụng', to: '/dashboard' },
-    ]
-  },
-  {
-    title: 'Tài nguyên',
-    links: [
-      { label: 'Tài liệu', to: '/dashboard' },
-      { label: 'Mẫu có sẵn', to: '/dashboard' },
-      { label: 'Bảng giá', to: '/pricing' },
-    ]
-  },
-  {
-    title: 'Công ty',
-    links: [
-      { label: 'Về chúng tôi', to: '#' },
-      { label: 'Blog', to: '#' },
-      { label: 'Liên hệ', to: '#' },
-    ]
-  },
-  {
-    title: 'Pháp lý',
-    links: [
-      { label: 'Chính sách bảo mật', to: '#' },
-      { label: 'Điều khoản dịch vụ', to: '#' },
-    ]
-  }
-]
-
 const Footer = () => {
+  const t = useT()
+
+  const footerLinks: FooterLink[] = [
+    {
+      title: t('footer.product.title'),
+      links: t.list('footer.product.items').map((label) => ({ label, to: '/dashboard' }))
+    },
+    {
+      title: t('footer.resources.title'),
+      links: t.list('footer.resources.items').map((label, i) => ({ label, to: i === 2 ? '/pricing' : '/dashboard' }))
+    },
+    {
+      title: t('footer.company.title'),
+      links: t.list('footer.company.items').map((label) => ({ label, to: '#' }))
+    },
+    {
+      title: t('footer.legal.title'),
+      links: t.list('footer.legal.items').map((label) => ({ label, to: '#' }))
+    }
+  ]
+
   return (
     <footer className="bg-[#f1f5f9] border-t border-[#c3c6d7] pt-[60px] px-12 pb-8 mt-[60px]">
       <div className="max-w-7xl mx-auto">
@@ -49,7 +37,7 @@ const Footer = () => {
               DiaUML Studio
             </Link>
             <p className="text-[14px] text-[#434655] leading-relaxed max-w-[320px]">
-              Nền tảng vẽ UML hiện đại dành cho đội ngũ kỹ thuật. Thiết kế hệ thống phức tạp với độ chính xác tuyệt đối.
+              {t('footer.tagline')}
             </p>
           </div>
           <div className="flex flex-wrap gap-10 justify-end">
@@ -82,7 +70,7 @@ const Footer = () => {
           </div>
         </div>
         <div className="border-t border-[rgba(195,198,215,0.4)] pt-6 text-[14px] text-[#737686]">
-          © 2026 DiaUML Studio. Mọi quyền được bảo lưu bởi DiaTeam.
+          {t('footer.rights')}
         </div>
       </div>
     </footer>

@@ -1,16 +1,13 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../features/auth/model/useAuthStore'
+import { SkeletonSplash } from '../../shared/ui/Skeleton'
 
 const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: string[] }) => {
   const { isAuthenticated, user, loading } = useAuthStore()
   const location = useLocation()
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-admin-bg">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-uml-blue border-t-transparent" />
-      </div>
-    )
+    return <SkeletonSplash />
   }
 
   if (!isAuthenticated) {

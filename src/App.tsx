@@ -21,6 +21,7 @@ import { Editor } from "./features/workspace/Editor"
 import { useAuthStore } from './features/auth/model/useAuthStore'
 import GlobalAIChatSidebar from './features/ai-chat/components/GlobalAIChatSidebar'
 import ScrollToTop from './shared/ui/ScrollToTop'
+import { SkeletonSplash } from './shared/ui/Skeleton'
 import { authService } from './features/auth/api/authApi'
 import { setAuthCookie, COOKIE_KEYS } from './shared/lib/auth'
 
@@ -30,11 +31,7 @@ const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: string[] }) => {
   const location = useLocation()
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-admin-bg">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-uml-blue border-t-transparent" />
-      </div>
-    )
+    return <SkeletonSplash />
   }
 
   if (!isAuthenticated) {

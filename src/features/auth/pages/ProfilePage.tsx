@@ -3,6 +3,7 @@ import { useClickOutside } from '../../../shared/hooks/useClickOutside'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from '../../../shared/lib/toast'
+import { Skeleton } from '../../../shared/ui/Skeleton'
 import {
   User as UserIcon,
   Mail,
@@ -265,8 +266,37 @@ const ProfilePage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center pt-[72px]">
-        <Loader2 size={32} className="text-uml-blue animate-spin" />
+      <div aria-hidden className="min-h-screen pt-[120px] pb-20 px-4">
+        <div className="mx-auto max-w-4xl">
+          <Skeleton className="mb-6 h-4 w-36" />
+          <Skeleton className="mb-8 h-10 w-56" />
+          <div className="rounded-xl border border-admin-outline bg-white mb-6">
+            <Skeleton className="h-24 w-full rounded-t-xl rounded-b-none" />
+            <div className="p-6">
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-20 w-20 shrink-0 rounded-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-44" />
+                  <Skeleton className="h-3.5 w-64" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+            <div className="rounded-xl border border-admin-outline bg-white p-6 space-y-5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-3.5 w-28" />
+                  <Skeleton className="h-11 w-full rounded-lg" />
+                </div>
+              ))}
+            </div>
+            <div className="space-y-4">
+              <Skeleton className="h-40 w-full rounded-xl" />
+              <Skeleton className="h-28 w-full rounded-xl" />
+            </div>
+          </div>
+        </div>
       </div>
     )
   }

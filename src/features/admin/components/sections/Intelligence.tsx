@@ -991,9 +991,17 @@ export default function Intelligence() {
               {wsTab !== "_all" && wsTab !== "_create" && (
                 <div className="mt-3">
                   {wsTabLoading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
-                      <span className="ml-2 text-[13px] text-slate-500">Đang tải cấu hình…</span>
+                    <div aria-hidden className="space-y-4 py-4">
+                      <Skeleton className="h-5 w-56" />
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <div key={i} className="space-y-2">
+                            <Skeleton className="h-3 w-24" />
+                            <Skeleton className="h-10 w-full rounded-lg" />
+                          </div>
+                        ))}
+                      </div>
+                      <Skeleton className="h-10 w-36 rounded-lg" />
                     </div>
                   ) : wsTabDetail ? (
                     <div className="space-y-4">
@@ -1557,8 +1565,10 @@ export default function Intelligence() {
       {/* ===== View document ===== */}
       <Modal open={!!viewDoc} onClose={() => setViewDoc(null)} title={viewDoc?.name || ""} desc={viewDoc ? `Workspace · ${viewDoc.workspace}` : ""} size="lg">
         {viewDoc?.loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-slate-300" />
+          <div aria-hidden className="space-y-3 py-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className={`h-3.5 ${i % 3 === 2 ? "w-2/3" : "w-full"}`} />
+            ))}
           </div>
         ) : (
           <MarkdownView content={viewDoc?.content || ""} />

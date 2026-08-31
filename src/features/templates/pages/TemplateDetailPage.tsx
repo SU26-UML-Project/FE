@@ -8,6 +8,7 @@ import { projectService } from '../../../features/projects/api/projectApi'
 import { sheetService } from '../../../features/projects/api/sheetApi'
 import { layoutElements } from '../../../shared/lib/elkLayout'
 import toast from '../../../shared/lib/toast'
+import { Skeleton, SkeletonText } from '../../../shared/ui/Skeleton'
 
 function GraphCanvas({ previewImage, name }: { previewImage: string | null; name: string }) {
   if (!previewImage) return <div className="flex h-full w-full items-center justify-center bg-gray-50 text-sm text-gray-400">Preview chưa khả dụng</div>
@@ -84,8 +85,28 @@ export default function TemplateDetail() {
 
   if (loading) {
     return (
-        <div className="min-h-screen bg-admin-bg pt-[72px] flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
+        <div aria-hidden className="min-h-screen bg-admin-bg pt-[72px]">
+          <div className="relative max-w-5xl mx-auto px-6 py-10">
+            <Skeleton className="mb-8 h-4 w-20" />
+            <div className="rounded-sm border border-admin-outline bg-white p-8 mb-8">
+              <div className="flex items-start gap-5">
+                <Skeleton className="h-14 w-14 shrink-0 rounded" />
+                <div className="flex-1 space-y-3">
+                  <Skeleton className="h-8 w-1/2" />
+                  <div className="flex gap-3">
+                    <Skeleton className="h-6 w-24 rounded-[4px]" />
+                    <Skeleton className="h-6 w-32" />
+                  </div>
+                  <SkeletonText lines={2} className="max-w-xl pt-1" />
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 rounded-sm" />
+              ))}
+            </div>
+          </div>
         </div>
     )
   }

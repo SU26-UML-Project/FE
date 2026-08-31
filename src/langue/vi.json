@@ -1,0 +1,125 @@
+{
+  "lang": {
+    "label": "Ngôn ngữ",
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "nav": {
+    "dashboard": "Bảng điều khiển",
+    "admin": "Quản trị",
+    "features": "Tính năng",
+    "templates": "Mẫu",
+    "pricing": "Bảng giá",
+    "login": "Đăng nhập",
+    "tryFree": "Dùng thử miễn phí"
+  },
+  "hero": {
+    "title1": "ĐƠN GIẢN HÓA MỌI",
+    "title2": "HỆ THỐNG PHỨC TẠP",
+    "subtitle": "Trực quan hóa kiến trúc phần mềm và quy trình bằng các sơ đồ UML chuẩn xác. Giải pháp thiết kế tối ưu dành riêng cho các đội ngũ kỹ sư.",
+    "ctaTry": "DÙNG THỬ MIỄN PHÍ",
+    "ctaDiagrams": "XEM TẤT CẢ SƠ ĐỒ",
+    "altLaptop": "Giao diện DiaUML trên laptop",
+    "altTablet": "Giao diện DiaUML trên máy tính bảng",
+    "altPhone": "Giao diện DiaUML trên điện thoại"
+  },
+  "features": {
+    "heading": "TÍNH NĂNG NỔI BẬT",
+    "ai": {
+      "title": "Sơ đồ UML hỗ trợ bởi AI",
+      "description": "Sinh và tinh chỉnh sơ đồ tự động, để AI lo phần cấu trúc còn bạn tập trung vào thiết kế."
+    },
+    "collab": {
+      "title": "Cộng tác thời gian thực",
+      "description": "Cùng nhau chỉnh sửa trên một bản vẽ, thay đổi được đồng bộ tức thì cho cả đội."
+    },
+    "srs": {
+      "title": "Tải lên tài liệu SRS",
+      "description": "Nhập tài liệu đặc tả yêu cầu và chuyển hóa thành sơ đồ UML chỉ trong vài bước."
+    }
+  },
+  "templates": {
+    "heading": "MẪU PHỔ BIẾN",
+    "alts": [
+      "Sơ đồ lớp hệ thống đặt chỗ trực tuyến",
+      "Sơ đồ ca sử dụng hệ thống đặt chỗ trực tuyến",
+      "Sơ đồ hoạt động hệ thống đặt chỗ",
+      "Sơ đồ tuần tự đặt vé máy bay",
+      "Sơ đồ máy trạng thái vòng đời đặt chỗ",
+      "Sơ đồ thành phần kiến trúc hệ thống đặt chỗ"
+    ],
+    "prevAria": "Mẫu trước",
+    "nextAria": "Mẫu tiếp theo",
+    "navAria": "Điều hướng mẫu",
+    "goToPage": "Đến trang {n}"
+  },
+  "cta": {
+    "title1": "TĂNG TỐC QUY TRÌNH",
+    "title2": "KỸ THUẬT CỦA BẠN.",
+    "subtitle": "Bắt đầu miễn phí ngay hôm nay — không cần thẻ tín dụng. Nâng cấp khi đội ngũ của bạn phát triển.",
+    "register": "ĐĂNG KÝ MIỄN PHÍ",
+    "viewPricing": "XEM BẢNG GIÁ"
+  },
+  "footer": {
+    "tagline": "Nền tảng vẽ UML hiện đại dành cho đội ngũ kỹ thuật. Thiết kế hệ thống phức tạp với độ chính xác tuyệt đối.",
+    "product": {
+      "title": "Sản phẩm",
+      "items": ["Sơ đồ lớp", "Sơ đồ tuần tự", "Sơ đồ ca sử dụng"]
+    },
+    "resources": {
+      "title": "Tài nguyên",
+      "items": ["Tài liệu", "Mẫu có sẵn", "Bảng giá"]
+    },
+    "company": {
+      "title": "Công ty",
+      "items": ["Về chúng tôi", "Blog", "Liên hệ"]
+    },
+    "legal": {
+      "title": "Pháp lý",
+      "items": ["Chính sách bảo mật", "Điều khoản dịch vụ"]
+    },
+    "rights": "© 2026 DiaUML Studio. Mọi quyền được bảo lưu bởi DiaTeam."
+  },
+  "toolbar": {
+    "backTo": "Về lại",
+    "dashboard": "Bảng điều khiển",
+    "untitled": "Chưa đặt tên",
+    "shortcuts": "Phím tắt (?)",
+    "historyTitle": "Lịch sử phiên bản — xem & khôi phục các bản ghi trước đó",
+    "history": "Lịch sử",
+    "undo": "Hoàn tác (Ctrl+Z)",
+    "redo": "Làm lại (Ctrl+Shift+Z)",
+    "zoomOut": "Thu nhỏ",
+    "zoomIn": "Phóng to",
+    "zoomSlider": "Kéo để chỉnh độ thu phóng — nhấp đúp để đặt lại",
+    "zoomLevel": "Mức thu phóng",
+    "zoomReset": "Đặt lại mức thu phóng 100%",
+    "fit": "Vừa màn hình",
+    "magicTitle": "Magic Layout — tự động sắp xếp mọi node gọn gàng, ngăn nắp",
+    "magic": "Magic Layout",
+    "grid": "Bật/tắt lưới",
+    "minimap": "Bật/tắt bản đồ thu nhỏ",
+    "snap": "Bám lưới",
+    "showProps": "Hiện bảng thuộc tính",
+    "hideProps": "Ẩn bảng thuộc tính",
+    "clearTitle": "Dọn canvas — xóa mọi hình khối & đường nối (có thể hoàn tác bằng Ctrl+Z)",
+    "clear": "Dọn canvas",
+    "importTitle": "Nhập từ file hoặc mã nguồn",
+    "import": "Nhập",
+    "fromFile": "Từ file",
+    "fromCode": "Từ mã nguồn",
+    "ownerOnly": "Chỉ chủ dự án mới có thể bật/tắt cộng tác",
+    "enableCollab": "Bật cộng tác (tối đa 4 thành viên) & sao chép liên kết",
+    "disableCollab": "Tắt cộng tác & sao chép liên kết",
+    "online": "Online",
+    "offline": "Offline",
+    "exportTitle": "Xuất sơ đồ",
+    "export": "Xuất",
+    "png": "Ảnh PNG",
+    "json": "Tệp JSON",
+    "code": "Mã Mermaid / PlantUML",
+    "toastCollabOn": "Đã bật cộng tác! Liên kết đã được sao chép vào clipboard.",
+    "toastCollabOff": "Đã tắt cộng tác. Dự án hiện ở chế độ riêng tư.",
+    "toastCopyFail": "Không thể sao chép liên kết"
+  }
+}

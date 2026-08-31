@@ -28,6 +28,7 @@ import type { ProjectResponse } from '../../../types/project';
 import toast from '../../../shared/lib/toast';
 import { getErrorMessage } from '../../../shared/lib/errorMessage';
 import UsageModal from '../../billing/components/UsageModal';
+import { Skeleton, SkeletonText } from '../../../shared/ui/Skeleton';
 
 // Dummy types to fix errors since I deleted workspace.ts
 interface Workspace {
@@ -637,8 +638,14 @@ const UserDashboard: React.FC = () => {
                         {/* Diagrams Display */}
                         {activeTab === 'templates' ? (
                             templatesLoading ? (
-                                <div className="flex items-center justify-center py-20">
-                                    <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
+                                <div aria-hidden className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-2">
+                                    {Array.from({ length: 6 }).map((_, i) => (
+                                        <div key={i} className="rounded-sm border border-admin-outline bg-white p-4">
+                                            <Skeleton className="mb-4 h-40 w-full rounded-lg" />
+                                            <Skeleton className="mb-2.5 h-4 w-3/4" />
+                                            <SkeletonText lines={2} />
+                                        </div>
+                                    ))}
                                 </div>
                             ) : templates.length === 0 ? (
                                 <div className="text-center py-20">
@@ -647,11 +654,14 @@ const UserDashboard: React.FC = () => {
                                     <p className="text-sm text-gray-300">Các mẫu đang được chuẩn bị.</p>
                                 </div>
                             ) : filterLoading ? (
-                                <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
-                                    <div className="text-center">
-                                        <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                                        <p className="text-sm text-gray-400 font-medium">Đang lọc...</p>
-                                    </div>
+                                <div aria-hidden className="space-y-2.5 rounded-sm border border-admin-outline bg-white p-4">
+                                    {Array.from({ length: 6 }).map((_, i) => (
+                                        <div key={i} className="flex items-center gap-4">
+                                            <Skeleton className="h-9 w-9 shrink-0 rounded-lg" />
+                                            <Skeleton className="h-3.5 flex-1" />
+                                            <Skeleton className="h-3.5 w-20" />
+                                        </div>
+                                    ))}
                                 </div>
                             ) : (
                                 <AnimatePresence mode="wait">

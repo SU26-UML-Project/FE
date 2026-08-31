@@ -1,9 +1,11 @@
 import { motion } from 'framer-motion'
+import { useT } from '../../langue'
 import laptopMockup from '../../assets/images/IMG_5486.PNG'
 import mobileMockup from '../../assets/images/IMG_5490.PNG'
 import tabletMockup from '../../assets/images/IMG_5488.PNG'
 
 const Hero = () => {
+  const t = useT()
   const laptopStyle = {
     width: '915px',
     height: '900px',
@@ -89,7 +91,7 @@ const Hero = () => {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="text-5xl md:text-6xl font-priego-extrabold text-black uppercase mb-6"
         >
-          ĐƠN GIẢN HÓA MỌI<br />HỆ THỐNG PHỨC TẠP
+          {t('hero.title1')}<br />{t('hero.title2')}
         </motion.h1>
         <motion.p
           initial={{ y: 20, opacity: 0 }}
@@ -97,7 +99,7 @@ const Hero = () => {
           transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
           className="text-xl text-gray-700 mb-10 max-w-2xl leading-relaxed"
         >
-          Trực quan hóa kiến trúc phần mềm và quy trình bằng các sơ đồ UML chuẩn xác. Giải pháp thiết kế tối ưu dành riêng cho các đội ngũ kỹ sư.
+          {t('hero.subtitle')}
         </motion.p>
         <motion.div
           initial={{ y: 20, opacity: 0 }}
@@ -107,10 +109,10 @@ const Hero = () => {
           data-purpose="hero-actions"
         >
           <button className="px-8 py-4 bg-uml-blue text-white font-bold rounded-md hover:bg-blue-700 transition tracking-wide uppercase">
-            DÙNG THỬ MIỄN PHÍ
+            {t('hero.ctaTry')}
           </button>
           <button className="px-8 py-4 bg-white border-2 border-black text-black font-bold rounded-md hover:bg-gray-50 transition tracking-wide uppercase">
-            XEM TẤT CẢ SƠ ĐỒ
+            {t('hero.ctaDiagrams')}
           </button>
         </motion.div>
       </div>
@@ -125,7 +127,7 @@ const Hero = () => {
             animate={["showcase", "final"]}
             variants={laptopVariants}
           >
-             <img src={laptopMockup} alt="Giao diện DiaUML trên laptop" className="w-full h-full drop-shadow-sm object-contain" />
+              <img src={laptopMockup} alt={t('hero.altLaptop')} className="w-full h-full drop-shadow-sm object-contain" />
           </motion.div>
           
           {/* Tablet Mockup */}
@@ -137,7 +139,7 @@ const Hero = () => {
             variants={tabletVariants}
             transition={{ delay: 1.5 }} // Sequence after laptop starts
           >
-            <img src={tabletMockup} alt="Giao diện DiaUML trên máy tính bảng" className="w-full h-full drop-shadow-2xl object-contain" />
+            <img src={tabletMockup} alt={t('hero.altTablet')} className="w-full h-full drop-shadow-2xl object-contain" />
           </motion.div>
 
           {/* Mobile Mockup */}
@@ -149,7 +151,7 @@ const Hero = () => {
             variants={mobileVariants}
             transition={{ delay: 3 }} // Sequence after tablet starts
           >
-            <img src={mobileMockup} alt="Giao diện DiaUML trên điện thoại" className="w-full h-full drop-shadow-2xl object-contain" />
+            <img src={mobileMockup} alt={t('hero.altPhone')} className="w-full h-full drop-shadow-2xl object-contain" />
           </motion.div>
         </div>
       </div>

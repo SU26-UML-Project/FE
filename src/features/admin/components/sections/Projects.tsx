@@ -261,8 +261,22 @@ export default function Projects() {
 
             {view === "grid" ? (
               allLoading && allProjects.length === 0 ? (
-                <div className="flex items-center justify-center py-16 text-slate-400">
-                  <Loader2 className="h-6 w-6 animate-spin" />
+                <div aria-hidden className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="rounded-xl border border-slate-200 bg-white p-4">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-9 w-9 shrink-0 rounded-lg" />
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <Skeleton className="h-3.5 w-3/4" />
+                          <Skeleton className="h-3 w-1/2" />
+                        </div>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-3 w-5/6" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : allProjects.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-4 py-16">
@@ -312,8 +326,14 @@ export default function Projects() {
                       {isOpen && (
                         <div className="border-t border-slate-100 p-4">
                           {data?.loading && data.items.length === 0 ? (
-                            <div className="flex items-center justify-center py-6 text-slate-400">
-                              <Loader2 className="h-5 w-5 animate-spin" />
+                            <div aria-hidden className="space-y-2 py-2">
+                              {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className="flex items-center gap-3 px-3 py-1.5">
+                                  <Skeleton className="h-3.5 flex-1" />
+                                  <Skeleton className="h-3.5 w-10" />
+                                  <Skeleton className="h-3.5 w-24" />
+                                </div>
+                              ))}
                             </div>
                           ) : (
                             // Xem theo cá nhân: dự án bên trong luôn là bảng gọn (không dùng card bự)
