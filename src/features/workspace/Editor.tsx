@@ -3,7 +3,6 @@ import {
     ReactFlow,
     Background,
     BackgroundVariant,
-    Controls,
     MiniMap,
     Panel,
     applyNodeChanges,
@@ -24,8 +23,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "../../shared/lib/toast";
 import { projectService, sheetService } from "../../services";
 
-import { nodeTypes } from "./canvas/Nodes";
-import { edgeTypes } from "./canvas/Edges";
+import { nodeTypes } from "./Canvas/Nodes";
+import { edgeTypes } from "./Canvas/Edges";
+import { ViewControls } from "./Canvas/ViewControls";
 import { layoutElements } from "../../shared/lib/elkLayout";
 import { MarkerDefs } from "./shared/MarkerDefs";
 import { computeSnap, nodeBox } from "../../shared/lib/snap";
@@ -37,9 +37,9 @@ import { Toolbar } from "./panels/Toolbar";
 import { Sidebar } from "./panels/Sidebar";
 import { Inspector, type AlignMode } from "./panels/Inspector";
 import { ContextMenu, CtxIcons, type CtxItem } from "./overlays/ContextMenu";
-import { SmartGuides, type GuidesState } from "./canvas/SmartGuides";
-import { QuickAdd } from "./canvas/QuickAdd";
-import { RemoteCursors } from "./canvas/RemoteCursors";
+import { SmartGuides, type GuidesState } from "./Canvas/SmartGuides";
+import { QuickAdd } from "./Canvas/QuickAdd";
+import { RemoteCursors } from "./Canvas/RemoteCursors";
 import { ImportModal } from "./overlays/ImportModal";
 import { ExportModal } from "./overlays/ExportModal";
 import { HelpOverlay } from "./overlays/HelpOverlay";
@@ -193,9 +193,19 @@ export function Editor() {
     });
     const [hist, setHist] = useState({ undo: false, redo: false });
     const [saved, setSaved] = useState(true);
+    // True only while a save HTTP request is actually in-flight. Together with
+    // `saved` this drives the 3-state badge: Saved (green) / Saving… (blue,
+    // pulsing) / Unsaved changes (gray, static — debounce pending).
+    const [saving, setSaving] = useState(false);
+    // Native fullscreen on the editor root (toggled from ViewControls).
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const [loaded, setLoaded] = useState(false);
     const [inspectorOpen, setInspectorOpen] = useState(false);
     const [inspectorManualOpen, setInspectorManualOpen] = useState(false);
+    // Auto-open the Inspector on selection UNLESS the user explicitly closed
+    // it (panel ✕ or the toolbar toggle). Opening it manually re-enables the
+    // auto-open behaviour (Figma-style).
+    const [inspectorAutoOpen, setInspectorAutoOpen] = useState(true);
     const [guides, setGuides] = useState<GuidesState>({ guidesX: [], guidesY: [] });
     const [ctxMenu, setCtxMenu] = useState<{
         x: number;
@@ -214,14 +224,25 @@ export function Editor() {
         value: string;
     } | null>(null);
     const [helpOpen, setHelpOpen] = useState(false);
+    // Screen-space point the Help sheet springs out of (the toolbar ? button).
+    const [helpOrigin, setHelpOrigin] = useState<{ x: number; y: number } | null>(null);
     const [importOpen, setImportOpen] = useState(false);
     const [exportOpen, setExportOpen] = useState(false);
     const [importResult, setImportResult] = useState<any | null>(null);
     const [confirmClear, setConfirmClear] = useState(false);
-    const [confirmExit, setConfirmExit] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [typeMenu, setTypeMenu] = useState(false);
-    const [aiOpen, setAiOpen] = useState(true);
+    // AI panel remembers the user's last open/closed choice across sessions
+    // (default: open on first visit). Prevents re-squeezing the canvas for
+    // users who deliberately collapsed it.
+    const [aiOpen, setAiOpen] = useState(() => {
+        try {
+            const stored = localStorage.getItem("diauml:ai-panel-open");
+            return stored === null ? true : stored === "1";
+        } catch {
+            return true;
+        }
+    });
     const [sheets, setSheets] = useState<Sheet[]>([]);
     const [activeSheetId, setActiveSheetId] = useState<string>("");
     const [projectName, setProjectName] = useState<string>("");
@@ -238,6 +259,15 @@ export function Editor() {
     const sheetsRef = useRef<Sheet[]>([]);
     const projectNameRef = useRef<string>("");
 
+    // Persist the AI panel preference whenever it changes.
+    useEffect(() => {
+        try {
+            localStorage.setItem("diauml:ai-panel-open", aiOpen ? "1" : "0");
+        } catch {
+            /* storage unavailable — keep in-memory state only */
+        }
+    }, [aiOpen]);
+
     useEffect(() => {
         sheetsRef.current = sheets;
     }, [sheets]);
@@ -249,6 +279,22 @@ export function Editor() {
     const nodesRef = useRef<FlowNode[]>([]);
     const edgesRef = useRef<FlowEdge[]>([]);
     const canvasRef = useRef<HTMLDivElement>(null);
+    const editorRootRef = useRef<HTMLDivElement>(null);
+
+    // Track fullscreen enter/exit (Esc exits natively — keep the button icon in sync).
+    useEffect(() => {
+        const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener("fullscreenchange", onFsChange);
+        return () => document.removeEventListener("fullscreenchange", onFsChange);
+    }, []);
+
+    const toggleFullscreen = useCallback(() => {
+        if (document.fullscreenElement) {
+            void document.exitFullscreen().catch(() => { /* denied — ignore */ });
+        } else {
+            void editorRootRef.current?.requestFullscreen().catch(() => { /* denied — ignore */ });
+        }
+    }, []);
     const past = useRef<Snap[]>([]);
     const future = useRef<Snap[]>([]);
     const burst = useRef(false);
@@ -291,6 +337,7 @@ export function Editor() {
 
     const {
         remoteCursors,
+        onlineCount,
         emitCursorMove,
         emitSelectionChange,
         emitCanvasChange,
@@ -1046,13 +1093,29 @@ export function Editor() {
         if (selNodes.length) clipboard.current = clone(selNodes);
     }, []);
 
-    const paste = useCallback(() => {
+    const paste = useCallback((anchor?: XYPosition) => {
         if (!clipboard.current?.length) return;
         beginMutation();
+        // "Paste here" (context menu): translate the copied set so its
+        // bounding-box CENTRE lands on the anchor (the right-click point in
+        // flow coordinates). Pastes become top-level nodes — the anchor is an
+        // absolute canvas point, so a stale parentId would misplace them.
+        // Keyboard Ctrl+V (no anchor): legacy +26px nudge, parentId preserved.
+        let dx = 26;
+        let dy = 26;
+        let stripParent = false;
+        if (anchor) {
+            const xs = clipboard.current.flatMap((n) => [n.position.x, n.position.x + (n.width ?? 0)]);
+            const ys = clipboard.current.flatMap((n) => [n.position.y, n.position.y + (n.height ?? 0)]);
+            dx = anchor.x - (Math.min(...xs) + Math.max(...xs)) / 2;
+            dy = anchor.y - (Math.min(...ys) + Math.max(...ys)) / 2;
+            stripParent = true;
+        }
         const clones: FlowNode[] = clipboard.current.map((n) => ({
             ...clone(n),
             id: nanoid(8),
-            position: { x: n.position.x + 26, y: n.position.y + 26 },
+            position: { x: n.position.x + dx, y: n.position.y + dy },
+            ...(stripParent ? { parentId: undefined, extent: undefined } : {}),
             selected: true,
             data: { ...(n.data as FlowNodeData) },
         }));
@@ -1111,7 +1174,7 @@ export function Editor() {
                         addNode(primary, { x: p.x - primary.width / 2, y: p.y - primary.height / 2 });
                     },
                 },
-                { label: "Paste here", icon: CtxIcons.paste, shortcut: `${mod}+V`, disabled: !canPaste, onClick: paste },
+                { label: "Paste here", icon: CtxIcons.paste, disabled: !canPaste, onClick: () => paste(rf.screenToFlowPosition({ x: e.clientX, y: e.clientY })) },
                 {
                     label: "Select all",
                     icon: CtxIcons.selectAll,
@@ -1162,13 +1225,13 @@ export function Editor() {
             emitSelectionChange(n.map(x => x.id), edg.map(x => x.id));
 
             // Auto-open/close logic for Inspector
-            if (n.length > 0 || edg.length > 0) {
+            if ((n.length > 0 || edg.length > 0) && inspectorAutoOpen) {
                 setInspectorOpen(true);
             } else if (!inspectorManualOpen) {
                 setInspectorOpen(false);
             }
         },
-        [inspectorManualOpen]
+        [inspectorManualOpen, inspectorAutoOpen]
     );
 
     const layoutCanvas = useCallback(
@@ -1556,6 +1619,7 @@ export function Editor() {
 
             setSheets(prev => prev.map(s => s.id === activeSheetId ? updatedSheet : s));
 
+            setSaving(true);
             try {
                 await sheetService.updateSheet(activeSheetId, {
                     name: updatedSheet.name,
@@ -1573,6 +1637,8 @@ export function Editor() {
             } catch (error: any) {
                 console.error("Save failed", error);
                 toast.error("Auto-save failed: " + (error.message || "Server error"));
+            } finally {
+                setSaving(false);
             }
         }, 1000); // 1s debounce
 
@@ -1598,13 +1664,15 @@ export function Editor() {
         return () => window.removeEventListener("beforeunload", handleBeforeUnload);
     }, []);
 
-    const saveImmediate = useCallback(async () => {
-        if (saved || !id || !loaded || !activeSheetId) return;
+    const saveImmediate = useCallback(async (): Promise<boolean> => {
+        // Nothing pending / nothing loaded counts as success — callers may
+        // navigate away immediately.
+        if (saved || !id || !loaded || !activeSheetId) return true;
 
         const currentSheets = sheetsRef.current;
         const idx = currentSheets.findIndex(s => s.id === activeSheetId);
         const currentSheet = currentSheets[idx];
-        if (!currentSheet) return;
+        if (!currentSheet) return true; // nothing tracked → nothing to flush
 
         const updatedSheet = {
             ...currentSheet,
@@ -1617,6 +1685,7 @@ export function Editor() {
 
         setSheets(prev => prev.map(s => s.id === activeSheetId ? updatedSheet : s));
 
+        setSaving(true);
         try {
             await sheetService.updateSheet(activeSheetId, {
                 name: updatedSheet.name,
@@ -1631,8 +1700,12 @@ export function Editor() {
             });
             persistedSnapshotRef.current = canvasSnapshotKey(updatedSheet.nodes, updatedSheet.edges, updatedSheet.diagramType);
             setSaved(true);
+            return true;
         } catch (error) {
             console.error("Immediate save failed", error);
+            return false;
+        } finally {
+            setSaving(false);
         }
     }, [saved, id, loaded, activeSheetId, diagramType]);
 
@@ -2092,6 +2165,10 @@ export function Editor() {
     const exportPng = useCallback(async () => {
         const el = canvasRef.current;
         if (!el) return;
+        // Remember the user's viewport — the fitView below exists ONLY so the
+        // PNG captures the whole diagram. Restore it afterwards (also on
+        // failure) so exporting never hijacks the user's working view.
+        const prevViewport = rf.getViewport();
         rf.fitView({ padding: 0.25, duration: 0 });
         await new Promise((r) =>
             requestAnimationFrame(() => requestAnimationFrame(r))
@@ -2108,6 +2185,7 @@ export function Editor() {
                         "react-flow__minimap",
                         "react-flow__panel",
                         "react-flow__attribution",
+                        "canvas-view-controls",
                     ].some((c) => n.classList.contains(c));
                 },
             });
@@ -2117,6 +2195,8 @@ export function Editor() {
             a.click();
         } catch (err) {
             console.error("export failed", err);
+        } finally {
+            rf.setViewport(prevViewport);
         }
     }, [rf, diagramType]);
 
@@ -2235,6 +2315,7 @@ export function Editor() {
                 else if (k === "arrowdown") nudge(0, step);
             } else if ((k === "?" || e.key === "F1") && !typing) {
                 e.preventDefault();
+                setHelpOrigin(null); // keyboard toggle → default centre animation
                 setHelpOpen((v) => !v);
             } else if (k === "escape") {
                 setCtxMenu(null);
@@ -2264,25 +2345,37 @@ export function Editor() {
     // confirm, Import/Export/Help, AI clarification) → drop the toolbar BELOW the
     // popup backdrops (z-0 < z-50…z-100) so it gets dimmed/blurred exactly like the
     // rest of the page instead of floating above the dialog.
-    const editorPopupOpen = helpOpen || importOpen || exportOpen || confirmClear || confirmExit || importResult !== null;
+    const editorPopupOpen = helpOpen || importOpen || exportOpen || confirmClear || importResult !== null || typeMenu;
 
     return (
         <EditorContext.Provider value={{ updateNodeData, growNode }}>
-            <div className="flex h-screen w-full min-w-0 max-w-full flex-col overflow-hidden bg-white text-admin-on-surface">
+            <div ref={editorRootRef} className="flex h-screen w-full min-w-0 max-w-full flex-col overflow-hidden bg-white text-admin-on-surface">
                 {/* Popup open → demote the toolbar's z-index below the modal backdrops
                     so it fades behind them like every other element on screen. */}
                 <div aria-hidden={editorPopupOpen} className={editorPopupOpen ? "relative z-0" : undefined}>
                 <Toolbar
                     diagramType={diagramType}
-                    sheetName={sheets.find((s) => s.id === activeSheetId)?.name ?? ""}
                     onBackToDashboard={async () => {
+                        // Silent flush instead of a confirmation dialog: with
+                        // autosave, leaving never needs to ask — persist any
+                        // pending change (the ≤1s debounce window) and go.
+                        // Only a FAILED save keeps the user here (+ toast), so
+                        // no work is ever silently lost.
                         if (!saved) {
-                            setConfirmExit(true);
-                        } else {
-                            navigate(`/workspace/${id}`);
+                            const ok = await saveImmediate();
+                            if (!ok) {
+                                toast.error("Không lưu được thay đổi — kiểm tra kết nối rồi thử lại.");
+                                return;
+                            }
                         }
+                        navigate(`/workspace/${id}`);
                     }}
-                    onHelp={() => setHelpOpen(true)}
+                    onHelp={(e) => {
+                        // Anchor the spring animation to the ? button's centre.
+                        const rect = e?.currentTarget?.getBoundingClientRect();
+                        setHelpOrigin(rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null);
+                        setHelpOpen(true);
+                    }}
                     onVersionHistory={() => setVersionHistoryOpen(value => !value)}
                     versionHistoryOpen={versionHistoryOpen}
                     onUndo={undo}
@@ -2290,14 +2383,7 @@ export function Editor() {
                     canUndo={hist.undo}
                     canRedo={hist.redo}
                     onFit={() => rf.fitView({ padding: 0.25, duration: 400 })}
-                    onZoomIn={() => rf.zoomIn({ duration: 200 })}
-                    onZoomOut={() => rf.zoomOut({ duration: 200 })}
-                    onZoomReset={() => rf.zoomTo(1, { duration: 200 })}
-                    onZoomChange={(z) => rf.zoomTo(z)}
-                    minZoom={0.2}
-                    maxZoom={3}
                     onLayout={() => layoutCanvas("TB")}
-                    zoom={zoom}
                     showGrid={showGrid}
                     onToggleGrid={() => setShowGrid((v) => !v)}
                     showMinimap={showMinimap}
@@ -2309,6 +2395,9 @@ export function Editor() {
                         const next = !inspectorOpen;
                         setInspectorOpen(next);
                         setInspectorManualOpen(next);
+                        // Explicit toggle also (re)sets auto-open: closing here
+                        // stops auto-opening on selection; opening re-enables it.
+                        setInspectorAutoOpen(next);
                     }}
                     onClear={() => setConfirmClear(true)}
                     onImportCode={() => setImportOpen(true)}
@@ -2319,6 +2408,7 @@ export function Editor() {
                     saved={saved}
                     projectId={id}
                     isPublic={publicAccess}
+                    collabCount={onlineCount}
                     isOwner={user?.email === projectOwner}
                     onTogglePublic={async () => {
                         if (!id) return;
@@ -2406,7 +2496,7 @@ export function Editor() {
                                         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-admin-secondary">Open a file from Project Explorer, restore a recent tab, or create something new. The workspace stays open even when no tabs are active.</p>
                                         <div className="mt-6 flex flex-wrap justify-center gap-2">
                                             <button onClick={() => setExplorerCreateRequest({ id: Date.now(), kind: "diagram" })} className="rounded-lg bg-uml-blue px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700">New diagram</button>
-                                            <button onClick={() => setExplorerCreateRequest({ id: Date.now(), kind: "markdown" })} className="rounded-lg border border-admin-outline bg-white px-4 py-2.5 text-xs font-bold text-admin-on-surface hover:border-uml-blue hover:text-uml-blue">New Markdown</button>
+                                            <button onClick={() => setExplorerCreateRequest({ id: Date.now(), kind: "markdown" })} className="rounded-lg border border-admin-outline bg-white px-4 py-2.5 text-xs font-bold text-admin-on-surface hover:border-uml-blue hover:text-uml-blue">New markdown</button>
                                             <button onClick={() => setExplorerCreateRequest({ id: Date.now(), kind: "folder" })} className="rounded-lg border border-admin-outline bg-white px-4 py-2.5 text-xs font-bold text-admin-on-surface hover:border-uml-blue hover:text-uml-blue">New folder</button>
                                         </div>
                                         {workspaceTree.items.some(item => item.kind !== "folder") && <div className="mx-auto mt-8 max-w-lg rounded-xl border border-admin-outline bg-white p-3 text-left shadow-sm">
@@ -2459,7 +2549,7 @@ export function Editor() {
                                                     </p>
                                                     <p className="mt-0.5 text-[12.5px] text-admin-secondary/60 font-medium">
                                                         Double-click anywhere to add a shape, or drag one from the
-                                                        left.
+                                                        Shapes library.
                                                     </p>
                                                 </div>
                                             </div>
@@ -2516,7 +2606,10 @@ export function Editor() {
                                                 color="#c3c6d7"
                                             />
                                         )}
-                                        <Controls showInteractive={false} position="bottom-left" />
+                                        {/* React Flow's default <Controls> removed —
+                                            replaced by the custom bottom-left pill
+                                            (zoom slider + fit + fullscreen) rendered
+                                            outside <ReactFlow> below. */}
                                         {showMinimap && (
                                             <MiniMap
                                                 pannable
@@ -2531,23 +2624,42 @@ export function Editor() {
                                         )}
                                         <Panel position="top-right" className="m-3">
                                             <div className="pointer-events-none flex items-center gap-1.5 rounded-lg border border-admin-outline/30 bg-white/90 px-2.5 py-1.5 shadow-[0_1px_2px_rgba(0,74,198,0.04)] backdrop-blur">
-                  <span
-                      className={`h-1.5 w-1.5 rounded-full ${
-                          saved ? "bg-admin-primary" : "animate-pulse bg-admin-outline/50"
-                      }`}
-                  />
+                                                <span
+                                                    className={`h-1.5 w-1.5 rounded-full ${
+                                                        saved
+                                                            ? "bg-emerald-500"
+                                                            : saving
+                                                              ? "animate-pulse bg-admin-primary"
+                                                              : "bg-admin-outline/60"
+                                                    }`}
+                                                />
                                                 <span className="text-[11.5px] font-bold text-admin-secondary">
-                    {saved ? "Saved" : "Saving…"}
-                  </span>
+                                                    {saved ? "Saved" : saving ? "Saving…" : "Unsaved changes"}
+                                                </span>
                                             </div>
                                         </Panel>
                                     </ReactFlow>
+
+                                    {/* Floating view controls — bottom-left of the canvas */}
+                                    <ViewControls
+                                        zoom={zoom}
+                                        minZoom={0.2}
+                                        maxZoom={3}
+                                        onZoomIn={() => rf.zoomIn({ duration: 200 })}
+                                        onZoomOut={() => rf.zoomOut({ duration: 200 })}
+                                        onZoomReset={() => rf.zoomTo(1, { duration: 200 })}
+                                        onZoomChange={(z) => rf.zoomTo(z)}
+                                        onFit={() => rf.fitView({ padding: 0.25, duration: 400 })}
+                                        isFullscreen={isFullscreen}
+                                        onToggleFullscreen={toggleFullscreen}
+                                    />
 
                                     {!inspectorOpen && (
                                         <button
                                             onClick={() => {
                                                 setInspectorOpen(true);
                                                 setInspectorManualOpen(true);
+                                                setInspectorAutoOpen(true);
                                             }}
                                             title="Show properties"
                                             className="animate-fade-in absolute right-0 top-1/2 z-20 flex h-20 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-admin-outline/30 bg-white text-admin-secondary/40 shadow-[-4px_0_12px_rgba(0,74,198,0.06)] transition-colors hover:bg-admin-bg hover:text-admin-primary"
@@ -2577,6 +2689,8 @@ export function Editor() {
                                         onClose={() => {
                                             setInspectorOpen(false);
                                             setInspectorManualOpen(false);
+                                            // Explicit close → stop auto-opening on every selection.
+                                            setInspectorAutoOpen(false);
                                         }}
                                     />
                                 )}
@@ -2635,7 +2749,7 @@ export function Editor() {
                 />
             )}
 
-            {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
+            {helpOpen && <HelpOverlay origin={helpOrigin} onClose={() => setHelpOpen(false)} />}
 
             {importResult && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -2686,25 +2800,6 @@ export function Editor() {
                         setConfirmClear(false);
                     }}
                     onCancel={() => setConfirmClear(false)}
-                />
-            )}
-
-            {confirmExit && (
-                <ConfirmDialog
-                    title="Unsaved Changes"
-                    message="You have unsaved changes. Do you want to save them before leaving?"
-                    confirmLabel="Save & Leave"
-                    cancelLabel="Discard & Leave"
-                    danger={false}
-                    onConfirm={async () => {
-                        await saveImmediate();
-                        setConfirmExit(false);
-                        navigate(`/workspace/${id}`);
-                    }}
-                    onCancel={() => {
-                        setConfirmExit(false);
-                        navigate(`/workspace/${id}`);
-                    }}
                 />
             )}
 

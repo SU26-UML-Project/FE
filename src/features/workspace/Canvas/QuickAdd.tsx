@@ -38,7 +38,11 @@ export function QuickAdd({
   }, [onClose]);
 
   const W = 188;
-  const H = 132;
+  // Estimate the real popup height from the number of palette rows so the
+  // bottom-edge clamp stays accurate (7 shapes = 3 rows ≈ 210px, not 132px).
+  // Row ≈ 55px (aspect-square cell in a 3-col grid) + 4px gap; header ≈ 44px.
+  const rows = Math.ceil(diagram.nodes.length / 3);
+  const H = 44 + rows * 59;
   const px = Math.min(x, window.innerWidth - W - 8);
   const py = Math.min(y, window.innerHeight - H - 8);
 

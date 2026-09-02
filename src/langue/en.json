@@ -64,19 +64,34 @@
     "tagline": "A modern UML platform for engineering teams. Design complex systems with absolute precision.",
     "product": {
       "title": "Product",
-      "items": ["Class diagram", "Sequence diagram", "Use case diagram"]
+      "items": [
+        "Class diagram",
+        "Sequence diagram",
+        "Use case diagram"
+      ]
     },
     "resources": {
       "title": "Resources",
-      "items": ["Documentation", "Ready-made templates", "Pricing"]
+      "items": [
+        "Documentation",
+        "Ready-made templates",
+        "Pricing"
+      ]
     },
     "company": {
       "title": "Company",
-      "items": ["About us", "Blog", "Contact"]
+      "items": [
+        "About us",
+        "Blog",
+        "Contact"
+      ]
     },
     "legal": {
       "title": "Legal",
-      "items": ["Privacy policy", "Terms of service"]
+      "items": [
+        "Privacy policy",
+        "Terms of service"
+      ]
     },
     "rights": "© 2026 DiaUML Studio. All rights reserved by DiaTeam."
   },
@@ -85,8 +100,8 @@
     "dashboard": "Dashboard",
     "untitled": "Untitled",
     "shortcuts": "Keyboard shortcuts (?)",
-    "historyTitle": "Version history — browse & restore previous snapshots",
-    "history": "History",
+    "historyTitle": "Version history — view & restore previous snapshots",
+    "history": "Version history",
     "undo": "Undo (Ctrl+Z)",
     "redo": "Redo (Ctrl+Shift+Z)",
     "zoomOut": "Zoom out",
@@ -120,6 +135,8 @@
     "code": "Mermaid / PlantUML code",
     "toastCollabOn": "Collaboration enabled! Link copied to clipboard.",
     "toastCollabOff": "Collaboration disabled. Project is now private.",
-    "toastCopyFail": "Failed to copy link"
+    "toastCopyFail": "Failed to copy link",
+    "fullscreen": "Fullscreen",
+    "fullscreenExit": "Exit fullscreen"
   }
 }

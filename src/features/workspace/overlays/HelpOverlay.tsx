@@ -1,3 +1,5 @@
+import { useEffect, useState, type CSSProperties } from "react";
+
 function Row({ keys, action }: { keys: string[]; action: string }) {
   return (
     <div className="flex items-center justify-between gap-4 py-1.5">
@@ -34,14 +36,37 @@ function Section({
   );
 }
 
-export function HelpOverlay({ onClose }: { onClose: () => void }) {
+export function HelpOverlay({ origin, onClose }: { origin?: { x: number; y: number } | null; onClose: () => void }) {
+  // Exit animation: intercept "close", play the collapse-back spring first,
+  // then unmount via the parent's onClose.
+  const [closing, setClosing] = useState(false);
+  const close = () => setClosing(true);
+
+  useEffect(() => {
+    if (!closing) return;
+    const timer = setTimeout(onClose, 240);
+    return () => clearTimeout(timer);
+  }, [closing, onClose]);
+
+  // Esc also dismisses (with the same collapse animation).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Vector from the card's final (centred) position to the ? button.
+  const hx = origin ? origin.x - window.innerWidth / 2 : 0;
+  const hy = origin ? origin.y - window.innerHeight / 2 : 0;
+
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4 backdrop-blur-[2px]"
-      onClick={onClose}
+      className={`fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4 backdrop-blur-[2px] transition-opacity duration-200 ${closing ? "opacity-0" : "opacity-100"}`}
+      onClick={close}
     >
       <div
-        className="animate-pop w-full max-w-2xl overflow-hidden rounded-2xl border border-admin-outline/30 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.25)]"
+        className={`w-full max-w-2xl overflow-hidden rounded-2xl border border-admin-outline/30 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.25)] ${closing ? "help-pop-out" : "help-pop-in"}`}
+        style={{ "--hx": `${hx}px`, "--hy": `${hy}px` } as CSSProperties}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-admin-outline/30 px-5 py-3.5">
@@ -49,7 +74,7 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
             <h2 className="text-[15px] font-bold text-admin-on-surface">Keyboard shortcuts</h2>
             <p className="text-[12px] text-admin-secondary/60">Move faster — everything is keyboard-driven.</p>
           </div>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-admin-secondary/50 transition-colors hover:bg-admin-bg hover:text-admin-on-surface">
+          <button onClick={close} className="flex h-8 w-8 items-center justify-center rounded-lg text-admin-secondary/50 transition-colors hover:bg-admin-bg hover:text-admin-on-surface">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>

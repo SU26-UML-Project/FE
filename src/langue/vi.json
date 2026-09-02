@@ -64,19 +64,34 @@
     "tagline": "Nền tảng vẽ UML hiện đại dành cho đội ngũ kỹ thuật. Thiết kế hệ thống phức tạp với độ chính xác tuyệt đối.",
     "product": {
       "title": "Sản phẩm",
-      "items": ["Sơ đồ lớp", "Sơ đồ tuần tự", "Sơ đồ ca sử dụng"]
+      "items": [
+        "Sơ đồ lớp",
+        "Sơ đồ tuần tự",
+        "Sơ đồ ca sử dụng"
+      ]
     },
     "resources": {
       "title": "Tài nguyên",
-      "items": ["Tài liệu", "Mẫu có sẵn", "Bảng giá"]
+      "items": [
+        "Tài liệu",
+        "Mẫu có sẵn",
+        "Bảng giá"
+      ]
     },
     "company": {
       "title": "Công ty",
-      "items": ["Về chúng tôi", "Blog", "Liên hệ"]
+      "items": [
+        "Về chúng tôi",
+        "Blog",
+        "Liên hệ"
+      ]
     },
     "legal": {
       "title": "Pháp lý",
-      "items": ["Chính sách bảo mật", "Điều khoản dịch vụ"]
+      "items": [
+        "Chính sách bảo mật",
+        "Điều khoản dịch vụ"
+      ]
     },
     "rights": "© 2026 DiaUML Studio. Mọi quyền được bảo lưu bởi DiaTeam."
   },
@@ -85,8 +100,8 @@
     "dashboard": "Bảng điều khiển",
     "untitled": "Chưa đặt tên",
     "shortcuts": "Phím tắt (?)",
-    "historyTitle": "Lịch sử phiên bản — xem & khôi phục các bản ghi trước đó",
-    "history": "Lịch sử",
+    "historyTitle": "Lịch sử thay đổi — xem & khôi phục các bản ghi trước đó",
+    "history": "Lịch sử thay đổi",
     "undo": "Hoàn tác (Ctrl+Z)",
     "redo": "Làm lại (Ctrl+Shift+Z)",
     "zoomOut": "Thu nhỏ",
@@ -120,6 +135,8 @@
     "code": "Mã Mermaid / PlantUML",
     "toastCollabOn": "Đã bật cộng tác! Liên kết đã được sao chép vào clipboard.",
     "toastCollabOff": "Đã tắt cộng tác. Dự án hiện ở chế độ riêng tư.",
-    "toastCopyFail": "Không thể sao chép liên kết"
+    "toastCopyFail": "Không thể sao chép liên kết",
+    "fullscreen": "Toàn màn hình",
+    "fullscreenExit": "Thoát toàn màn hình"
   }
 }

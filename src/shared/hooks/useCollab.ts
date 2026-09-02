@@ -1,4 +1,4 @@
-﻿import { useEffect, useCallback, useRef, useState } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { toast } from "../lib/toast";
 import { socketService, CursorData, SelectionData, CanvasChangeData } from "../../services";
 import { useAuthStore } from "../../features/auth/model/useAuthStore";
@@ -20,6 +20,30 @@ export function useCollab(
   const rf = useReactFlow();
   const [remoteCursors, setRemoteCursors] = useState<Record<string, CursorData>>({});
   const [remoteSelections, setRemoteSelections] = useState<Record<string, SelectionData>>({});
+  // Presence: userIds currently sharing this sheet room. Rebuilt from
+  // user:joined / user:left / cursor:update events (the backend has no
+  // "room users" snapshot event yet, so a silent pre-existing user only
+  // appears once they emit something — cursor move, selection, canvas edit).
+  const [presentUsers, setPresentUsers] = useState<Set<string>>(new Set());
+
+  const trackPresent = useCallback((userId?: string) => {
+    if (!userId) return;
+    setPresentUsers((prev) => {
+      if (prev.has(userId)) return prev;
+      const next = new Set(prev);
+      next.add(userId);
+      return next;
+    });
+  }, []);
+  const untrackPresent = useCallback((userId?: string) => {
+    if (!userId) return;
+    setPresentUsers((prev) => {
+      if (!prev.has(userId)) return prev;
+      const next = new Set(prev);
+      next.delete(userId);
+      return next;
+    });
+  }, []);
   
   const userColor = useRef(COLORS[Math.floor(Math.random() * COLORS.length)]);
   const lastEmit = useRef<number>(0);
@@ -31,6 +55,7 @@ export function useCollab(
       }
       setRemoteCursors({});
       setRemoteSelections({});
+      setPresentUsers(new Set());
       return;
     }
 
@@ -39,6 +64,9 @@ export function useCollab(
 
     const socket = socketService.socket;
     if (!socket) return;
+
+    // Reset presence for the new room.
+    setPresentUsers(new Set());
 
     socket.on("collab:disabled", (message) => {
       toast.error(message || "The owner has disabled collaboration for this project.");
@@ -55,10 +83,15 @@ export function useCollab(
 
     socket.on("cursor:update", (data) => {
       setRemoteCursors((prev) => ({ ...prev, [data.userId]: data }));
+      trackPresent(data.userId); // presence bootstrap for pre-existing users
     });
 
     socket.on("selection:update", (data) => {
       setRemoteSelections((prev) => ({ ...prev, [data.userId]: data }));
+    });
+
+    socket.on("user:joined", (data) => {
+      trackPresent(data.userId);
     });
 
     socket.on("canvas:update", (data) => {
@@ -68,6 +101,7 @@ export function useCollab(
     });
 
     socket.on("user:left", (data) => {
+      untrackPresent(data.userId);
       setRemoteCursors((prev) => {
         const next = { ...prev };
         delete next[data.userId];
@@ -85,6 +119,7 @@ export function useCollab(
       socket.off("collab:disabled");
       socket.off("cursor:update");
       socket.off("selection:update");
+      socket.off("user:joined");
       socket.off("canvas:update");
       socket.off("user:left");
     };
@@ -134,6 +169,8 @@ export function useCollab(
   return {
     remoteCursors,
     remoteSelections,
+    // Self + distinct remote users known to be in the current sheet room.
+    onlineCount: presentUsers.size + 1,
     emitCursorMove,
     emitSelectionChange,
     emitCanvasChange,

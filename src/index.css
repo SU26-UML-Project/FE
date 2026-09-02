@@ -307,6 +307,23 @@ button {
     animation: pop-in 0.14s ease-out;
 }
 
+/* Help sheet — springs out of the toolbar ? button and collapses back into it.
+   --hx/--hy = vector from the centred card to the button (set inline). */
+@keyframes help-pop-in {
+    from { opacity: 0; transform: translate(var(--hx, 0px), var(--hy, 0px)) scale(0.25); }
+    to { opacity: 1; transform: translate(0, 0) scale(1); }
+}
+@keyframes help-pop-out {
+    from { opacity: 1; transform: translate(0, 0) scale(1); }
+    to { opacity: 0; transform: translate(var(--hx, 0px), var(--hy, 0px)) scale(0.25); }
+}
+.help-pop-in {
+    animation: help-pop-in 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.help-pop-out {
+    animation: help-pop-out 0.22s cubic-bezier(0.6, 0, 0.75, 0.45) both;
+}
+
 /* Range input (zoom slider etc.) */
 input[type="range"] {
     -webkit-appearance: none;

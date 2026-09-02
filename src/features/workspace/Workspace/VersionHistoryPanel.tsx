@@ -4,8 +4,8 @@ import { Background, ReactFlow, ReactFlowProvider, type Viewport } from '@xyflow
 import { toast } from '../../../shared/lib/toast'
 import { Skeleton, SkeletonText } from '../../../shared/ui/Skeleton'
 import { diagramVersionService } from '../../projects/api/diagramVersionApi'
-import { nodeTypes } from '../canvas/Nodes'
-import { edgeTypes } from '../canvas/Edges'
+import { nodeTypes } from '../Canvas/Nodes'
+import { edgeTypes } from '../Canvas/Edges'
 import type { DiagramSnapshot, DiagramVersion } from '../types'
 
 interface Props {
