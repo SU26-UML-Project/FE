@@ -7,8 +7,8 @@ function IconBtn({ label, onClick, active, disabled, children }: {
     label: string; onClick?: () => void; active?: boolean; disabled?: boolean; children: React.ReactNode;
 }) {
     return (
-        <button title={label} onClick={onClick} disabled={disabled}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${active ? "border-uml-blue bg-uml-blue text-white shadow-sm" : "border-transparent text-admin-secondary hover:bg-admin-bg hover:text-admin-primary"}`}>
+        <button title={label} aria-label={label} aria-pressed={active ?? undefined} onClick={onClick} disabled={disabled}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uml-blue disabled:cursor-not-allowed disabled:opacity-35 ${active ? "border-uml-blue bg-uml-blue text-white shadow-sm" : "border-transparent text-admin-secondary hover:bg-admin-bg hover:text-admin-primary"}`}>
             {children}
         </button>
     );
@@ -113,11 +113,11 @@ export function Toolbar(props: {
     }, [moreMenu]);
 
     return (
-        <header className="relative z-[120] flex h-14 w-full min-w-0 shrink-0 items-center gap-3 overflow-visible border-b border-[var(--line)] bg-white px-3">
+        <header role="toolbar" aria-label="Diagram editor toolbar" className="relative z-[120] flex h-14 w-full min-w-0 shrink-0 items-center gap-2 overflow-visible border-b border-[var(--line)] bg-white px-3">
             {/* Brand */}
-            <button onClick={props.onBackToDashboard} className="group flex items-center gap-2.5 pl-1 pr-2 hover:opacity-80 transition-opacity">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-uml-blue text-white group-hover:bg-blue-700">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <button onClick={props.onBackToDashboard} aria-label={t("toolbar.backTo")} className="group flex shrink-0 items-center gap-2.5 pl-1 pr-2 hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-uml-blue rounded-lg">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-uml-blue text-white group-hover:bg-admin-primary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M19 12H5" />
                         <path d="m12 19-7-7 7-7" />
                     </svg>
@@ -136,12 +136,12 @@ export function Toolbar(props: {
                 title={t("toolbar.shortcuts")}
                 aria-label={t("toolbar.shortcuts")}
                 onClick={(e) => props.onHelp(e)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-admin-outline/40 text-[14px] font-black text-admin-secondary transition-colors hover:border-uml-blue/40 hover:bg-uml-blue/5 hover:text-uml-blue"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-admin-outline/40 text-[14px] font-black text-admin-secondary transition-colors hover:border-uml-blue/40 hover:bg-uml-blue/5 hover:text-uml-blue focus-visible:outline-2 focus-visible:outline-uml-blue"
             >
                 ?
             </button>
 
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="ml-auto flex min-w-0 items-center gap-1.5" role="group" aria-label="Edit actions">
                 <IconBtn label={t("toolbar.undo")} onClick={props.onUndo} disabled={!props.canUndo}>
                     <I><path d="M9 14 4 9l5-5" /><path d="M4 9h11a6 6 0 0 1 0 12H8" /></I>
                 </IconBtn>
@@ -153,6 +153,7 @@ export function Toolbar(props: {
 
                 {/* Zoom widget moved to the canvas (bottom-left floating pill,
                     see Canvas/ViewControls.tsx) together with fullscreen. */}
+                <div className="hidden items-center gap-1.5 sm:flex" role="group" aria-label="View options">
                 <IconBtn label={t("toolbar.fit")} onClick={props.onFit}>
                     <I><path d="M4 9V4h5" /><path d="M20 9V4h-5" /><path d="M4 15v5h5" /><path d="M20 15v5h-5" /></I>
                 </IconBtn>
@@ -160,7 +161,8 @@ export function Toolbar(props: {
                     with a tiny gradient sparkle badge as the single accent. */}
                 <button onClick={props.onLayout}
                         title={t("toolbar.magicTitle")}
-                        className="group relative flex h-8 shrink-0 items-center gap-2 rounded-lg border border-violet-200/80 bg-violet-50/70 pl-1.5 pr-2.5 text-[12.5px] font-bold text-violet-700 transition-all duration-200 hover:border-violet-300 hover:bg-violet-100/80 hover:shadow-[0_2px_12px_rgba(139,92,246,0.28)] active:scale-95">
+                        aria-label={t("toolbar.magicTitle")}
+                        className="group relative flex h-8 shrink-0 items-center gap-2 rounded-lg border border-violet-200/80 bg-violet-50/70 pl-1.5 pr-2.5 text-[12.5px] font-bold text-violet-700 transition-all duration-200 hover:border-violet-300 hover:bg-violet-100/80 hover:shadow-[0_2px_12px_rgba(139,92,246,0.28)] active:scale-95 focus-visible:outline-2 focus-visible:outline-violet-500">
                     {/* Accent: small gradient badge — the only "loud" element left */}
                     <span aria-hidden className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-sm transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110">
                         <I size={11}>
@@ -184,6 +186,7 @@ export function Toolbar(props: {
                 <IconBtn label={props.inspectorOpen ? t("toolbar.hideProps") : t("toolbar.showProps")} active={props.inspectorOpen} onClick={props.onToggleInspector}>
                     <I><rect x="3.5" y="4.5" width="17" height="15" rx="2" /><path d="M14 4.5v15" /></I>
                 </IconBtn>
+                </div>
 
                 <Divider />
 
@@ -191,7 +194,7 @@ export function Toolbar(props: {
                 <button onClick={props.onClear}
                         title={t("toolbar.clearTitle")}
                         aria-label={t("toolbar.clearTitle")}
-                        className="group flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-red-50/70 text-red-600 transition-all duration-200 hover:border-red-300 hover:bg-red-100 hover:text-red-700 hover:shadow-[0_2px_10px_rgba(220,38,38,0.18)] active:scale-95">
+                        className="group flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-red-50/70 text-red-600 transition-all duration-200 hover:border-red-300 hover:bg-red-100 hover:text-red-700 hover:shadow-[0_2px_10px_rgba(220,38,38,0.18)] active:scale-95 focus-visible:outline-2 focus-visible:outline-red-500">
                     <I size={15} className="transition-transform duration-200 group-hover:-rotate-12">
                         <path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="M6.5 7l1 13h9l1-13" /><path d="M10 11v5M14 11v5" />
                     </I>
@@ -249,8 +252,10 @@ export function Toolbar(props: {
                             onMouseEnter={() => setHoverSide("import")}
                             onFocus={() => setHoverSide("import")}
                             title={t("toolbar.importTitle")}
+                            aria-label={t("toolbar.importTitle")}
+                            aria-haspopup="menu"
                             aria-expanded={importMenu}
-                            className={`flex h-8 items-center gap-1.5 px-2.5 text-[12.5px] font-bold transition-colors ${
+                            className={`flex h-8 items-center gap-1.5 px-2.5 text-[12.5px] font-bold transition-colors focus-visible:outline-2 focus-visible:outline-uml-blue ${
                                 importMenu
                                     ? "bg-admin-bg text-admin-primary"
                                     : "bg-white text-admin-secondary hover:bg-uml-blue/5 hover:text-uml-blue"
@@ -267,9 +272,11 @@ export function Toolbar(props: {
                             onMouseEnter={() => setHoverSide("export")}
                             onFocus={() => setHoverSide("export")}
                             title={t("toolbar.exportTitle")}
+                            aria-label={t("toolbar.exportTitle")}
+                            aria-haspopup="menu"
                             aria-expanded={menu}
-                            className={`flex h-8 items-center gap-1.5 px-2.5 text-[12.5px] font-bold text-white shadow-sm transition-colors ${
-                                menu ? "bg-blue-700" : "bg-admin-primary hover:bg-blue-700"
+                            className={`flex h-8 items-center gap-1.5 px-2.5 text-[12.5px] font-bold text-white shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-uml-blue ${
+                                menu ? "bg-admin-primary brightness-90" : "bg-admin-primary hover:brightness-90"
                             }`}
                         >
                             <I size={15}><path d="M12 20V9" /><path d="m8 13 4-4 4 4" /><path d="M5 5h14" /></I>
@@ -279,7 +286,7 @@ export function Toolbar(props: {
                         </button>
                     </div>
                     {importMenu && (
-                        <div className="animate-pop absolute right-0 top-9 z-[140] w-48 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+                        <div role="menu" aria-label={t("toolbar.importTitle")} className="animate-pop absolute right-0 top-9 z-[140] w-48 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
                             <MenuItem onClick={() => { fileRef.current?.click(); setImportMenu(false); }}>
                                 <span className="flex items-center gap-2.5">
                                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-admin-outline/30 bg-admin-bg text-admin-secondary">
@@ -299,7 +306,7 @@ export function Toolbar(props: {
                         </div>
                     )}
                     {menu && (
-                        <div className="animate-pop absolute right-0 top-9 z-[140] w-48 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+                        <div role="menu" aria-label={t("toolbar.exportTitle")} className="animate-pop absolute right-0 top-9 z-[140] w-48 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
                             <MenuItem onClick={() => { props.onExportPng(); setMenu(false); }}>
                                 <span className="flex items-center gap-2.5">
                                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-admin-outline/30 bg-admin-bg text-admin-secondary">
@@ -332,8 +339,8 @@ export function Toolbar(props: {
                 {/* ⋯ More — low-frequency actions (History, Language, Shortcuts)
                     moved off the main strip so the toolbar fits 1024–1366px screens. */}
                 <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => setMoreMenu((v) => !v)} title="More" aria-haspopup="menu" aria-expanded={moreMenu}
-                            className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
+                    <button onClick={() => setMoreMenu((v) => !v)} title="More" aria-label="More options" aria-haspopup="menu" aria-expanded={moreMenu}
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors focus-visible:outline-2 focus-visible:outline-uml-blue ${
                                 moreMenu
                                     ? "border-uml-blue/40 bg-uml-blue/5 text-uml-blue"
                                     : "border-admin-outline/40 text-admin-secondary hover:border-uml-blue/40 hover:bg-uml-blue/5 hover:text-uml-blue"
@@ -341,7 +348,7 @@ export function Toolbar(props: {
                         <I><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></I>
                     </button>
                     {moreMenu && (
-                        <div className="animate-pop absolute right-0 top-9 z-[140] w-56 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+                        <div role="menu" aria-label="More options" className="animate-pop absolute right-0 top-9 z-[140] w-56 overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
                             <MenuItem onClick={() => { props.onVersionHistory(); setMoreMenu(false); }}>
                                 <span className="flex items-center gap-2.5">
                                     <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors ${props.versionHistoryOpen ? "border-uml-blue/40 bg-uml-blue/10 text-uml-blue" : "border-admin-outline/30 bg-admin-bg text-admin-secondary"}`}>
@@ -386,12 +393,12 @@ export function Toolbar(props: {
 }
 
 function Divider() {
-    return <div className="mx-1 h-6 w-px bg-admin-outline/30" />;
+    return <div aria-hidden="true" className="mx-1 h-6 w-px shrink-0 bg-admin-outline/30" />;
 }
 
 function MenuItem({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
     return (
-        <button onClick={onClick} className="block w-full px-3.5 py-2 text-left text-[13px] text-admin-on-surface font-medium transition-colors hover:bg-admin-bg hover:text-admin-primary">
+        <button role="menuitem" onClick={onClick} className="block w-full px-3.5 py-2 text-left text-[13px] text-admin-on-surface font-medium transition-colors hover:bg-admin-bg hover:text-admin-primary focus-visible:bg-admin-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-uml-blue">
             {children}
         </button>
     );

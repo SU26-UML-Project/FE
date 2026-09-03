@@ -78,7 +78,7 @@ function EdgeView({ id, path, data, label, labelX, labelY, sourceX, sourceY, tar
   const OFF = 18;
 
   // Visual feedback: blue highlight when selected or hovered
-  const strokeColor = selected ? "#2563eb" : (d?.color || "#565e74");
+  const strokeColor = selected ? "#004ac6" : (d?.color || "#27272a");
   const strokeWidth = selected ? 3 : 1.5;
 
   return (
@@ -103,7 +103,7 @@ function EdgeView({ id, path, data, label, labelX, labelY, sourceX, sourceY, tar
               strokeWidth,
               strokeDasharray: d?.dashed ? "6 4" : undefined,
               transition: "stroke 0.2s, stroke-width 0.3s",
-              filter: selected ? "drop-shadow(0 0 2px rgba(37, 99, 235, 0.4))" : undefined
+              filter: selected ? "drop-shadow(0 0 2px rgba(0, 74, 198, 0.4))" : undefined
             }}
         />
         {mult.name ? (

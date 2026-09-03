@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { DIAGRAMS } from "../../../shared/lib/diagrams";
 import type { DiagramDef, DiagramType, PaletteItem } from "../../../types";
 
-const GLYPH = "#565e74"; // admin-secondary
+const GLYPH = "#27272a"; // unified INK with Canvas/Nodes + Glyphs
 
 export function ShapeGlyph({ type }: { type: string }) {
   const common = {
@@ -134,8 +134,8 @@ export function Sidebar({
   // Collapsed — slim launcher rail (mirrors the right AI rail).
   if (!open) {
     return (
-      <button onClick={onToggle} title="Show shapes & connectors"
-        className="flex w-12 shrink-0 flex-col items-center gap-3 border-r border-admin-outline/30 bg-admin-bg/50 py-3 text-admin-secondary transition-colors hover:bg-admin-bg hover:text-admin-primary">
+      <button onClick={onToggle} title="Show shapes & connectors" aria-label="Show shapes and connectors"
+        className="flex w-12 shrink-0 flex-col items-center gap-3 border-r border-admin-outline/30 bg-admin-bg/50 py-3 text-admin-secondary transition-colors hover:bg-admin-bg hover:text-admin-primary focus-visible:outline-2 focus-visible:outline-uml-blue">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-admin-primary text-white">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -151,45 +151,69 @@ export function Sidebar({
     );
   }
 
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const filteredNodes = q
+    ? diagram.nodes.filter((n) => `${n.label} ${n.type}`.toLowerCase().includes(q))
+    : diagram.nodes;
+  const filteredEdges = q
+    ? diagram.edges.filter((e) => `${e.label} ${e.id}`.toLowerCase().includes(q))
+    : diagram.edges;
+
   return (
-    <aside className="relative flex w-60 shrink-0 flex-col border-r border-admin-outline/30 bg-admin-bg/30">
+    <aside aria-label="Shape library" className="relative flex w-60 shrink-0 flex-col border-r border-admin-outline/30 bg-admin-bg/30">
       <div className="flex h-9 shrink-0 items-center justify-between border-b border-admin-outline/30 px-3">
         <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-admin-secondary/50">Library</span>
-        <button onClick={onToggle} title="Collapse"
-          className="flex h-6 w-6 items-center justify-center rounded-md text-admin-secondary/50 transition-colors hover:bg-admin-surface hover:text-admin-on-surface">
+        <button onClick={onToggle} title="Collapse library" aria-label="Collapse library"
+          className="flex h-6 w-6 items-center justify-center rounded-md text-admin-secondary/50 transition-colors hover:bg-admin-surface hover:text-admin-on-surface focus-visible:outline-2 focus-visible:outline-uml-blue">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 6l-6 6 6 6" />
           </svg>
         </button>
       </div>
       <DiagramSwitcher diagramType={diagramType} onDiagramChange={onDiagramChange} />
+      <div className="shrink-0 px-3 pt-2">
+        <label htmlFor="shape-search" className="sr-only">Search shapes and connectors</label>
+        <input
+          id="shape-search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search shapes…"
+          className="w-full rounded-lg border border-admin-outline/30 bg-white px-2.5 py-1.5 text-[12px] font-medium text-admin-on-surface outline-none transition-shadow placeholder:text-admin-secondary/40 focus:border-admin-primary focus:ring-4 focus:ring-admin-primary/10"
+        />
+      </div>
       <div className="flex-1 overflow-y-auto scroll-thin px-3 pt-3 pb-4">
         <SectionLabel>Shapes</SectionLabel>
+        {filteredNodes.length === 0 ? (
+          <p className="px-1 py-2 text-[12px] text-admin-secondary/60">No shapes match “{query}”.</p>
+        ) : (
         <div className="grid grid-cols-2 gap-2">
-          {diagram.nodes.map((item) => (
+          {filteredNodes.map((item) => (
             <button key={item.type + item.label} draggable
               onDragStart={(e) => {
                 e.dataTransfer.setData("application/graphite", JSON.stringify(item));
                 e.dataTransfer.effectAllowed = "move";
               }}
               onClick={() => onAddNode(item)}
-              className="group flex aspect-[5/4] cursor-grab flex-col items-center justify-center gap-1.5 rounded-xl border border-admin-outline/30 bg-white text-admin-secondary transition-all hover:-translate-y-0.5 hover:border-admin-primary hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] active:cursor-grabbing active:translate-y-0"
+              aria-label={`Add ${item.label}`}
+              className="group flex aspect-[5/4] cursor-grab flex-col items-center justify-center gap-1.5 rounded-xl border border-admin-outline/30 bg-white text-admin-secondary transition-all hover:-translate-y-0.5 hover:border-admin-primary hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] active:cursor-grabbing active:translate-y-0 focus-visible:outline-2 focus-visible:outline-uml-blue"
               title={`Add ${item.label} (drag onto canvas)`}>
-              <span className="opacity-80 transition-opacity group-hover:opacity-100">
+              <span aria-hidden="true" className="opacity-80 transition-opacity group-hover:opacity-100">
                 <ShapeGlyph type={item.type} />
               </span>
-              <span className="text-[11px] font-bold leading-none text-admin-secondary/80 group-hover:text-admin-primary">{item.label}</span>
+              <span className="text-[12px] font-bold leading-none text-admin-secondary/80 group-hover:text-admin-primary">{item.label}</span>
             </button>
           ))}
         </div>
+        )}
 
         <SectionLabel className="mt-6">Connectors</SectionLabel>
-        <div className="space-y-1.5">
-          {diagram.edges.map((opt) => {
+        <div className="space-y-1.5" role="radiogroup" aria-label="Connectors">
+          {filteredEdges.map((opt) => {
             const active = opt.id === activeEdgeId;
             return (
-              <button key={opt.id} onClick={() => onPickEdge(opt.id)}
-                className={`flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors ${active ? "border-admin-primary bg-white shadow-[0_2px_8px_rgba(0,74,198,0.08)]" : "border-transparent bg-white/60 hover:bg-white"}`}>
+              <button key={opt.id} onClick={() => onPickEdge(opt.id)} role="radio" aria-checked={active} aria-label={`Connector ${opt.label}`}
+                className={`flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-uml-blue ${active ? "border-admin-primary bg-white shadow-[0_2px_8px_rgba(0,74,198,0.08)]" : "border-transparent bg-white/60 hover:bg-white"}`}>
                 <span className="flex h-4 w-14 shrink-0 items-center">
                   <ConnectorGlyph markerEnd={opt.markerEnd} markerStart={opt.markerStart} dashed={opt.dashed} />
                 </span>

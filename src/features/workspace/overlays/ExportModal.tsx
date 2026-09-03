@@ -16,35 +16,35 @@ const STYLES = {
   overlay:
     "fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4",
   card:
-    "w-full max-w-3xl overflow-hidden rounded-2xl border border-zinc-200/70 bg-white shadow-2xl animate-pop",
+    "w-full max-w-3xl overflow-hidden rounded-2xl border border-admin-outline/30 bg-white shadow-2xl animate-pop",
   header:
-    "flex items-center justify-between border-b border-zinc-100 px-6 py-4 bg-zinc-50/50",
-  title: "text-[16px] font-bold text-zinc-900",
+    "flex items-center justify-between border-b border-admin-outline/30 px-6 py-4 bg-admin-bg/30",
+  title: "text-[16px] font-bold text-admin-on-surface",
   closeBtn:
-    "rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors",
+    "rounded-lg p-1.5 text-admin-secondary/60 hover:bg-admin-bg hover:text-admin-on-surface transition-colors focus-visible:outline-2 focus-visible:outline-uml-blue",
   body: "p-6",
   tabRow: "flex gap-1 mb-4",
   tab: (active: boolean) =>
-    `rounded-lg px-4 py-1.5 text-[12px] font-bold transition-all ${
+    `rounded-lg px-4 py-1.5 text-[12px] font-bold transition-all focus-visible:outline-2 focus-visible:outline-uml-blue ${
       active
-        ? "bg-blue-600 text-white shadow-sm"
-        : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
+        ? "bg-admin-primary text-white shadow-sm"
+        : "bg-admin-bg text-admin-secondary hover:bg-admin-surface"
     }`,
   codeBlock:
-    "h-80 w-full overflow-auto rounded-xl border border-zinc-200 bg-zinc-50 p-4 font-mono text-[12.5px] leading-relaxed text-zinc-800 whitespace-pre-wrap break-all",
+    "h-80 w-full overflow-auto rounded-xl border border-admin-outline/30 bg-admin-bg/50 p-4 font-mono text-[12.5px] leading-relaxed text-admin-on-surface whitespace-pre-wrap break-words",
   footer:
-    "flex items-center justify-between gap-3 border-t border-zinc-100 bg-zinc-50/50 px-6 py-4",
+    "flex items-center justify-between gap-3 border-t border-admin-outline/30 bg-admin-bg/30 px-6 py-4",
   copyBtn:
-    "rounded-lg bg-blue-600 px-5 py-2 text-[13px] font-bold text-white transition-all hover:bg-blue-700 disabled:opacity-50 shadow-sm flex items-center gap-2",
+    "rounded-lg bg-admin-primary px-5 py-2 text-[13px] font-bold text-white transition-all hover:bg-uml-blue disabled:opacity-50 shadow-sm flex items-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uml-blue",
   closeBtn2:
-    "rounded-lg px-4 py-2 text-[13px] font-bold text-zinc-500 hover:bg-zinc-100 transition-colors",
+    "rounded-lg px-4 py-2 text-[13px] font-bold text-admin-secondary hover:bg-admin-bg transition-colors focus-visible:outline-2 focus-visible:outline-uml-blue",
   badge: (active: boolean) =>
     `rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
       active
-        ? "bg-blue-100 text-blue-700"
-        : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200"
+        ? "bg-uml-blue/10 text-uml-blue"
+        : "bg-admin-bg text-admin-secondary/60 hover:bg-admin-surface"
     }`,
-  stats: "flex items-center gap-4 text-[12px] text-zinc-400",
+  stats: "flex items-center gap-4 text-[12px] text-admin-secondary/60",
 };
 
 export function ExportModal({ nodes, edges, diagramType, onClose }: ExportModalProps) {
@@ -106,7 +106,7 @@ export function ExportModal({ nodes, edges, diagramType, onClose }: ExportModalP
 
         {/* ── Body ── */}
         <div className={STYLES.body}>
-          <p className="mb-4 text-[13px] text-zinc-500">
+          <p className="mb-4 text-[13px] text-admin-secondary">
             Export your diagram as <strong>Mermaid</strong> or{" "}
             <strong>PlantUML</strong> code. Copy or download for use in
             documentation, wikis, or other tools.
@@ -138,18 +138,18 @@ export function ExportModal({ nodes, edges, diagramType, onClose }: ExportModalP
 
           {/* Compat hint */}
           {tab === "mermaid" && (
-            <p className="mt-3 text-[11px] text-blue-600/80 flex items-center gap-1.5">
+            <p className="mt-3 text-[11px] text-uml-blue/80 flex items-center gap-1.5">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
               Paste into{" "}
-              <a href="https://mermaid.live" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">mermaid.live</a>
+              <a href="https://mermaid.live" target="_blank" rel="noopener noreferrer" className="underline hover:text-uml-blue">mermaid.live</a>
               {" "}or use with Mermaid renderers.
             </p>
           )}
           {tab === "plantuml" && (
-            <p className="mt-3 text-[11px] text-green-600/80 flex items-center gap-1.5">
+            <p className="mt-3 text-[11px] text-admin-secondary/80 flex items-center gap-1.5">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
               Paste into{" "}
-              <a href="https://plantuml.com/plantuml/uml" target="_blank" rel="noopener noreferrer" className="underline hover:text-green-800">PlantUML server</a>
+              <a href="https://plantuml.com/plantuml/uml" target="_blank" rel="noopener noreferrer" className="underline hover:text-admin-primary">PlantUML server</a>
               {" "}or render locally with PlantUML CLI.
             </p>
           )}
@@ -165,7 +165,7 @@ export function ExportModal({ nodes, edges, diagramType, onClose }: ExportModalP
             <button onClick={onClose} className={STYLES.closeBtn2}>
               Close
             </button>
-            <button onClick={handleDownload} className="rounded-lg border border-zinc-300 px-4 py-2 text-[13px] font-bold text-zinc-600 transition-all hover:bg-zinc-100 flex items-center gap-2">
+            <button onClick={handleDownload} className="rounded-lg border border-admin-outline/40 px-4 py-2 text-[13px] font-bold text-admin-secondary transition-all hover:bg-admin-bg focus-visible:outline-2 focus-visible:outline-uml-blue flex items-center gap-2">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Download
             </button>

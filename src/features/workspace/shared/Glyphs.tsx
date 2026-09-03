@@ -1,7 +1,8 @@
 // Shared visual glyphs + palettes used by the Inspector (and sidebar) so the
 // connector / marker previews mirror what is actually drawn on the canvas.
+// P0: INK unified with Canvas/Nodes.tsx (#27272a) so previews match reality.
 
-const INK = "#3f3f46";
+const INK = "#27272a";
 
 export const COLOR_PALETTE: { label: string; value: string }[] = [
   { label: "Ink", value: "#18181b" },
@@ -11,7 +12,7 @@ export const COLOR_PALETTE: { label: string; value: string }[] = [
   { label: "Amber", value: "#d97706" },
   { label: "Green", value: "#16a34a" },
   { label: "Teal", value: "#0d9488" },
-  { label: "Blue", value: "#2563eb" },
+  { label: "Blue", value: "#004ac6" },
   { label: "Indigo", value: "#4f46e5" },
   { label: "Violet", value: "#7c3aed" },
   { label: "Pink", value: "#db2777" },

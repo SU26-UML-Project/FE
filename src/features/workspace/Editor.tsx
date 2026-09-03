@@ -35,7 +35,7 @@ import { detectAndParse } from "../../shared/lib/importers";
 import type { DiagramType, FlowEdge, FlowEdgeData, FlowNode, FlowNodeData, PaletteItem, Sheet } from "../../types";
 import { Toolbar } from "./panels/Toolbar";
 import { Sidebar } from "./panels/Sidebar";
-import { Inspector, type AlignMode } from "./panels/Inspector";
+import { Inspector } from "./panels/Inspector";
 import { ContextMenu, CtxIcons, type CtxItem } from "./overlays/ContextMenu";
 import { SmartGuides, type GuidesState } from "./Canvas/SmartGuides";
 import { QuickAdd } from "./Canvas/QuickAdd";
@@ -558,6 +558,37 @@ export function Editor() {
         [beginMutation, diagramType, activeEdgeId, setEdges, emitCanvasChange]
     );
 
+    // Cho phép kéo đầu edge đang có để đổi điểm nối (chấm) sau khi đã tạo.
+    // Không có handler này React Flow sẽ không cho reconnect — edge dính
+    // chặt vào chấm ban đầu đúng như bug được báo.
+    const onReconnect = useCallback(
+        (oldEdge: FlowEdge, conn: Connection) => {
+            beginMutation();
+            const normalizeHandle = (h?: string | null): string | undefined => {
+                if (!h) return undefined;
+                return h.endsWith("-t") ? h.slice(0, -2) : h;
+            };
+            setEdges((prev) => {
+                const next = prev.map((e) =>
+                    e.id === oldEdge.id
+                        ? {
+                              ...e,
+                              source: conn.source || e.source,
+                              target: conn.target || e.target,
+                              sourceHandle: normalizeHandle(conn.sourceHandle) ?? e.sourceHandle,
+                              targetHandle: normalizeHandle(conn.targetHandle) ?? e.targetHandle,
+                          }
+                        : e
+                );
+                if (!skipCollabEmit.current) {
+                    emitCanvasChange({ edges: next, type: "update" });
+                }
+                return next;
+            });
+        },
+        [beginMutation, setEdges, emitCanvasChange]
+    );
+
     const updateNodeData = useCallback(
         (id: string, patch: Partial<FlowNodeData>) => {
             beginMutation();
@@ -1003,81 +1034,6 @@ export function Editor() {
                     n.selected
                         ? { ...n, position: { x: n.position.x + dx, y: n.position.y + dy } }
                         : n
-                );
-                if (!skipCollabEmit.current) {
-                    emitCanvasChange({ nodes: next, type: "move" });
-                }
-                return next;
-            });
-        },
-        [beginMutation, setNodes, emitCanvasChange]
-    );
-
-    const alignSelection = useCallback(
-        (mode: AlignMode) => {
-            beginMutation();
-            setNodes((prev) => {
-                const items = prev.filter((n) => n.selected);
-                if (items.length < 2) return prev;
-                const boxes = items.map((n) => {
-                    const w = n.measured?.width ?? n.width ?? 120;
-                    const h = n.measured?.height ?? n.height ?? 40;
-                    return { id: n.id, x: n.position.x, y: n.position.y, w, h };
-                });
-                const minL = Math.min(...boxes.map((b) => b.x));
-                const maxR = Math.max(...boxes.map((b) => b.x + b.w));
-                const minT = Math.min(...boxes.map((b) => b.y));
-                const maxB = Math.max(...boxes.map((b) => b.y + b.h));
-                const cX = (minL + maxR) / 2;
-                const cY = (minT + maxB) / 2;
-                const pos: Record<string, { x?: number; y?: number }> = {};
-                const apply = (id: string, p: { x?: number; y?: number }) => {
-                    pos[id] = { ...(pos[id] ?? {}), ...p };
-                };
-                switch (mode) {
-                    case "left":
-                        boxes.forEach((b) => apply(b.id, { x: minL }));
-                        break;
-                    case "right":
-                        boxes.forEach((b) => apply(b.id, { x: maxR - b.w }));
-                        break;
-                    case "centerH":
-                        boxes.forEach((b) => apply(b.id, { x: cX - b.w / 2 }));
-                        break;
-                    case "top":
-                        boxes.forEach((b) => apply(b.id, { y: minT }));
-                        break;
-                    case "bottom":
-                        boxes.forEach((b) => apply(b.id, { y: maxB - b.h }));
-                        break;
-                    case "centerV":
-                        boxes.forEach((b) => apply(b.id, { y: cY - b.h / 2 }));
-                        break;
-                    case "distH": {
-                        const sorted = [...boxes].sort((a, b) => a.x - b.x);
-                        const sumW = sorted.reduce((s, b) => s + b.w, 0);
-                        const gap = (maxR - minL - sumW) / (sorted.length - 1);
-                        let cur = minL;
-                        sorted.forEach((b) => {
-                            apply(b.id, { x: cur });
-                            cur += b.w + gap;
-                        });
-                        break;
-                    }
-                    case "distV": {
-                        const sorted = [...boxes].sort((a, b) => a.y - b.y);
-                        const sumH = sorted.reduce((s, b) => s + b.h, 0);
-                        const gap = (maxB - minT - sumH) / (sorted.length - 1);
-                        let cur = minT;
-                        sorted.forEach((b) => {
-                            apply(b.id, { y: cur });
-                            cur += b.h + gap;
-                        });
-                        break;
-                    }
-                }
-                const next = prev.map((n) =>
-                    pos[n.id] ? { ...n, position: { ...n.position, ...pos[n.id] } } : n
                 );
                 if (!skipCollabEmit.current) {
                     emitCanvasChange({ nodes: next, type: "move" });
@@ -2566,6 +2522,9 @@ export function Editor() {
                                         onNodesChange={onNodesChange}
                                         onEdgesChange={onEdgesChange}
                                         onConnect={onConnect}
+                                        onReconnect={onReconnect}
+                                        reconnectRadius={24}
+                                        edgeUpdaterRadius={16}
                                         onSelectionChange={onSelectionChange}
                                         onSelectionDragStop={snapOnStop}
                                         onNodeContextMenu={onNodeCtx}
@@ -2577,7 +2536,7 @@ export function Editor() {
                                         connectionMode={ConnectionMode.Loose}
                                         connectionRadius={24}
                                         connectionLineType={ConnectionLineType.Straight}
-                                        connectionLineStyle={{ stroke: "#2563eb", strokeWidth: 2, strokeDasharray: "5,5" }}
+                                        connectionLineStyle={{ stroke: "#004ac6", strokeWidth: 2, strokeDasharray: "5,5" }}
                                         deleteKeyCode={null}
                                         selectionOnDrag
                                         selectionMode={SelectionMode.Partial}
@@ -2685,7 +2644,6 @@ export function Editor() {
                                         onUpdateEdge={updateEdge}
                                         onDelete={deleteSelected}
                                         onDuplicate={duplicateSelected}
-                                        onAlign={alignSelection}
                                         onClose={() => {
                                             setInspectorOpen(false);
                                             setInspectorManualOpen(false);

@@ -26,7 +26,20 @@ export function ContextMenu({
   useEffect(() => {
     const close = () => onClose();
     const onScroll = () => onClose();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { onClose(); return; }
+      // P0: arrow-key navigation between enabled items
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const btns = Array.from(ref.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? []);
+        if (btns.length === 0) return;
+        const idx = btns.indexOf(document.activeElement as HTMLButtonElement);
+        const next = e.key === "ArrowDown"
+          ? btns[(idx + 1 + btns.length) % btns.length]
+          : btns[(idx - 1 + btns.length) % btns.length];
+        next.focus();
+      }
+    };
     const onDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     };
@@ -34,7 +47,12 @@ export function ContextMenu({
     window.addEventListener("keydown", onKey);
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("mousedown", onDown);
+    // Focus first item on open for keyboard users
+    const t = window.setTimeout(() => {
+      ref.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+    }, 0);
     return () => {
+      window.clearTimeout(t);
       window.removeEventListener("resize", close);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("scroll", onScroll, true);
@@ -50,29 +68,33 @@ export function ContextMenu({
   return (
     <div
       ref={ref}
+      role="menu"
+      aria-label="Canvas actions"
       className="animate-pop fixed z-50 min-w-[200px] overflow-hidden rounded-xl border border-admin-outline/30 bg-white py-1 shadow-[0_8px_30px_rgba(0,0,0,0.16)]"
       style={{ left: px, top: py }}
       onContextMenu={(e) => e.preventDefault()}
     >
       {items.map((item, i) =>
         item.divider ? (
-          <div key={i} className="my-1 h-px bg-admin-outline/10" />
+          <div key={i} role="separator" className="my-1 h-px bg-admin-outline/10" />
         ) : (
           <button
             key={i}
+            role="menuitem"
             disabled={item.disabled}
+            aria-label={item.shortcut ? `${item.label}, ${item.shortcut}` : item.label}
             onClick={() => {
               item.onClick?.();
               onClose();
             }}
-            className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] font-bold transition-colors disabled:opacity-35 ${
+            className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] font-bold transition-colors focus-visible:bg-admin-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-uml-blue disabled:opacity-35 ${
               item.danger
                 ? "text-red-600 hover:bg-red-50"
                 : "text-admin-secondary hover:bg-admin-bg hover:text-admin-primary"
             }`}
           >
             {item.icon && (
-              <span className="flex h-4 w-4 items-center justify-center text-admin-secondary/40 group-hover:text-admin-primary">
+              <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center text-admin-secondary/40 group-hover:text-admin-primary">
                 {item.icon}
               </span>
             )}

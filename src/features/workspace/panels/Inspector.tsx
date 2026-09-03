@@ -18,8 +18,6 @@ const NODE_NAMES: Record<string, string> = {
 const inputCls = "w-full rounded-lg border border-admin-outline/30 bg-white px-2.5 py-1.5 text-[13px] text-admin-on-surface font-medium outline-none transition-shadow placeholder:text-admin-secondary/30 focus:border-admin-primary focus:ring-4 focus:ring-admin-primary/5";
 const labelCls = "mb-1 block text-[11px] font-bold uppercase tracking-[0.07em] text-admin-secondary/60";
 
-export type AlignMode = "left" | "centerH" | "right" | "top" | "centerV" | "bottom" | "distH" | "distV";
-
 export function Inspector(props: {
     nodesLen: number; edgesLen: number; activeConnectorName: string;
     selNodes: FlowNode[]; selEdges: FlowEdge[]; diagramType: DiagramType;
@@ -27,26 +25,26 @@ export function Inspector(props: {
     onUpdateNodeParent?: (id: string, parentId: string | undefined) => void;
     onUpdateNode: (id: string, patch: Partial<FlowNodeData>) => void;
     onUpdateEdge: (id: string, patch: { label?: string; marker?: string; markerStart?: string; type?: string; dashed?: boolean; color?: string; flip?: boolean }) => void;
-    onDelete: () => void; onDuplicate: () => void; onAlign: (mode: AlignMode) => void; onClose: () => void;
+    onDelete: () => void; onDuplicate: () => void; onClose: () => void;
 }) {
     const node = props.selNodes[0];
     const edge = props.selEdges[0];
     const multi = props.selNodes.length + props.selEdges.length > 1;
 
     return (
-        <aside className="flex w-72 shrink-0 flex-col border-l border-admin-outline/30 bg-admin-bg/30">
+        <aside aria-label="Inspector" className="flex w-72 shrink-0 flex-col border-l border-admin-outline/30 bg-admin-bg/30">
             <div className="flex h-12 shrink-0 items-center justify-between border-b border-admin-outline/30 pl-4 pr-2">
                 <span className="text-[13px] font-bold text-admin-on-surface">Inspector</span>
-                <button title="Hide panel" onClick={props.onClose}
-                        className="flex h-7 w-7 items-center justify-center rounded-md text-admin-secondary/50 transition-colors hover:bg-admin-surface hover:text-admin-on-surface">
+                <button title="Hide panel" aria-label="Hide inspector panel" onClick={props.onClose}
+                        className="flex h-7 w-7 items-center justify-center rounded-md text-admin-secondary/50 transition-colors hover:bg-admin-surface hover:text-admin-on-surface focus-visible:outline-2 focus-visible:outline-uml-blue">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
                 </button>
             </div>
 
             <div className="flex-1 overflow-y-auto scroll-thin px-4 py-4">
                 {multi ? (
-                    <MultiState count={props.selNodes.length + props.selEdges.length} nodeCount={props.selNodes.length}
-                                onDelete={props.onDelete} onDuplicate={props.onDuplicate} onAlign={props.onAlign} />
+                    <MultiState count={props.selNodes.length + props.selEdges.length}
+                                onDelete={props.onDelete} onDuplicate={props.onDuplicate} />
                 ) : node ? (
                     <NodeEditor node={node} allNodes={props.allNodes} onUpdateParent={props.onUpdateNodeParent} onChange={(patch) => props.onUpdateNode(node.id, patch)} onDelete={props.onDelete} onDuplicate={props.onDuplicate} />
                 ) : edge ? (
@@ -59,63 +57,12 @@ export function Inspector(props: {
     );
 }
 
-function AlignIcon({ mode }: { mode: AlignMode }) {
-    const line = { stroke: "currentColor", strokeWidth: 1.3 } as const;
-    const bar = { fill: "currentColor", opacity: 0.85 } as const;
-    const common = { width: 16, height: 16, viewBox: "0 0 16 16", fill: "none" } as const;
-    switch (mode) {
-        case "left": return (<svg {...common}><line x1="3" y1="2" x2="3" y2="14" {...line} /><rect x="4.5" y="3" width="7.5" height="2.6" rx="0.8" {...bar} /><rect x="4.5" y="8.4" width="5" height="2.6" rx="0.8" {...bar} /></svg>);
-        case "centerH": return (<svg {...common}><line x1="8" y1="1" x2="8" y2="15" {...line} /><rect x="3.5" y="3" width="9" height="2.6" rx="0.8" {...bar} /><rect x="5" y="8.4" width="6" height="2.6" rx="0.8" {...bar} /></svg>);
-        case "right": return (<svg {...common}><line x1="13" y1="2" x2="13" y2="14" {...line} /><rect x="4" y="3" width="7.5" height="2.6" rx="0.8" {...bar} /><rect x="6.5" y="8.4" width="5" height="2.6" rx="0.8" {...bar} /></svg>);
-        case "top": return (<svg {...common}><line x1="2" y1="3" x2="14" y2="3" {...line} /><rect x="3" y="4.5" width="8" height="2.6" rx="0.8" {...bar} /><rect x="8.5" y="4.5" width="4.5" height="2.6" rx="0.8" {...bar} /></svg>);
-        case "centerV": return (<svg {...common}><line x1="1" y1="8" x2="15" y2="8" {...line} /><rect x="3.5" y="5.5" width="3" height="5" rx="0.8" {...bar} /><rect x="8.5" y="3" width="3" height="10" rx="0.8" {...bar} /></svg>);
-        case "bottom": return (<svg {...common}><line x1="2" y1="13" x2="14" y2="13" {...line} /><rect x="3" y="6.4" width="8" height="2.6" rx="0.8" {...bar} /><rect x="8.5" y="6.4" width="4.5" height="2.6" rx="0.8" {...bar} /></svg>);
-        case "distH": return (<svg {...common}><rect x="2" y="5" width="3" height="6" rx="0.8" {...bar} /><rect x="6.5" y="5" width="3" height="6" rx="0.8" {...bar} /><rect x="11" y="5" width="3" height="6" rx="0.8" {...bar} /></svg>);
-        case "distV": return (<svg {...common}><rect x="5" y="2" width="6" height="3" rx="0.8" {...bar} /><rect x="5" y="6.5" width="6" height="3" rx="0.8" {...bar} /><rect x="5" y="11" width="6" height="3" rx="0.8" {...bar} /></svg>);
-    }
-}
-
-function AlignButton({ mode, title, onAlign, disabled }: {
-    mode: AlignMode; title: string; onAlign: (m: AlignMode) => void; disabled?: boolean;
+function MultiState({ count, onDelete, onDuplicate }: {
+    count: number; onDelete: () => void; onDuplicate: () => void;
 }) {
-    return (
-        <button title={title} disabled={disabled} onClick={() => onAlign(mode)}
-                className="flex h-8 items-center justify-center rounded-lg border border-admin-outline/30 bg-white text-admin-secondary transition-colors enabled:hover:border-admin-primary enabled:hover:bg-admin-primary enabled:hover:text-white disabled:opacity-35">
-            <AlignIcon mode={mode} />
-        </button>
-    );
-}
-
-function MultiState({ count, nodeCount, onDelete, onDuplicate, onAlign }: {
-    count: number; nodeCount: number; onDelete: () => void; onDuplicate: () => void; onAlign: (m: AlignMode) => void;
-}) {
-    const canAlign = nodeCount >= 2;
-    const canDistribute = nodeCount >= 3;
     return (
         <div className="animate-fade-in space-y-5">
             <p className="text-[13px] text-admin-secondary"><span className="font-bold text-admin-primary">{count}</span> elements selected</p>
-            {canAlign && (
-                <div className="space-y-2">
-                    <label className={labelCls}>Align</label>
-                    <div className="grid grid-cols-3 gap-1.5">
-                        <AlignButton mode="left" title="Align left" onAlign={onAlign} />
-                        <AlignButton mode="centerH" title="Align horizontal centers" onAlign={onAlign} />
-                        <AlignButton mode="right" title="Align right" onAlign={onAlign} />
-                        <AlignButton mode="top" title="Align top" onAlign={onAlign} />
-                        <AlignButton mode="centerV" title="Align vertical centers" onAlign={onAlign} />
-                        <AlignButton mode="bottom" title="Align bottom" onAlign={onAlign} />
-                    </div>
-                </div>
-            )}
-            {canDistribute && (
-                <div className="space-y-2">
-                    <label className={labelCls}>Distribute</label>
-                    <div className="grid grid-cols-2 gap-1.5">
-                        <AlignButton mode="distH" title="Distribute horizontally" onAlign={onAlign} />
-                        <AlignButton mode="distV" title="Distribute vertically" onAlign={onAlign} />
-                    </div>
-                </div>
-            )}
             <div className="flex gap-2 pt-1">
                 <SecondaryBtn onClick={onDuplicate}>Duplicate</SecondaryBtn>
                 <DangerBtn onClick={onDelete}>Delete</DangerBtn>
@@ -307,13 +254,13 @@ function MarkerPicker({ side, current, color, onPick }: {
     side: "start" | "end"; current: string; color?: string; onPick: (id: string) => void;
 }) {
     return (
-        <div className="grid grid-cols-6 gap-1">
+        <div className="grid grid-cols-6 gap-1" role="radiogroup" aria-label={side === "start" ? "Start marker" : "End marker"}>
             {MARKER_SHAPES.map((m: MarkerShape) => {
                 const value = side === "start" ? m.start : m.end;
                 const active = value === current;
                 return (
-                    <button key={m.label} title={m.label} onClick={() => onPick(value)}
-                            className={`flex h-8 items-center justify-center rounded-lg border transition-colors ${active ? "border-zinc-900 bg-white" : "border-[var(--line)] bg-white/60 hover:bg-white"}`}>
+                    <button key={m.label} title={m.label} aria-label={`${side} marker ${m.label}`} aria-pressed={active} onClick={() => onPick(value)}
+                            className={`flex h-8 items-center justify-center rounded-lg border transition-colors focus-visible:outline-2 focus-visible:outline-uml-blue ${active ? "border-admin-primary bg-uml-blue/5" : "border-[var(--line)] bg-white/60 hover:bg-white"}`}>
                         {side === "start" ? <ConnectorGlyph markerStart={m.start} color={color} width={26} /> : <ConnectorGlyph markerEnd={m.end} color={color} width={26} />}
                     </button>
                 );
@@ -326,17 +273,17 @@ function ColorRow({ value, onPick, onClear }: {
     value?: string; onPick: (c: string) => void; onClear: () => void;
 }) {
     return (
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Color">
             {COLOR_PALETTE.map((c) => {
                 const active = value === c.value;
                 return (
-                    <button key={c.value} title={c.label} onClick={() => onPick(c.value)}
-                            className={`h-6 w-6 rounded-full border transition-all ${active ? "border-white ring-2 ring-zinc-900 ring-offset-1" : "border-[var(--line)] hover:scale-110"}`}
+                    <button key={c.value} title={c.label} aria-label={`Color ${c.label}`} aria-pressed={active} onClick={() => onPick(c.value)}
+                            className={`h-6 w-6 rounded-full border transition-all focus-visible:outline-2 focus-visible:outline-uml-blue ${active ? "border-white ring-2 ring-admin-primary ring-offset-1" : "border-[var(--line)] hover:scale-110"}`}
                             style={{ background: c.value }} />
                 );
             })}
-            <button title="Reset to default" onClick={onClear}
-                    className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-[var(--line-strong)] text-zinc-400 transition-colors hover:text-zinc-700">
+            <button title="Reset to default" aria-label="Reset color to default" onClick={onClear}
+                    className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-[var(--line-strong)] text-zinc-400 transition-colors hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-uml-blue">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
             </button>
         </div>
@@ -389,13 +336,18 @@ function Hint({ k, v }: { k: string; v: string }) {
 function Toggle({
                     on,
                     onClick,
+                    label,
                 }: {
     on: boolean;
     onClick: () => void;
+    label?: string;
 }) {
     return (
         <button
             type="button"
+            role="switch"
+            aria-checked={on}
+            aria-label={label ?? "Toggle"}
             onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -408,7 +360,8 @@ function Toggle({
                 shrink-0
                 rounded-full
                 transition-colors
-                ${on ? "bg-zinc-900" : "bg-zinc-200"}
+                focus-visible:outline-2 focus-visible:outline-uml-blue
+                ${on ? "bg-admin-primary" : "bg-zinc-200"}
             `}
         >
             <span
