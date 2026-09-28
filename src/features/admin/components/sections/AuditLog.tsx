@@ -202,6 +202,14 @@ export default function AuditLog() {
             <p className="py-10 text-center text-[13px] text-amber-600">{dateError}</p>
           ) : loading ? (
             <div className="space-y-2">
+              {/* Hàng tiêu đề bảng (Thời gian · Người thực hiện · Hành động · Đối tượng · Chi tiết) */}
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-2">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-3 w-24" />
+              </div>
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div key={i} className="flex items-center gap-3 py-2">
                   <Skeleton className="h-8 w-8 rounded-full" />

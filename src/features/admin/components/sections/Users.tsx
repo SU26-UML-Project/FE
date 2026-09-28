@@ -441,6 +441,14 @@ export default function Users() {
             </div>
             <Skeleton className="h-9 w-48 rounded-lg" />
           </div>
+          <div className="mb-2 flex flex-wrap items-center gap-3 border-b border-slate-100 pb-2">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-3 w-14" />
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-3 w-12" />
+            <Skeleton className="h-3 w-12" />
+            <Skeleton className="h-3 w-20" />
+          </div>
           <div className="space-y-2">
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="flex items-center gap-3 py-2">

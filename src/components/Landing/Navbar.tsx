@@ -6,14 +6,17 @@ import UserMenu from '../../features/auth/components/UserMenu'
 import { useAuthStore } from '../../features/auth/model/useAuthStore'
 import { useT } from '../../langue'
 import LanguageSwitcher from '../../shared/ui/LanguageSwitcher'
+import { Skeleton } from '../../shared/ui/Skeleton'
 
 const Navbar = () => {
   const navigate = useNavigate()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
+  // Trang cần quay lại sau khi đăng nhập (ProtectedRoute truyền qua state.from).
+  const [redirectAfterLogin, setRedirectAfterLogin] = useState<string | undefined>(undefined)
   
-  const { user, isAuthenticated } = useAuthStore()
+  const { user, isAuthenticated, loading: authLoading } = useAuthStore()
   const t = useT()
 
   const location = useLocation()
@@ -26,13 +29,16 @@ const Navbar = () => {
   }
 
   useEffect(() => {
-    if (searchParams.get('openLogin') === 'true') {
-      openAuth('login')
-      // Clear the param after opening
-      searchParams.delete('openLogin')
-      setSearchParams(searchParams, { replace: true })
-    }
-  }, [searchParams, setSearchParams])
+    if (searchParams.get('openLogin') !== 'true') return
+    // ProtectedRoute đá người dùng về đây kèm state.from → sau khi đăng nhập phải
+    // quay lại đúng trang họ muốn mở, thay vì luôn bị đưa về /dashboard.
+    const from = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from
+    if (from?.pathname) setRedirectAfterLogin(`${from.pathname}${from.search ?? ''}${from.hash ?? ''}`)
+    openAuth('login')
+    // Clear the param after opening
+    searchParams.delete('openLogin')
+    setSearchParams(searchParams, { replace: true })
+  }, [searchParams, setSearchParams, location.state])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -81,6 +87,7 @@ const Navbar = () => {
           <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8" data-purpose="main-nav">
           <button
             onClick={() => {
+              if (authLoading) return;
               if (isAuthenticated) {
                 navigate('/dashboard');
               } else {
@@ -125,7 +132,15 @@ const Navbar = () => {
           <div className="flex items-center gap-2 lg:gap-3" data-purpose="header-buttons">
             {/* Language switcher — sits right next to UserMenu / auth buttons */}
             <LanguageSwitcher className="mr-1" />
-            {!isAuthenticated ? (
+            {authLoading ? (
+              // Auth đang được xác thực (`/users/me` ở lần load đầu). Giữ nguyên
+              // khung navbar và hiện placeholder thay vì nháy nút "Đăng nhập /
+              // Dùng thử miễn phí" rồi mới đổi thành avatar người dùng.
+              <>
+                <Skeleton className="h-9 w-24 rounded-md" />
+                <Skeleton className="h-9 w-28 rounded-md" />
+              </>
+            ) : !isAuthenticated ? (
               <>
                 {isScrolled ? (
                   <button 
@@ -161,8 +176,14 @@ const Navbar = () => {
 
       <AuthModal 
         isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
+        onClose={() => {
+          setIsAuthModalOpen(false)
+          // Modal đóng (kể cả sau khi đăng nhập xong) → xoá đích đến cũ để lần
+          // đăng nhập kế tiếp không bị điều hướng theo state cũ.
+          setRedirectAfterLogin(undefined)
+        }}
         initialMode={authMode}
+        redirectTo={redirectAfterLogin}
       />
     </>
   )

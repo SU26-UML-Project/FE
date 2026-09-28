@@ -44,7 +44,9 @@ const maxWidth = 520
 
 export default function ProjectExplorer(props: Props) {
   const [query, setQuery] = useState('')
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches
+  );
   const [width, setWidth] = useState(() => Math.min(maxWidth, Math.max(minWidth, Number(localStorage.getItem(widthKey)) || defaultWidth)))
   const [dialog, setDialog] = useState<Dialog>(null)
   const [context, setContext] = useState<{ x: number; y: number; item: WorkspaceFileItem | null } | null>(null)

@@ -240,6 +240,36 @@ export default function Dashboard() {
               </Card>
             ))}
           </div>
+          {/* SECTION 3 — Revenue trend (chart) + AI model stats */}
+          <div className="grid gap-4 xl:grid-cols-2">
+            {[1, 2].map((i) => (
+              <Card key={i} className="p-5">
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="mt-1.5 h-3 w-52" />
+                <Skeleton className="mt-4 h-56 w-full rounded-xl" />
+              </Card>
+            ))}
+          </div>
+          {/* SECTION 4 — Bảng top người dùng / dự án (2 cột) */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            {[1, 2].map((i) => (
+              <Card key={i} className="p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-6 w-20 rounded-lg" />
+                </div>
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((r) => (
+                    <div key={r} className="flex items-center gap-3">
+                      <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+                      <Skeleton className="h-3.5 flex-1" />
+                      <Skeleton className="h-3.5 w-16" />
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            ))}
+          </div>
       </div>
 
     </div>

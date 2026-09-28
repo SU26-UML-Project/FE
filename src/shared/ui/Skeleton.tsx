@@ -32,36 +32,21 @@ export function SkeletonText({
 }
 
 /**
- * Full-screen neutral skeleton shown while the auth/session gate resolves
- * (App bootstrap & ProtectedRoute). Mimics a generic app shell: top bar +
- * hero-like content, so the hand-off to the real page feels seamless.
+ * Full-screen neutral loader shown while the auth/session gate resolves
+ * (App bootstrap & ProtectedRoute).
+ *
+ * Cố tình KHÔNG mô phỏng hình dạng của một trang cụ thể. Bản trước vẽ lại
+ * "landing page" (thanh topbar giả + hero giả), nên mỗi lần load/F5 một trang
+ * cần đăng nhập, người dùng thấy như app vừa load MỘT TRANG KHÁC trong suốt
+ * thời gian chờ `/users/me`. Khi gate mở, chính trang hiện tại sẽ hiện skeleton
+ * của nó (dashboard/editor/... đều đã có skeleton riêng).
  */
 export function SkeletonSplash() {
   return (
-    <div aria-hidden className="flex h-screen flex-col bg-admin-bg">
-      {/* Fake top bar */}
-      <div className="flex h-16 shrink-0 items-center justify-between border-b border-admin-outline/50 bg-white px-6 lg:px-12">
-        <Skeleton className="h-7 w-40 rounded-lg" />
-        <div className="flex items-center gap-5">
-          <Skeleton className="hidden h-4 w-20 md:block" />
-          <Skeleton className="hidden h-4 w-20 md:block" />
-          <Skeleton className="h-4 w-16" />
-          <Skeleton className="h-9 w-28 rounded-lg" />
-        </div>
-      </div>
-      {/* Fake hero */}
-      <div className="mx-auto flex w-full max-w-6xl flex-1 items-center gap-10 px-6 py-12">
-        <div className="flex-1 space-y-4">
-          <Skeleton className="h-10 w-4/5 rounded-lg" />
-          <Skeleton className="h-10 w-3/5 rounded-lg" />
-          <SkeletonText lines={3} className="max-w-xl pt-3" />
-          <div className="flex gap-4 pt-4">
-            <Skeleton className="h-12 w-44 rounded-lg" />
-            <Skeleton className="h-12 w-44 rounded-lg" />
-          </div>
-        </div>
-        <Skeleton className="hidden h-72 flex-1 rounded-3xl lg:block" />
-      </div>
+    <div aria-hidden className="flex h-screen flex-col items-center justify-center gap-5 bg-admin-bg">
+      <span className="text-xl font-extrabold tracking-tight text-black">DiaUML Studio</span>
+      <Skeleton className="h-1.5 w-48 rounded-full" />
+      <span className="text-xs font-medium text-admin-secondary">Đang tải…</span>
     </div>
   );
 }

@@ -81,6 +81,17 @@ export function AIChat({
     const [view, setView] = useState<"chat" | "history">("chat");
     const [sidebarWidth, setSidebarWidth] = useState(360);
     const [isResizing, setIsResizing] = useState(false);
+    // Màn hẹp (< lg): cột AI 360px sẽ bị cắt → chuyển thành sheet toàn màn hình.
+    const [isMobile, setIsMobile] = useState(
+        () => typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches
+    );
+    useEffect(() => {
+        const mq = window.matchMedia("(max-width: 1023px)");
+        const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+        setIsMobile(mq.matches);
+        mq.addEventListener("change", onChange);
+        return () => mq.removeEventListener("change", onChange);
+    }, []);
     const [quota, setQuota] = useState<QuotaInfo | null>(null);
     const [contexts, setContexts] = useState<AttachedContext[]>([]);
 
@@ -353,7 +364,7 @@ export function AIChat({
             const files = workspaceItems.filter(candidate => descendants.has(candidate.id) && candidate.kind !== 'folder').slice(0, 10);
             files.forEach(addWorkspaceContext);
             if (!files.length) toast.error('Folder này chưa có file để AI đọc');
-            if (workspaceItems.filter(candidate => descendants.has(candidate.id) && candidate.kind !== 'folder').length > 10) toast('Chỉ thêm 10 file đầu tiên để tránh vượt context');
+            if (workspaceItems.filter(candidate => descendants.has(candidate.id) && candidate.kind !== 'folder').length > 10) toast.success('Chỉ thêm 10 file đầu tiên để tránh vượt context');
             return;
         }
         const context: AttachedContext = item.kind === 'markdown'
@@ -437,6 +448,15 @@ export function AIChat({
 
     /* ---------- collapsed rail ---------- */
     if (!open) {
+        // Mobile: nút nổi (FAB) thay cho rail 48px — đỡ chiếm chỗ của canvas.
+        if (isMobile) {
+            return (
+                <button onClick={onToggle} title="Mở AI Assistant" aria-label="Mở AI Assistant"
+                        className="fixed bottom-5 right-5 z-[130] flex h-12 w-12 items-center justify-center rounded-full bg-admin-primary text-white shadow-[0_10px_28px_rgba(0,74,198,0.38)] transition-transform active:scale-95">
+                    <Sparkle size={18} />
+                </button>
+            );
+        }
         return (
             <button onClick={onToggle} title="Open AI assistant"
                     className="flex w-12 shrink-0 flex-col items-center gap-3 border-l border-admin-outline/30 bg-admin-bg/50 py-3 text-admin-secondary transition-colors hover:bg-admin-bg hover:text-admin-primary">
@@ -451,14 +471,20 @@ export function AIChat({
     /* ---------- expanded sidebar ---------- */
     return (
         <aside
-            className={`relative flex shrink-0 flex-col border-l border-admin-outline/30 bg-white ${isResizing ? "" : "transition-all"} ${open ? "translate-x-0" : "translate-x-full"}`}
-            style={{ width: open ? sidebarWidth : 0, minWidth: open ? 280 : 0 }}
+            className={
+                isMobile
+                    ? "fixed inset-0 z-[150] flex flex-col bg-white"
+                    : `relative flex shrink-0 flex-col border-l border-admin-outline/30 bg-white ${isResizing ? "" : "transition-all"} ${open ? "translate-x-0" : "translate-x-full"}`
+            }
+            style={isMobile ? undefined : { width: open ? sidebarWidth : 0, minWidth: open ? 280 : 0 }}
         >
-            {/* Resize handle */}
-            <div
-                onMouseDown={() => setIsResizing(true)}
-                className={`absolute left-0 top-0 z-50 h-full w-1.5 cursor-col-resize transition-colors hover:bg-admin-primary/30 active:bg-admin-primary/50 ${isResizing ? "bg-admin-primary/40" : ""}`}
-            />
+            {/* Resize handle — chỉ dùng trên desktop (mobile là sheet toàn màn hình) */}
+            {!isMobile && (
+                <div
+                    onMouseDown={() => setIsResizing(true)}
+                    className={`absolute left-0 top-0 z-50 h-full w-1.5 cursor-col-resize transition-colors hover:bg-admin-primary/30 active:bg-admin-primary/50 ${isResizing ? "bg-admin-primary/40" : ""}`}
+                />
+            )}
 
             {/* Header */}
             <div className="flex h-14 items-center justify-between border-b border-admin-outline/30 px-4 shrink-0">
@@ -475,7 +501,7 @@ export function AIChat({
                     >
                         {view === "chat" ? "History" : "Back to Chat"}
                     </button>
-                    <button onClick={onToggle} className="rounded-md p-1.5 text-admin-secondary/50 hover:bg-admin-bg hover:text-admin-primary">
+                    <button onClick={onToggle} aria-label="Đóng AI Assistant" className="rounded-md p-2 text-admin-secondary/60 transition-colors hover:bg-admin-bg hover:text-admin-primary md:p-1.5">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
                     </button>
                 </div>

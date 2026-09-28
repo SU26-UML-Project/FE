@@ -12,6 +12,8 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: 'login' | 'register';
+  /** Trang cần quay lại sau khi đăng nhập (ProtectedRoute đá sang /?openLogin=true kèm state.from). */
+  redirectTo?: string;
 }
 
 // OTP lifetime in seconds (must match backend: 1 phút 30 giây)
@@ -20,7 +22,7 @@ const OTP_TTL_SECONDS = 90;
 type Mode = 'login' | 'register' | 'forgot';
 type ForgotStep = 'email' | 'otp' | 'reset';
 
-const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'login' }) => {
+const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'login', redirectTo }) => {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
@@ -122,9 +124,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
 
         onClose();
 
-        // Redirect based on role
+        // Redirect based on role (hoặc quay lại trang vừa bị chặn nếu có)
         const userRole = (typeof user.role === 'string' ? user.role : user.role?.roleName || '').toUpperCase();
-        if (userRole === 'ADMIN') {
+        if (redirectTo) {
+          navigate(redirectTo, { replace: true });
+        } else if (userRole === 'ADMIN') {
           navigate('/admin');
         } else {
           navigate('/dashboard');

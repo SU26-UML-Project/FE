@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Plus,
@@ -54,6 +54,11 @@ interface PrebuiltMeta {
     coverImage?: string;
     tags: string[];
 }
+
+// Skeleton danh sách dự án hiển thị tối thiểu bao lâu (ms) để không bị "nháy" khi API
+// trả về quá nhanh (lưu trữ/thùng rác rỗng) — trước đây skeleton chỉ hiện vài chục ms
+// nên gần như không thấy, tưởng là không có skeleton.
+const LIST_SKELETON_MIN_MS = 250;
 
 const formatRelativeTime = (iso: string): string => {
     const diff = Date.now() - new Date(iso).getTime()
@@ -111,6 +116,7 @@ const UserDashboard: React.FC = () => {
     const [wsTotalPages, setWsTotalPages] = useState(1);
     const PROJECT_PAGE_SIZE = 12;
     const [prebuilts, setPrebuilts] = useState<PrebuiltMeta[]>([]);
+    const [prebuiltsLoading, setPrebuiltsLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newWsName, setNewWsName] = useState('');
     const [newWsCategory, setNewWsCategory] = useState('general');
@@ -121,6 +127,12 @@ const UserDashboard: React.FC = () => {
     const [permDeleteTarget, setPermDeleteTarget] = useState<Workspace | null>(null);
     const [permDeleteInput, setPermDeleteInput] = useState('');
     const [showEmptyTrashConfirm, setShowEmptyTrashConfirm] = useState(false);
+    // Tab hiện đang giữ dữ liệu trong `workspaces`. Nhờ nó, skeleton hiện NGAY khi bấm
+    // đổi tab, không phải chờ effect kịp bật `workspacesLoading` (trước đây có 1 khung
+    // hình hiển thị nhầm danh sách của tab cũ).
+    const [loadedTab, setLoadedTab] = useState<string | null>(null);
+    // Số hiệu lượt tải danh sách dự án — bấm đổi tab liên tục thì chỉ lượt mới nhất được ghi state.
+    const fetchIdRef = useRef(0);
 
     useEffect(() => { sessionStorage.setItem('dashboard_tab', activeTab); }, [activeTab]);
     useEffect(() => { sessionStorage.setItem('dashboard_templateKind', templateKind); }, [templateKind]);
@@ -147,12 +159,20 @@ const UserDashboard: React.FC = () => {
     }, [filterGroup, templates]);
 
     useEffect(() => {
-        if (activeTab === 'all' || activeTab === 'archived' || activeTab === 'trash') {
+        // 'shared' được tải cùng nguồn với 'all' (xem ghi chú trong fetchWorkspaces).
+        if (activeTab === 'all' || activeTab === 'shared' || activeTab === 'archived' || activeTab === 'trash') {
             fetchWorkspaces();
         }
     }, [activeTab]);
 
     const fetchWorkspaces = async () => {
+        // Ghi chú: tab "Được chia sẻ với tôi" hiện KHÔNG có API riêng ở BE
+        // (ProjectController chỉ có /projects, /projects/trash, /projects/archived, /projects/admin/*),
+        // nên tạm dùng chung nguồn danh sách dự án để tab vẫn có trạng thái tải + skeleton.
+        // Khi BE bổ sung endpoint shared, chỉ cần thêm nhánh if ở đây.
+        const tab = activeTab; // tab của lượt tải này (state có thể đổi khi await)
+        const requestId = ++fetchIdRef.current;
+        const startedAt = Date.now();
         setWorkspacesLoading(true);
         try {
             let response;
@@ -233,12 +253,22 @@ const UserDashboard: React.FC = () => {
                 })
             );
 
+            if (requestId !== fetchIdRef.current) return; // đã có lượt tải mới hơn → bỏ kết quả cũ
             setWorkspaces(projectWithSheets);
         } catch (error: any) {
-            toast.error(error.message || 'Không thể tải dự án');
-            setWorkspaces([]);
+            if (requestId === fetchIdRef.current) {
+                toast.error(error.message || 'Không thể tải dự án');
+                setWorkspaces([]);
+            }
         } finally {
+            if (requestId !== fetchIdRef.current) return;
+            // Giữ skeleton tối thiểu LIST_SKELETON_MIN_MS để lần chuyển tab nào cũng
+            // "thấy" được trạng thái đang tải, kể cả khi danh sách rỗng và API trả về tức thì.
+            const remaining = LIST_SKELETON_MIN_MS - (Date.now() - startedAt);
+            if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+            if (requestId !== fetchIdRef.current) return;
             setWorkspacesLoading(false);
+            setLoadedTab(tab);
         }
     };
 
@@ -374,6 +404,7 @@ const UserDashboard: React.FC = () => {
             .then(r => r.json())
             .then(setPrebuilts)
             .catch(() => setPrebuilts([]))
+            .finally(() => setPrebuiltsLoading(false))
     }, []);
 
     const handleCreateWorkspace = async () => {
@@ -409,6 +440,10 @@ const UserDashboard: React.FC = () => {
     }
 
     const isAllSelected = workspaces.length > 0 && selectedIds.size === workspaces.length;
+
+    // Skeleton của danh sách dự án: đang tải HOẶC tab hiện tại chưa có dữ liệu trong state.
+    // Nhờ vế thứ hai, vừa bấm Lưu trữ / Thùng rác / Được chia sẻ với tôi là skeleton hiện ngay.
+    const showWorkspaceSkeleton = workspacesLoading || loadedTab !== activeTab;
 
     const handleDeleteClick = () => {
         if (selectedIds.size === 0) return;
@@ -581,7 +616,7 @@ const UserDashboard: React.FC = () => {
                                         Workspace mới
                                     </button>
                                 )}
-                                {activeTab === 'trash' && workspaces.length > 0 && (
+                                {activeTab === 'trash' && !showWorkspaceSkeleton && workspaces.length > 0 && (
                                     <button
                                         onClick={() => setShowEmptyTrashConfirm(true)}
                                         className="px-4 py-2 bg-red-600 text-white font-bold rounded-md text-sm hover:bg-red-700 transition flex items-center gap-2"
@@ -638,15 +673,9 @@ const UserDashboard: React.FC = () => {
                         {/* Diagrams Display */}
                         {activeTab === 'templates' ? (
                             templatesLoading ? (
-                                <div aria-hidden className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-2">
-                                    {Array.from({ length: 6 }).map((_, i) => (
-                                        <div key={i} className="rounded-sm border border-admin-outline bg-white p-4">
-                                            <Skeleton className="mb-4 h-40 w-full rounded-lg" />
-                                            <Skeleton className="mb-2.5 h-4 w-3/4" />
-                                            <SkeletonText lines={2} />
-                                        </div>
-                                    ))}
-                                </div>
+                                /* Mẫu (Thư viện UML / Mẫu dựng sẵn) — skeleton theo viewMode:
+                                   grid = thẻ mẫu 300px (ảnh 176px + tên + mô tả), list = bảng 4 cột. */
+                                <TemplatesSkeleton viewMode={viewMode} />
                             ) : templates.length === 0 ? (
                                 <div className="text-center py-20">
                                     <Layers size={48} className="text-gray-200 mx-auto mb-4" />
@@ -654,15 +683,8 @@ const UserDashboard: React.FC = () => {
                                     <p className="text-sm text-gray-300">Các mẫu đang được chuẩn bị.</p>
                                 </div>
                             ) : filterLoading ? (
-                                <div aria-hidden className="space-y-2.5 rounded-sm border border-admin-outline bg-white p-4">
-                                    {Array.from({ length: 6 }).map((_, i) => (
-                                        <div key={i} className="flex items-center gap-4">
-                                            <Skeleton className="h-9 w-9 shrink-0 rounded-lg" />
-                                            <Skeleton className="h-3.5 flex-1" />
-                                            <Skeleton className="h-3.5 w-20" />
-                                        </div>
-                                    ))}
-                                </div>
+                                /* Đang lọc theo nhóm (debounce 400ms) → giữ đúng dạng đang xem */
+                                <TemplatesSkeleton viewMode={viewMode} />
                             ) : (
                                 <AnimatePresence mode="wait">
                                     <motion.div
@@ -714,7 +736,11 @@ const UserDashboard: React.FC = () => {
                                     <div className="flex items-center justify-between mb-4">
                                         <h2 className="text-lg font-bold text-black">
                                             Workspace của tôi
-                                            <span className="ml-2 text-sm font-normal text-gray-400">({workspaces.length})</span>
+                                            <span className="ml-2 text-sm font-normal text-gray-400">
+                                                {showWorkspaceSkeleton
+                                                    ? <Skeleton className="inline-block h-3.5 w-6 align-middle" />
+                                                    : `(${workspaces.length})`}
+                                            </span>
                                         </h2>
                                         <div className="flex items-center">
                                             <AnimatePresence mode="popLayout">
@@ -802,7 +828,7 @@ const UserDashboard: React.FC = () => {
                                                         </button>
                                                     </motion.div>
                                                 ) : (
-                                                    workspaces.length > 0 && (
+                                                    !showWorkspaceSkeleton && workspaces.length > 0 && (
                                                         <button
                                                             onClick={() => setSelectionMode(true)}
                                                             className="flex h-9 items-center gap-1.5 rounded-xl border border-admin-outline/60 bg-white px-3 text-[12px] font-bold text-admin-secondary transition-all hover:border-uml-blue hover:bg-blue-50/50 hover:text-uml-blue shadow-sm cursor-pointer"
@@ -816,10 +842,17 @@ const UserDashboard: React.FC = () => {
                                             </AnimatePresence>
                                         </div>
                                     </div>
-                                    {workspacesLoading ? (
-                                        <div className="flex items-center justify-center py-20 bg-white border border-admin-outline rounded-sm">
-                                            <div className="w-8 h-8 border-2 border-uml-blue border-t-transparent rounded-full animate-spin" />
-                                        </div>
+                                    {showWorkspaceSkeleton ? (
+                                        /* Skeleton bám đúng dạng đang hiển thị: card (grid) hoặc bảng (list);
+                                           thùng rác có thêm nút Khôi phục / Xóa vĩnh viễn. */
+                                        viewMode === 'grid' ? (
+                                            <WorkspaceGridSkeleton variant={activeTab === 'trash' ? 'trash' : 'default'} />
+                                        ) : (
+                                            <WorkspaceTableSkeleton
+                                                variant={activeTab === 'trash' ? 'trash' : 'default'}
+                                                lastColumnLabel={activeTab === 'trash' ? 'Hành động' : 'Diagrams'}
+                                            />
+                                        )
                                     ) : workspaces.length === 0 ? (
                                         <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
                                             {activeTab === 'trash' ? (
@@ -833,6 +866,12 @@ const UserDashboard: React.FC = () => {
                                                     <Layers size={48} className="text-gray-200 mx-auto mb-3" />
                                                     <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có dự án lưu trữ</h3>
                                                     <p className="text-sm text-gray-300">Các dự án được lưu trữ sẽ xuất hiện tại đây.</p>
+                                                </>
+                                            ) : activeTab === 'shared' ? (
+                                                <>
+                                                    <Users size={48} className="text-gray-200 mx-auto mb-3" />
+                                                    <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có dự án nào được chia sẻ</h3>
+                                                    <p className="text-sm text-gray-300">Khi người dùng khác chia sẻ dự án với bạn, nó sẽ xuất hiện tại đây.</p>
                                                 </>
                                             ) : (
                                                 <>
@@ -892,7 +931,7 @@ const UserDashboard: React.FC = () => {
                                             </table>
                                         </div>
                                     )}
-                                    {!workspacesLoading && workspaces.length > 0 && (
+                                    {!showWorkspaceSkeleton && workspaces.length > 0 && (
                                         <Pagination page={wsPage} totalPages={wsTotalPages} onChange={setWsPage} />
                                     )}
                                 </section>
@@ -902,10 +941,17 @@ const UserDashboard: React.FC = () => {
                                     <div className="flex items-center justify-between mb-4">
                                         <h2 className="text-lg font-bold text-black">
                                             Dự án dựng sẵn
-                                            <span className="ml-2 text-sm font-normal text-gray-400">({prebuilts.length})</span>
+                                            <span className="ml-2 text-sm font-normal text-gray-400">
+                                                {prebuiltsLoading
+                                                    ? <Skeleton className="inline-block h-3.5 w-6 align-middle" />
+                                                    : `(${prebuilts.length})`}
+                                            </span>
                                         </h2>
                                     </div>
-                                    {prebuilts.length === 0 ? (
+                                    {prebuiltsLoading ? (
+                                        /* Đọc /prebuilts/index.json (tĩnh) → trước đây nháy "Chưa có dự án dựng sẵn" */
+                                        <PrebuiltGridSkeleton />
+                                    ) : prebuilts.length === 0 ? (
                                         <div className="text-center py-12 bg-white border border-admin-outline rounded-sm">
                                             <Copy size={48} className="text-gray-200 mx-auto mb-3" />
                                             <h3 className="text-lg font-bold text-gray-400 mb-1">Chưa có dự án dựng sẵn</h3>
@@ -1430,6 +1476,186 @@ const PrebuiltCard = ({ meta }: { meta: PrebuiltMeta }) => {
         </motion.div>
     )
 }
+
+/* ------------------------------------------------------------------ *
+ * Skeleton theo từng mục ở sidebar                                    *
+ * Mỗi skeleton bám đúng kích thước/thành phần của item thật để khi dữ  *
+ * liệu về không bị "nhảy" layout. Những mục có cùng dạng nội dung     *
+ * (Tất cả dự án / Được chia sẻ / Lưu trữ / Thùng rác) dùng chung một  *
+ * skeleton, nhưng khác dạng thì khác shape (card ≠ bảng ≠ mẫu).       *
+ * ------------------------------------------------------------------ */
+
+/* --- Workspace: card (grid) — khớp UserWorkspaceCard (h-260, ảnh h-36, p-5) --- */
+const WorkspaceCardSkeleton = ({ variant = 'default' }: { variant?: 'default' | 'trash' }) => (
+    <div aria-hidden className="bg-white border border-admin-outline rounded flex flex-col h-[260px] overflow-hidden">
+        <div className="h-36 bg-gradient-to-br from-gray-50 to-blue-50 border-b border-admin-outline p-3 flex items-start justify-end gap-1.5">
+            <Skeleton className="h-6 w-20 rounded-[4px]" />
+            <Skeleton className="h-6 w-16 rounded" />
+        </div>
+        <div className="p-5 flex-1 flex flex-col justify-between">
+            <div className="space-y-2.5">
+                <Skeleton className="h-5 w-2/3" />
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <Skeleton className="h-4 w-14 rounded" />
+                    <Skeleton className="h-3.5 w-28" />
+                </div>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1">
+                    <Skeleton className="h-3 w-3 rounded-full" />
+                    <Skeleton className="h-3 w-28" />
+                </div>
+                {variant === 'trash' && (
+                    <div className="flex items-center gap-1 shrink-0">
+                        <Skeleton className="h-6 w-16 rounded" />
+                        <Skeleton className="h-6 w-24 rounded" />
+                    </div>
+                )}
+            </div>
+        </div>
+    </div>
+)
+
+const WorkspaceGridSkeleton = ({ variant = 'default', count = 6 }: { variant?: 'default' | 'trash'; count?: number }) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {Array.from({ length: count }).map((_, i) => <WorkspaceCardSkeleton key={i} variant={variant} />)}
+    </div>
+)
+
+/* --- Workspace: bảng (list) — khớp WorkspaceListRow (4 cột) --- */
+const WorkspaceTableSkeleton = ({
+    variant = 'default',
+    rows = 6,
+    lastColumnLabel = 'Diagrams',
+}: {
+    variant?: 'default' | 'trash'
+    rows?: number
+    lastColumnLabel?: string
+}) => (
+    <div aria-hidden className="bg-white border border-admin-outline rounded-sm overflow-hidden">
+        <table className="w-full text-left border-collapse">
+            <thead>
+            <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
+                <th className="py-4 px-6">Tên Workspace</th>
+                <th className="py-4 px-6">Danh mục</th>
+                <th className="py-4 px-6">Chỉnh sửa lần cuối</th>
+                <th className="py-4 px-6 text-right">{lastColumnLabel}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {Array.from({ length: rows }).map((_, i) => (
+                <tr key={i} className="border-b border-admin-outline">
+                    <td className="py-4 px-6">
+                        <div className="flex items-center gap-4">
+                            <Skeleton className="h-10 w-10 shrink-0 rounded" />
+                            <Skeleton className="h-4 w-44" />
+                        </div>
+                    </td>
+                    <td className="py-4 px-6"><Skeleton className="h-3.5 w-20" /></td>
+                    <td className="py-4 px-6"><Skeleton className="h-3.5 w-28" /></td>
+                    <td className="py-4 px-6">
+                        <div className="flex items-center justify-end gap-1">
+                            {variant === 'trash' ? (
+                                <>
+                                    <Skeleton className="h-6 w-16 rounded" />
+                                    <Skeleton className="h-6 w-24 rounded" />
+                                </>
+                            ) : (
+                                <Skeleton className="h-3.5 w-8" />
+                            )}
+                        </div>
+                    </td>
+                </tr>
+            ))}
+            </tbody>
+        </table>
+    </div>
+)
+
+/* --- Mẫu: thẻ (grid) — khớp TemplateGridCard (h-300, ảnh h-44, p-5) --- */
+const TemplateCardSkeleton = () => (
+    <div aria-hidden className="bg-white border border-admin-outline rounded flex flex-col h-[300px] overflow-hidden">
+        <div className="h-44 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-admin-outline p-3 flex items-start justify-end">
+            <Skeleton className="h-6 w-16 rounded-[4px]" />
+        </div>
+        <div className="p-5 flex-1 flex flex-col justify-between">
+            <div className="space-y-2">
+                <Skeleton className="h-5 w-3/4" />
+                <SkeletonText lines={2} />
+            </div>
+            <Skeleton className="h-3 w-28" />
+        </div>
+    </div>
+)
+
+/* --- Mẫu: bảng (list) — khớp TemplateListRow (Tên mẫu · Loại · Danh mục · Nodes) --- */
+const TemplateTableSkeleton = ({ rows = 6 }: { rows?: number }) => (
+    <div aria-hidden className="bg-white border border-admin-outline rounded-sm overflow-hidden">
+        <table className="w-full text-left border-collapse">
+            <thead>
+            <tr className="border-b border-admin-outline bg-gray-50/30 text-[11px] uppercase tracking-wider text-admin-secondary font-bold">
+                <th className="py-4 px-6">Tên mẫu</th>
+                <th className="py-4 px-6">Loại</th>
+                <th className="py-4 px-6">Danh mục</th>
+                <th className="py-4 px-6 text-right">Nodes</th>
+            </tr>
+            </thead>
+            <tbody>
+            {Array.from({ length: rows }).map((_, i) => (
+                <tr key={i} className="border-b border-admin-outline">
+                    <td className="py-4 px-6">
+                        <div className="flex items-center gap-4">
+                            <Skeleton className="h-10 w-10 shrink-0 rounded" />
+                            <div className="space-y-1.5">
+                                <Skeleton className="h-4 w-40" />
+                                <Skeleton className="h-3 w-56" />
+                            </div>
+                        </div>
+                    </td>
+                    <td className="py-4 px-6"><Skeleton className="h-5 w-16 rounded-[4px]" /></td>
+                    <td className="py-4 px-6"><Skeleton className="h-3.5 w-24" /></td>
+                    <td className="py-4 px-6">
+                        <div className="flex items-center justify-end"><Skeleton className="h-3.5 w-8" /></div>
+                    </td>
+                </tr>
+            ))}
+            </tbody>
+        </table>
+    </div>
+)
+
+/* Thư viện UML + Mẫu dựng sẵn dùng cùng một list dữ liệu (khác nguồn) → chung skeleton theo viewMode */
+const TemplatesSkeleton = ({ viewMode, count = 6 }: { viewMode: 'grid' | 'list'; count?: number }) =>
+    viewMode === 'grid'
+        ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-2">
+                {Array.from({ length: count }).map((_, i) => <TemplateCardSkeleton key={i} />)}
+            </div>
+        )
+        : <TemplateTableSkeleton rows={count} />
+
+/* --- Dự án dựng sẵn: khớp PrebuiltCard (h-260, ảnh h-36, badge difficulty) --- */
+const PrebuiltCardSkeleton = () => (
+    <div aria-hidden className="bg-white border border-admin-outline rounded flex flex-col h-[260px] overflow-hidden">
+        <div className="h-36 bg-gradient-to-br from-slate-50 to-slate-100 border-b border-admin-outline p-3 flex items-start justify-between">
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="h-6 w-20 rounded-[4px]" />
+        </div>
+        <div className="p-5 flex-1 flex flex-col justify-between">
+            <div className="space-y-2">
+                <Skeleton className="h-5 w-2/3" />
+                <SkeletonText lines={2} />
+            </div>
+            <Skeleton className="h-3 w-20" />
+        </div>
+    </div>
+)
+
+const PrebuiltGridSkeleton = ({ count = 3 }: { count?: number }) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {Array.from({ length: count }).map((_, i) => <PrebuiltCardSkeleton key={i} />)}
+    </div>
+)
 
 {/* Create Workspace Modal */}
 const CreateWorkspaceModal = ({

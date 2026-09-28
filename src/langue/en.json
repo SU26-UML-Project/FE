@@ -87,6 +87,7 @@
     "shortcuts": "Keyboard shortcuts (?)",
     "historyTitle": "Version history — browse & restore previous snapshots",
     "history": "History",
+    "more": "More options",
     "undo": "Undo (Ctrl+Z)",
     "redo": "Redo (Ctrl+Shift+Z)",
     "zoomOut": "Zoom out",

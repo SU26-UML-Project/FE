@@ -217,21 +217,19 @@ export default function Projects() {
     <div className="flex h-full flex-col gap-5 overflow-hidden">
       {loading ? (
         <div className="animate-pulse space-y-5">
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Card key={i} className="p-4">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="mt-2 h-6 w-16" />
-              </Card>
-            ))}
-          </div>
+          {/* 1 stat card "Tổng dự án" (khớp StatCard: label + value) */}
+          <Card className="p-4">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="mt-2 h-6 w-16" />
+          </Card>
+          {/* Card danh sách: tiêu đề + segmented (grid/table) + hàng theo chủ sở hữu */}
           <Card className="p-5">
             <div className="mb-4 flex items-center justify-between">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-9 w-32 rounded-lg" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-9 w-20 rounded-lg" />
             </div>
             <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
+              {[1, 2, 3, 4].map((i) => (
                 <Skeleton key={i} className="h-12 w-full rounded-xl" />
               ))}
             </div>
