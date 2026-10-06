@@ -49,7 +49,6 @@ export interface PlanRequest {
   price: number; // bắt buộc, >= 0
   description?: string;
   currency?: string;
-  status?: PlanStatus;
   popular?: boolean;
   color?: string;
   yearlyBilling?: boolean;
@@ -81,11 +80,15 @@ export const planService = {
   createPlan: (body: PlanRequest) =>
     apiClient.post<any, ApiResponse<PlanResponse>>("/admin/plans", body).then((r) => r.result),
 
-  /** Full update — name + price bắt buộc. limits/features chỉ đổi khi có mặt trong body. */
+  /** Metadata update only — status phải đổi qua changePlanStatus. limits/features chỉ đổi khi có mặt trong body. */
   updatePlan: (id: string, body: PlanRequest) =>
     apiClient.put<any, ApiResponse<PlanResponse>>(`/admin/plans/${id}`, body).then((r) => r.result),
 
-  /** Chặn (code 2114) nếu còn subscriber ACTIVE. */
+  /** Đổi vòng đời gói qua endpoint status riêng — không gửi status trong PlanRequest. */
+  changePlanStatus: (id: string, status: PlanStatus) =>
+    apiClient.put<any, ApiResponse<PlanResponse>>(`/admin/plans/${id}/status`, { status }).then((r) => r.result),
+
+  /** BE từ chối hard-delete nếu plan từng có subscription ở bất kỳ trạng thái nào. */
   deletePlan: (id: string) =>
     apiClient.delete<any, ApiResponse<void>>(`/admin/plans/${id}`).then((r) => r.result),
 

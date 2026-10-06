@@ -20,9 +20,17 @@ const statusLabel: Record<PlanStatus, { tone: "emerald" | "amber" | "slate"; lab
   ARCHIVED: { tone: "slate", label: "Đã lưu trữ" },
 };
 
+const statusTransitions: Record<PlanStatus, PlanStatus[]> = {
+  ACTIVE: ["ARCHIVED"],
+  DRAFT: ["ACTIVE", "ARCHIVED"],
+  ARCHIVED: ["ACTIVE"],
+};
+
+const statusOptions = (current: PlanStatus) => [current, ...statusTransitions[current]];
+
 const accentColors = ["#e4a11b", "#0ea5e9", "#10b981", "#6366f1", "#ec4899", "#0f172a", "#8b5cf6", "#14b8a6"];
 
-type Draft = { id: string; mode: "create" | "edit"; name: string; description: string; price: number; contactOnly: boolean; currency: string; durationDays: number; yearlyBilling: boolean; yearlyDiscount: number; status: PlanStatus; popular: boolean; subscribers: number; color: string; features: Record<string, boolean>; limits: PlanLimits; rateLimitPer10s: number | null; rateLimitPerMin: number | null; isBasePlan: boolean; billingCycle: PlanBillingCycle; quotaPeriodDays: number | null; };
+type Draft = { id: string; mode: "create" | "edit"; name: string; description: string; price: number; contactOnly: boolean; currency: string; durationDays: number; yearlyBilling: boolean; yearlyDiscount: number; status: PlanStatus; originalStatus: PlanStatus; popular: boolean; subscribers: number; color: string; features: Record<string, boolean>; limits: PlanLimits; rateLimitPer10s: number | null; rateLimitPerMin: number | null; isBasePlan: boolean; billingCycle: PlanBillingCycle; quotaPeriodDays: number | null; };
 type Billing = "monthly" | "yearly";
 
 const fmtVnd = (n: number) => new Intl.NumberFormat("vi-VN").format(n);
@@ -114,7 +122,7 @@ function PlanCard({ plan, billing, onEdit, onDelete, onStatusChange }: { plan: S
           </button>
           {open && (
             <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-              {(Object.keys(statusLabel) as PlanStatus[]).map((s) => (
+              {statusOptions(plan.status).map((s) => (
                 <button key={s} onClick={() => { onStatusChange(s); setOpen(false); }} className={cn("flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] transition", s === plan.status ? "bg-slate-100 font-medium text-slate-900" : "text-slate-600 hover:bg-slate-50")}>
                   <span className={cn("h-2 w-2 rounded-full", s === "ACTIVE" ? "bg-emerald-500" : s === "DRAFT" ? "bg-amber-500" : "bg-slate-400")} />
                   {statusLabel[s].label}
@@ -192,7 +200,7 @@ function PlanRow({ plan, billing, onEdit, onDelete, onStatusChange }: { plan: Su
       </button>
       {open && (
         <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-          {(Object.keys(statusLabel) as PlanStatus[]).map((s) => (
+          {statusOptions(plan.status).map((s) => (
             <button key={s} onClick={() => { onStatusChange(s); setOpen(false); }} className={cn("flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] transition", s === plan.status ? "bg-slate-100 font-medium text-slate-900" : "text-slate-600 hover:bg-slate-50")}>
               <span className={cn("h-2 w-2 rounded-full", s === "ACTIVE" ? "bg-emerald-500" : s === "DRAFT" ? "bg-amber-500" : "bg-slate-400")} />
               {statusLabel[s].label}
@@ -242,11 +250,12 @@ function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChang
           <label className="block"><span className="mb-1 block text-[12.5px] font-medium text-slate-700">Tên gói</span><input value={draft.name} onChange={(e) => set({ name: e.target.value })} placeholder="VD: Pro" className={inputCls} /></label>
           <label className="block"><span className="mb-1 block text-[12.5px] font-medium text-slate-700">Trạng thái</span>
             <div className="relative">
-              <select value={draft.status} onChange={(e) => set({ status: e.target.value as PlanStatus })} className={cn(inputCls, "appearance-none pr-9")}>
-                <option value="ACTIVE">Đang hoạt động</option><option value="DRAFT">Bản nháp</option><option value="ARCHIVED">Đã lưu trữ</option>
+              <select value={draft.status} disabled={draft.mode === "create"} onChange={(e) => set({ status: e.target.value as PlanStatus })} className={cn(inputCls, "appearance-none pr-9", draft.mode === "create" && "cursor-not-allowed opacity-70")}>
+                {statusOptions(draft.originalStatus).map((status) => <option key={status} value={status}>{statusLabel[status].label}</option>)}
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             </div>
+            <p className="mt-1 text-[11px] text-slate-400">{draft.mode === "create" ? "Gói mới luôn được tạo ở trạng thái Bản nháp; có thể kích hoạt sau khi tạo." : "Đổi trạng thái sẽ được gửi qua endpoint vòng đời riêng khi lưu."}</p>
           </label>
         </div>
         <label className="mt-2.5 block"><span className="mb-1 block text-[12.5px] font-medium text-slate-700">Mô tả</span><textarea value={draft.description} onChange={(e) => set({ description: e.target.value })} rows={2} placeholder="Mô tả ngắn về gói…" className={cn(inputCls, "resize-none")} /></label>
@@ -482,13 +491,13 @@ function PlanEditor({ draft, setDraft, catalog, onSave, onClose, tab, onTabChang
 function toDraft(plan: SubscriptionPlan): Draft {
   const features: Record<string, boolean> = {};
   plan.features.forEach((f) => (features[f.id] = f.included));
-  return { id: plan.id, mode: "edit", name: plan.name, description: plan.description, price: plan.price, contactOnly: plan.contactOnly, currency: plan.currency, durationDays: plan.durationDays, yearlyBilling: plan.yearlyBilling, yearlyDiscount: plan.yearlyDiscount, status: plan.status, popular: plan.popular, subscribers: plan.subscribers, color: plan.color, features, limits: { ...plan.limits }, rateLimitPer10s: plan.rateLimitPer10s, rateLimitPerMin: plan.rateLimitPerMin, isBasePlan: plan.isBasePlan, billingCycle: plan.billingCycle, quotaPeriodDays: plan.quotaPeriodDays };
+  return { id: plan.id, mode: "edit", name: plan.name, description: plan.description, price: plan.price, contactOnly: plan.contactOnly, currency: plan.currency, durationDays: plan.durationDays, yearlyBilling: plan.yearlyBilling, yearlyDiscount: plan.yearlyDiscount, status: plan.status, originalStatus: plan.status, popular: plan.popular, subscribers: plan.subscribers, color: plan.color, features, limits: { ...plan.limits }, rateLimitPer10s: plan.rateLimitPer10s, rateLimitPerMin: plan.rateLimitPerMin, isBasePlan: plan.isBasePlan, billingCycle: plan.billingCycle, quotaPeriodDays: plan.quotaPeriodDays };
 }
 
 function blankDraft(catalog: FeatureCatalogItem[]): Draft {
   const features: Record<string, boolean> = {};
   catalog.forEach((f) => (features[f.id] = false));
-  return { id: "", mode: "create", name: "", description: "", price: 0, contactOnly: false, currency: "VND", durationDays: 30, yearlyBilling: false, yearlyDiscount: 20, status: "DRAFT", popular: false, subscribers: 0, color: accentColors[0], features, limits: { projects: 5, diagrams: 50, aiQueries: 100, exportPdf: 10, collaborators: 1 }, rateLimitPer10s: null, rateLimitPerMin: null, isBasePlan: false, billingCycle: "MONTHLY", quotaPeriodDays: 30 };
+  return { id: "", mode: "create", name: "", description: "", price: 0, contactOnly: false, currency: "VND", durationDays: 30, yearlyBilling: false, yearlyDiscount: 20, status: "DRAFT", originalStatus: "DRAFT", popular: false, subscribers: 0, color: accentColors[0], features, limits: { projects: 5, diagrams: 50, aiQueries: 100, exportPdf: 10, collaborators: 1 }, rateLimitPer10s: null, rateLimitPerMin: null, isBasePlan: false, billingCycle: "MONTHLY", quotaPeriodDays: 30 };
 }
 
 function fromApi(be: PlanResponse): SubscriptionPlan {
@@ -529,7 +538,6 @@ function draftToRequest(d: Draft): PlanRequest {
     price: d.price,
     description: d.description.trim(),
     currency: "VND",
-    status: d.status,
     popular: d.popular,
     color: d.color,
     contactSales: d.contactOnly,
@@ -543,30 +551,6 @@ function draftToRequest(d: Draft): PlanRequest {
     quotaPeriodDays: d.quotaPeriodDays,
     limits: d.limits,
     enabledFeatureIds: Object.entries(d.features).filter(([, on]) => on).map(([id]) => id),
-  };
-}
-
-function planToRequest(p: SubscriptionPlan, patch?: Partial<PlanRequest>): PlanRequest {
-  return {
-    name: p.name,
-    price: p.price,
-    description: p.description,
-    currency: p.currency,
-    status: p.status,
-    popular: p.popular,
-    color: p.color,
-    contactSales: p.contactOnly,
-    yearlyBilling: p.yearlyBilling,
-    yearlyDiscount: p.yearlyDiscount,
-    durationDays: p.durationDays,
-    rateLimitPer10s: p.rateLimitPer10s,
-    rateLimitPerMin: p.rateLimitPerMin,
-    isBasePlan: p.isBasePlan,
-    billingCycle: p.billingCycle,
-    quotaPeriodDays: p.quotaPeriodDays,
-    limits: p.limits,
-    enabledFeatureIds: p.features.filter((f) => f.included).map((f) => f.id),
-    ...patch,
   };
 }
 
@@ -607,18 +591,33 @@ export default function SubscriptionsSection() {
   async function save() {
     if (!draft) return;
     const body = draftToRequest(draft);
+    let metadataSaved = false;
     try {
       if (draft.mode === "edit") {
         await planService.updatePlan(draft.id, body);
-        toast.success("Đã lưu gói");
+        metadataSaved = true;
+        if (draft.status !== draft.originalStatus) {
+          await planService.changePlanStatus(draft.id, draft.status);
+        }
       } else {
         await planService.createPlan(body);
-        toast.success("Đã tạo gói");
       }
+    } catch (e) {
+      if (metadataSaved && draft.mode === "edit" && draft.status !== draft.originalStatus) {
+        await reload().catch(() => undefined);
+        toast.error(`Thông tin gói đã lưu nhưng đổi trạng thái thất bại: ${getErrorMessage(e, "Đổi trạng thái thất bại")}`);
+      } else {
+        toast.error(getErrorMessage(e, "Lưu gói thất bại"));
+      }
+      return;
+    }
+
+    try {
       await reload();
       setDraft(null);
+      toast.success(draft.mode === "edit" ? "Đã lưu gói" : "Đã tạo gói");
     } catch (e) {
-      toast.error(getErrorMessage(e, "Lưu gói thất bại"));
+      toast.error(getErrorMessage(e, "Đã lưu gói nhưng không tải lại được danh sách"));
     }
   }
   async function doDelete() {
@@ -643,12 +642,13 @@ export default function SubscriptionsSection() {
   }
   async function changeStatus(planId: string, status: PlanStatus) {
     const plan = plans.find((p) => p.id === planId);
-    if (!plan) return;
+    if (!plan || plan.status === status) return;
     const prev = plan.status;
     setPlans((arr) => arr.map((p) => (p.id === planId ? { ...p, status } : p)));
     try {
-      const updated = await planService.updatePlan(planId, planToRequest(plan, { status }));
+      const updated = await planService.changePlanStatus(planId, status);
       setPlans((arr) => arr.map((p) => (p.id === planId ? fromApi(updated) : p)));
+      toast.success(`Đã cập nhật trạng thái gói: ${statusLabel[status].label}`);
     } catch (e) {
       setPlans((arr) => arr.map((p) => (p.id === planId ? { ...p, status: prev } : p)));
       toast.error(getErrorMessage(e, "Đổi trạng thái thất bại"));
